@@ -1,0 +1,49 @@
+.type {
+  font-family: var(--font-data);
+  font-size: 0.72rem;
+  letter-spacing: 0.02em;
+}
+
+.keyword {
+  color: var(--syntax-keyword);
+}
+
+.string {
+  color: var(--syntax-string);
+}
+
+.comment {
+  color: var(--syntax-comment);
+}
+
+.property {
+  color: var(--syntax-property);
+}
+
+.symbol {
+  color: var(--syntax-symbol);
+}
+
+.integer {
+  color: var(--syntax-integer);
+}
+
+.float {
+  color: var(--syntax-float);
+}
+
+.double {
+  color: var(--syntax-double);
+}
+
+.vector2 {
+  color: var(--syntax-vector2);
+}
+
+.vector3 {
+  color: var(--syntax-vector3);
+}
+
+.vector4 {
+  color: var(--syntax-vector4);
+}

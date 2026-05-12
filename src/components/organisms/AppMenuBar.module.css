@@ -1,0 +1,98 @@
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-4);
+  background: rgb(0 0 0 / 28%);
+  border: 1px solid var(--color-border-soft);
+  border-radius: 16px;
+}
+
+.brand {
+  color: var(--color-text-primary);
+  font-family: var(--font-data);
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+}
+
+.nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.menu {
+  position: relative;
+}
+
+.menu:hover .menuPanel,
+.menu:focus-within .menuPanel {
+  pointer-events: auto;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.menuButton {
+  padding: var(--space-2) var(--space-3);
+  color: var(--color-text-secondary);
+  font-family: var(--font-data);
+  font-size: 0.78rem;
+  background: rgb(255 255 255 / 4%);
+  border: 1px solid var(--color-border-soft);
+  border-radius: 10px;
+}
+
+.menuButton:hover {
+  color: var(--color-text-primary);
+}
+
+.menuPanel {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 20;
+  display: grid;
+  gap: 2px;
+  min-width: 200px;
+  padding: var(--space-2);
+  pointer-events: none;
+  background: rgb(19 19 19 / 94%);
+  border: 1px solid var(--color-border-soft);
+  border-radius: 12px;
+  box-shadow: 0 24px 52px rgb(0 0 0 / 52%);
+  opacity: 0;
+  transform: translateY(4px);
+  transition:
+    opacity 120ms ease-out,
+    transform 120ms ease-out;
+}
+
+.menuItem,
+.menuItemDanger {
+  padding: var(--space-2) var(--space-3);
+  color: var(--color-text-primary);
+  font-family: var(--font-ui);
+  font-size: 0.78rem;
+  text-align: left;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+}
+
+.menuItem:hover {
+  background: rgb(255 255 255 / 6%);
+}
+
+.menuItemDanger {
+  color: rgb(255 140 140);
+}
+
+.menuItemDanger:hover {
+  background: rgb(255 80 80 / 10%);
+}
+
+.hiddenInput {
+  display: none;
+}

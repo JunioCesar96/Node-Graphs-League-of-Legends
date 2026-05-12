@@ -1,0 +1,23 @@
+.button {
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  color: var(--color-text-secondary);
+  background: transparent;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-control);
+  transition:
+    border-color 160ms ease,
+    color 160ms ease,
+    background 160ms ease;
+}
+
+.button:hover {
+  color: var(--color-text-primary);
+  background: rgb(255 255 255 / 4%);
+  border-color: var(--port-child);
+}
+
+.button:focus-visible {
+  outline: 2px solid var(--port-child);
+  outline-offset: 2px;
+}

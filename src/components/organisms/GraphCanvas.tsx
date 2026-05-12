@@ -1,0 +1,1501 @@
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import type { CSSProperties, PointerEvent } from 'react'
+
+import { AddNodePalette } from '@/components/organisms/AddNodePalette'
+import { NodeCard } from '@/components/organisms/NodeCard'
+import type { CanvasConnection, CanvasNode, CanvasPosition, CanvasScene } from '@/core/canvasScene'
+import type { NodeEntityDefinition, NodeParameterDefinition, NodeSchemaDefinition } from '@/core/nodeSchema'
+
+import styles from './GraphCanvas.module.css'
+
+const CARD_WIDTH = 360
+const HEADER_HEIGHT = 56
+const BODY_PADDING = 20
+const SECTION_TITLE_HEIGHT = 16
+const SECTION_TITLE_GAP = 8
+const ITEM_HEIGHT = 44
+const ITEM_GAP = 8
+const SECTION_GAP = 20
+const PORT_OVERLAP = 6
+const RIGID_SEGMENT_LENGTH = 44
+const BUTTON_HEIGHT = 46
+const CANVAS_PADDING = 240
+const MIN_SCALE = 0.65
+const MAX_SCALE = 1.25
+const SCALE_STEP = 0.1
+const SNAP_GRID_PX = 24
+
+const DROP_TO_OPEN_LINK_PALETTE_PX = 12
+
+export type GraphCanvasHandle = {
+  focusSelectionIntoView(nodeIds: string[]): void
+  openPalette: () => void
+}
+
+type GraphCanvasProps = {
+  availableSchemas: NodeSchemaDefinition[]
+  canRedo: boolean
+  canUndo: boolean
+  paletteRequestSignal?: number
+  onCloseCodePanelShortcut?: () => void
+  onConnectNodes: (connection: CanvasConnection) => void
+  onCycleConnectionRouting?: (connectionId: string) => void
+  onCreateChildNode: (fromNodeId: string, entity: NodeEntityDefinition, position?: CanvasPosition) => void
+  onCreateRootNode: (schema: NodeSchemaDefinition) => void
+  onMarqueeCommit: (payload: { additive: boolean; nodeIds: string[] }) => void
+  onMoveNode: (
+    nodeId: string,
+    position: CanvasPosition,
+    modifiers: { axisLock: '' | 'x' | 'y'; snapGrid: boolean },
+  ) => void
+  onRedo: () => void
+  onRemoveConnection?: (connectionId: string) => void
+  onResetScene: () => void
+  entityCatalog?: NodeEntityDefinition[]
+  hints?: Record<string, string>
+  onCatalogEntityAppend?: (canvasNodeId: string, entity: NodeEntityDefinition) => void
+  onCatalogParameterAppend?: (canvasNodeId: string, definition: NodeParameterDefinition) => void
+  parameterCatalog?: NodeParameterDefinition[]
+  onSelectAllNodesShortcut?: () => void
+  onSelectNode: (nodeId: string, options?: { additive?: boolean }) => void
+  onUndo: () => void
+  scene: CanvasScene
+  selectedNodeIds: string[]
+  selectedNodeId: string
+}
+
+type ConnectionPath = {
+  d: string
+  id: string
+  routing?: 'flex' | 'rigid'
+}
+
+type CanvasStyle = CSSProperties & {
+  '--canvas-height': string
+  '--canvas-width': string
+}
+
+type PanPoint = {
+  x: number
+  y: number
+}
+
+type PanGesture = {
+  origin: PanPoint
+  pan: PanPoint
+  pointerId: number
+}
+
+type NodeDragGesture = {
+  axisConstraint: '' | 'horizontal' | 'pending' | 'vertical'
+  element: HTMLElement
+  nodeId: string
+  origin: PanPoint
+  pointerId: number
+  position: CanvasPosition
+  snapGrid: boolean
+}
+
+type PendingLink = {
+  draftAnchor: { sx: number; sy: number }
+  fromEntityId: string
+  fromNodeId: string
+  targetSchemaId: string
+}
+
+type OutputWireDragSession = {
+  entity: NodeEntityDefinition
+  fromNodeId: string
+  maxScreenDelta: number
+  originClientX: number
+  originClientY: number
+  pointerId: number
+}
+
+type GraphDropLinkContext = {
+  entity: NodeEntityDefinition
+  fromNodeId: string
+  position: CanvasPosition
+}
+
+type CanvasBounds = {
+  height: number
+  width: number
+}
+
+function isEditableTarget(target: EventTarget | null) {
+  if (!(target instanceof HTMLElement)) {
+    return false
+  }
+
+  return Boolean(target.closest('input, textarea, select, button, [contenteditable="true"]'))
+}
+
+function getParameterSectionHeight(node: CanvasNode) {
+  const itemCount = node.node.schema.parameters.length
+  const listHeight = itemCount * ITEM_HEIGHT + Math.max(0, itemCount - 1) * ITEM_GAP
+
+  return SECTION_TITLE_HEIGHT + SECTION_TITLE_GAP + listHeight
+}
+
+function getEntitySectionHeight(node: CanvasNode) {
+  const itemCount = node.node.schema.entities.length
+  const listHeight = itemCount * ITEM_HEIGHT + Math.max(0, itemCount - 1) * ITEM_GAP
+
+  return SECTION_TITLE_HEIGHT + SECTION_TITLE_GAP + listHeight
+}
+
+function getNodeCardHeight(node: CanvasNode) {
+  return (
+    HEADER_HEIGHT +
+    BODY_PADDING * 2 +
+    getParameterSectionHeight(node) +
+    SECTION_GAP +
+    getEntitySectionHeight(node) +
+    SECTION_GAP +
+    BUTTON_HEIGHT
+  )
+}
+
+function getCanvasBounds(scene: CanvasScene): CanvasBounds {
+  return scene.nodes.reduce(
+    (bounds, node) => ({
+      height: Math.max(bounds.height, node.position.y + getNodeCardHeight(node) + CANVAS_PADDING),
+      width: Math.max(bounds.width, node.position.x + CARD_WIDTH + RIGID_SEGMENT_LENGTH + CANVAS_PADDING),
+    }),
+    {
+      height: scene.height,
+      width: scene.width,
+    },
+  )
+}
+
+function getEntityPortY(node: CanvasNode, entityId: string) {
+  const entityIndex = node.node.schema.entities.findIndex((entity) => entity.id === entityId)
+  const safeIndex = Math.max(entityIndex, 0)
+
+  return (
+    node.position.y +
+    HEADER_HEIGHT +
+    BODY_PADDING +
+    getParameterSectionHeight(node) +
+    SECTION_GAP +
+    SECTION_TITLE_HEIGHT +
+    SECTION_TITLE_GAP +
+    safeIndex * (ITEM_HEIGHT + ITEM_GAP) +
+    ITEM_HEIGHT / 2
+  )
+}
+
+function createOrthoAnchoredConnectionPath(id: string, sx: number, sy: number, ix: number, iy: number): ConnectionPath {
+  const bendX = (sx + ix) / 2
+
+  return {
+    id,
+    routing: 'rigid',
+    d: [`M ${sx} ${sy}`, `L ${bendX} ${sy}`, `L ${bendX} ${iy}`, `L ${ix} ${iy}`].join(' '),
+  }
+}
+
+function createConnectionPath(connection: CanvasConnection, nodes: CanvasNode[]): ConnectionPath | null {
+  const fromNode = nodes.find((node) => node.id === connection.fromNodeId)
+  const toNode = nodes.find((node) => node.id === connection.toNodeId)
+
+  if (!fromNode || !toNode) {
+    return null
+  }
+
+  const startX = fromNode.position.x + CARD_WIDTH - PORT_OVERLAP
+  const startY = getEntityPortY(fromNode, connection.fromEntityId)
+  const exitX = fromNode.position.x + CARD_WIDTH + RIGID_SEGMENT_LENGTH
+  const endX = toNode.position.x + CARD_WIDTH / 2
+  const endY = toNode.position.y
+  const entryY = endY - RIGID_SEGMENT_LENGTH
+  const curveOffset = Math.max(96, Math.abs(endX - exitX) * 0.45)
+
+  if (connection.routing === 'rigid') {
+    const bendX = (startX + endX) / 2
+
+    return {
+      id: connection.id,
+      routing: 'rigid',
+      d: [`M ${startX} ${startY}`, `L ${bendX} ${startY}`, `L ${bendX} ${endY}`, `L ${endX} ${endY}`].join(
+        ' ',
+      ),
+    }
+  }
+
+  return {
+    id: connection.id,
+    routing: 'flex',
+    d: [
+      `M ${startX} ${startY}`,
+      `L ${exitX} ${startY}`,
+      `C ${exitX + curveOffset} ${startY}, ${endX} ${entryY + curveOffset}, ${endX} ${entryY}`,
+      `L ${endX} ${endY}`,
+    ].join(' '),
+  }
+}
+
+type PortAnchorMaps = {
+  inputs: Map<string, PanPoint>
+  outputs: Map<string, PanPoint>
+}
+
+function graphPointFromElementCenter(canvasEl: HTMLElement, scale: number, innerEl: HTMLElement): PanPoint {
+  const canvasRect = canvasEl.getBoundingClientRect()
+  const bounds = innerEl.getBoundingClientRect()
+  const clientX = bounds.left + bounds.width / 2
+  const clientY = bounds.top + bounds.height / 2
+
+  return {
+    x: (clientX - canvasRect.left) / scale,
+    y: (clientY - canvasRect.top) / scale,
+  }
+}
+
+function outputAnchorKey(nodeId: string, entityId: string): string {
+  return `${nodeId}|${entityId}`
+}
+
+function collectGraphPortAnchors(canvasEl: HTMLElement, scale: number): PortAnchorMaps {
+  const outputs = new Map<string, PanPoint>()
+  const inputs = new Map<string, PanPoint>()
+  const elements = canvasEl.querySelectorAll('[data-graph-node-id][data-graph-port]')
+
+  elements.forEach((node) => {
+    if (!(node instanceof HTMLElement)) {
+      return
+    }
+
+    const nodeId = node.getAttribute('data-graph-node-id')
+    const kind = node.getAttribute('data-graph-port')
+
+    if (!nodeId || !kind) {
+      return
+    }
+
+    const p = graphPointFromElementCenter(canvasEl, scale, node)
+
+    if (kind === 'output') {
+      const entityId = node.getAttribute('data-graph-entity-id')
+      if (entityId) {
+        outputs.set(outputAnchorKey(nodeId, entityId), p)
+      }
+      return
+    }
+
+    if (kind === 'input') {
+      inputs.set(nodeId, p)
+    }
+  })
+
+  return { inputs, outputs }
+}
+
+function createAnchoredConnectionPath(id: string, sx: number, sy: number, ix: number, iy: number): ConnectionPath {
+  const exitX = sx + RIGID_SEGMENT_LENGTH
+  const entryY = iy - RIGID_SEGMENT_LENGTH
+  const curveOffset = Math.max(96, Math.abs(ix - exitX) * 0.45)
+
+  return {
+    id,
+    routing: 'flex',
+    d: [
+      `M ${sx} ${sy}`,
+      `L ${exitX} ${sy}`,
+      `C ${exitX + curveOffset} ${sy}, ${ix} ${entryY + curveOffset}, ${ix} ${entryY}`,
+      `L ${ix} ${iy}`,
+    ].join(' '),
+  }
+}
+
+function resolveConnectionPath(
+  connection: CanvasConnection,
+  nodes: CanvasNode[],
+  anchors: PortAnchorMaps,
+): ConnectionPath | null {
+  const fromNode = nodes.find((node) => node.id === connection.fromNodeId)
+  const toNode = nodes.find((node) => node.id === connection.toNodeId)
+
+  if (!fromNode || !toNode) {
+    return null
+  }
+
+  const outPt = anchors.outputs.get(outputAnchorKey(connection.fromNodeId, connection.fromEntityId))
+  const inPt = anchors.inputs.get(connection.toNodeId)
+
+  const rigidRouting = connection.routing === 'rigid'
+
+  if (outPt && inPt && rigidRouting) {
+    return createOrthoAnchoredConnectionPath(connection.id, outPt.x, outPt.y, inPt.x, inPt.y)
+  }
+
+  if (outPt && inPt && !rigidRouting) {
+    return createAnchoredConnectionPath(connection.id, outPt.x, outPt.y, inPt.x, inPt.y)
+  }
+
+  return createConnectionPath(connection, nodes)
+}
+
+function createDraftConnectionPath(sx: number, sy: number, ex: number, ey: number): string {
+  const exitX = sx + RIGID_SEGMENT_LENGTH
+  const deltaX = Math.abs(ex - exitX)
+  const curveOffset = Math.max(96, deltaX * 0.45)
+  const c2x = ex - curveOffset
+
+  return [
+    `M ${sx} ${sy}`,
+    `L ${exitX} ${sy}`,
+    `C ${exitX + curveOffset} ${sy}, ${c2x} ${ey}, ${ex} ${ey}`,
+  ].join(' ')
+}
+
+function graphClientToPosition(canvasEl: HTMLElement, scale: number, clientX: number, clientY: number): CanvasPosition {
+  const rect = canvasEl.getBoundingClientRect()
+
+  return {
+    x: Math.round((clientX - rect.left) / scale),
+    y: Math.round((clientY - rect.top) / scale),
+  }
+}
+
+function normalizeMarqueeRect(start: CanvasPosition, end: CanvasPosition) {
+  return {
+    height: Math.max(0, Math.abs(end.y - start.y)),
+    width: Math.max(0, Math.abs(end.x - start.x)),
+    x: Math.min(start.x, end.x),
+    y: Math.min(start.y, end.y),
+  }
+}
+
+function intersectsCanvasNodeRect(
+  marquee: { height: number; width: number; x: number; y: number },
+  node: CanvasNode,
+): boolean {
+  const nodeRect = {
+    height: getNodeCardHeight(node),
+    width: CARD_WIDTH,
+    x: node.position.x,
+    y: node.position.y,
+  }
+
+  return !(
+    marquee.x + marquee.width < nodeRect.x ||
+    marquee.x > nodeRect.x + nodeRect.width ||
+    marquee.y + marquee.height < nodeRect.y ||
+    marquee.y > nodeRect.y + nodeRect.height
+  )
+}
+
+function collectNodesInMarquee(scene: CanvasScene, start: CanvasPosition, end: CanvasPosition): string[] {
+  const marquee = normalizeMarqueeRect(start, end)
+
+  if (marquee.width < 4 && marquee.height < 4) {
+    return []
+  }
+
+  return scene.nodes.filter((node) => intersectsCanvasNodeRect(marquee, node)).map((node) => node.id)
+}
+
+export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(function GraphCanvas(
+  {
+    availableSchemas,
+    canRedo,
+    canUndo,
+    paletteRequestSignal = 0,
+    onCloseCodePanelShortcut,
+    onConnectNodes,
+    onCycleConnectionRouting,
+    onCreateChildNode,
+    onCreateRootNode,
+    onMarqueeCommit,
+    onMoveNode,
+    onRedo,
+    onRemoveConnection,
+    onResetScene,
+    entityCatalog,
+    hints,
+    onCatalogEntityAppend,
+    onCatalogParameterAppend,
+    parameterCatalog,
+    onSelectAllNodesShortcut,
+    onSelectNode,
+    onUndo,
+    scene,
+    selectedNodeIds,
+    selectedNodeId,
+  },
+  ref,
+) {
+  const [pendingLink, setPendingLink] = useState<PendingLink | null>(null)
+  const [linkDraftPoint, setLinkDraftPoint] = useState<PanPoint | null>(null)
+  const canvasRef = useRef<HTMLDivElement | null>(null)
+  const linkDraftClientRef = useRef<{ cx: number; cy: number } | null>(null)
+  const outputWireDragRef = useRef<OutputWireDragSession | null>(null)
+  const pendingLinkRef = useRef<PendingLink | null>(null)
+  const [linkDropContext, setLinkDropContext] = useState<GraphDropLinkContext | null>(null)
+  const [isPaletteOpen, setIsPaletteOpen] = useState(false)
+  const [pan, setPan] = useState<PanPoint>({ x: 0, y: 0 })
+  const [scale, setScale] = useState(1)
+  const nodeDragGesture = useRef<NodeDragGesture | null>(null)
+  const panGesture = useRef<PanGesture | null>(null)
+  const middlePanGestureRef = useRef<PanGesture | null>(null)
+  const marqueeGestureRef = useRef<{ additive: boolean; pointerId: number; start: CanvasPosition } | null>(null)
+  const viewportRef = useRef<HTMLElement | null>(null)
+  const viewportBodyRef = useRef<HTMLDivElement | null>(null)
+  const [marqueeOverlay, setMarqueeOverlay] = useState<null | { current: CanvasPosition; start: CanvasPosition }>(
+    null,
+  )
+  const [glueNodeId, setGlueNodeId] = useState<string | null>(null)
+  const canvasBounds = getCanvasBounds(scene)
+  const [portAnchors, setPortAnchors] = useState<PortAnchorMaps>(() => ({
+    inputs: new Map(),
+    outputs: new Map(),
+  }))
+
+  useLayoutEffect(() => {
+    const el = canvasRef.current
+
+    if (!el) {
+      return
+    }
+
+    setPortAnchors(collectGraphPortAnchors(el, scale))
+  }, [
+    canvasBounds.height,
+    canvasBounds.width,
+    pan.x,
+    pan.y,
+    scale,
+    scene.connections,
+    scene.nodes,
+  ])
+
+  const connectionPaths = useMemo(() => {
+    return scene.connections
+      .map((connection) => resolveConnectionPath(connection, scene.nodes, portAnchors))
+      .filter((path): path is ConnectionPath => path !== null)
+  }, [portAnchors, scene.connections, scene.nodes])
+
+  const paletteSchemas = useMemo(() => {
+    if (!linkDropContext) {
+      return availableSchemas
+    }
+
+    return availableSchemas.filter((schema) => schema.id === linkDropContext.entity.schemaId)
+  }, [availableSchemas, linkDropContext])
+
+  const updateLinkDraftFromClient = useCallback(
+    (clientX: number, clientY: number) => {
+      const el = canvasRef.current
+
+      if (!pendingLink) {
+        return
+      }
+
+      linkDraftClientRef.current = { cx: clientX, cy: clientY }
+
+      if (!el) {
+        return
+      }
+
+      const rect = el.getBoundingClientRect()
+      const x = (clientX - rect.left) / scale
+      const y = (clientY - rect.top) / scale
+
+      if (
+        clientX >= rect.left &&
+        clientX <= rect.right &&
+        clientY >= rect.top &&
+        clientY <= rect.bottom
+      ) {
+        setLinkDraftPoint({ x, y })
+        return
+      }
+
+      setLinkDraftPoint(null)
+    },
+    [pendingLink, scale],
+  )
+
+  useLayoutEffect(() => {
+    if (!pendingLink) {
+      return
+    }
+
+    const last = linkDraftClientRef.current
+    if (!last) {
+      return
+    }
+
+    updateLinkDraftFromClient(last.cx, last.cy)
+  }, [pan.x, pan.y, pendingLink, scale, updateLinkDraftFromClient])
+
+  const endLinkDraft = useCallback(() => {
+    linkDraftClientRef.current = null
+    setPendingLink(null)
+    setLinkDraftPoint(null)
+  }, [])
+
+  useEffect(() => {
+    pendingLinkRef.current = pendingLink
+  }, [pendingLink])
+
+  const canvasStyle: CanvasStyle = {
+    '--canvas-height': `${canvasBounds.height}px`,
+    '--canvas-width': `${canvasBounds.width}px`,
+    transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale})`,
+  }
+
+  const zoomIn = () => {
+    setScale((currentScale) => Math.min(MAX_SCALE, Number((currentScale + SCALE_STEP).toFixed(2))))
+  }
+
+  const zoomOut = () => {
+    setScale((currentScale) => Math.max(MIN_SCALE, Number((currentScale - SCALE_STEP).toFixed(2))))
+  }
+
+  const resetViewport = () => {
+    setPan({ x: 0, y: 0 })
+    setScale(1)
+  }
+
+  const beginPendingLink = useCallback(
+    (fromNodeId: string, entity: NodeEntityDefinition, anchorEl: HTMLElement | null) => {
+      const canvasEl = canvasRef.current
+      const fromNode = scene.nodes.find((node) => node.id === fromNodeId)
+      let sx: number
+      let sy: number
+
+      if (canvasEl && anchorEl) {
+        const anchor = graphPointFromElementCenter(canvasEl, scale, anchorEl)
+        sx = anchor.x
+        sy = anchor.y
+      } else if (fromNode) {
+        sx = fromNode.position.x + CARD_WIDTH - PORT_OVERLAP
+        sy = getEntityPortY(fromNode, entity.id)
+      } else {
+        return
+      }
+
+      linkDraftClientRef.current = null
+      setLinkDraftPoint(null)
+      setPendingLink({
+        draftAnchor: { sx, sy },
+        fromEntityId: entity.id,
+        fromNodeId,
+        targetSchemaId: entity.schemaId,
+      })
+    },
+    [scale, scene.nodes],
+  )
+
+  const resolveOutputWireDrop = useCallback(
+    (drag: OutputWireDragSession, clientX: number, clientY: number) => {
+      const canvasEl = canvasRef.current
+      const el = document.elementFromPoint(clientX, clientY)
+      const pending = pendingLinkRef.current
+
+      if (!canvasEl || !pending || pending.fromEntityId !== drag.entity.id || pending.fromNodeId !== drag.fromNodeId) {
+        return
+      }
+
+      if (el instanceof Element) {
+        const inputPort = el.closest('[data-graph-port="input"]')
+        const nodeWrap = el.closest('[data-canvas-node="true"]')
+
+        if (inputPort && nodeWrap) {
+          const id = nodeWrap.getAttribute('data-canvas-node-id')
+
+          if (id) {
+            const targetNode = scene.nodes.find((node) => node.id === id)
+
+            if (
+              targetNode &&
+              targetNode.id !== pending.fromNodeId &&
+              targetNode.node.schema.id === pending.targetSchemaId
+            ) {
+              onConnectNodes({
+                id: `${pending.fromNodeId}:${pending.fromEntityId}->${targetNode.id}`,
+                fromEntityId: pending.fromEntityId,
+                fromNodeId: pending.fromNodeId,
+                toNodeId: targetNode.id,
+              })
+              endLinkDraft()
+              onSelectNode(targetNode.id)
+              return
+            }
+          }
+        }
+      }
+
+      const control = el instanceof Element ? el.closest('[data-canvas-control="true"]') : null
+      const nodeWrapBlocking = el instanceof Element ? el.closest('[data-canvas-node="true"]') : null
+      const inCanvas = el instanceof Node && canvasEl.contains(el)
+
+      if (
+        drag.maxScreenDelta >= DROP_TO_OPEN_LINK_PALETTE_PX &&
+        inCanvas &&
+        !nodeWrapBlocking &&
+        !control
+      ) {
+        const position = graphClientToPosition(canvasEl, scale, clientX, clientY)
+        endLinkDraft()
+        setLinkDropContext({ entity: drag.entity, fromNodeId: drag.fromNodeId, position })
+        setIsPaletteOpen(true)
+        return
+      }
+
+      if (drag.maxScreenDelta < DROP_TO_OPEN_LINK_PALETTE_PX) {
+        return
+      }
+
+      endLinkDraft()
+    },
+    [endLinkDraft, onConnectNodes, onSelectNode, scene.nodes, scale],
+  )
+
+  const handleOutputWirePointerDown = useCallback(
+    (fromNodeId: string, entity: NodeEntityDefinition, event: PointerEvent<HTMLButtonElement>) => {
+      if (event.button !== 0) {
+        return
+      }
+
+      event.preventDefault()
+      beginPendingLink(fromNodeId, entity, event.currentTarget)
+      outputWireDragRef.current = {
+        entity,
+        fromNodeId,
+        maxScreenDelta: 0,
+        originClientX: event.clientX,
+        originClientY: event.clientY,
+        pointerId: event.pointerId,
+      }
+      event.currentTarget.setPointerCapture(event.pointerId)
+    },
+    [beginPendingLink],
+  )
+
+  const handleOutputWirePointerMove = useCallback(
+    (_entity: NodeEntityDefinition, event: PointerEvent<HTMLButtonElement>) => {
+      const drag = outputWireDragRef.current
+
+      if (!drag || drag.pointerId !== event.pointerId) {
+        return
+      }
+
+      const delta = Math.hypot(event.clientX - drag.originClientX, event.clientY - drag.originClientY)
+      drag.maxScreenDelta = Math.max(drag.maxScreenDelta, delta)
+      updateLinkDraftFromClient(event.clientX, event.clientY)
+    },
+    [updateLinkDraftFromClient],
+  )
+
+  const handleOutputWirePointerUp = useCallback(
+    (_entity: NodeEntityDefinition, event: PointerEvent<HTMLButtonElement>) => {
+      const drag = outputWireDragRef.current
+
+      if (!drag || drag.pointerId !== event.pointerId) {
+        return
+      }
+
+      outputWireDragRef.current = null
+
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.releasePointerCapture(event.pointerId)
+      }
+
+      resolveOutputWireDrop(drag, event.clientX, event.clientY)
+    },
+    [resolveOutputWireDrop],
+  )
+
+  const handleOutputWirePointerCancel = useCallback(
+    (_entity: NodeEntityDefinition, event: PointerEvent<HTMLButtonElement>) => {
+      const drag = outputWireDragRef.current
+
+      if (!drag || drag.pointerId !== event.pointerId) {
+        return
+      }
+
+      outputWireDragRef.current = null
+
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.releasePointerCapture(event.pointerId)
+      }
+
+      endLinkDraft()
+    },
+    [endLinkDraft],
+  )
+
+  const handleOutputWireKeyboard = useCallback(
+    (fromNodeId: string, entity: NodeEntityDefinition) => {
+      beginPendingLink(fromNodeId, entity, null)
+    },
+    [beginPendingLink],
+  )
+
+  const completeLink = (toNode: CanvasNode) => {
+    if (!pendingLink || toNode.node.schema.id !== pendingLink.targetSchemaId) {
+      return
+    }
+
+    onConnectNodes({
+      id: `${pendingLink.fromNodeId}:${pendingLink.fromEntityId}->${toNode.id}`,
+      fromEntityId: pendingLink.fromEntityId,
+      fromNodeId: pendingLink.fromNodeId,
+      toNodeId: toNode.id,
+    })
+    endLinkDraft()
+    onSelectNode(toNode.id)
+  }
+
+  const openPalette = useCallback(() => {
+    setLinkDropContext(null)
+    setIsPaletteOpen(true)
+  }, [])
+
+  const closePalette = useCallback(() => {
+    setIsPaletteOpen(false)
+    setLinkDropContext(null)
+  }, [])
+
+  const handlePalettePick = useCallback(
+    (schema: NodeSchemaDefinition) => {
+      if (linkDropContext) {
+        if (schema.id !== linkDropContext.entity.schemaId) {
+          closePalette()
+          return
+        }
+
+        onCreateChildNode(linkDropContext.fromNodeId, linkDropContext.entity, linkDropContext.position)
+        closePalette()
+        return
+      }
+
+      onCreateRootNode(schema)
+      endLinkDraft()
+      closePalette()
+    },
+    [closePalette, endLinkDraft, linkDropContext, onCreateChildNode, onCreateRootNode],
+  )
+
+  useEffect(() => {
+    if (!pendingLink) {
+      return
+    }
+
+    const cancelLinkOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !isEditableTarget(event.target)) {
+        event.preventDefault()
+        endLinkDraft()
+      }
+    }
+
+    window.addEventListener('keydown', cancelLinkOnEscape)
+
+    return () => {
+      window.removeEventListener('keydown', cancelLinkOnEscape)
+    }
+  }, [endLinkDraft, pendingLink])
+
+  useEffect(() => {
+    const openPaletteOnShortcut = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k' && !isEditableTarget(event.target)) {
+        event.preventDefault()
+        openPalette()
+      }
+    }
+
+    window.addEventListener('keydown', openPaletteOnShortcut)
+
+    return () => {
+      window.removeEventListener('keydown', openPaletteOnShortcut)
+    }
+  }, [openPalette])
+
+  const handleViewportPointerDown = (event: PointerEvent<HTMLDivElement>) => {
+    const target = event.target as HTMLElement
+
+    if (target.closest('[data-canvas-node="true"]') || target.closest('[data-canvas-control="true"]')) {
+      return
+    }
+
+    if (pendingLink && event.button === 0) {
+      event.preventDefault()
+      endLinkDraft()
+      return
+    }
+
+    const isMiddleMouse = event.pointerType === 'mouse' && event.button === 1
+
+    if (isMiddleMouse) {
+      event.preventDefault()
+      middlePanGestureRef.current = {
+        origin: { x: event.clientX, y: event.clientY },
+        pan,
+        pointerId: event.pointerId,
+      }
+      event.currentTarget.setPointerCapture(event.pointerId)
+      return
+    }
+
+    if (event.button !== 0) {
+      return
+    }
+
+    const canvasEl = canvasRef.current
+
+    if (!canvasEl) {
+      return
+    }
+
+    if (event.shiftKey) {
+      event.preventDefault()
+      const additive = event.ctrlKey || event.metaKey
+      const start = graphClientToPosition(canvasEl, scale, event.clientX, event.clientY)
+
+      marqueeGestureRef.current = { additive, pointerId: event.pointerId, start }
+
+      setMarqueeOverlay({
+        current: start,
+        start,
+      })
+
+      event.currentTarget.setPointerCapture(event.pointerId)
+      return
+    }
+
+    panGesture.current = {
+      origin: {
+        x: event.clientX,
+        y: event.clientY,
+      },
+      pan,
+      pointerId: event.pointerId,
+    }
+    event.currentTarget.setPointerCapture(event.pointerId)
+  }
+
+  const handleViewportPointerMove = (event: PointerEvent<HTMLDivElement>) => {
+    const shouldAdvanceDraftLink =
+      !nodeDragGesture.current &&
+      pendingLink &&
+      !panGesture.current &&
+      !middlePanGestureRef.current &&
+      !marqueeGestureRef.current
+
+    if (shouldAdvanceDraftLink) {
+      updateLinkDraftFromClient(event.clientX, event.clientY)
+    }
+
+    const marqueeGest = marqueeGestureRef.current
+
+    if (marqueeGest && marqueeGest.pointerId === event.pointerId) {
+      const canvasEl = canvasRef.current
+
+      if (!canvasEl) {
+        return
+      }
+
+      const current = graphClientToPosition(canvasEl, scale, event.clientX, event.clientY)
+      setMarqueeOverlay({
+        current,
+        start: marqueeGest.start,
+      })
+      return
+    }
+
+    const middleGest = middlePanGestureRef.current
+
+    if (middleGest && middleGest.pointerId === event.pointerId) {
+      setPan({
+        x: middleGest.pan.x + event.clientX - middleGest.origin.x,
+        y: middleGest.pan.y + event.clientY - middleGest.origin.y,
+      })
+
+      return
+    }
+
+    const gesturePan = panGesture.current
+
+    if (!gesturePan) {
+      return
+    }
+
+    setPan({
+      x: gesturePan.pan.x + event.clientX - gesturePan.origin.x,
+      y: gesturePan.pan.y + event.clientY - gesturePan.origin.y,
+    })
+  }
+
+  const handleViewportPointerUp = (event: PointerEvent<HTMLDivElement>) => {
+    const marqueeGest = marqueeGestureRef.current
+
+    if (marqueeGest && marqueeGest.pointerId === event.pointerId) {
+      marqueeGestureRef.current = null
+
+      const canvasEl = canvasRef.current
+
+      if (canvasEl) {
+        const end = graphClientToPosition(canvasEl, scale, event.clientX, event.clientY)
+        const hits = collectNodesInMarquee(scene, marqueeGest.start, end)
+
+        onMarqueeCommit({
+          additive: marqueeGest.additive,
+          nodeIds: hits,
+        })
+      }
+
+      setMarqueeOverlay(null)
+
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.releasePointerCapture(event.pointerId)
+      }
+
+      return
+    }
+
+    if (middlePanGestureRef.current?.pointerId === event.pointerId) {
+      middlePanGestureRef.current = null
+
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.releasePointerCapture(event.pointerId)
+      }
+
+      return
+    }
+
+    if (panGesture.current?.pointerId !== event.pointerId) {
+      return
+    }
+
+    panGesture.current = null
+
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId)
+    }
+  }
+
+  const startNodeDrag = (event: PointerEvent<HTMLElement>, canvasNode: CanvasNode) => {
+    if (event.button !== 0) {
+      return
+    }
+
+    onSelectNode(canvasNode.id, { additive: event.shiftKey })
+    nodeDragGesture.current = {
+      axisConstraint: event.shiftKey ? 'pending' : '',
+      element: event.currentTarget,
+      nodeId: canvasNode.id,
+      origin: {
+        x: event.clientX,
+        y: event.clientY,
+      },
+      pointerId: event.pointerId,
+      position: canvasNode.position,
+      snapGrid: event.ctrlKey || event.metaKey,
+    }
+    event.currentTarget.setPointerCapture(event.pointerId)
+    event.stopPropagation()
+  }
+
+  const moveNodeDrag = (event: PointerEvent<HTMLDivElement>) => {
+    const gesture = nodeDragGesture.current
+
+    if (!gesture) {
+      return
+    }
+
+    const rawDx = (event.clientX - gesture.origin.x) / scale
+    const rawDy = (event.clientY - gesture.origin.y) / scale
+
+    let workingGesture = gesture
+
+    if (
+      gesture.axisConstraint === 'pending' &&
+      (Math.abs(rawDx) > 3 || Math.abs(rawDy) > 3)
+    ) {
+      const nextConstraint =
+        Math.abs(rawDx) >= Math.abs(rawDy) ? ('horizontal' as const) : ('vertical' as const)
+
+      const updatedGesture = {
+        ...gesture,
+        axisConstraint: nextConstraint,
+      }
+
+      nodeDragGesture.current = updatedGesture
+      workingGesture = updatedGesture
+    }
+
+    let deltaX = rawDx
+    let deltaY = rawDy
+
+    if (workingGesture.axisConstraint === 'horizontal') {
+      deltaY = 0
+    }
+
+    if (workingGesture.axisConstraint === 'vertical') {
+      deltaX = 0
+    }
+
+    let targetX = workingGesture.position.x + deltaX
+    let targetY = workingGesture.position.y + deltaY
+
+    if (workingGesture.snapGrid) {
+      targetX = Math.round(targetX / SNAP_GRID_PX) * SNAP_GRID_PX
+      targetY = Math.round(targetY / SNAP_GRID_PX) * SNAP_GRID_PX
+    }
+
+    const axisDescriptor =
+      workingGesture.axisConstraint === 'horizontal'
+        ? 'y'
+        : workingGesture.axisConstraint === 'vertical'
+          ? 'x'
+          : ''
+
+    onMoveNode(
+      workingGesture.nodeId,
+      {
+        x: Math.round(targetX),
+        y: Math.round(targetY),
+      },
+      {
+        axisLock: axisDescriptor,
+        snapGrid: workingGesture.snapGrid,
+      },
+    )
+  }
+
+  const stopNodeDrag = (event: PointerEvent<HTMLDivElement>) => {
+    const gesture = nodeDragGesture.current
+
+    if (gesture?.pointerId !== event.pointerId) {
+      return
+    }
+
+    nodeDragGesture.current = null
+
+    if (gesture.element.hasPointerCapture(event.pointerId)) {
+      gesture.element.releasePointerCapture(event.pointerId)
+    }
+  }
+
+  const focusSelectionIntoView = useCallback(
+    (focusIds: string[]) => {
+      const ids = [...new Set(focusIds)].filter((id) =>
+        scene.nodes.some((node) => node.id === id),
+      )
+
+      if (ids.length === 0) {
+        return
+      }
+
+      const viewport = viewportBodyRef.current
+
+      if (!viewport) {
+        return
+      }
+
+      const viewportWidth = viewport.clientWidth
+      const viewportHeight = viewport.clientHeight
+
+      let minLeft = Infinity
+      let minTop = Infinity
+      let maxRight = -Infinity
+      let maxBottom = -Infinity
+
+      for (const id of ids) {
+        const canvasNode = scene.nodes.find((node) => node.id === id)
+
+        if (!canvasNode) {
+          continue
+        }
+
+        minLeft = Math.min(minLeft, canvasNode.position.x)
+        minTop = Math.min(minTop, canvasNode.position.y)
+        maxRight = Math.max(maxRight, canvasNode.position.x + CARD_WIDTH)
+        maxBottom = Math.max(maxBottom, canvasNode.position.y + getNodeCardHeight(canvasNode))
+      }
+
+      if (!Number.isFinite(minLeft)) {
+        return
+      }
+
+      const pad = 80
+      const bboxWidth = Math.max(maxRight - minLeft + pad * 2, 320)
+      const bboxHeight = Math.max(maxBottom - minTop + pad * 2, 240)
+      const centerX = (minLeft + maxRight) / 2
+      const centerY = (minTop + maxBottom) / 2
+
+      const widthScale = viewportWidth / bboxWidth
+      const heightScale = viewportHeight / bboxHeight
+      const targetScale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, Math.min(widthScale, heightScale)))
+
+      setPan({
+        x: viewportWidth / 2 - centerX * targetScale,
+        y: viewportHeight / 2 - centerY * targetScale,
+      })
+      setScale(targetScale)
+    },
+    [scene.nodes],
+  )
+
+  useImperativeHandle(ref, () => ({
+    focusSelectionIntoView,
+    openPalette,
+  }))
+
+  useEffect(() => {
+    if (!paletteRequestSignal) {
+      return
+    }
+
+    openPalette()
+  }, [paletteRequestSignal, openPalette])
+
+  useEffect(() => {
+    const element = viewportBodyRef.current
+
+    if (!element) {
+      return
+    }
+
+    const handleWheelPan = (event: WheelEvent) => {
+      if (isEditableTarget(event.target)) {
+        return
+      }
+
+      if (event.ctrlKey || event.metaKey) {
+        return
+      }
+
+      event.preventDefault()
+      const zoomDirection = event.deltaY > 0 ? -1 : 1
+      const factor = 1 + zoomDirection * 0.08
+
+      setScale((previousScale) =>
+        Math.min(MAX_SCALE, Math.max(MIN_SCALE, Number((previousScale * factor).toFixed(3)))),
+      )
+    }
+
+    element.addEventListener('wheel', handleWheelPan, { passive: false })
+
+    return () => {
+      element.removeEventListener('wheel', handleWheelPan)
+    }
+  }, [scene.nodes.length])
+
+  useEffect(() => {
+    if (!glueNodeId) {
+      return
+    }
+
+    const canvas = canvasRef.current
+
+    if (!canvas) {
+      return
+    }
+
+    const reposition = (nativeEvent: Event) => {
+      const pointerEvent = nativeEvent as unknown as PointerEvent
+
+      if (!glueNodeId) {
+        return
+      }
+
+      const projected = graphClientToPosition(canvas, scale, pointerEvent.clientX, pointerEvent.clientY)
+
+      onMoveNode(glueNodeId, projected, {
+        axisLock: '',
+        snapGrid: pointerEvent.ctrlKey || pointerEvent.metaKey,
+      })
+    }
+
+    window.addEventListener('pointermove', reposition)
+
+    return () => {
+      window.removeEventListener('pointermove', reposition)
+    }
+  }, [glueNodeId, onMoveNode, scale])
+
+  useEffect(() => {
+    const handleShortcut = (event: KeyboardEvent) => {
+      if (isEditableTarget(event.target)) {
+        return
+      }
+
+      if (event.ctrlKey || event.altKey || event.metaKey) {
+        return
+      }
+
+      const lowered = event.key.toLowerCase()
+
+      if (lowered === 'a') {
+        event.preventDefault()
+        onSelectAllNodesShortcut?.()
+        return
+      }
+
+      if (event.key === '.') {
+        event.preventDefault()
+        focusSelectionIntoView(selectedNodeIds)
+        return
+      }
+
+      if (lowered === 'g') {
+        event.preventDefault()
+        setGlueNodeId((existingGlue) =>
+          existingGlue === selectedNodeId ? null : selectedNodeId,
+        )
+        return
+      }
+
+      if (event.key === 'Escape') {
+        onCloseCodePanelShortcut?.()
+        setGlueNodeId(null)
+      }
+    }
+
+    window.addEventListener('keydown', handleShortcut)
+
+    return () => {
+      window.removeEventListener('keydown', handleShortcut)
+    }
+  }, [
+    focusSelectionIntoView,
+    onCloseCodePanelShortcut,
+    onSelectAllNodesShortcut,
+    selectedNodeId,
+    selectedNodeIds,
+  ])
+
+  return (
+    <section
+      aria-label="Static node graph canvas"
+      className={styles.viewport}
+      ref={viewportRef}
+    >
+      <div className={styles.toolbar} data-canvas-control="true">
+        <div className={styles.legend} aria-label="Canvas legend">
+          <span className={styles.legendItem}>
+            <span className={styles.inputDot} />
+            parent input
+          </span>
+          <span className={styles.legendItem}>
+            <span className={styles.outputDot} />
+            child output
+          </span>
+          <span className={styles.legendItem}>
+            <span aria-hidden className={styles.legendWireIcon} /> fio · clique cicla estilo · Ctrl+clique remove
+          </span>
+        </div>
+
+        <div className={styles.controls} aria-label="Canvas viewport controls">
+          {pendingLink ? (
+            <span className={styles.linkStatus}>
+              ligando até <strong>{pendingLink.targetSchemaId}</strong>
+              {' · '}arrastar à grade vazia adiciona nó · vazio/Esc cancela
+            </span>
+          ) : null}
+          <button className={styles.primaryControl} type="button" onClick={openPalette}>
+            add node
+          </button>
+          <button disabled={!canUndo} type="button" onClick={onUndo}>
+            undo
+          </button>
+          <button disabled={!canRedo} type="button" onClick={onRedo}>
+            redo
+          </button>
+          <button type="button" onClick={zoomOut}>
+            -
+          </button>
+          <span>{Math.round(scale * 100)}%</span>
+          <button type="button" onClick={zoomIn}>
+            +
+          </button>
+          <button type="button" onClick={resetViewport}>
+            reset
+          </button>
+          <button className={styles.dangerControl} type="button" onClick={onResetScene}>
+            reset scene
+          </button>
+        </div>
+      </div>
+
+      {isPaletteOpen ? (
+        <AddNodePalette
+          heading={linkDropContext ? 'Ligar novo nó' : undefined}
+          onClose={closePalette}
+          onPickSchema={handlePalettePick}
+          schemas={paletteSchemas}
+        />
+      ) : null}
+
+      <div
+        aria-label="Graph viewport navigation area"
+        className={styles.viewportBody}
+        onPointerCancel={handleViewportPointerUp}
+        onPointerDown={handleViewportPointerDown}
+        onPointerMove={handleViewportPointerMove}
+        onPointerUp={handleViewportPointerUp}
+        ref={viewportBodyRef}
+      >
+      <div className={styles.canvas} ref={canvasRef} style={canvasStyle}>
+        <svg
+          className={styles.connections}
+          height={canvasBounds.height}
+          role="presentation"
+          viewBox={`0 0 ${canvasBounds.width} ${canvasBounds.height}`}
+          width={canvasBounds.width}
+        >
+          <defs>
+            <marker
+              id="connection-arrow"
+              markerHeight="8"
+              markerWidth="8"
+              orient="auto"
+              refX="6"
+              refY="4"
+              viewBox="0 0 8 8"
+            >
+              <path d="M 0 0 L 8 4 L 0 8 z" fill="var(--port-child)" />
+            </marker>
+          </defs>
+
+          {connectionPaths.map((connection) => (
+            <g key={connection.id}>
+              {onRemoveConnection || onCycleConnectionRouting ? (
+                <path
+                  aria-label={`Ligação ${connection.id}`}
+                  className={styles.connectionHit}
+                  d={connection.d}
+                  onPointerDown={(event) => {
+                    event.preventDefault()
+                    event.stopPropagation()
+
+                    if (event.ctrlKey || event.metaKey) {
+                      if (onRemoveConnection) {
+                        onRemoveConnection(connection.id)
+                      }
+
+                      return
+                    }
+
+                    onCycleConnectionRouting?.(connection.id)
+                  }}
+                />
+              ) : null}
+              <path className={styles.connectionHalo} d={connection.d} />
+              <path
+                className={
+                  connection.routing === 'rigid' ? `${styles.connection} ${styles.connectionRigid}` : styles.connection
+                }
+                d={connection.d}
+                markerEnd="url(#connection-arrow)"
+              />
+            </g>
+          ))}
+          {pendingLink && linkDraftPoint ? (
+            <path
+              className={styles.connectionDraft}
+              d={createDraftConnectionPath(
+                pendingLink.draftAnchor.sx,
+                pendingLink.draftAnchor.sy,
+                linkDraftPoint.x,
+                linkDraftPoint.y,
+              )}
+            />
+          ) : null}
+        </svg>
+
+        {marqueeOverlay ? (
+          <div
+            aria-hidden
+            className={styles.marqueeFrame}
+            style={(() => {
+              const shape = normalizeMarqueeRect(marqueeOverlay.start, marqueeOverlay.current)
+
+              return {
+                height: `${shape.height}px`,
+                left: `${shape.x}px`,
+                top: `${shape.y}px`,
+                width: `${shape.width}px`,
+              }
+            })()}
+          />
+        ) : null}
+
+        {scene.nodes.map((canvasNode) => {
+          const isSelected = selectedNodeIds.includes(canvasNode.id)
+          const isCompatibleTarget =
+            pendingLink !== null &&
+            pendingLink.fromNodeId !== canvasNode.id &&
+            pendingLink.targetSchemaId === canvasNode.node.schema.id
+          const isIncompatibleDuringLink =
+            pendingLink !== null &&
+            pendingLink.fromNodeId !== canvasNode.id &&
+            !isCompatibleTarget
+          const classes = [
+            styles.node,
+            isSelected ? styles.nodeSelected : '',
+            isCompatibleTarget ? styles.nodeCompatibleTarget : '',
+            isIncompatibleDuringLink ? styles.nodeIncompatibleTarget : '',
+          ]
+            .filter(Boolean)
+            .join(' ')
+
+          return (
+            <div
+              className={classes}
+              data-canvas-node="true"
+              data-canvas-node-id={canvasNode.id}
+              key={canvasNode.id}
+              onPointerCancel={stopNodeDrag}
+              onPointerMove={moveNodeDrag}
+              onPointerUp={stopNodeDrag}
+              style={{
+                left: `${canvasNode.position.x}px`,
+                top: `${canvasNode.position.y}px`,
+              }}
+            >
+              <NodeCard
+                activeOutputEntityId={
+                  pendingLink?.fromNodeId === canvasNode.id ? pendingLink.fromEntityId : undefined
+                }
+                canvasNodeId={canvasNode.id}
+                canAcceptLink={isCompatibleTarget}
+                catalogEntities={entityCatalog}
+                catalogParameters={parameterCatalog}
+                node={canvasNode.node}
+                onAppendCatalogEntity={
+                  onCatalogEntityAppend ? (entity) => onCatalogEntityAppend(canvasNode.id, entity) : undefined
+                }
+                onAppendCatalogParameter={
+                  onCatalogParameterAppend
+                    ? (definition) => onCatalogParameterAppend(canvasNode.id, definition)
+                    : undefined
+                }
+                onCreateElement={(entity) => onCreateChildNode(canvasNode.id, entity)}
+                onInputPortClick={() => completeLink(canvasNode)}
+                onOutputWireKeyboard={(entity) => handleOutputWireKeyboard(canvasNode.id, entity)}
+                onOutputWirePointerCancel={handleOutputWirePointerCancel}
+                onOutputWirePointerDown={(entity, event) =>
+                  handleOutputWirePointerDown(canvasNode.id, entity, event)
+                }
+                onOutputWirePointerMove={handleOutputWirePointerMove}
+                onOutputWirePointerUp={handleOutputWirePointerUp}
+                onSelect={(event) => onSelectNode(canvasNode.id, { additive: Boolean(event?.shiftKey) })}
+                onStartDrag={(event) => startNodeDrag(event, canvasNode)}
+                parameterHints={hints}
+                selected={isSelected}
+              />
+            </div>
+          )
+        })}
+      </div>
+      </div>
+    </section>
+  )
+})

@@ -1,0 +1,70 @@
+.shell {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-height: 100vh;
+  padding: clamp(16px, 3vw, 40px);
+}
+
+.workspace {
+  display: flex;
+  flex: 1;
+  flex-direction: row;
+  gap: var(--space-4);
+  align-items: stretch;
+  min-height: 0;
+}
+
+.graphColumn {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  min-height: 640px;
+}
+
+.empty {
+  padding: var(--space-6);
+  color: var(--color-text-secondary);
+  font-family: var(--font-data);
+}
+
+.inspectorDock {
+  position: absolute;
+  right: var(--space-5);
+  z-index: 8;
+  transform-origin: top right;
+}
+
+.inspectorDockMinimized {
+  bottom: var(--space-5);
+}
+
+.inspectorDockExpanded {
+  top: calc(100% - var(--space-5) - 42px);
+}
+
+@media (max-width: 900px) {
+  .workspace {
+    flex-direction: column;
+  }
+
+  .graphColumn {
+    min-height: 520px;
+  }
+
+  .inspectorDock {
+    right: var(--space-3);
+    left: var(--space-3);
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  .inspectorDockMinimized {
+    bottom: var(--space-3);
+  }
+
+  .inspectorDockExpanded {
+    top: calc(100% - var(--space-3) - 42px);
+  }
+}

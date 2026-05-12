@@ -1,0 +1,114 @@
+.header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-5);
+  background: var(--color-node-header);
+  border-bottom: 1px solid var(--color-border);
+  border-radius: var(--radius-node) var(--radius-node) 0 0;
+}
+
+.selectable {
+  cursor: grab;
+  user-select: none;
+}
+
+.selectable:active {
+  cursor: grabbing;
+}
+
+.selectable:focus-visible {
+  outline: 2px solid var(--syntax-keyword);
+  outline-offset: -4px;
+}
+
+.title {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  color: var(--color-text-primary);
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.badge {
+  flex: 0 0 auto;
+  color: var(--syntax-comment);
+  font-family: var(--font-data);
+  font-size: 0.7rem;
+}
+
+.actions {
+  position: relative;
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.infoBadge {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  color: var(--color-text-muted);
+  font: 700 0.66rem var(--font-data);
+  background: rgb(255 255 255 / 4%);
+  border: 1px solid var(--color-border-soft);
+  border-radius: 999px;
+  opacity: 0.76;
+  transition:
+    border-color 160ms ease,
+    color 160ms ease,
+    opacity 160ms ease;
+}
+
+.infoBadge:hover,
+.infoBadge:focus-visible {
+  color: var(--port-child);
+  border-color: var(--port-child);
+  opacity: 1;
+}
+
+.infoBadge:focus-visible {
+  outline: 2px solid var(--port-child);
+  outline-offset: 2px;
+}
+
+.infoTooltip {
+  position: absolute;
+  top: calc(100% + var(--space-2));
+  right: 0;
+  z-index: 8;
+  width: max-content;
+  max-width: 250px;
+  padding: var(--space-2) var(--space-3);
+  color: var(--color-text-primary);
+  font: 600 0.68rem var(--font-data);
+  line-height: 1.4;
+  text-align: left;
+  visibility: hidden;
+  background: rgb(0 0 0 / 90%);
+  border: 1px solid var(--color-border-soft);
+  border-radius: 10px;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition:
+    opacity 140ms ease,
+    transform 140ms ease,
+    visibility 140ms ease;
+}
+
+.infoBadge:hover .infoTooltip,
+.infoBadge:focus-visible .infoTooltip {
+  visibility: visible;
+  opacity: 1;
+  transform: translateY(0);
+}

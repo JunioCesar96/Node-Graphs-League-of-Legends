@@ -1,0 +1,5 @@
+{
+  "spawnRate": "Frequência de emissão de partículas (inteiro). Controla quantas partículas surgem por unidade de tempo.",
+  "lifetime": "Duração, em segundos, antes de cada partícula expirar naturalmente.",
+  "tintRGBA": "Cor com multiplicadores vermelhos, verdes, azuis e translucidez (vector4)."
+}

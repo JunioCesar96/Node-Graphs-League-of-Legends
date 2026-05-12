@@ -1,0 +1,43 @@
+:root {
+  color-scheme: dark;
+
+  --color-canvas: #1e1e1e;
+  --color-node-surface: #252526;
+  --color-node-header: #3a3a3a;
+  --color-node-hover: #303031;
+  --color-border: #464647;
+  --color-border-soft: #343536;
+  --color-text-primary: #f4f4f5;
+  --color-text-secondary: #c9c9cb;
+  --color-text-muted: #8d8d91;
+  --color-shadow: rgb(0 0 0 / 36%);
+
+  --syntax-keyword: #569cd6;
+  --syntax-string: #ce9178;
+  --syntax-comment: #6a9955;
+  --syntax-property: #9cdcfe;
+  --syntax-symbol: #d4d4d4;
+  --syntax-bracket: #ffd700;
+  --syntax-integer: #b5cea8;
+  --syntax-float: #72d5a3;
+  --syntax-double: #d3d977;
+  --syntax-vector2: #a390e4;
+  --syntax-vector3: #c586c0;
+  --syntax-vector4: #d9659b;
+
+  --port-parent: #4caf50;
+  --port-child: #ffc107;
+
+  --font-ui: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-data: "Fira Code", "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+
+  --radius-node: 14px;
+  --radius-leaf: 10px;
+  --radius-control: 8px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+}
