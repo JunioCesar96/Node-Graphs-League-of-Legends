@@ -1,5 +1,5 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import type { CSSProperties, PointerEvent } from 'react'
+import type { CSSProperties, PointerEvent, ReactNode } from 'react'
 
 import { AddNodePalette } from '@/components/organisms/AddNodePalette'
 import { NodeCard } from '@/components/organisms/NodeCard'
@@ -34,6 +34,8 @@ export type GraphCanvasHandle = {
 
 type GraphCanvasProps = {
   availableSchemas: NodeSchemaDefinition[]
+  /** Nome da pasta sob `src/nodeStructures/` por id de schema (filtro 📂 na paleta). */
+  schemaPackFolderBySchemaId?: Record<string, string>
   canRedo: boolean
   canUndo: boolean
   paletteRequestSignal?: number
@@ -56,12 +58,16 @@ type GraphCanvasProps = {
   onCatalogEntityAppend?: (canvasNodeId: string, entity: NodeEntityDefinition) => void
   onCatalogParameterAppend?: (canvasNodeId: string, definition: NodeParameterDefinition) => void
   parameterCatalog?: NodeParameterDefinition[]
+  /** Com seleção: limpa todos os nós. Sem seleção: delega seleccionar todos. */
+  onClearSelection?: () => void
   onSelectAllNodesShortcut?: () => void
   onSelectNode: (nodeId: string, options?: { additive?: boolean }) => void
   onUndo: () => void
   scene: CanvasScene
   selectedNodeIds: string[]
   selectedNodeId: string
+  /** Conteúdo extra dentro da régua aria-label «Canvas viewport controls» (ex.: inspector acoplado). */
+  viewportControlsSlot?: ReactNode
 }
 
 type ConnectionPath = {
@@ -401,6 +407,7 @@ function collectNodesInMarquee(scene: CanvasScene, start: CanvasPosition, end: C
 export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(function GraphCanvas(
   {
     availableSchemas,
+    schemaPackFolderBySchemaId,
     canRedo,
     canUndo,
     paletteRequestSignal = 0,
@@ -419,12 +426,14 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     onCatalogEntityAppend,
     onCatalogParameterAppend,
     parameterCatalog,
+    onClearSelection,
     onSelectAllNodesShortcut,
     onSelectNode,
     onUndo,
     scene,
     selectedNodeIds,
     selectedNodeId,
+    viewportControlsSlot,
   },
   ref,
 ) {
@@ -448,6 +457,19 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     null,
   )
   const [glueNodeId, setGlueNodeId] = useState<string | null>(null)
+  const glueTargetId =
+    selectedNodeIds.length > 0
+      ? selectedNodeIds.includes(selectedNodeId)
+        ? selectedNodeId
+        : selectedNodeIds[0]
+      : null
+
+  useEffect(() => {
+    if (selectedNodeIds.length === 0) {
+      setGlueNodeId(null)
+    }
+  }, [selectedNodeIds.length])
+
   const canvasBounds = getCanvasBounds(scene)
   const [portAnchors, setPortAnchors] = useState<PortAnchorMaps>(() => ({
     inputs: new Map(),
@@ -819,7 +841,11 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
   const handleViewportPointerDown = (event: PointerEvent<HTMLDivElement>) => {
     const target = event.target as HTMLElement
 
-    if (target.closest('[data-canvas-node="true"]') || target.closest('[data-canvas-control="true"]')) {
+    if (
+      target.closest('[data-canvas-node="true"]') ||
+      target.closest('[data-canvas-control="true"]') ||
+      target.closest('[data-canvas-wire="true"]')
+    ) {
       return
     }
 
@@ -875,6 +901,9 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       },
       pan,
       pointerId: event.pointerId,
+    }
+    if (selectedNodeIds.length > 0) {
+      onClearSelection?.()
     }
     event.currentTarget.setPointerCapture(event.pointerId)
   }
@@ -1234,7 +1263,13 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
 
       if (lowered === 'a') {
         event.preventDefault()
-        onSelectAllNodesShortcut?.()
+
+        if (selectedNodeIds.length > 0) {
+          onClearSelection?.()
+        } else {
+          onSelectAllNodesShortcut?.()
+        }
+
         return
       }
 
@@ -1247,7 +1282,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       if (lowered === 'g') {
         event.preventDefault()
         setGlueNodeId((existingGlue) =>
-          existingGlue === selectedNodeId ? null : selectedNodeId,
+          glueTargetId === null ? null : existingGlue === glueTargetId ? null : glueTargetId,
         )
         return
       }
@@ -1265,6 +1300,8 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     }
   }, [
     focusSelectionIntoView,
+    glueTargetId,
+    onClearSelection,
     onCloseCodePanelShortcut,
     onSelectAllNodesShortcut,
     selectedNodeId,
@@ -1277,7 +1314,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       className={styles.viewport}
       ref={viewportRef}
     >
-      <div className={styles.toolbar} data-canvas-control="true">
+      <div className={styles.toolbar} data-canvas-control="true" data-canvas-toolbar="true">
         <div className={styles.legend} aria-label="Canvas legend">
           <span className={styles.legendItem}>
             <span className={styles.inputDot} />
@@ -1288,7 +1325,8 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
             child output
           </span>
           <span className={styles.legendItem}>
-            <span aria-hidden className={styles.legendWireIcon} /> fio · clique cicla estilo · Ctrl+clique remove
+            <span aria-hidden className={styles.legendWireIcon} /> fio · clique cicla estilo · Ctrl+clique remove ·
+            tecla A: seleccionar todos ou limpar · clique na grade limpa
           </span>
         </div>
 
@@ -1321,6 +1359,9 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
           <button className={styles.dangerControl} type="button" onClick={onResetScene}>
             reset scene
           </button>
+          {viewportControlsSlot ? (
+            <div className={styles.controlsInspectorSlot}>{viewportControlsSlot}</div>
+          ) : null}
         </div>
       </div>
 
@@ -1329,6 +1370,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
           heading={linkDropContext ? 'Ligar novo nó' : undefined}
           onClose={closePalette}
           onPickSchema={handlePalettePick}
+          packFolderBySchemaId={schemaPackFolderBySchemaId}
           schemas={paletteSchemas}
         />
       ) : null}
@@ -1371,6 +1413,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
                   aria-label={`Ligação ${connection.id}`}
                   className={styles.connectionHit}
                   d={connection.d}
+                  data-canvas-wire="true"
                   onPointerDown={(event) => {
                     event.preventDefault()
                     event.stopPropagation()

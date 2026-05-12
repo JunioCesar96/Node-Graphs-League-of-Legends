@@ -1,0 +1,27 @@
+/* Decorações do syntax checker (Jade) — classes referenciadas pelo Monaco. */
+
+.syntax-error-line {
+  background: rgb(255 0 0 / 10%) !important;
+}
+
+.syntax-error-glyph {
+  width: 8px !important;
+  height: 8px !important;
+  margin-top: 6px;
+  margin-left: 4px;
+  background: #f33;
+  border-radius: 50%;
+}
+
+.syntax-warning-line {
+  background: rgb(255 200 0 / 10%) !important;
+}
+
+.syntax-warning-glyph {
+  width: 8px !important;
+  height: 8px !important;
+  margin-top: 6px;
+  margin-left: 4px;
+  background: #e6b800;
+  border-radius: 50%;
+}

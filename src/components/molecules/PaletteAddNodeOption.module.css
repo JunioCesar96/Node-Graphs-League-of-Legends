@@ -7,17 +7,22 @@
   align-items: start;
   width: 100%;
   height: auto;
-  min-height: 0;
   padding: var(--space-3);
   overflow: hidden;
   text-align: left;
   background: rgb(255 255 255 / 4%);
+  /* Espessura fixa em todos os estados; destaque âmbar via box-shadow (não altera o box model). */
   border: 1px solid rgb(255 255 255 / 6%);
   transition:
     background 160ms ease,
     border-color 160ms ease,
     box-shadow 160ms ease,
     border-radius 160ms ease;
+}
+
+.option[data-expanded='false'] {
+  box-sizing: border-box;
+  min-height: var(--palette-add-compact-min-height);
 }
 
 .option[data-entity-shape='square'] {
@@ -29,16 +34,27 @@
 }
 
 .option.keyboardSelected {
-  border-color: var(--port-child);
+  z-index: 1;
+  box-shadow: 0 0 0 1px var(--port-child);
 }
 
+/**
+ * Com `z-index: auto`, o item expandido fica *por baixo* dos irmãos seguintes no grid.
+ * O ponteiro passa a acertar o item de baixo → pointerleave deste → colapso → hover de novo → flicker.
+ *
+ * Não usar `overflow: hidden` no estado expandido: em grelha, isso zera o mínimo automático do item
+ * e a linha pode encolher abaixo do conteúdo (lista longa → cartão expandido “menor” que o real).
+ * O scroll do detalhe fica em `.sections` (max-height + overflow-y).
+ */
 .option[data-expanded='true'] {
-  z-index: 4;
+  z-index: 2;
   overflow: visible;
   background:
     linear-gradient(90deg, rgb(255 193 7 / 16%), rgb(255 255 255 / 5%));
-  border-color: var(--port-child);
-  box-shadow: 0 18px 36px rgb(0 0 0 / 24%);
+  border-color: rgb(255 255 255 / 6%);
+  box-shadow:
+    0 0 0 1px var(--port-child),
+    0 18px 36px rgb(0 0 0 / 24%);
 }
 
 .option:focus-visible {
@@ -88,14 +104,19 @@
 }
 
 .option[data-expanded='true'] .content {
+  min-height: auto;
   overflow: visible;
 }
 
+/**
+ * Cabeçalho: duas colunas com minmax(0, …) para o texto puder encolher e ellipsis funcionar.
+ * Sem isto, um ID longo empurra o título (especialmente no estado expandido).
+ */
 .titleRow {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, auto);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: var(--space-2);
-  align-items: baseline;
+  align-items: center;
   min-width: 0;
 }
 
@@ -111,22 +132,15 @@
 }
 
 .schemaId {
-  flex: 0 0 auto;
-  max-width: 160px;
+  box-sizing: border-box;
+  min-width: 0;
   overflow: hidden;
   color: var(--color-text-muted);
   font-family: var(--font-data);
   font-size: 0.7rem;
+  text-align: right;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.option[data-expanded='true'] .title {
-  overflow: visible;
-  white-space: normal;
-  text-overflow: clip;
-  overflow-wrap: anywhere;
-  word-break: break-word;
 }
 
 .meta {
@@ -134,14 +148,6 @@
   flex-wrap: wrap;
   gap: var(--space-1);
   min-width: 0;
-}
-
-.option[data-expanded='true'] .schemaId {
-  max-width: 100%;
-  overflow: visible;
-  text-overflow: clip;
-  white-space: normal;
-  overflow-wrap: anywhere;
 }
 
 .structureTag {
@@ -179,18 +185,24 @@
   font-size: 0.72rem;
 }
 
+/**
+ * Colapso com 0fr falhava em listas longas com scroll: o layout não reservava altura e
+ * overflow:visible pintava por cima dos itens seguintes. max-height + overflow dá fluxo estável.
+ */
 .sections {
-  display: grid;
-  grid-template-rows: 0fr;
-  opacity: 0;
-  transition:
-    grid-template-rows 200ms ease,
-    opacity 160ms ease;
+  display: block;
+  box-sizing: border-box;
+  max-height: 0;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  transition: none;
 }
 
 .option[data-expanded='true'] .sections {
-  grid-template-rows: auto;
-  opacity: 1;
+  max-height: min(80dvh, 720px);
+  overflow-x: clip;
+  overflow-y: auto;
 }
 
 .sectionsInnerSplit {

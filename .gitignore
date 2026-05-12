@@ -9,6 +9,7 @@ lerna-debug.log*
 README.md*
 
 node_modules
+src/nodeStructures/importado/
 dist
 dist-ssr
 *.local

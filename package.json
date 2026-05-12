@@ -9,9 +9,16 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "jade-bridge:dev": "node scripts/jade/mock-bridge-server.mjs",
+    "ritobin-bridge:dev": "node scripts/ritobin/invoke-server.mjs",
+    "jade-export:bintree:build": "cd ../Jade-League-Bin-Editor/src-tauri && cargo build --release --bin jade-export-bintree-json",
+    "jade:http-bridge": "cd ../Jade-League-Bin-Editor/src-tauri && cargo run --release --bin jade-http-bridge",
+    "jade:tools:check": "cd ../Jade-League-Bin-Editor/src-tauri && cargo check --bins"
   },
   "dependencies": {
+    "@monaco-editor/react": "^4.7.0",
+    "monaco-editor": "^0.55.1",
     "react": "^19.2.5",
     "react-dom": "^19.2.5"
   },

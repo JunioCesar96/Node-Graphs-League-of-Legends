@@ -16,11 +16,70 @@
   transform-origin: top right;
 }
 
+/* Corpo inspector acoplado à barra: portal no body; flutua sobre o canvas sem empurrar a toolbar. */
+.panelViewportFloatingBody {
+  padding: var(--space-4);
+  margin: 0;
+  overflow: auto;
+  box-shadow:
+    0 24px 72px rgb(0 0 0 / 45%),
+    inset 0 1px 0 rgb(255 255 255 / 5%);
+}
+
+/* Faixa chrome na barra da vista (inspector acoplado) ou docka quando minimizada. */
+.inspectorChromeStrip {
+  display: inline-flex;
+  position: relative;
+  z-index: 5;
+  gap: var(--space-2);
+  align-items: center;
+  min-width: 0;
+  max-width: min(280px, 36vw);
+  height: 42px;
+  padding: 0 var(--space-2) 0 var(--space-3);
+  background: rgb(37 37 38 / 88%);
+  border: 1px solid var(--color-border-soft);
+  border-radius: 999px;
+  box-shadow: 0 8px 28px rgb(0 0 0 / 22%);
+  backdrop-filter: blur(12px);
+}
+
+.chromeStripEyebrow {
+  flex: 0 0 auto;
+  color: var(--syntax-comment);
+  cursor: move;
+  user-select: none;
+  font-family: var(--font-data);
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.chromeStripTitle {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  color: var(--color-text-primary);
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .header {
   display: flex;
   gap: var(--space-2);
-  align-items: start;
+  align-items: center;
   justify-content: space-between;
+}
+
+.headerActions {
+  display: inline-flex;
+  flex-shrink: 0;
+  gap: var(--space-1);
+  align-items: center;
 }
 
 .eyebrow {
@@ -52,6 +111,28 @@
   width: 30px;
   height: 30px;
   border-radius: 999px;
+}
+
+.dockToggle {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  color: var(--color-text-primary);
+  background: rgb(255 255 255 / 6%);
+  border: 1px solid var(--color-border-soft);
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.dockToggle:hover {
+  border-color: var(--port-child);
+}
+
+.dockToggle:focus-visible {
+  outline: 2px solid var(--port-child);
+  outline-offset: 2px;
 }
 
 .toggle:hover,
@@ -122,6 +203,50 @@
 
 .minimized:hover .minimizedText {
   opacity: 1;
+}
+
+/* Cápsula com rótulo sempre visível (retrácto / acoplado na barra). */
+.minimizedReveal {
+  align-items: center;
+  width: max-content;
+  max-width: min(520px, calc(100vw - 48px));
+  height: auto;
+  min-height: 42px;
+  padding-block: var(--space-2);
+  background: rgb(37 37 38 / 94%);
+}
+
+.minimizedReveal:hover {
+  width: max-content;
+}
+
+.minimizedReveal .minimizedIcon {
+  flex-basis: 0;
+  width: 0;
+  min-width: 0;
+  margin: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.minimizedReveal .minimizedText {
+  opacity: 1;
+  text-transform: none;
+  letter-spacing: 0.02em;
+  line-height: 1.15;
+  white-space: normal;
+  word-break: break-word;
+}
+
+/* Linha minimizada: cápsula + botão pin (inspector com ou sem nó). */
+.inspectorMinimizedDockRow {
+  display: inline-flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.inspectorMinimizedDockRow .dockToggle {
+  flex-shrink: 0;
 }
 
 .meta {
@@ -197,6 +322,14 @@
   font-size: 0.68rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+.emptyMessage {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-family: var(--font-data);
+  font-size: 0.8rem;
+  line-height: 1.4;
 }
 
 .list {

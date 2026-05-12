@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent, PointerEvent } from 'react'
 
+import { ExpandActionCapsule, type ExpandActionCapsuleKind } from '@/components/molecules/ExpandActionCapsule'
 import { PaletteAddNodeOption } from '@/components/molecules/PaletteAddNodeOption'
 import {
   matchesSchemaQuery,
@@ -13,35 +14,148 @@ import styles from './AddNodePalette.module.css'
 
 const SCROLL_CONTROL_DEAD_ZONE = 8
 const MAX_SCROLL_SPEED = 28
+const EXPAND_CAPSULE_LIFETIME_SECONDS = 5
 
 type PaletteScrollDirection = 'down' | 'idle' | 'up'
+
+/** Teste: m/n controlam expandir/retrair (m = expandir, n = retrair), com hover na linha ou atalho global quando o foco não está no campo de pesquisa. */
+type PaletteExpandOverride = 'compact' | 'default' | 'expanded'
+
+function packFolderTagLabel(folderName: string) {
+  return `📂 [${folderName}]`
+}
 
 type AddNodePaletteProps = {
   heading?: string
   onClose: () => void
   onPickSchema: (schema: NodeSchemaDefinition) => void
+  /** Por schema id: nome da pasta imediata sob `src/nodeStructures/`. Ativa filtros 📂 [...]. */
+  packFolderBySchemaId?: Record<string, string>
   schemas: NodeSchemaDefinition[]
 }
 
-export function AddNodePalette({ heading, onClose, onPickSchema, schemas }: AddNodePaletteProps) {
+export function AddNodePalette({
+  heading,
+  onClose,
+  onPickSchema,
+  packFolderBySchemaId,
+  schemas,
+}: AddNodePaletteProps) {
+  const [palettePackFolder, setPalettePackFolder] = useState<string | null>(null)
   const [paletteQuery, setPaletteQuery] = useState('')
   const [paletteOrganization, setPaletteOrganization] = useState<PaletteOrganizationMode>('az')
   const [highlightedSchemaIndex, setHighlightedSchemaIndex] = useState(0)
   const [paletteHoveredOptionIndex, setPaletteHoveredOptionIndex] = useState<number | null>(null)
+  const [paletteExpandOverride, setPaletteExpandOverride] = useState<PaletteExpandOverride>('default')
   const [paletteScrollDirection, setPaletteScrollDirection] = useState<PaletteScrollDirection>('idle')
   const [paletteScrollIntensity, setPaletteScrollIntensity] = useState(0)
   const [isPaletteScrollActive, setIsPaletteScrollActive] = useState(false)
 
   const paletteInputRef = useRef<HTMLInputElement | null>(null)
   const paletteResultsRef = useRef<HTMLDivElement | null>(null)
+  const paletteHoveredOptionIndexRef = useRef<number | null>(null)
   const paletteScrollFrameRef = useRef<number | null>(null)
   const paletteScrollVelocityRef = useRef(0)
 
+  const [expandCapsule, setExpandCapsule] = useState<{
+    id: string
+    kind: ExpandActionCapsuleKind
+    stamp: number
+  } | null>(null)
+
+  const palettePackFolders = packFolderBySchemaId
+    ? [...new Set(schemas.map((s) => packFolderBySchemaId[s.id]).filter((f): f is string => Boolean(f)))].sort(
+        (a, b) => a.localeCompare(b),
+      )
+    : []
+
   const filteredSchemas = sortSchemasByOrganization(
-    schemas.filter((schema) => matchesSchemaQuery(schema, paletteQuery)),
+    schemas
+      .filter(
+        (schema) =>
+          palettePackFolder === null ||
+          (packFolderBySchemaId?.[schema.id] ?? '') === palettePackFolder,
+      )
+      .filter((schema) => matchesSchemaQuery(schema, paletteQuery)),
     paletteOrganization,
   )
   const activeSchemaIndex = Math.max(0, Math.min(highlightedSchemaIndex, filteredSchemas.length - 1))
+
+  const filteredSchemasRef = useRef(filteredSchemas)
+  const activeSchemaIndexRef = useRef(activeSchemaIndex)
+
+  useEffect(() => {
+    filteredSchemasRef.current = filteredSchemas
+  }, [filteredSchemas])
+
+  useEffect(() => {
+    activeSchemaIndexRef.current = activeSchemaIndex
+  }, [activeSchemaIndex])
+
+  useEffect(() => {
+    paletteHoveredOptionIndexRef.current = paletteHoveredOptionIndex
+  }, [paletteHoveredOptionIndex])
+
+  useEffect(() => {
+    const onGlobalKeyDown = (event: KeyboardEvent) => {
+      const key = event.key.toLowerCase()
+
+      if (key !== 'm' && key !== 'n') {
+        return
+      }
+
+      const target = event.target
+      const hoveringRow = paletteHoveredOptionIndexRef.current !== null
+      const focusOnSearch = target === paletteInputRef.current
+      const useCtrlWhileSearching = focusOnSearch && event.ctrlKey
+
+      if (focusOnSearch && !hoveringRow && !useCtrlWhileSearching) {
+        return
+      }
+
+      event.preventDefault()
+      event.stopPropagation()
+
+      const list = filteredSchemasRef.current
+      const targetIdx =
+        paletteHoveredOptionIndexRef.current !== null
+          ? paletteHoveredOptionIndexRef.current
+          : activeSchemaIndexRef.current
+      const targetSchema = list[targetIdx]
+
+      if (key === 'm') {
+        setPaletteExpandOverride('expanded')
+
+        if (targetSchema) {
+          setExpandCapsule({
+            id: targetSchema.id,
+            kind: 'expanded',
+            stamp: Date.now(),
+          })
+        }
+      } else {
+        setPaletteExpandOverride('compact')
+
+        if (targetSchema) {
+          setExpandCapsule({
+            id: targetSchema.id,
+            kind: 'collapsed',
+            stamp: Date.now(),
+          })
+        }
+      }
+    }
+
+    window.addEventListener('keydown', onGlobalKeyDown, true)
+
+    return () => {
+      window.removeEventListener('keydown', onGlobalKeyDown, true)
+    }
+  }, [])
+
+  const dismissExpandCapsule = useCallback(() => {
+    setExpandCapsule(null)
+  }, [])
 
   useEffect(() => {
     paletteInputRef.current?.focus()
@@ -78,6 +192,7 @@ export function AddNodePalette({ heading, onClose, onPickSchema, schemas }: AddN
     if (event.key === 'ArrowDown') {
       event.preventDefault()
       setPaletteHoveredOptionIndex(null)
+      setPaletteExpandOverride('default')
       setHighlightedSchemaIndex((currentIndex) =>
         filteredSchemas.length === 0 ? 0 : (currentIndex + 1) % filteredSchemas.length,
       )
@@ -87,6 +202,7 @@ export function AddNodePalette({ heading, onClose, onPickSchema, schemas }: AddN
     if (event.key === 'ArrowUp') {
       event.preventDefault()
       setPaletteHoveredOptionIndex(null)
+      setPaletteExpandOverride('default')
       setHighlightedSchemaIndex((currentIndex) =>
         filteredSchemas.length === 0
           ? 0
@@ -166,16 +282,37 @@ export function AddNodePalette({ heading, onClose, onPickSchema, schemas }: AddN
     }
 
     setPaletteHoveredOptionIndex(null)
+    setPaletteExpandOverride('default')
   }
 
   const paletteOptionExpanded = (index: number) => {
-    return paletteHoveredOptionIndex !== null
-      ? index === paletteHoveredOptionIndex
-      : index === activeSchemaIndex
+    const targetIndex =
+      paletteHoveredOptionIndex !== null ? paletteHoveredOptionIndex : activeSchemaIndex
+
+    if (paletteExpandOverride !== 'default') {
+      if (index === targetIndex) {
+        return paletteExpandOverride === 'expanded'
+      }
+    } else {
+      return paletteHoveredOptionIndex !== null
+        ? index === paletteHoveredOptionIndex
+        : index === activeSchemaIndex
+    }
+
+    return false
   }
 
   return (
     <div className={styles.overlay} onPointerDown={onClose} role="presentation">
+      {expandCapsule ? (
+        <ExpandActionCapsule
+          key={expandCapsule.stamp}
+          kind={expandCapsule.kind}
+          lifetimeSeconds={EXPAND_CAPSULE_LIFETIME_SECONDS}
+          onDismiss={dismissExpandCapsule}
+          schemaId={expandCapsule.id}
+        />
+      ) : null}
       <div className={styles.root} onPointerDown={(event) => event.stopPropagation()}>
         <section aria-label="Add node search palette" className={styles.panel}>
           <div className={styles.header}>
@@ -192,6 +329,7 @@ export function AddNodePalette({ heading, onClose, onPickSchema, schemas }: AddN
               setPaletteQuery(event.target.value)
               setHighlightedSchemaIndex(0)
               setPaletteHoveredOptionIndex(null)
+              setPaletteExpandOverride('default')
             }}
             onKeyDown={handlePaletteKeyDown}
             placeholder="Search schema by title or id..."
@@ -200,43 +338,85 @@ export function AddNodePalette({ heading, onClose, onPickSchema, schemas }: AddN
             type="search"
             value={paletteQuery}
           />
-          <div className={styles.tags} aria-label="Organization modes">
-            <button
-              aria-pressed={paletteOrganization === 'az'}
-              type="button"
-              onClick={() => {
-                setPaletteOrganization('az')
-                setPaletteHoveredOptionIndex(null)
-              }}
-            >
-              A-Z
-            </button>
-            <button
-              aria-pressed={paletteOrganization === 'structure'}
-              type="button"
-              onClick={() => {
-                setPaletteOrganization('structure')
-                setPaletteHoveredOptionIndex(null)
-              }}
-            >
-              Tipo
-            </button>
-            <button
-              aria-pressed={paletteOrganization === 'value-type'}
-              type="button"
-              onClick={() => {
-                setPaletteOrganization('value-type')
-                setPaletteHoveredOptionIndex(null)
-              }}
-            >
-              Tipo de valor
-            </button>
+          <div className={styles.filterRows}>
+            <div className={styles.tags} aria-label="Organization modes">
+              <button
+                aria-pressed={paletteOrganization === 'az'}
+                type="button"
+                onClick={() => {
+                  setPaletteOrganization('az')
+                  setPaletteHoveredOptionIndex(null)
+                  setPaletteExpandOverride('default')
+                }}
+              >
+                A-Z
+              </button>
+              <button
+                aria-pressed={paletteOrganization === 'structure'}
+                type="button"
+                onClick={() => {
+                  setPaletteOrganization('structure')
+                  setPaletteHoveredOptionIndex(null)
+                  setPaletteExpandOverride('default')
+                }}
+              >
+                Tipo
+              </button>
+              <button
+                aria-pressed={paletteOrganization === 'value-type'}
+                type="button"
+                onClick={() => {
+                  setPaletteOrganization('value-type')
+                  setPaletteHoveredOptionIndex(null)
+                  setPaletteExpandOverride('default')
+                }}
+              >
+                Tipo de valor
+              </button>
+            </div>
+            {palettePackFolders.length > 0 ? (
+              <div className={styles.tags} aria-label="Filtrar por pasta de estruturas">
+                <button
+                  aria-pressed={palettePackFolder === null}
+                  type="button"
+                  onClick={() => {
+                    setPalettePackFolder(null)
+                    setHighlightedSchemaIndex(0)
+                    setPaletteHoveredOptionIndex(null)
+                    setPaletteExpandOverride('default')
+                  }}
+                >
+                  Todos
+                </button>
+                {palettePackFolders.map((folder) => (
+                  <button
+                    aria-pressed={palettePackFolder === folder}
+                    key={folder}
+                    type="button"
+                    onClick={() => {
+                      setPalettePackFolder(folder)
+                      setHighlightedSchemaIndex(0)
+                      setPaletteHoveredOptionIndex(null)
+                      setPaletteExpandOverride('default')
+                    }}
+                  >
+                    {packFolderTagLabel(folder)}
+                  </button>
+                ))}
+              </div>
+            ) : null}
           </div>
           <div
             className={styles.results}
             id="node-schema-results"
             ref={paletteResultsRef}
             role="listbox"
+            style={{
+              '--palette-expand-slots': String(
+                Math.min(Math.max(filteredSchemas.length - 4, 0), 10),
+              ),
+              '--palette-rows': String(Math.min(Math.max(filteredSchemas.length, 1), 14)),
+            } as CSSProperties & Record<'--palette-rows' | '--palette-expand-slots', string>}
             onPointerLeave={handlePaletteResultsPointerLeave}
           >
             {filteredSchemas.length > 0 ? (
@@ -249,6 +429,7 @@ export function AddNodePalette({ heading, onClose, onPickSchema, schemas }: AddN
                   onPointerEnter={() => {
                     setHighlightedSchemaIndex(index)
                     setPaletteHoveredOptionIndex(index)
+                    setPaletteExpandOverride('default')
                   }}
                   schema={schema}
                 />

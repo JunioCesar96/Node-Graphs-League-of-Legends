@@ -16,11 +16,23 @@
   min-height: 0;
 }
 
+.codeDockPortalSlot {
+  display: contents;
+}
+
+
 .graphColumn {
   position: relative;
   flex: 1;
   min-width: 0;
   min-height: 640px;
+}
+
+.inspectorGrabFollow {
+  position: fixed;
+  z-index: 40;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
 }
 
 .empty {
@@ -47,6 +59,10 @@
 @media (max-width: 900px) {
   .workspace {
     flex-direction: column;
+  }
+
+  .codeDockColumn {
+    width: 100%;
   }
 
   .graphColumn {

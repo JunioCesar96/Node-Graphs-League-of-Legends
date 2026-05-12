@@ -27,7 +27,7 @@
   gap: var(--space-3);
   width: 100%;
   padding: var(--space-3);
-  max-height: min(720px, calc(100dvh - clamp(10rem, 24vh, 11rem)));
+  max-height: min(900px, calc(100dvh - clamp(5.5rem, 12vh, 7.5rem)));
   overflow: hidden;
   background: linear-gradient(180deg, rgb(37 37 38 / 96%), rgb(18 18 20 / 98%));
   border: 1px solid var(--color-border-strong);
@@ -74,6 +74,13 @@
   box-shadow: 0 0 0 4px rgb(255 193 7 / 12%);
 }
 
+.filterRows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
 .tags {
   display: flex;
   flex-shrink: 0;
@@ -100,16 +107,33 @@
 }
 
 .results {
+  --palette-rows: 1;
+  --palette-expand-slots: 0;
+
   display: grid;
-  flex: 0 1 auto;
+  flex: 1 1 auto;
   gap: var(--space-2);
-  min-height: 0;
   min-width: 0;
+  /* Encolhimento flex + scroll: sem isto a área de resultados pode comprimir linhas da grelha. */
+  min-height: 0;
+  align-content: start;
+  grid-auto-rows: max-content;
   padding: 1px 1px 1px 280px;
   margin-left: -280px;
   overflow-x: clip;
   overflow-y: auto;
   scrollbar-width: none;
+
+  /**
+   * Com muitos itens o flex encolhava demais e `overflow-y: auto` cortava o hover expandido.
+   * Altura mínima escala com linhas visíveis + folga extra por item acima de 4 (conteúdo expandido).
+   */
+  min-height: min(
+    calc(
+      var(--palette-rows) * var(--palette-add-row-stride) + var(--palette-expand-slots) * 3.75rem
+    ),
+    calc(100dvh - 11rem)
+  );
 }
 
 .results > * {

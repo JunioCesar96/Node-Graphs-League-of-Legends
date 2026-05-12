@@ -1,38 +1,253 @@
-.shell {
-  position: relative;
-  z-index: 6;
+.outer {
   display: flex;
   flex-direction: column;
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+.outerStretch {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.floatingChrome {
+  position: fixed;
+  z-index: 10050;
+  max-width: none;
+  outline: none;
+  filter: drop-shadow(-12px 12px 40px rgb(0 0 0 / 48%));
+}
+
+.shell {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
   min-width: 260px;
   max-width: 760px;
-  height: 100%;
-  background: rgb(15 15 15 / 92%);
+  background: rgb(15 15 15 / 96%);
   border: 1px solid var(--color-border-soft);
   border-radius: 18px;
   box-shadow: -16px 0 48px rgb(0 0 0 / 35%);
 }
 
-.resizeHandle {
+.shellFloating {
+  --color-border-strong: rgb(255 255 255 / 12%);
+
+  max-width: none;
+  cursor: default;
+}
+
+.resizeDockWidth {
   position: absolute;
   top: 0;
   bottom: 0;
   left: 0;
-  width: 8px;
+  z-index: 4;
+  width: 10px;
   cursor: col-resize;
   background: linear-gradient(90deg, rgb(255 255 255 / 10%), transparent);
   border: none;
   border-radius: 18px 0 0 18px;
 }
 
+.resizeE,
+.resizeS,
+.resizeSE {
+  position: absolute;
+  z-index: 6;
+  padding: 0;
+  background: rgb(255 255 255 / 5%);
+  border: none;
+  border-radius: 4px;
+  opacity: 0.55;
+  transition: opacity 0.15s ease;
+}
+
+.resizeE:hover,
+.resizeS:hover,
+.resizeSE:hover {
+  opacity: 1;
+  background: rgb(255 255 255 / 12%);
+}
+
+.resizeE {
+  top: 8px;
+  right: 0;
+  bottom: 16px;
+  width: 8px;
+  cursor: ew-resize;
+}
+
+.resizeS {
+  right: 16px;
+  bottom: 0;
+  left: 8px;
+  height: 8px;
+  cursor: ns-resize;
+}
+
+.resizeSE {
+  right: 0;
+  bottom: 0;
+  width: 16px;
+  height: 16px;
+  cursor: nwse-resize;
+}
+
 .header {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: var(--space-2);
   padding: var(--space-3) var(--space-4);
   color: var(--color-text-secondary);
   font-family: var(--font-data);
   font-size: 0.72rem;
   border-bottom: 1px solid var(--color-border-soft);
+}
+
+.titleStrip {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: var(--space-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.titleStripFloating {
+  cursor: grab;
+}
+
+.titleStripFloating:active {
+  cursor: grabbing;
+}
+
+.headerActions {
+  display: flex;
+  flex-shrink: 0;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.headerGhostButton {
+  padding: var(--space-1) var(--space-2);
+  color: var(--color-text-secondary);
+  font-size: 0.66rem;
+  white-space: nowrap;
+  cursor: pointer;
+  background: rgb(255 255 255 / 5%);
+  border: 1px solid var(--color-border-soft);
+  border-radius: 8px;
+}
+
+.headerGhostButton:hover {
+  color: var(--color-text-primary);
+  background: rgb(255 255 255 / 9%);
+}
+
+.nodeToolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  align-items: center;
+}
+
+.nodeToolbarLabel {
+  margin-right: var(--space-1);
+  font-size: 0.62rem;
+  letter-spacing: 0.04em;
+  text-transform: lowercase;
+  opacity: 0.75;
+}
+
+.dialogBackdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+  background: rgb(0 0 0 / 55%);
+  border-radius: 0 0 16px 16px;
+}
+
+.shellFloating .dialogBackdrop {
+  border-radius: 0 0 18px 18px;
+}
+
+.dialogPanel {
+  width: min(320px, 100%);
+  padding: var(--space-4);
+  background: rgb(22 22 22 / 98%);
+  border: 1px solid var(--color-border-soft);
+  border-radius: 12px;
+  box-shadow: 0 16px 48px rgb(0 0 0 / 45%);
+}
+
+.dialogTitle {
+  margin: 0 0 var(--space-3);
+  color: var(--color-text-primary);
+  font-size: 0.82rem;
+  font-family: var(--font-data);
+}
+
+.dialogHint {
+  margin: 0 0 var(--space-3);
+  color: var(--color-text-secondary);
+  font-size: 0.7rem;
+  line-height: 1.35;
+}
+
+.dialogField {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+  font-size: 0.68rem;
+  color: var(--color-text-secondary);
+}
+
+.dialogSelect {
+  padding: var(--space-2) var(--space-3);
+  color: var(--color-text-primary);
+  font-size: 0.75rem;
+  font-family: var(--font-data);
+  cursor: pointer;
+  background: rgb(0 0 0 / 35%);
+  border: 1px solid var(--color-border-soft);
+  border-radius: 8px;
+}
+
+.dialogActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  justify-content: flex-end;
+}
+
+.dialogDanger {
+  padding: var(--space-1) var(--space-2);
+  color: rgb(255 236 236);
+  font-size: 0.66rem;
+  white-space: nowrap;
+  cursor: pointer;
+  background: rgb(140 32 40 / 85%);
+  border: 1px solid rgb(200 80 90 / 45%);
+  border-radius: 8px;
+}
+
+.dialogDanger:hover:not(:disabled) {
+  background: rgb(170 48 58 / 95%);
+}
+
+.dialogDanger:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
 }
 
 .close {
@@ -44,19 +259,16 @@
   border-radius: 8px;
 }
 
-.editor {
-  flex: 1;
-  min-height: 0;
+.loading {
+  display: inline-block;
   padding: var(--space-3);
-  color: var(--color-text-primary);
+  color: var(--color-text-secondary);
   font-family: var(--font-data);
-  font-size: 0.78rem;
-  line-height: 1.45;
-  resize: none;
-  background: transparent;
-  border: none;
+  font-size: 0.72rem;
 }
 
-.editor:focus-visible {
-  outline: none;
+.editorHost {
+  flex: 1;
+  min-height: 0;
+  padding: var(--space-2) var(--space-2) var(--space-3);
 }

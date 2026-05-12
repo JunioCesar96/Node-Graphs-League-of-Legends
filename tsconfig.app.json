@@ -9,13 +9,15 @@
 
     /* Bundler mode */
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@jade/*": ["../Jade-League-Bin-Editor/src/*"]
     },
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,
     "moduleDetection": "force",
     "noEmit": true,
+    "resolveJsonModule": true,
     "jsx": "react-jsx",
 
     /* Linting */

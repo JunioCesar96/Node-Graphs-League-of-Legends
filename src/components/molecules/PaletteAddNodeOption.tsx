@@ -107,6 +107,9 @@ export function PaletteAddNodeOption({
         event.stopPropagation()
         onClick()
       }}
+      onMouseDown={(event) => {
+        event.preventDefault()
+      }}
       onPointerEnter={onPointerEnter}
       {...(onPointerLeave ? { onPointerLeave } : {})}
     >
@@ -144,8 +147,12 @@ export function PaletteAddNodeOption({
         : null}
       <span className={styles.content}>
         <span className={styles.titleRow}>
-          <span className={styles.title}>{schema.title}</span>
-          <small className={styles.schemaId}>{schema.id}</small>
+          <span className={styles.title} title={schema.title}>
+            {schema.title}
+          </span>
+          <small className={styles.schemaId} title={schema.id}>
+            {schema.id}
+          </small>
         </span>
         <span className={styles.meta}>
           <span className={styles.structureTag}>{structureLabel}</span>

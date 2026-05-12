@@ -1,0 +1,104 @@
+.root {
+  position: fixed;
+  top: max(0.75rem, env(safe-area-inset-top, 0px));
+  right: max(0.75rem, env(safe-area-inset-right, 0px));
+  z-index: 2147483647;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  max-width: min(90vw, 420px);
+  padding: 0.45rem 1rem 0.45rem 1.05rem;
+  pointer-events: none;
+  color: #c8c8d0;
+  font-family: var(--font-data);
+  font-size: 0.72rem;
+  line-height: 1.35;
+  letter-spacing: 0.02em;
+  background: linear-gradient(165deg, rgb(22 24 30 / 96%), rgb(12 14 18 / 98%));
+  border: 1px solid rgb(80 82 90 / 55%);
+  border-radius: 999px;
+  box-shadow:
+    0 14px 36px rgb(0 0 0 / 45%),
+    0 0 0 1px rgb(255 255 255 / 5%),
+    inset 0 1px 0 rgb(255 255 255 / 6%);
+  animation: capsuleIn 380ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  will-change: transform, opacity;
+}
+
+.root.exiting {
+  animation: capsuleOut 320ms cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+
+.id {
+  overflow: hidden;
+  color: #9cdcfe;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.action {
+  flex-shrink: 0;
+  color: var(--port-child);
+  font-weight: 700;
+}
+
+.lifetime {
+  flex-shrink: 0;
+  padding: 0.12rem 0.4rem;
+  margin-left: 0.1rem;
+  color: var(--color-text-muted);
+  font-size: 0.65rem;
+  font-weight: 600;
+  opacity: 0.9;
+  background: rgb(0 0 0 / 35%);
+  border-radius: 999px;
+}
+
+.expanded .action {
+  color: #89d185;
+}
+
+.collapsed .action {
+  color: #d7ba7d;
+}
+
+/** Variante só texto (notificações de teste / mensagens livres). */
+.plainVariant {
+  border-color: rgb(90 140 200 / 35%);
+}
+
+.plainMessage {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--color-text-primary);
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+@keyframes capsuleIn {
+  from {
+    opacity: 0;
+    transform: translateY(calc(-100% - 1.5rem));
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes capsuleOut {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  to {
+    opacity: 0;
+    transform: translateY(calc(-100% - 1rem));
+  }
+}

@@ -1,5 +1,34 @@
 import type { NodeInstance, NodeSchemaDefinition } from './nodeSchema'
 
+import {
+  schemaRegistry as _registry,
+  createNodeInstance as _createNodeInstance,
+  schemaPackFolderBySchemaId as _schemaPackFolderBySchemaId,
+} from './nodeStructureRegistry'
+
+/** Registo construído a partir de JSON sob `src/nodeStructures/<pasta>/` (dinâmico no bundle). */
+export const schemaRegistry = _registry
+
+/** Pasta de cada schema (nome do directório logo abaixo de `nodeStructures/`). */
+export const schemaPackFolderBySchemaId = _schemaPackFolderBySchemaId
+
+export function createNodeInstance(
+  schemaId: string,
+  instanceId: string,
+): NodeInstance | null {
+  return _createNodeInstance(schemaId, instanceId)
+}
+
+function schemaRef(id: string): NodeSchemaDefinition {
+  const schema = schemaRegistry[id]
+  if (!schema) {
+    throw new Error(
+      `Estrutura de nó em falta: "${id}". Adiciona ou corrige um ficheiro em src/nodeStructures/<pasta>/ (ex.: default).`,
+    )
+  }
+  return schema
+}
+
 export type CanvasPosition = {
   x: number
   y: number
@@ -21,6 +50,13 @@ export type CanvasConnection = {
   routing?: ConnectionRouting
 }
 
+export type CanvasScene = {
+  width: number
+  height: number
+  nodes: CanvasNode[]
+  connections: CanvasConnection[]
+}
+
 export function hydrateScene(scene: CanvasScene): CanvasScene {
   return {
     ...scene,
@@ -39,148 +75,6 @@ export function hydrateScene(scene: CanvasScene): CanvasScene {
   }
 }
 
-export type CanvasScene = {
-  width: number
-  height: number
-  nodes: CanvasNode[]
-  connections: CanvasConnection[]
-}
-
-const emitterSchema = {
-  id: 'emitter-shape',
-  title: 'EmitterShape',
-  parameters: [
-    {
-      id: 'shape',
-      name: 'shape',
-      type: 'string',
-      defaultValue: '"cone"',
-    },
-    {
-      id: 'radius',
-      name: 'radius',
-      type: 'float',
-      defaultValue: '1.25',
-    },
-    {
-      id: 'offset',
-      name: 'offset',
-      type: 'vector3',
-      defaultValue: '0, 0.5, 0',
-    },
-  ],
-  entities: [],
-} satisfies NodeSchemaDefinition
-
-const forceSchema = {
-  id: 'world-force',
-  title: 'WorldForce',
-  parameters: [
-    {
-      id: 'gravity',
-      name: 'gravity',
-      type: 'vector3',
-      defaultValue: '0, -9.8, 0',
-    },
-    {
-      id: 'drag',
-      name: 'drag',
-      type: 'float',
-      defaultValue: '0.18',
-    },
-  ],
-  entities: [
-    {
-      id: 'falloff',
-      name: 'FalloffCurve',
-      schemaId: 'falloff-curve',
-    },
-  ],
-} satisfies NodeSchemaDefinition
-
-const falloffSchema = {
-  id: 'falloff-curve',
-  title: 'FalloffCurve',
-  parameters: [
-    {
-      id: 'mode',
-      name: 'mode',
-      type: 'keyword',
-      defaultValue: 'smoothstep',
-    },
-    {
-      id: 'strength',
-      name: 'strength',
-      type: 'double',
-      defaultValue: '0.845',
-    },
-  ],
-  entities: [],
-} satisfies NodeSchemaDefinition
-
-const particleSchema = {
-  id: 'particle-root',
-  title: 'ParticleSystem',
-  parameters: [
-    {
-      id: 'spawn-rate',
-      name: 'spawnRate',
-      type: 'integer',
-      defaultValue: '42',
-    },
-    {
-      id: 'lifetime',
-      name: 'lifetime',
-      type: 'float',
-      defaultValue: '3.14',
-    },
-    {
-      id: 'tint',
-      name: 'tintRGBA',
-      type: 'vector4',
-      defaultValue: '1, 0.58, 0.1, 1',
-    },
-  ],
-  entities: [
-    {
-      id: 'emitter',
-      name: 'EmitterShape',
-      schemaId: 'emitter-shape',
-    },
-    {
-      id: 'force',
-      name: 'WorldForce',
-      schemaId: 'world-force',
-    },
-  ],
-} satisfies NodeSchemaDefinition
-
-export const schemaRegistry = {
-  [emitterSchema.id]: emitterSchema,
-  [falloffSchema.id]: falloffSchema,
-  [forceSchema.id]: forceSchema,
-  [particleSchema.id]: particleSchema,
-} satisfies Record<string, NodeSchemaDefinition>
-
-export function createNodeInstance(schemaId: string, instanceId: string): NodeInstance | null {
-  const schema = schemaRegistry[schemaId]
-
-  if (!schema) {
-    return null
-  }
-
-  const schemaClone = structuredClone(schema)
-
-  return {
-    id: instanceId,
-    schema: schemaClone,
-    values: schemaClone.parameters.map((parameter) => ({
-      parameterId: parameter.id,
-      value: parameter.defaultValue,
-    })),
-  }
-}
-
 const staticCanvasSceneRaw = {
   width: 1120,
   height: 760,
@@ -189,7 +83,7 @@ const staticCanvasSceneRaw = {
       id: 'particle-root-01',
       node: {
         id: 'particle-root-01',
-        schema: particleSchema,
+        schema: schemaRef('particle-root'),
         values: [
           {
             parameterId: 'spawn-rate',
@@ -214,7 +108,7 @@ const staticCanvasSceneRaw = {
       id: 'emitter-01',
       node: {
         id: 'emitter-01',
-        schema: emitterSchema,
+        schema: schemaRef('emitter-shape'),
         values: [
           {
             parameterId: 'shape',
@@ -239,7 +133,7 @@ const staticCanvasSceneRaw = {
       id: 'emitter-alt-01',
       node: {
         id: 'emitter-alt-01',
-        schema: emitterSchema,
+        schema: schemaRef('emitter-shape'),
         values: [
           {
             parameterId: 'shape',
@@ -264,7 +158,7 @@ const staticCanvasSceneRaw = {
       id: 'force-01',
       node: {
         id: 'force-01',
-        schema: forceSchema,
+        schema: schemaRef('world-force'),
         values: [
           {
             parameterId: 'gravity',
@@ -285,7 +179,7 @@ const staticCanvasSceneRaw = {
       id: 'falloff-01',
       node: {
         id: 'falloff-01',
-        schema: falloffSchema,
+        schema: schemaRef('falloff-curve'),
         values: [
           {
             parameterId: 'mode',

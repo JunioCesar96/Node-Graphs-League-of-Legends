@@ -1,0 +1,25 @@
+{
+  "id": "emitter-shape",
+  "title": "EmitterShape",
+  "parameters": [
+    {
+      "id": "shape",
+      "name": "shape",
+      "type": "string",
+      "defaultValue": "\"cone\""
+    },
+    {
+      "id": "radius",
+      "name": "radius",
+      "type": "float",
+      "defaultValue": "1.25"
+    },
+    {
+      "id": "offset",
+      "name": "offset",
+      "type": "vector3",
+      "defaultValue": "0, 0.5, 0"
+    }
+  ],
+  "entities": []
+}

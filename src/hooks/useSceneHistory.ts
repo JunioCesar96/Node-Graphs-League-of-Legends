@@ -1,11 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import type { CanvasConnection, CanvasPosition, CanvasScene, ConnectionRouting } from '@/core/canvasScene'
-import {
-  createNodeInstance,
-  hydrateScene,
-  staticCanvasScene,
-} from '@/core/canvasScene'
+import { hydrateScene, staticCanvasScene } from '@/core/canvasScene'
+import { createNodeInstanceFromRegistry, schemaRegistry } from '@/core/nodeStructureRegistry'
 import type { NodeEntityDefinition, NodeParameterDefinition, NodeSchemaDefinition } from '@/core/nodeSchema'
 import { STORAGE_LAST_STRUCTURE_META } from '@/core/workspaceStorage'
 
@@ -48,7 +45,18 @@ export function loadStoredScene(): CanvasScene {
 
     const parsedScene: unknown = JSON.parse(storedScene)
 
-    return isCanvasScene(parsedScene) ? hydrateScene(parsedScene) : staticCanvasScene
+    if (!isCanvasScene(parsedScene)) {
+      return staticCanvasScene
+    }
+
+    const hydrated = hydrateScene(parsedScene)
+
+    /** Evita ficar bloqueado no ecrã vazio quando o storage tem grafo válido mas sem nós. */
+    if (hydrated.nodes.length === 0) {
+      return staticCanvasScene
+    }
+
+    return hydrated
   } catch {
     return staticCanvasScene
   }
@@ -93,22 +101,31 @@ export function getNextDetachedNodePosition(scene: CanvasScene) {
   }
 }
 
-/** Hook central do grafo local com histórico, persistência em localStorage e multi-seleção. */
-export function useSceneHistory() {
-  const [initialPresent] = useState<CanvasScene>(() => loadStoredScene())
+/** Cena inicial: storage válido ou demo estática; grafo persistido sem nós volta à demo para não bloquear a UI. */
+function getInitialPresent(): CanvasScene {
+  const loaded = loadStoredScene()
+  return loaded.nodes.length === 0 ? staticCanvasScene : loaded
+}
 
+/** Hook central do grafo local com histórico, persistência em localStorage e multi-seleção. */
+export function useSceneHistory(options?: {
+  /** Registo efectivo `{ ...schemaRegistryEstático, ...convertidosLocal }`; omite só estático */
+  extendSchemaLookup?: Record<string, NodeSchemaDefinition>
+}) {
+  const schemaLookup = options?.extendSchemaLookup ?? schemaRegistry
   const [sceneHistory, setSceneHistory] = useState(() => ({
     future: [] as CanvasScene[],
     past: [] as CanvasScene[],
-    present: initialPresent,
+    present: getInitialPresent(),
   }))
 
   const scene = sceneHistory.present
 
   const [selectionState, setSelectionState] = useState(() => {
+    const present = getInitialPresent()
     const fallback =
-      initialPresent.nodes.find((node) => node.id === ROOT_NODE_ID)?.id ??
-      initialPresent.nodes[0]?.id ??
+      present.nodes.find((node) => node.id === ROOT_NODE_ID)?.id ??
+      present.nodes[0]?.id ??
       ROOT_NODE_ID
 
     return {
@@ -124,19 +141,16 @@ export function useSceneHistory() {
     setSelectionState((previous) => {
       let nextIds = previous.ids.filter((id) => valid.has(id))
 
-      if (nextIds.length === 0 && scene.nodes.length > 0) {
-        nextIds = [scene.nodes[0].id]
+      if (scene.nodes.length === 0) {
+        return nextIds.length === 0 && previous.primaryId === '' ? previous : { ids: [], primaryId: '' }
       }
 
-      let primaryCandidate =
-        valid.has(previous.primaryId) && nextIds.includes(previous.primaryId)
-          ? previous.primaryId
-          : (nextIds[0] ?? '')
-
-      if (!primaryCandidate && scene.nodes.length > 0) {
-        primaryCandidate = scene.nodes[0].id
-        nextIds = [primaryCandidate]
-      }
+      const primaryCandidate =
+        nextIds.length === 0
+          ? ''
+          : valid.has(previous.primaryId) && nextIds.includes(previous.primaryId)
+            ? previous.primaryId
+            : (nextIds[0] ?? '')
 
       const samePrimary = previous.primaryId === primaryCandidate
       const sameIds =
@@ -148,8 +162,8 @@ export function useSceneHistory() {
       }
 
       return {
-        ids: nextIds.length > 0 ? nextIds : primaryCandidate ? [primaryCandidate] : [],
-        primaryId: primaryCandidate || ROOT_NODE_ID,
+        ids: nextIds,
+        primaryId: primaryCandidate,
       }
     })
   }, [scene])
@@ -163,9 +177,21 @@ export function useSceneHistory() {
     [selectionState.ids],
   )
 
-  const primarySelectedId = selectionState.primaryId || orderedSelectionUnique[0] || scene.nodes[0]?.id || ROOT_NODE_ID
+  const primarySelectedId =
+    orderedSelectionUnique.length === 0
+      ? ''
+      : selectionState.primaryId && orderedSelectionUnique.includes(selectionState.primaryId)
+        ? selectionState.primaryId
+        : (orderedSelectionUnique[0] ?? '')
 
-  const selectedNode = scene.nodes.find((node) => node.id === primarySelectedId) ?? scene.nodes[0]
+  const selectedNode =
+    primarySelectedId === ''
+      ? undefined
+      : (scene.nodes.find((node) => node.id === primarySelectedId) ?? undefined)
+
+  const clearSelection = useCallback(() => {
+    setSelectionState({ ids: [], primaryId: '' })
+  }, [])
 
   const updateScene = useCallback((updater: (currentScene: CanvasScene) => CanvasScene) => {
     setSceneHistory((currentHistory) => {
@@ -229,11 +255,10 @@ export function useSceneHistory() {
 
         let nextArr = [...bag]
 
-        if (nextArr.length === 0 && scene.nodes[0]) {
-          nextArr = [scene.nodes[0].id]
+        if (nextArr.length === 0) {
           return {
-            ids: nextArr,
-            primaryId: nextArr[0],
+            ids: [],
+            primaryId: '',
           }
         }
 
@@ -256,10 +281,7 @@ export function useSceneHistory() {
 
       if (!additive) {
         if (validIds.length === 0) {
-          const fallback =
-            scene.nodes.find((node) => node.id === ROOT_NODE_ID)?.id ?? scene.nodes[0]?.id ?? ROOT_NODE_ID
-
-          setSelectionState({ ids: fallback ? [fallback] : [], primaryId: fallback || ROOT_NODE_ID })
+          setSelectionState({ ids: [], primaryId: '' })
 
           return
         }
@@ -281,15 +303,18 @@ export function useSceneHistory() {
 
         let nextArr = [...bag]
 
-        if (nextArr.length === 0 && scene.nodes[0]) {
-          nextArr = [scene.nodes[0].id]
+        if (nextArr.length === 0) {
+          return {
+            ids: [],
+            primaryId: '',
+          }
         }
 
         const primaryKeeps =
           prev.primaryId && bag.has(prev.primaryId) ? prev.primaryId : (nextArr[0] ?? ROOT_NODE_ID)
 
         return {
-          ids: nextArr.length > 0 ? nextArr : [primaryKeeps],
+          ids: nextArr,
           primaryId: primaryKeeps,
         }
       })
@@ -387,7 +412,7 @@ export function useSceneHistory() {
       }
 
       const instanceId = createUniqueNodeId(entity.schemaId, currentScene.nodes)
-      const node = createNodeInstance(entity.schemaId, instanceId)
+      const node = createNodeInstanceFromRegistry(schemaLookup, entity.schemaId, instanceId)
 
       if (!node) {
         return currentScene
@@ -431,12 +456,12 @@ export function useSceneHistory() {
         nodes: [...currentScene.nodes, newCanvasNode],
       }
     })
-  }, [])
+  }, [updateScene, schemaLookup])
 
   const createRootNode = useCallback((schema: NodeSchemaDefinition) => {
     updateScene((currentScene) => {
       const instanceId = createUniqueNodeId(schema.id, currentScene.nodes)
-      const node = createNodeInstance(schema.id, instanceId)
+      const node = createNodeInstanceFromRegistry(schemaLookup, schema.id, instanceId)
 
       if (!node) {
         return currentScene
@@ -461,7 +486,7 @@ export function useSceneHistory() {
         ],
       }
     })
-  }, [])
+  }, [updateScene, schemaLookup])
 
   const deleteNodeIds = useCallback(
     (identifiers: string[]) => {
@@ -651,19 +676,30 @@ export function useSceneHistory() {
       }
 
       queueMicrotask(() =>
-        setSelectionState((prev) => ({
-          ids: [...prev.ids].filter((identifier) =>
+        setSelectionState((prev) => {
+          const restored = [...prev.ids].filter((identifier) =>
             previousScene.nodes.some((node) => node.id === identifier),
-          ).length > 0
-            ? [...prev.ids].filter((identifier) =>
-                previousScene.nodes.some((node) => node.id === identifier),
-              )
-            : [previousScene.nodes[0]?.id ?? ROOT_NODE_ID],
-          primaryId:
-            [...prev.ids].filter((identifier) =>
-              previousScene.nodes.some((node) => node.id === identifier),
-            )[0] ?? previousScene.nodes[0]?.id ?? ROOT_NODE_ID,
-        })),
+          )
+
+          if (restored.length === 0) {
+            const fallback =
+              previousScene.nodes.find((node) => node.id === ROOT_NODE_ID)?.id ??
+              previousScene.nodes[0]?.id ??
+              ''
+
+            return fallback
+              ? { ids: [fallback], primaryId: fallback }
+              : { ids: [], primaryId: '' }
+          }
+
+          const primary =
+            restored.includes(prev.primaryId) ? prev.primaryId : restored[0]
+
+          return {
+            ids: restored,
+            primaryId: primary,
+          }
+        }),
       )
 
       return {
@@ -683,17 +719,30 @@ export function useSceneHistory() {
       }
 
       queueMicrotask(() =>
-        setSelectionState((prev) => ({
-          ids: [...prev.ids].filter((identifier) =>
+        setSelectionState((prev) => {
+          const restored = [...prev.ids].filter((identifier) =>
             nextScene.nodes.some((node) => node.id === identifier),
-          ).length > 0
-            ? [...prev.ids].filter((identifier) => nextScene.nodes.some((node) => node.id === identifier))
-            : [nextScene.nodes[0]?.id ?? ROOT_NODE_ID],
-          primaryId:
-            [...prev.ids].filter((identifier) => nextScene.nodes.some((node) => node.id === identifier))[0] ??
-            nextScene.nodes[0]?.id ??
-            ROOT_NODE_ID,
-        })),
+          )
+
+          if (restored.length === 0) {
+            const fallback =
+              nextScene.nodes.find((node) => node.id === ROOT_NODE_ID)?.id ??
+              nextScene.nodes[0]?.id ??
+              ''
+
+            return fallback
+              ? { ids: [fallback], primaryId: fallback }
+              : { ids: [], primaryId: '' }
+          }
+
+          const primary =
+            restored.includes(prev.primaryId) ? prev.primaryId : restored[0]
+
+          return {
+            ids: restored,
+            primaryId: primary,
+          }
+        }),
       )
 
       return {
@@ -743,5 +792,6 @@ export function useSceneHistory() {
     undoScene,
     selectedNode,
     replaceScene,
+    clearSelection,
   }
 }

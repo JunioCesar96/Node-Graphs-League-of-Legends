@@ -1,5 +1,11 @@
 import { useRef } from 'react'
 
+import {
+  clearStoredRitobinExePath,
+  getStoredRitobinExePath,
+  readAbsolutePathFromDroppedOrPickedFile,
+  setStoredRitobinExePath,
+} from '@/core/ritobinExePreference'
 import styles from './AppMenuBar.module.css'
 
 export type AppMenuBarProps = {
@@ -20,6 +26,7 @@ export function AppMenuBar({
   onToggleCodeDock,
 }: AppMenuBarProps) {
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const ritobinExeInputRef = useRef<HTMLInputElement | null>(null)
 
   return (
     <header className={styles.bar}>
@@ -54,6 +61,120 @@ export function AppMenuBar({
             </button>
             <button className={styles.menuItem} onClick={onOpenStubBin} type="button">
               Stub .bin → JSON
+            </button>
+          </div>
+        </div>
+
+        <div className={styles.menu}>
+          <button className={styles.menuButton} type="button">
+            Ritobin
+          </button>
+          <div className={styles.menuPanel} role="menu">
+            <input
+              accept=".exe,.EXE"
+              className={styles.hiddenInput}
+              onChange={(changeEvent) => {
+                const picked = changeEvent.target.files?.[0]
+
+                changeEvent.target.value = ''
+
+                if (!picked) {
+                  return
+                }
+
+                const fromFilesystem = readAbsolutePathFromDroppedOrPickedFile(picked)
+
+                const nextPath =
+                  fromFilesystem ??
+                  window.prompt(
+                    `O browser não expõe o caminho absoluto ao ficheiro "${picked.name}".\nCole aqui o caminho completo para o ritobin (.exe):`,
+                    getStoredRitobinExePath() ?? '',
+                  )?.trim() ??
+                  ''
+
+                if (nextPath.length === 0) {
+                  return
+                }
+
+                setStoredRitobinExePath(nextPath)
+
+                window.alert(
+                  nextPath.length > 204
+                    ? `Caminho guardado:\n…${nextPath.slice(-180)}`
+                    : `Caminho guardado:\n${nextPath}`,
+                )
+              }}
+              ref={ritobinExeInputRef}
+              type="file"
+            />
+            <button
+              className={styles.menuItem}
+              onClick={() => ritobinExeInputRef.current?.click()}
+              type="button"
+            >
+              Escolher executável .exe…
+            </button>
+            <button
+              className={styles.menuItem}
+              onClick={() => {
+                const raw = window.prompt(
+                  'Caminho absoluto do ritobin.exe:',
+                  getStoredRitobinExePath() ?? '',
+                )
+
+                if (raw === null) {
+                  return
+                }
+
+                const next = raw.trim()
+
+                if (next.length === 0) {
+                  window.alert('Caminho vazio — não alterado.')
+
+                  return
+                }
+
+                setStoredRitobinExePath(next)
+
+                window.alert(`Caminho guardado (${String(next.length)} caracteres).`)
+              }}
+              type="button"
+            >
+              Editar ou colar caminho…
+            </button>
+            <button
+              className={styles.menuItem}
+              onClick={() => {
+                const current = getStoredRitobinExePath()
+
+                if (!current) {
+                  window.alert('Nenhum executável ritobin está configurado.')
+
+                  return
+                }
+
+                void navigator.clipboard.writeText(current).then(
+                  () => {
+                    window.alert('Caminho copiado para a área de transferência.')
+                  },
+                  () => {
+                    window.alert(`Caminho atual:\n${current}`)
+                  },
+                )
+              }}
+              type="button"
+            >
+              Copiar caminho guardado
+            </button>
+            <button
+              className={styles.menuItemDanger}
+              onClick={() => {
+                clearStoredRitobinExePath()
+                window.alert('Caminho do ritobin removido.')
+              }}
+              type="button"
+            >
+              Limpar caminho ritobin
             </button>
           </div>
         </div>
