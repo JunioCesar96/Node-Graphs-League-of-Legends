@@ -1,0 +1,55 @@
+{
+  "id": "vfx-em-characters-zac-skins-skin0-particles-zac-base-w-cas-0-ring-01",
+  "title": "Emitter · Ring_01",
+  "parameters": [
+    {
+      "id": "vfx-em-characters-zac-skins-skin0-particles-zac-base-w-cas-0-ring-01-birth-scale0",
+      "name": "birthScale0",
+      "type": "vector3",
+      "defaultValue": "140, 120, 120"
+    },
+    {
+      "id": "vfx-em-characters-zac-skins-skin0-particles-zac-base-w-cas-0-ring-01-emitter-name",
+      "name": "emitterName",
+      "type": "string",
+      "defaultValue": "\"Ring_01\""
+    },
+    {
+      "id": "vfx-em-characters-zac-skins-skin0-particles-zac-base-w-cas-0-ring-01-particle-lifetime",
+      "name": "particleLifetime",
+      "type": "float",
+      "defaultValue": "0.6"
+    },
+    {
+      "id": "vfx-em-characters-zac-skins-skin0-particles-zac-base-w-cas-0-ring-01-rate",
+      "name": "rate",
+      "type": "float",
+      "defaultValue": "3"
+    }
+  ],
+  "internalStructures": [],
+  "nomenclature": {
+    "group": "#3 Internal Structures",
+    "collection": "#3 Embed Block",
+    "collectionType": "Emitter",
+    "pathHierarchy": "#1 Root Entry > #2 VFX Definition Root > #3 Internal Structures > #3 Embed Block",
+    "pathHierarchySteps": [
+      {
+        "id": "entries",
+        "type": "#1 Root Entry"
+      },
+      {
+        "id": "Characters/Zac/Skins/Skin0/Particles/Zac_Base_W_cas",
+        "type": "#2 VFX Definition Root"
+      },
+      {
+        "id": "",
+        "type": "#3 Internal Structures"
+      },
+      {
+        "id": "Ring_01",
+        "type": "#3 Embed Block"
+      }
+    ]
+  }
+}

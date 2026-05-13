@@ -5,11 +5,6 @@ import {
   convertRitualTextJadeFxEditor,
   convertRitualTextToNodeSchemas,
 } from '@/core/convertRitualTextToNodeStructures'
-import {
-  VFX_JADE_EMITTER_ROOT_COLLECTION,
-  VFX_JADE_SYSTEM_ROOT_COLLECTION,
-  VFX_JADE_SYSTEM_ROOT_GROUP,
-} from '@/core/vfxJadeNomenclature'
 
 describe('convertRitualTextToNodeSchemas (VFX Jade)', () => {
   it('prioriza Particle Editor Jade quando há VfxSystemDefinitionData', () => {
@@ -48,14 +43,14 @@ constantValue: f32 = 1.25
     expect(emitter!.parameters.some((p) => p.name === 'particleLifetime')).toBe(true)
 
     expect(system!.nomenclature).toEqual({
-      group: VFX_JADE_SYSTEM_ROOT_GROUP,
-      collection: VFX_JADE_SYSTEM_ROOT_COLLECTION,
+      group: '',
+      collection: '',
       collectionType: 'VFX',
     })
 
     expect(emitter!.nomenclature).toEqual({
-      group: VFX_JADE_SYSTEM_ROOT_GROUP,
-      collection: VFX_JADE_EMITTER_ROOT_COLLECTION,
+      group: '',
+      collection: '',
       collectionType: 'Emitter',
     })
   })

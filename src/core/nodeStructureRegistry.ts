@@ -9,6 +9,8 @@ import {
   nomenclatureGroupNumberFromLabel,
   nodeSchemaFromStructureJson,
 } from './nodeStructureJson'
+import { NESTABLE_STRUCTURE_COLLECTIONS } from './pathHierarchyInternalStructures'
+import { VFX_JADE_SYSTEM_ROOT_COLLECTION } from './vfxJadeNomenclature'
 
 const modules = import.meta.glob<{ default: unknown }>('../nodeStructures/**/*.json', { eager: true })
 
@@ -149,6 +151,8 @@ function buildRegistry(): {
   const schemaBaseParameterCatalogBySchemaId: Record<string, NodeParameterDefinition[]> = {}
   const schemaBaseInternalStructureCatalogBySchemaId: Record<string, InternalStructureDefinition[]> = {}
 
+  const nestableUnderVfxRoot = new Set(NESTABLE_STRUCTURE_COLLECTIONS.map((c) => c.trim()))
+
   for (const schemaId of Object.keys(registry)) {
     const modulePath = pathBySchemaId[schemaId]
     if (!modulePath) {
@@ -216,7 +220,16 @@ function buildRegistry(): {
         continue
       }
       const otherG = nomenclatureGroupNumberFromLabel(otherSchema.nomenclature?.group)
-      if (otherG !== myGroupN) {
+      const myColl = schema.nomenclature?.collection?.trim() ?? ''
+      const otherColl = otherSchema.nomenclature?.collection?.trim() ?? ''
+
+      const sameGroupPeers = otherG === myGroupN
+      const childStructuresUnderVfxRoot =
+        myColl === VFX_JADE_SYSTEM_ROOT_COLLECTION &&
+        otherG === 3 &&
+        nestableUnderVfxRoot.has(otherColl)
+
+      if (!sameGroupPeers && !childStructuresUnderVfxRoot) {
         continue
       }
 

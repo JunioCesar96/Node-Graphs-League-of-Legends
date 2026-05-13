@@ -1,0 +1,61 @@
+{
+  "id": "vfx-em-0x7b3a4b5f-0-under-glow",
+  "title": "Emitter · UnderGlow",
+  "parameters": [
+    {
+      "id": "vfx-em-0x7b3a4b5f-0-under-glow-bind-weight",
+      "name": "bindWeight",
+      "type": "float",
+      "defaultValue": "1"
+    },
+    {
+      "id": "vfx-em-0x7b3a4b5f-0-under-glow-birth-scale0",
+      "name": "birthScale0",
+      "type": "vector3",
+      "defaultValue": "430, 430, 430"
+    },
+    {
+      "id": "vfx-em-0x7b3a4b5f-0-under-glow-emitter-name",
+      "name": "emitterName",
+      "type": "string",
+      "defaultValue": "\"UnderGlow\""
+    },
+    {
+      "id": "vfx-em-0x7b3a4b5f-0-under-glow-particle-lifetime",
+      "name": "particleLifetime",
+      "type": "float",
+      "defaultValue": "2.5"
+    },
+    {
+      "id": "vfx-em-0x7b3a4b5f-0-under-glow-rate",
+      "name": "rate",
+      "type": "float",
+      "defaultValue": "1"
+    }
+  ],
+  "internalStructures": [],
+  "nomenclature": {
+    "group": "#3 Internal Structures",
+    "collection": "#3 Embed Block",
+    "collectionType": "Emitter",
+    "pathHierarchy": "#1 Root Entry > #2 VFX Definition Root > #3 Internal Structures > #3 Embed Block",
+    "pathHierarchySteps": [
+      {
+        "id": "entries",
+        "type": "#1 Root Entry"
+      },
+      {
+        "id": "0x7b3a4b5f",
+        "type": "#2 VFX Definition Root"
+      },
+      {
+        "id": "",
+        "type": "#3 Internal Structures"
+      },
+      {
+        "id": "UnderGlow",
+        "type": "#3 Embed Block"
+      }
+    ]
+  }
+}

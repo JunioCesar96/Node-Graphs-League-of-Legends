@@ -1,0 +1,6 @@
+{
+  "id": "VFX_emitterStartLine(first)",
+  "name": "emitterStartLine(first)",
+  "type": "integer",
+  "defaultValue": "0"
+}

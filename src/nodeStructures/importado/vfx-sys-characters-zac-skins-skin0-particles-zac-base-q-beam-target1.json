@@ -1,0 +1,53 @@
+{
+  "id": "vfx-sys-characters-zac-skins-skin0-particles-zac-base-q-beam-target1",
+  "title": "VFX · Zac_Base_Q_Beam_Target1",
+  "parameters": [
+    {
+      "id": "vfx-sys-characters-zac-skins-skin0-particles-zac-base-q-beam-target1-particle-name",
+      "name": "particleName",
+      "type": "string",
+      "defaultValue": "\"Zac_Base_Q_Beam_Target1\""
+    },
+    {
+      "id": "vfx-sys-characters-zac-skins-skin0-particles-zac-base-q-beam-target1-system-path",
+      "name": "systemPath",
+      "type": "string",
+      "defaultValue": "\"Characters/Zac/Skins/Skin0/Particles/Zac_Base_Q_Beam_Target1\""
+    },
+    {
+      "id": "vfx-sys-characters-zac-skins-skin0-particles-zac-base-q-beam-target1-emitter-count",
+      "name": "emitterCount",
+      "type": "integer",
+      "defaultValue": "1"
+    },
+    {
+      "id": "vfx-sys-characters-zac-skins-skin0-particles-zac-base-q-beam-target1-emitter-start-line-first",
+      "name": "emitterStartLine(first)",
+      "type": "integer",
+      "defaultValue": "2413"
+    }
+  ],
+  "internalStructures": [
+    {
+      "id": "slot-0-temp-mesh",
+      "name": "Temp_Mesh",
+      "schemaId": "vfx-em-characters-zac-skins-skin0-particles-zac-base-q-beam-target1-0-temp-mesh"
+    }
+  ],
+  "nomenclature": {
+    "group": "#2 Entidades",
+    "collection": "#2 VFX Definition Root",
+    "collectionType": "VFX",
+    "pathHierarchy": "#1 Root Entry > #2 VFX Definition Root",
+    "pathHierarchySteps": [
+      {
+        "id": "entries",
+        "type": "#1 Root Entry"
+      },
+      {
+        "id": "Characters/Zac/Skins/Skin0/Particles/Zac_Base_Q_Beam_Target1",
+        "type": "#2 VFX Definition Root"
+      }
+    ]
+  }
+}

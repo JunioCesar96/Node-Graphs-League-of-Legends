@@ -16,6 +16,7 @@ import { binTreeJsonToCanvasScene } from '@/core/ltkBinTreeScene'
 import { getStoredRitobinExePath } from '@/core/ritobinExePreference'
 import { convertBinViaRitobinExeBridge } from '@/core/ritobinInvokeBridge'
 import type { ConvertRitobinToStructuresResult } from '@/core/convertRitobinTextToNodeStructures'
+import { applyNomenclatureFromBinRitualText } from '@/core/binNomenclatureAnalyzer'
 import {
   convertRitualTextClassGroup,
   convertRitualTextJadeFxEditor,
@@ -398,14 +399,6 @@ function App() {
   }, [handleConvertRitualToStructurePack])
 
   const listStructurePackFolders = useCallback(async () => {
-    const unique = new Set<string>()
-
-    for (const pack of dynamicStructurePacks) {
-      if (pack.folder !== 'default') {
-        unique.add(pack.folder)
-      }
-    }
-
     if (import.meta.env.DEV) {
       try {
         const res = await fetch('/api/node-structures-folders')
@@ -421,20 +414,24 @@ function App() {
           const folders = Reflect.get(payload, 'folders')
 
           if (Array.isArray(folders)) {
-            for (const entry of folders) {
-              const name = String(entry).trim()
-
-              if (name && name !== 'default') {
-                unique.add(name)
-              }
-            }
+            /** Lista alinhada ao que existe em `src/nodeStructures/` (evita pastas só no localStorage). */
+            return folders
+              .map((entry: unknown) => String(entry).trim())
+              .filter((name) => name.length > 0 && name !== 'default')
+              .sort((a, b) => a.localeCompare(b))
           }
         }
       } catch {
-        /** ignorar falha da API — mantém só pastas dos packs dinâmicos */
+        /** API indisponível — cai no fallback */
       }
     }
 
+    const unique = new Set<string>()
+    for (const pack of dynamicStructurePacks) {
+      if (pack.folder !== 'default') {
+        unique.add(pack.folder)
+      }
+    }
     return Array.from(unique).sort((a, b) => a.localeCompare(b))
   }, [dynamicStructurePacks])
 
@@ -574,6 +571,87 @@ function App() {
       return false
     }
   }, [])
+
+  const handleApplyBinNomenclaturaPack = useCallback(
+    async (folder: string): Promise<boolean> => {
+      const safe = sanitizeStructurePackFolderName(folder)
+
+      if (!safe || safe === 'default') {
+        window.alert('Pasta inválida ou reservada (default).')
+        return false
+      }
+
+      const pack = dynamicStructurePacks.find((p) => p.folder === safe)
+
+      if (!pack) {
+        window.alert(
+          'Pack não encontrado na sessão. Converte o ritual outra vez ou recarrega a app (packs vêm do armazenamento local).',
+        )
+        return false
+      }
+
+      const { schemas: nextSchemas, appliedCount, warnings } = applyNomenclatureFromBinRitualText(
+        codeText,
+        pack.schemas,
+      )
+
+      setDynamicStructurePacks((previous) => {
+        const merged = [...previous.filter((p) => p.folder !== safe), { folder: safe, schemas: nextSchemas }]
+        saveDynamicStructurePacksToStorage(merged)
+        return merged
+      })
+
+      requestPalette()
+
+      let diskLine = ''
+
+      if (import.meta.env.DEV) {
+        try {
+          const res = await fetch('/api/node-structures-write', {
+            body: JSON.stringify({ folder: safe, schemas: nextSchemas }),
+            headers: { 'Content-Type': 'application/json' },
+            method: 'POST',
+          })
+
+          const payload: unknown = await res.json().catch(() => null)
+          const ok =
+            res.ok &&
+            typeof payload === 'object' &&
+            payload !== null &&
+            'ok' in payload &&
+            Reflect.get(payload, 'ok') === true
+
+          if (ok && typeof payload === 'object' && payload !== null) {
+            const paths = Reflect.get(payload, 'paths')
+            const list = Array.isArray(paths) ? paths.map(String).join(', ') : ''
+            diskLine = `\n\nDisco (dev): actualizado em src/nodeStructures/${safe}/ (${list}).`
+          } else {
+            const errMsg =
+              typeof payload === 'object' && payload !== null && typeof Reflect.get(payload, 'error') === 'string'
+                ? String(Reflect.get(payload, 'error'))
+                : `HTTP ${String(res.status)}`
+            diskLine = `\n\nNão gravou no disco (${errMsg}).`
+          }
+        } catch {
+          diskLine = '\n\nServidor dev indisponível — não gravou ficheiros.'
+        }
+      } else {
+        diskLine = '\n\nBuild estático: alteração só na paleta (localStorage).'
+      }
+
+      const warnPreview =
+        warnings.length > 0
+          ? `\n\n${warnings.slice(0, 18).join('\n')}${warnings.length > 18 ? '\n…' : ''}`
+          : ''
+
+      window.alert(
+        `[Aplicar nomeclatura · texto Código]\n\nPack «${safe}» · ${String(appliedCount)} schema(s).${diskLine}${warnPreview}`,
+      )
+
+      return true
+    },
+    [codeText, dynamicStructurePacks],
+  )
 
   const loadRitobinTextIntoCodeDock = useCallback((ritualText: string, fileName: string, via: string) => {
     const maxPreview = 500_000
@@ -1069,6 +1147,7 @@ function App() {
                 listStructurePackFolders,
                 onConvertClassGroup: handleConvertClassGroupPack,
                 onConvertJadeFxEditor: handleConvertJadeFxEditorPack,
+                onApplyBinNomenclatura: handleApplyBinNomenclaturaPack,
                 onExtractNodeBase: handleExtractNodeBasePack,
               }}
               onChange={setCodeText}

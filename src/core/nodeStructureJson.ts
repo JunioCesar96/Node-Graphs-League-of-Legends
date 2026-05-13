@@ -4,6 +4,7 @@ import type {
   NodeParameterDefinition,
   NodeSchemaDefinition,
   NodeStructureNomenclature,
+  NomenclaturePathSegment,
 } from './nodeSchema'
 
 const NODE_DATA_TYPES: ReadonlySet<string> = new Set<NodeDataType>([
@@ -63,19 +64,63 @@ function parseParameter(raw: unknown): NodeParameterDefinition | null {
   }
 }
 
-function parseNomenclature(raw: unknown): NodeStructureNomenclature | undefined {
+function parsePathHierarchyStepsArray(raw: unknown): NomenclaturePathSegment[] | undefined {
+  if (!Array.isArray(raw)) {
+    return undefined
+  }
+  const out: NomenclaturePathSegment[] = []
+  for (const item of raw) {
+    if (!isRecord(item)) {
+      return undefined
+    }
+    const type = typeof item.type === 'string' ? item.type.trim() : ''
+    if (!type) {
+      return undefined
+    }
+    const id = typeof item.id === 'string' ? item.id : ''
+    out.push({ id, type })
+  }
+  return out.length > 0 ? out : undefined
+}
+
+/**
+ * Lê `nomenclature` de um fragmento JSON.
+ * Só `collectionType` é obrigatório (não vazio após trim).
+ * `group` e `collection` podem ser `""` até o analisador de `.bin` (nomecratura.md) os preencher.
+ */
+export function parseNomenclatureFromStructureJson(raw: unknown): NodeStructureNomenclature | undefined {
   if (!isRecord(raw)) {
     return undefined
   }
-  const group = typeof raw.group === 'string' ? raw.group : null
-  const collection = typeof raw.collection === 'string' ? raw.collection : null
-  const collectionType = typeof raw.collectionType === 'string' ? raw.collectionType : null
-
-  if (!group || !collection || !collectionType) {
+  const collectionTypeRaw = typeof raw.collectionType === 'string' ? raw.collectionType.trim() : ''
+  if (!collectionTypeRaw) {
     return undefined
   }
+  const group = typeof raw.group === 'string' ? raw.group : ''
+  const collection = typeof raw.collection === 'string' ? raw.collection : ''
+  const pathHierarchyRaw = typeof raw.pathHierarchy === 'string' ? raw.pathHierarchy.trim() : ''
 
-  return { group, collection, collectionType }
+  let pathHierarchySteps =
+    parsePathHierarchyStepsArray(raw.pathHierarchySteps) ??
+    (Array.isArray(raw.pathHierarchy) ? parsePathHierarchyStepsArray(raw.pathHierarchy) : undefined)
+
+  const out: NodeStructureNomenclature = {
+    group,
+    collection,
+    collectionType: collectionTypeRaw,
+  }
+  if (pathHierarchyRaw.length > 0) {
+    out.pathHierarchy = pathHierarchyRaw
+  }
+  if (pathHierarchySteps) {
+    out.pathHierarchySteps = pathHierarchySteps
+  }
+
+  return out
+}
+
+function parseNomenclature(raw: unknown): NodeStructureNomenclature | undefined {
+  return parseNomenclatureFromStructureJson(raw)
 }
 
 function parseInternalStructure(raw: unknown): InternalStructureDefinition | null {

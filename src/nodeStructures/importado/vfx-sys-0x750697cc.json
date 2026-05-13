@@ -1,0 +1,58 @@
+{
+  "id": "vfx-sys-0x750697cc",
+  "title": "VFX · my_ut_vermelha",
+  "parameters": [
+    {
+      "id": "vfx-sys-0x750697cc-particle-name",
+      "name": "particleName",
+      "type": "string",
+      "defaultValue": "\"my_ut_vermelha\""
+    },
+    {
+      "id": "vfx-sys-0x750697cc-system-path",
+      "name": "systemPath",
+      "type": "string",
+      "defaultValue": "\"0x750697cc\""
+    },
+    {
+      "id": "vfx-sys-0x750697cc-emitter-count",
+      "name": "emitterCount",
+      "type": "integer",
+      "defaultValue": "2"
+    },
+    {
+      "id": "vfx-sys-0x750697cc-emitter-start-line-first",
+      "name": "emitterStartLine(first)",
+      "type": "integer",
+      "defaultValue": "5815"
+    }
+  ],
+  "internalStructures": [
+    {
+      "id": "slot-1-mouth",
+      "name": "Mouth",
+      "schemaId": "vfx-em-0x750697cc-1-mouth"
+    },
+    {
+      "id": "slot-0-puddle-mesh",
+      "name": "Puddle_Mesh",
+      "schemaId": "vfx-em-0x750697cc-0-puddle-mesh"
+    }
+  ],
+  "nomenclature": {
+    "group": "#2 Entidades",
+    "collection": "#2 VFX Definition Root",
+    "collectionType": "VFX",
+    "pathHierarchy": "#1 Root Entry > #2 VFX Definition Root",
+    "pathHierarchySteps": [
+      {
+        "id": "entries",
+        "type": "#1 Root Entry"
+      },
+      {
+        "id": "0x750697cc",
+        "type": "#2 VFX Definition Root"
+      }
+    ]
+  }
+}

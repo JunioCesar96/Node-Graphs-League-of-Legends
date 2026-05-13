@@ -1,0 +1,61 @@
+{
+  "id": "vfx-em-0x7b3a4b5f-2-cracks",
+  "title": "Emitter · cracks",
+  "parameters": [
+    {
+      "id": "vfx-em-0x7b3a4b5f-2-cracks-bind-weight",
+      "name": "bindWeight",
+      "type": "float",
+      "defaultValue": "1"
+    },
+    {
+      "id": "vfx-em-0x7b3a4b5f-2-cracks-birth-scale0",
+      "name": "birthScale0",
+      "type": "vector3",
+      "defaultValue": "2.75, 600, 600"
+    },
+    {
+      "id": "vfx-em-0x7b3a4b5f-2-cracks-emitter-name",
+      "name": "emitterName",
+      "type": "string",
+      "defaultValue": "\"cracks\""
+    },
+    {
+      "id": "vfx-em-0x7b3a4b5f-2-cracks-particle-lifetime",
+      "name": "particleLifetime",
+      "type": "float",
+      "defaultValue": "2.5"
+    },
+    {
+      "id": "vfx-em-0x7b3a4b5f-2-cracks-rate",
+      "name": "rate",
+      "type": "float",
+      "defaultValue": "1"
+    }
+  ],
+  "internalStructures": [],
+  "nomenclature": {
+    "group": "#3 Internal Structures",
+    "collection": "#3 Embed Block",
+    "collectionType": "Emitter",
+    "pathHierarchy": "#1 Root Entry > #2 VFX Definition Root > #3 Internal Structures > #3 Embed Block",
+    "pathHierarchySteps": [
+      {
+        "id": "entries",
+        "type": "#1 Root Entry"
+      },
+      {
+        "id": "0x7b3a4b5f",
+        "type": "#2 VFX Definition Root"
+      },
+      {
+        "id": "",
+        "type": "#3 Internal Structures"
+      },
+      {
+        "id": "cracks",
+        "type": "#3 Embed Block"
+      }
+    ]
+  }
+}

@@ -1,0 +1,61 @@
+{
+  "id": "vfx-em-0xa2fa6a01-7-ring-blur",
+  "title": "Emitter · Ring Blur",
+  "parameters": [
+    {
+      "id": "vfx-em-0xa2fa6a01-7-ring-blur-bind-weight",
+      "name": "bindWeight",
+      "type": "float",
+      "defaultValue": "1"
+    },
+    {
+      "id": "vfx-em-0xa2fa6a01-7-ring-blur-birth-scale0",
+      "name": "birthScale0",
+      "type": "vector3",
+      "defaultValue": "0.57, 0.57, 0.57"
+    },
+    {
+      "id": "vfx-em-0xa2fa6a01-7-ring-blur-emitter-name",
+      "name": "emitterName",
+      "type": "string",
+      "defaultValue": "\"Ring Blur\""
+    },
+    {
+      "id": "vfx-em-0xa2fa6a01-7-ring-blur-particle-lifetime",
+      "name": "particleLifetime",
+      "type": "float",
+      "defaultValue": "5"
+    },
+    {
+      "id": "vfx-em-0xa2fa6a01-7-ring-blur-rate",
+      "name": "rate",
+      "type": "float",
+      "defaultValue": "1"
+    }
+  ],
+  "internalStructures": [],
+  "nomenclature": {
+    "group": "#3 Internal Structures",
+    "collection": "#3 Embed Block",
+    "collectionType": "Emitter",
+    "pathHierarchy": "#1 Root Entry > #2 VFX Definition Root > #3 Internal Structures > #3 Embed Block",
+    "pathHierarchySteps": [
+      {
+        "id": "entries",
+        "type": "#1 Root Entry"
+      },
+      {
+        "id": "0xa2fa6a01",
+        "type": "#2 VFX Definition Root"
+      },
+      {
+        "id": "",
+        "type": "#3 Internal Structures"
+      },
+      {
+        "id": "Ring Blur",
+        "type": "#3 Embed Block"
+      }
+    ]
+  }
+}

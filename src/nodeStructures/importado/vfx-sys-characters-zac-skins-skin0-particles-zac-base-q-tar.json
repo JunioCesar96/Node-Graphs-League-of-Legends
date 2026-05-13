@@ -1,0 +1,63 @@
+{
+  "id": "vfx-sys-characters-zac-skins-skin0-particles-zac-base-q-tar",
+  "title": "VFX · Zac_Base_Q_tar",
+  "parameters": [
+    {
+      "id": "vfx-sys-characters-zac-skins-skin0-particles-zac-base-q-tar-particle-name",
+      "name": "particleName",
+      "type": "string",
+      "defaultValue": "\"Zac_Base_Q_tar\""
+    },
+    {
+      "id": "vfx-sys-characters-zac-skins-skin0-particles-zac-base-q-tar-system-path",
+      "name": "systemPath",
+      "type": "string",
+      "defaultValue": "\"Characters/Zac/Skins/Skin0/Particles/Zac_Base_Q_tar\""
+    },
+    {
+      "id": "vfx-sys-characters-zac-skins-skin0-particles-zac-base-q-tar-emitter-count",
+      "name": "emitterCount",
+      "type": "integer",
+      "defaultValue": "3"
+    },
+    {
+      "id": "vfx-sys-characters-zac-skins-skin0-particles-zac-base-q-tar-emitter-start-line-first",
+      "name": "emitterStartLine(first)",
+      "type": "integer",
+      "defaultValue": "222"
+    }
+  ],
+  "internalStructures": [
+    {
+      "id": "slot-2-juice",
+      "name": "Juice",
+      "schemaId": "vfx-em-characters-zac-skins-skin0-particles-zac-base-q-tar-2-juice"
+    },
+    {
+      "id": "slot-0-ring",
+      "name": "Ring",
+      "schemaId": "vfx-em-characters-zac-skins-skin0-particles-zac-base-q-tar-0-ring"
+    },
+    {
+      "id": "slot-1-splat",
+      "name": "Splat",
+      "schemaId": "vfx-em-characters-zac-skins-skin0-particles-zac-base-q-tar-1-splat"
+    }
+  ],
+  "nomenclature": {
+    "group": "#2 Entidades",
+    "collection": "#2 VFX Definition Root",
+    "collectionType": "VFX",
+    "pathHierarchy": "#1 Root Entry > #2 VFX Definition Root",
+    "pathHierarchySteps": [
+      {
+        "id": "entries",
+        "type": "#1 Root Entry"
+      },
+      {
+        "id": "Characters/Zac/Skins/Skin0/Particles/Zac_Base_Q_tar",
+        "type": "#2 VFX Definition Root"
+      }
+    ]
+  }
+}

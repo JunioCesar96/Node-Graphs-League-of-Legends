@@ -1,0 +1,58 @@
+{
+  "id": "vfx-sys-characters-zac-skins-skin0-particles-zac-base-e-tar",
+  "title": "VFX · Zac_Base_E_tar",
+  "parameters": [
+    {
+      "id": "vfx-sys-characters-zac-skins-skin0-particles-zac-base-e-tar-particle-name",
+      "name": "particleName",
+      "type": "string",
+      "defaultValue": "\"Zac_Base_E_tar\""
+    },
+    {
+      "id": "vfx-sys-characters-zac-skins-skin0-particles-zac-base-e-tar-system-path",
+      "name": "systemPath",
+      "type": "string",
+      "defaultValue": "\"Characters/Zac/Skins/Skin0/Particles/Zac_Base_E_tar\""
+    },
+    {
+      "id": "vfx-sys-characters-zac-skins-skin0-particles-zac-base-e-tar-emitter-count",
+      "name": "emitterCount",
+      "type": "integer",
+      "defaultValue": "2"
+    },
+    {
+      "id": "vfx-sys-characters-zac-skins-skin0-particles-zac-base-e-tar-emitter-start-line-first",
+      "name": "emitterStartLine(first)",
+      "type": "integer",
+      "defaultValue": "1018"
+    }
+  ],
+  "internalStructures": [
+    {
+      "id": "slot-0-ring",
+      "name": "Ring",
+      "schemaId": "vfx-em-characters-zac-skins-skin0-particles-zac-base-e-tar-0-ring"
+    },
+    {
+      "id": "slot-1-splat",
+      "name": "Splat",
+      "schemaId": "vfx-em-characters-zac-skins-skin0-particles-zac-base-e-tar-1-splat"
+    }
+  ],
+  "nomenclature": {
+    "group": "#2 Entidades",
+    "collection": "#2 VFX Definition Root",
+    "collectionType": "VFX",
+    "pathHierarchy": "#1 Root Entry > #2 VFX Definition Root",
+    "pathHierarchySteps": [
+      {
+        "id": "entries",
+        "type": "#1 Root Entry"
+      },
+      {
+        "id": "Characters/Zac/Skins/Skin0/Particles/Zac_Base_E_tar",
+        "type": "#2 VFX Definition Root"
+      }
+    ]
+  }
+}

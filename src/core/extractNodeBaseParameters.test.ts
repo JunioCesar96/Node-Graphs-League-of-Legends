@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   buildNodeBaseParameterPayload,
   buildNodeBaseSchemaBody,
+  cloneNomenclatureForNodeBase,
   defaultValueForNodeBaseType,
   isKnownStructureParameterType,
   nodeBaseParameterId,
@@ -61,6 +62,43 @@ describe('buildNodeBaseSchemaBody', () => {
       parameters: [],
     })
     expect(body.nomenclature).not.toBe(nom)
+  })
+
+  it('preserva pathHierarchy e pathHierarchySteps (cópia da pilha)', () => {
+    const steps = [
+      { id: 'entries', type: '#1 Root Entry' },
+      { id: 'DATA/X', type: '#2 VFX Definition Root' },
+    ]
+    const nom = {
+      group: '#3 Internal Structures',
+      collection: '#3 Embed Block',
+      collectionType: 'Emitter',
+      pathHierarchy: '#1 Root Entry > #2 VFX Definition Root',
+      pathHierarchySteps: steps,
+    }
+    const body = buildNodeBaseSchemaBody('Emitter', nom)
+    expect(body.nomenclature.pathHierarchy).toBe(nom.pathHierarchy)
+    expect(body.nomenclature.pathHierarchySteps).toEqual(steps)
+    expect(body.nomenclature.pathHierarchySteps).not.toBe(nom.pathHierarchySteps)
+    expect(body.nomenclature.pathHierarchySteps?.[0]).not.toBe(steps[0])
+  })
+
+  it('cloneNomenclatureForNodeBase omite pathHierarchy vazio e steps vazios', () => {
+    expect(
+      cloneNomenclatureForNodeBase({
+        group: '',
+        collection: '',
+        collectionType: 'T',
+        pathHierarchy: '  ',
+        pathHierarchySteps: [],
+      }),
+    ).toEqual({ group: '', collection: '', collectionType: 'T' })
+  })
+
+  it('aceita group/collection vazios (estado inicial até analisador .bin)', () => {
+    const nom = { group: '', collection: '', collectionType: 'Emitter' }
+    const body = buildNodeBaseSchemaBody('Emitter', nom)
+    expect(body!.nomenclature).toEqual(nom)
   })
 })
 

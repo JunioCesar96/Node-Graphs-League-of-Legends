@@ -4,6 +4,8 @@ import path from 'node:path'
 import type { Plugin } from 'vite'
 
 import { buildNodeBaseParameterPayload, buildNodeBaseSchemaBody } from './src/core/extractNodeBaseParameters'
+import type { NodeStructureNomenclature } from './src/core/nodeSchema'
+import { parseNomenclatureFromStructureJson } from './src/core/nodeStructureJson'
 
 /** Pastas dentro de `src/nodeStructures/` que não podem ser criadas/eliminadas via API */
 const RESERVED_NODE_STRUCTURE_FOLDERS = new Set(['default'])
@@ -237,10 +239,7 @@ export function vitePluginNodeStructuresWrite(projectRoot: string): Plugin {
                 const created: string[] = []
                 const skipped: string[] = []
                 const errors: string[] = []
-                const collectionTypeInfo: Record<
-                  string,
-                  { nomenclature: { group: string; collection: string; collectionType: string } }
-                > = {}
+                const collectionTypeInfo: Record<string, { nomenclature: NodeStructureNomenclature }> = {}
 
                 const rootEntries = await fs.readdir(targetDir, { withFileTypes: true })
                 const schemaFiles = rootEntries.filter((e) => e.isFile() && e.name.toLowerCase().endsWith('.json'))
@@ -261,31 +260,17 @@ export function vitePluginNodeStructuresWrite(projectRoot: string): Plugin {
                     continue
                   }
 
-                  const nom = fileJson.nomenclature
-                  if (!isRecord(nom) || typeof nom.collectionType !== 'string' || nom.collectionType.trim() === '') {
+                  const parsedNom = parseNomenclatureFromStructureJson(fileJson.nomenclature)
+                  if (!parsedNom) {
                     errors.push(`${dirent.name}: falta nomenclature.collectionType`)
                     continue
                   }
 
-                  const groupRaw = nom.group
-                  const collectionRaw = nom.collection
-                  if (
-                    typeof groupRaw !== 'string' ||
-                    !groupRaw.trim() ||
-                    typeof collectionRaw !== 'string' ||
-                    !collectionRaw.trim()
-                  ) {
-                    errors.push(`${dirent.name}: nomenclature incompleta (group/collection)`)
-                    continue
-                  }
-
-                  const collectionType = nom.collectionType.trim()
-                  const group = groupRaw.trim()
-                  const collection = collectionRaw.trim()
+                  const collectionType = parsedNom.collectionType.trim()
 
                   if (!collectionTypeInfo[collectionType]) {
                     collectionTypeInfo[collectionType] = {
-                      nomenclature: { group, collection, collectionType },
+                      nomenclature: parsedNom,
                     }
                   }
 

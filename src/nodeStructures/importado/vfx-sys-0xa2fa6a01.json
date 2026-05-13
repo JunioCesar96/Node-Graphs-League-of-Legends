@@ -1,0 +1,103 @@
+{
+  "id": "vfx-sys-0xa2fa6a01",
+  "title": "VFX · my_morgana_poca",
+  "parameters": [
+    {
+      "id": "vfx-sys-0xa2fa6a01-particle-name",
+      "name": "particleName",
+      "type": "string",
+      "defaultValue": "\"my_morgana_poca\""
+    },
+    {
+      "id": "vfx-sys-0xa2fa6a01-system-path",
+      "name": "systemPath",
+      "type": "string",
+      "defaultValue": "\"0xa2fa6a01\""
+    },
+    {
+      "id": "vfx-sys-0xa2fa6a01-emitter-count",
+      "name": "emitterCount",
+      "type": "integer",
+      "defaultValue": "11"
+    },
+    {
+      "id": "vfx-sys-0xa2fa6a01-emitter-start-line-first",
+      "name": "emitterStartLine(first)",
+      "type": "integer",
+      "defaultValue": "7343"
+    }
+  ],
+  "internalStructures": [
+    {
+      "id": "slot-1-additive-flame-wave",
+      "name": "Additive Flame Wave",
+      "schemaId": "vfx-em-0xa2fa6a01-1-additive-flame-wave"
+    },
+    {
+      "id": "slot-5-additive-ring",
+      "name": "Additive Ring",
+      "schemaId": "vfx-em-0xa2fa6a01-5-additive-ring"
+    },
+    {
+      "id": "slot-2-alpha-flame-wave",
+      "name": "alpha Flame Wave",
+      "schemaId": "vfx-em-0xa2fa6a01-2-alpha-flame-wave"
+    },
+    {
+      "id": "slot-0-dark-under-glow",
+      "name": "Dark Under Glow",
+      "schemaId": "vfx-em-0xa2fa6a01-0-dark-under-glow"
+    },
+    {
+      "id": "slot-6-embers1",
+      "name": "Embers1",
+      "schemaId": "vfx-em-0xa2fa6a01-6-embers1"
+    },
+    {
+      "id": "slot-8-embers2",
+      "name": "Embers2",
+      "schemaId": "vfx-em-0xa2fa6a01-8-embers2"
+    },
+    {
+      "id": "slot-10-energy-cracks",
+      "name": "Energy Cracks",
+      "schemaId": "vfx-em-0xa2fa6a01-10-energy-cracks"
+    },
+    {
+      "id": "slot-9-ground-mesh2",
+      "name": "Ground_Mesh2",
+      "schemaId": "vfx-em-0xa2fa6a01-9-ground-mesh2"
+    },
+    {
+      "id": "slot-4-ring-alpha-fill",
+      "name": "Ring Alpha Fill",
+      "schemaId": "vfx-em-0xa2fa6a01-4-ring-alpha-fill"
+    },
+    {
+      "id": "slot-7-ring-blur",
+      "name": "Ring Blur",
+      "schemaId": "vfx-em-0xa2fa6a01-7-ring-blur"
+    },
+    {
+      "id": "slot-3-small-ripples",
+      "name": "Small Ripples",
+      "schemaId": "vfx-em-0xa2fa6a01-3-small-ripples"
+    }
+  ],
+  "nomenclature": {
+    "group": "#2 Entidades",
+    "collection": "#2 VFX Definition Root",
+    "collectionType": "VFX",
+    "pathHierarchy": "#1 Root Entry > #2 VFX Definition Root",
+    "pathHierarchySteps": [
+      {
+        "id": "entries",
+        "type": "#1 Root Entry"
+      },
+      {
+        "id": "0xa2fa6a01",
+        "type": "#2 VFX Definition Root"
+      }
+    ]
+  }
+}

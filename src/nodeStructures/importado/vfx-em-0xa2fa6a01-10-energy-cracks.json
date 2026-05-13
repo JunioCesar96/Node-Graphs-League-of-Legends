@@ -1,0 +1,61 @@
+{
+  "id": "vfx-em-0xa2fa6a01-10-energy-cracks",
+  "title": "Emitter · Energy Cracks",
+  "parameters": [
+    {
+      "id": "vfx-em-0xa2fa6a01-10-energy-cracks-bind-weight",
+      "name": "bindWeight",
+      "type": "float",
+      "defaultValue": "1"
+    },
+    {
+      "id": "vfx-em-0xa2fa6a01-10-energy-cracks-birth-scale0",
+      "name": "birthScale0",
+      "type": "vector3",
+      "defaultValue": "360, 760, 0.5"
+    },
+    {
+      "id": "vfx-em-0xa2fa6a01-10-energy-cracks-emitter-name",
+      "name": "emitterName",
+      "type": "string",
+      "defaultValue": "\"Energy Cracks\""
+    },
+    {
+      "id": "vfx-em-0xa2fa6a01-10-energy-cracks-particle-lifetime",
+      "name": "particleLifetime",
+      "type": "float",
+      "defaultValue": "5"
+    },
+    {
+      "id": "vfx-em-0xa2fa6a01-10-energy-cracks-rate",
+      "name": "rate",
+      "type": "float",
+      "defaultValue": "1"
+    }
+  ],
+  "internalStructures": [],
+  "nomenclature": {
+    "group": "#3 Internal Structures",
+    "collection": "#3 Embed Block",
+    "collectionType": "Emitter",
+    "pathHierarchy": "#1 Root Entry > #2 VFX Definition Root > #3 Internal Structures > #3 Embed Block",
+    "pathHierarchySteps": [
+      {
+        "id": "entries",
+        "type": "#1 Root Entry"
+      },
+      {
+        "id": "0xa2fa6a01",
+        "type": "#2 VFX Definition Root"
+      },
+      {
+        "id": "",
+        "type": "#3 Internal Structures"
+      },
+      {
+        "id": "Energy Cracks",
+        "type": "#3 Embed Block"
+      }
+    ]
+  }
+}

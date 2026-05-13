@@ -1,0 +1,83 @@
+{
+  "id": "vfx-sys-characters-zac-skins-skin0-particles-zac-base-e-land-splash",
+  "title": "VFX · Zac_Base_E_LandSplash",
+  "parameters": [
+    {
+      "id": "vfx-sys-characters-zac-skins-skin0-particles-zac-base-e-land-splash-particle-name",
+      "name": "particleName",
+      "type": "string",
+      "defaultValue": "\"Zac_Base_E_LandSplash\""
+    },
+    {
+      "id": "vfx-sys-characters-zac-skins-skin0-particles-zac-base-e-land-splash-system-path",
+      "name": "systemPath",
+      "type": "string",
+      "defaultValue": "\"Characters/Zac/Skins/Skin0/Particles/Zac_Base_E_LandSplash\""
+    },
+    {
+      "id": "vfx-sys-characters-zac-skins-skin0-particles-zac-base-e-land-splash-emitter-count",
+      "name": "emitterCount",
+      "type": "integer",
+      "defaultValue": "7"
+    },
+    {
+      "id": "vfx-sys-characters-zac-skins-skin0-particles-zac-base-e-land-splash-emitter-start-line-first",
+      "name": "emitterStartLine(first)",
+      "type": "integer",
+      "defaultValue": "4417"
+    }
+  ],
+  "internalStructures": [
+    {
+      "id": "slot-1-juice",
+      "name": "Juice",
+      "schemaId": "vfx-em-characters-zac-skins-skin0-particles-zac-base-e-land-splash-1-juice"
+    },
+    {
+      "id": "slot-5-juice2",
+      "name": "Juice2",
+      "schemaId": "vfx-em-characters-zac-skins-skin0-particles-zac-base-e-land-splash-5-juice2"
+    },
+    {
+      "id": "slot-3-pool",
+      "name": "Pool",
+      "schemaId": "vfx-em-characters-zac-skins-skin0-particles-zac-base-e-land-splash-3-pool"
+    },
+    {
+      "id": "slot-0-ring",
+      "name": "Ring",
+      "schemaId": "vfx-em-characters-zac-skins-skin0-particles-zac-base-e-land-splash-0-ring"
+    },
+    {
+      "id": "slot-6-shadow",
+      "name": "Shadow",
+      "schemaId": "vfx-em-characters-zac-skins-skin0-particles-zac-base-e-land-splash-6-shadow"
+    },
+    {
+      "id": "slot-4-spatter",
+      "name": "Spatter",
+      "schemaId": "vfx-em-characters-zac-skins-skin0-particles-zac-base-e-land-splash-4-spatter"
+    },
+    {
+      "id": "slot-2-splat",
+      "name": "Splat",
+      "schemaId": "vfx-em-characters-zac-skins-skin0-particles-zac-base-e-land-splash-2-splat"
+    }
+  ],
+  "nomenclature": {
+    "group": "#2 Entidades",
+    "collection": "#2 VFX Definition Root",
+    "collectionType": "VFX",
+    "pathHierarchy": "#1 Root Entry > #2 VFX Definition Root",
+    "pathHierarchySteps": [
+      {
+        "id": "entries",
+        "type": "#1 Root Entry"
+      },
+      {
+        "id": "Characters/Zac/Skins/Skin0/Particles/Zac_Base_E_LandSplash",
+        "type": "#2 VFX Definition Root"
+      }
+    ]
+  }
+}

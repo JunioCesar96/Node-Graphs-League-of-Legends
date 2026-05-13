@@ -1,0 +1,61 @@
+{
+  "id": "vfx-em-0x7b3a4b5f-3-mesh-ground",
+  "title": "Emitter · mesh_ground",
+  "parameters": [
+    {
+      "id": "vfx-em-0x7b3a4b5f-3-mesh-ground-bind-weight",
+      "name": "bindWeight",
+      "type": "float",
+      "defaultValue": "1"
+    },
+    {
+      "id": "vfx-em-0x7b3a4b5f-3-mesh-ground-birth-scale0",
+      "name": "birthScale0",
+      "type": "vector3",
+      "defaultValue": "1, -3, 1"
+    },
+    {
+      "id": "vfx-em-0x7b3a4b5f-3-mesh-ground-emitter-name",
+      "name": "emitterName",
+      "type": "string",
+      "defaultValue": "\"mesh_ground\""
+    },
+    {
+      "id": "vfx-em-0x7b3a4b5f-3-mesh-ground-particle-lifetime",
+      "name": "particleLifetime",
+      "type": "float",
+      "defaultValue": "2"
+    },
+    {
+      "id": "vfx-em-0x7b3a4b5f-3-mesh-ground-rate",
+      "name": "rate",
+      "type": "float",
+      "defaultValue": "4"
+    }
+  ],
+  "internalStructures": [],
+  "nomenclature": {
+    "group": "#3 Internal Structures",
+    "collection": "#3 Embed Block",
+    "collectionType": "Emitter",
+    "pathHierarchy": "#1 Root Entry > #2 VFX Definition Root > #3 Internal Structures > #3 Embed Block",
+    "pathHierarchySteps": [
+      {
+        "id": "entries",
+        "type": "#1 Root Entry"
+      },
+      {
+        "id": "0x7b3a4b5f",
+        "type": "#2 VFX Definition Root"
+      },
+      {
+        "id": "",
+        "type": "#3 Internal Structures"
+      },
+      {
+        "id": "mesh_ground",
+        "type": "#3 Embed Block"
+      }
+    ]
+  }
+}

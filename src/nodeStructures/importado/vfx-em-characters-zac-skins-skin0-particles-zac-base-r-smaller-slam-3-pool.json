@@ -1,0 +1,55 @@
+{
+  "id": "vfx-em-characters-zac-skins-skin0-particles-zac-base-r-smaller-slam-3-pool",
+  "title": "Emitter · Pool",
+  "parameters": [
+    {
+      "id": "vfx-em-characters-zac-skins-skin0-particles-zac-base-r-smaller-slam-3-pool-birth-scale0",
+      "name": "birthScale0",
+      "type": "vector3",
+      "defaultValue": "150, 150, 150"
+    },
+    {
+      "id": "vfx-em-characters-zac-skins-skin0-particles-zac-base-r-smaller-slam-3-pool-emitter-name",
+      "name": "emitterName",
+      "type": "string",
+      "defaultValue": "\"Pool\""
+    },
+    {
+      "id": "vfx-em-characters-zac-skins-skin0-particles-zac-base-r-smaller-slam-3-pool-particle-lifetime",
+      "name": "particleLifetime",
+      "type": "float",
+      "defaultValue": "2"
+    },
+    {
+      "id": "vfx-em-characters-zac-skins-skin0-particles-zac-base-r-smaller-slam-3-pool-rate",
+      "name": "rate",
+      "type": "float",
+      "defaultValue": "3"
+    }
+  ],
+  "internalStructures": [],
+  "nomenclature": {
+    "group": "#3 Internal Structures",
+    "collection": "#3 Embed Block",
+    "collectionType": "Emitter",
+    "pathHierarchy": "#1 Root Entry > #2 VFX Definition Root > #3 Internal Structures > #3 Embed Block",
+    "pathHierarchySteps": [
+      {
+        "id": "entries",
+        "type": "#1 Root Entry"
+      },
+      {
+        "id": "Characters/Zac/Skins/Skin0/Particles/Zac_Base_R_SmallerSlam",
+        "type": "#2 VFX Definition Root"
+      },
+      {
+        "id": "",
+        "type": "#3 Internal Structures"
+      },
+      {
+        "id": "Pool",
+        "type": "#3 Embed Block"
+      }
+    ]
+  }
+}

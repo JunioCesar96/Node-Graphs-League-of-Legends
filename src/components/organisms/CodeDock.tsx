@@ -32,6 +32,8 @@ export type CodeDockNodeActions = {
   onConvertClassGroup: () => void | Promise<void>
   /** Particle Editor Jade — só `… = VfxSystemDefinitionData {`. */
   onConvertJadeFxEditor: () => void | Promise<void>
+  /** Preenche group/collection nos JSON do pack a partir do texto ritual (VFX Jade). */
+  onApplyBinNomenclatura: (folder: string) => boolean | Promise<boolean>
   /** Pastas em `src/nodeStructures/` (exceto `default`) — eliminar pack */
   listDeletableFolders: () => Promise<string[]>
   /** Igual à lista de packs; usado por «Extrair Node Base». */
@@ -92,6 +94,11 @@ export function CodeDock({
   const [extractSelected, setExtractSelected] = useState('')
   const [extractBusy, setExtractBusy] = useState(false)
   const [extractListError, setExtractListError] = useState<string | null>(null)
+  const [nomeDialogOpen, setNomeDialogOpen] = useState(false)
+  const [nomeChoices, setNomeChoices] = useState<string[]>([])
+  const [nomeSelected, setNomeSelected] = useState('')
+  const [nomeBusy, setNomeBusy] = useState(false)
+  const [nomeListError, setNomeListError] = useState<string | null>(null)
 
   const dragPhaseRef = useRef<FloatingDragPhase>(null)
   const dockedResizePhaseRef = useRef(false)
@@ -312,6 +319,45 @@ export function CodeDock({
       setExtractBusy(false)
     }
   }, [closeExtractDialog, extractSelected, nodeActions])
+
+  const openNomeDialog = useCallback(async () => {
+    if (!nodeActions) {
+      return
+    }
+    setNomeListError(null)
+    setNomeBusy(false)
+    setNomeDialogOpen(true)
+    try {
+      const folders = await nodeActions.listStructurePackFolders()
+      setNomeChoices(folders)
+      setNomeSelected(folders[0] ?? '')
+    } catch {
+      setNomeChoices([])
+      setNomeSelected('')
+      setNomeListError('Não foi possível obter a lista de pastas.')
+    }
+  }, [nodeActions])
+
+  const closeNomeDialog = useCallback(() => {
+    setNomeDialogOpen(false)
+    setNomeListError(null)
+    setNomeBusy(false)
+  }, [])
+
+  const confirmApplyNome = useCallback(async () => {
+    if (!nodeActions || !nomeSelected) {
+      return
+    }
+    setNomeBusy(true)
+    try {
+      const okOutcome = await nodeActions.onApplyBinNomenclatura(nomeSelected)
+      if (okOutcome) {
+        closeNomeDialog()
+      }
+    } finally {
+      setNomeBusy(false)
+    }
+  }, [closeNomeDialog, nomeSelected, nodeActions])
 
   const beginDockWidthResize = useCallback((event: ReactPointerEvent) => {
     event.preventDefault()
@@ -545,6 +591,20 @@ export function CodeDock({
                         Extrair Node Base
                       </button>
                     </li>
+                    <li role="presentation">
+                      <button
+                        className={styles.converterMenuItem}
+                        role="menuitem"
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          closeConverterMenu()
+                          void openNomeDialog()
+                        }}
+                      >
+                        Aplicar nomeclatura (.bin)
+                      </button>
+                    </li>
                     <li aria-hidden className={styles.converterDivider} />
                     <li role="presentation">
                       <button
@@ -639,6 +699,52 @@ export function CodeDock({
                 type="button"
               >
                 {deleteBusy ? 'A eliminar…' : 'Eliminar pasta'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+      {nomeDialogOpen ? (
+        <div aria-modal className={styles.dialogBackdrop} role="dialog">
+          <div className={styles.dialogPanel}>
+            <p className={styles.dialogTitle}>Aplicar nomeclatura</p>
+            {nomeListError ? (
+              <p className={styles.dialogHint}>{nomeListError}</p>
+            ) : nomeChoices.length === 0 ? (
+              <p className={styles.dialogHint}>Nenhuma pasta pack (além da default).</p>
+            ) : (
+              <>
+                <label className={styles.dialogField}>
+                  Pasta do pack
+                  <select
+                    className={styles.dialogSelect}
+                    onChange={(e) => setNomeSelected(e.target.value)}
+                    value={nomeSelected || nomeChoices[0]}
+                  >
+                    {nomeChoices.map((f) => (
+                      <option key={f} value={f}>
+                        {f}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <p className={styles.dialogHint}>
+                  Usa o texto do painel Código (VFX Jade) para preencher <code>group</code> e{' '}
+                  <code>collection</code> nos JSON do pack em memória; em dev gravam-se de novo no disco.
+                </p>
+              </>
+            )}
+            <div className={styles.dialogActions}>
+              <button className={styles.headerGhostButton} onClick={closeNomeDialog} type="button">
+                Cancelar
+              </button>
+              <button
+                className={styles.headerGhostButton}
+                disabled={nomeBusy || nomeChoices.length === 0 || !nomeSelected}
+                onClick={() => void confirmApplyNome()}
+                type="button"
+              >
+                {nomeBusy ? 'A aplicar…' : 'Aplicar'}
               </button>
             </div>
           </div>

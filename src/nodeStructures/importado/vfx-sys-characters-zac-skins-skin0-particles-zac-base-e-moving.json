@@ -1,0 +1,53 @@
+{
+  "id": "vfx-sys-characters-zac-skins-skin0-particles-zac-base-e-moving",
+  "title": "VFX · Zac_Base_E_Moving",
+  "parameters": [
+    {
+      "id": "vfx-sys-characters-zac-skins-skin0-particles-zac-base-e-moving-particle-name",
+      "name": "particleName",
+      "type": "string",
+      "defaultValue": "\"Zac_Base_E_Moving\""
+    },
+    {
+      "id": "vfx-sys-characters-zac-skins-skin0-particles-zac-base-e-moving-system-path",
+      "name": "systemPath",
+      "type": "string",
+      "defaultValue": "\"Characters/Zac/Skins/Skin0/Particles/Zac_Base_E_Moving\""
+    },
+    {
+      "id": "vfx-sys-characters-zac-skins-skin0-particles-zac-base-e-moving-emitter-count",
+      "name": "emitterCount",
+      "type": "integer",
+      "defaultValue": "1"
+    },
+    {
+      "id": "vfx-sys-characters-zac-skins-skin0-particles-zac-base-e-moving-emitter-start-line-first",
+      "name": "emitterStartLine(first)",
+      "type": "integer",
+      "defaultValue": "857"
+    }
+  ],
+  "internalStructures": [
+    {
+      "id": "slot-0-spatter",
+      "name": "Spatter",
+      "schemaId": "vfx-em-characters-zac-skins-skin0-particles-zac-base-e-moving-0-spatter"
+    }
+  ],
+  "nomenclature": {
+    "group": "#2 Entidades",
+    "collection": "#2 VFX Definition Root",
+    "collectionType": "VFX",
+    "pathHierarchy": "#1 Root Entry > #2 VFX Definition Root",
+    "pathHierarchySteps": [
+      {
+        "id": "entries",
+        "type": "#1 Root Entry"
+      },
+      {
+        "id": "Characters/Zac/Skins/Skin0/Particles/Zac_Base_E_Moving",
+        "type": "#2 VFX Definition Root"
+      }
+    ]
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "id": "Emitter_bindWeight",
+  "name": "bindWeight",
+  "type": "float",
+  "defaultValue": "0"
+}

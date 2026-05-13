@@ -1,0 +1,61 @@
+{
+  "id": "vfx-em-0xa2fa6a01-2-alpha-flame-wave",
+  "title": "Emitter · alpha Flame Wave",
+  "parameters": [
+    {
+      "id": "vfx-em-0xa2fa6a01-2-alpha-flame-wave-bind-weight",
+      "name": "bindWeight",
+      "type": "float",
+      "defaultValue": "1"
+    },
+    {
+      "id": "vfx-em-0xa2fa6a01-2-alpha-flame-wave-birth-scale0",
+      "name": "birthScale0",
+      "type": "vector3",
+      "defaultValue": "3, 5, 3"
+    },
+    {
+      "id": "vfx-em-0xa2fa6a01-2-alpha-flame-wave-emitter-name",
+      "name": "emitterName",
+      "type": "string",
+      "defaultValue": "\"alpha Flame Wave\""
+    },
+    {
+      "id": "vfx-em-0xa2fa6a01-2-alpha-flame-wave-particle-lifetime",
+      "name": "particleLifetime",
+      "type": "float",
+      "defaultValue": "5"
+    },
+    {
+      "id": "vfx-em-0xa2fa6a01-2-alpha-flame-wave-rate",
+      "name": "rate",
+      "type": "float",
+      "defaultValue": "1"
+    }
+  ],
+  "internalStructures": [],
+  "nomenclature": {
+    "group": "#3 Internal Structures",
+    "collection": "#3 Embed Block",
+    "collectionType": "Emitter",
+    "pathHierarchy": "#1 Root Entry > #2 VFX Definition Root > #3 Internal Structures > #3 Embed Block",
+    "pathHierarchySteps": [
+      {
+        "id": "entries",
+        "type": "#1 Root Entry"
+      },
+      {
+        "id": "0xa2fa6a01",
+        "type": "#2 VFX Definition Root"
+      },
+      {
+        "id": "",
+        "type": "#3 Internal Structures"
+      },
+      {
+        "id": "alpha Flame Wave",
+        "type": "#3 Embed Block"
+      }
+    ]
+  }
+}

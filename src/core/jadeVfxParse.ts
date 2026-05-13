@@ -44,8 +44,8 @@ export function normalizeLineEndings(content: string): string {
   return content.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
 }
 
-// Count brackets in a line, ignoring those inside strings
-function countBrackets(line: string): { opens: number; closes: number } {
+/** Contagem de `{` / `}` ignorando strings — útil para analisadores do texto ritual. */
+export function countBrackets(line: string): { opens: number; closes: number } {
   let opens = 0
   let closes = 0
   let inString = false
@@ -78,8 +78,8 @@ function countBrackets(line: string): { opens: number; closes: number } {
   return { opens, closes }
 }
 
-// Find the end of a block starting at startLine
-function findBlockEnd(lines: string[], startLine: number): number {
+/** Última linha do bloco cuja `{` de abertura está em `startLine` (inclusive). */
+export function findBlockEnd(lines: string[], startLine: number): number {
   let bracketDepth = 0
   let foundFirstBracket = false
 

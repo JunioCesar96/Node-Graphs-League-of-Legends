@@ -1,0 +1,88 @@
+{
+  "id": "vfx-sys-characters-zac-skins-skin0-particles-zac-base-r-smaller-slam",
+  "title": "VFX · Zac_Base_R_SmallerSlam",
+  "parameters": [
+    {
+      "id": "vfx-sys-characters-zac-skins-skin0-particles-zac-base-r-smaller-slam-particle-name",
+      "name": "particleName",
+      "type": "string",
+      "defaultValue": "\"Zac_Base_R_SmallerSlam\""
+    },
+    {
+      "id": "vfx-sys-characters-zac-skins-skin0-particles-zac-base-r-smaller-slam-system-path",
+      "name": "systemPath",
+      "type": "string",
+      "defaultValue": "\"Characters/Zac/Skins/Skin0/Particles/Zac_Base_R_SmallerSlam\""
+    },
+    {
+      "id": "vfx-sys-characters-zac-skins-skin0-particles-zac-base-r-smaller-slam-emitter-count",
+      "name": "emitterCount",
+      "type": "integer",
+      "defaultValue": "8"
+    },
+    {
+      "id": "vfx-sys-characters-zac-skins-skin0-particles-zac-base-r-smaller-slam-emitter-start-line-first",
+      "name": "emitterStartLine(first)",
+      "type": "integer",
+      "defaultValue": "2459"
+    }
+  ],
+  "internalStructures": [
+    {
+      "id": "slot-1-juice",
+      "name": "Juice",
+      "schemaId": "vfx-em-characters-zac-skins-skin0-particles-zac-base-r-smaller-slam-1-juice"
+    },
+    {
+      "id": "slot-6-juice-far",
+      "name": "Juice_Far",
+      "schemaId": "vfx-em-characters-zac-skins-skin0-particles-zac-base-r-smaller-slam-6-juice-far"
+    },
+    {
+      "id": "slot-5-juice1",
+      "name": "Juice1",
+      "schemaId": "vfx-em-characters-zac-skins-skin0-particles-zac-base-r-smaller-slam-5-juice1"
+    },
+    {
+      "id": "slot-3-pool",
+      "name": "Pool",
+      "schemaId": "vfx-em-characters-zac-skins-skin0-particles-zac-base-r-smaller-slam-3-pool"
+    },
+    {
+      "id": "slot-0-ring",
+      "name": "Ring",
+      "schemaId": "vfx-em-characters-zac-skins-skin0-particles-zac-base-r-smaller-slam-0-ring"
+    },
+    {
+      "id": "slot-2-ring-2",
+      "name": "Ring_2",
+      "schemaId": "vfx-em-characters-zac-skins-skin0-particles-zac-base-r-smaller-slam-2-ring-2"
+    },
+    {
+      "id": "slot-7-shadow",
+      "name": "Shadow",
+      "schemaId": "vfx-em-characters-zac-skins-skin0-particles-zac-base-r-smaller-slam-7-shadow"
+    },
+    {
+      "id": "slot-4-spatter",
+      "name": "Spatter",
+      "schemaId": "vfx-em-characters-zac-skins-skin0-particles-zac-base-r-smaller-slam-4-spatter"
+    }
+  ],
+  "nomenclature": {
+    "group": "#2 Entidades",
+    "collection": "#2 VFX Definition Root",
+    "collectionType": "VFX",
+    "pathHierarchy": "#1 Root Entry > #2 VFX Definition Root",
+    "pathHierarchySteps": [
+      {
+        "id": "entries",
+        "type": "#1 Root Entry"
+      },
+      {
+        "id": "Characters/Zac/Skins/Skin0/Particles/Zac_Base_R_SmallerSlam",
+        "type": "#2 VFX Definition Root"
+      }
+    ]
+  }
+}

@@ -1,0 +1,55 @@
+{
+  "id": "vfx-em-0x7b3a4b5f-6-my-poca",
+  "title": "Emitter · my_poca",
+  "parameters": [
+    {
+      "id": "vfx-em-0x7b3a4b5f-6-my-poca-birth-scale0",
+      "name": "birthScale0",
+      "type": "vector3",
+      "defaultValue": "140, 120, 120"
+    },
+    {
+      "id": "vfx-em-0x7b3a4b5f-6-my-poca-emitter-name",
+      "name": "emitterName",
+      "type": "string",
+      "defaultValue": "\"my_poca\""
+    },
+    {
+      "id": "vfx-em-0x7b3a4b5f-6-my-poca-particle-lifetime",
+      "name": "particleLifetime",
+      "type": "float",
+      "defaultValue": "0.6"
+    },
+    {
+      "id": "vfx-em-0x7b3a4b5f-6-my-poca-rate",
+      "name": "rate",
+      "type": "float",
+      "defaultValue": "3"
+    }
+  ],
+  "internalStructures": [],
+  "nomenclature": {
+    "group": "#3 Internal Structures",
+    "collection": "#3 Embed Block",
+    "collectionType": "Emitter",
+    "pathHierarchy": "#1 Root Entry > #2 VFX Definition Root > #3 Internal Structures > #3 Embed Block",
+    "pathHierarchySteps": [
+      {
+        "id": "entries",
+        "type": "#1 Root Entry"
+      },
+      {
+        "id": "0x7b3a4b5f",
+        "type": "#2 VFX Definition Root"
+      },
+      {
+        "id": "",
+        "type": "#3 Internal Structures"
+      },
+      {
+        "id": "my_poca",
+        "type": "#3 Embed Block"
+      }
+    ]
+  }
+}

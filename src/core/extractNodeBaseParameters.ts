@@ -1,5 +1,7 @@
 import type { NodeDataType, NodeStructureNomenclature } from './nodeSchema'
 
+import { fx_pathHierarchy } from './pathHierarchy'
+
 const NODE_DATA_TYPES: ReadonlySet<string> = new Set<NodeDataType>([
   'keyword',
   'string',
@@ -90,6 +92,24 @@ export type NodeBaseSchemaBodyJson = {
   parameters: []
 }
 
+/** Copia `nomenclature` para JSON de nó base, incluindo `pathHierarchy` / `pathHierarchySteps`. */
+export function cloneNomenclatureForNodeBase(nomenclature: NodeStructureNomenclature): NodeStructureNomenclature {
+  const out: NodeStructureNomenclature = {
+    group: nomenclature.group,
+    collection: nomenclature.collection,
+    collectionType: nomenclature.collectionType,
+  }
+  const pathHierarchyRaw =
+    typeof nomenclature.pathHierarchy === 'string' ? nomenclature.pathHierarchy.trim() : ''
+  if (pathHierarchyRaw.length > 0) {
+    out.pathHierarchy = pathHierarchyRaw
+  }
+  if (nomenclature.pathHierarchySteps && nomenclature.pathHierarchySteps.length > 0) {
+    out.pathHierarchySteps = fx_pathHierarchy(nomenclature.pathHierarchySteps)
+  }
+  return out
+}
+
 export function buildNodeBaseSchemaBody(
   collectionType: string,
   nomenclature: NodeStructureNomenclature,
@@ -98,7 +118,7 @@ export function buildNodeBaseSchemaBody(
     internalStructures: [],
     id: collectionType,
     title: collectionType,
-    nomenclature: { ...nomenclature },
+    nomenclature: cloneNomenclatureForNodeBase(nomenclature),
     parameters: [],
   }
 }

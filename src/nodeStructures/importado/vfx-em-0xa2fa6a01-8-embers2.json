@@ -1,0 +1,55 @@
+{
+  "id": "vfx-em-0xa2fa6a01-8-embers2",
+  "title": "Emitter · Embers2",
+  "parameters": [
+    {
+      "id": "vfx-em-0xa2fa6a01-8-embers2-birth-scale0",
+      "name": "birthScale0",
+      "type": "vector3",
+      "defaultValue": "60, 60, 50"
+    },
+    {
+      "id": "vfx-em-0xa2fa6a01-8-embers2-emitter-name",
+      "name": "emitterName",
+      "type": "string",
+      "defaultValue": "\"Embers2\""
+    },
+    {
+      "id": "vfx-em-0xa2fa6a01-8-embers2-particle-lifetime",
+      "name": "particleLifetime",
+      "type": "float",
+      "defaultValue": "1.25"
+    },
+    {
+      "id": "vfx-em-0xa2fa6a01-8-embers2-rate",
+      "name": "rate",
+      "type": "float",
+      "defaultValue": "10"
+    }
+  ],
+  "internalStructures": [],
+  "nomenclature": {
+    "group": "#3 Internal Structures",
+    "collection": "#3 Embed Block",
+    "collectionType": "Emitter",
+    "pathHierarchy": "#1 Root Entry > #2 VFX Definition Root > #3 Internal Structures > #3 Embed Block",
+    "pathHierarchySteps": [
+      {
+        "id": "entries",
+        "type": "#1 Root Entry"
+      },
+      {
+        "id": "0xa2fa6a01",
+        "type": "#2 VFX Definition Root"
+      },
+      {
+        "id": "",
+        "type": "#3 Internal Structures"
+      },
+      {
+        "id": "Embers2",
+        "type": "#3 Embed Block"
+      }
+    ]
+  }
+}

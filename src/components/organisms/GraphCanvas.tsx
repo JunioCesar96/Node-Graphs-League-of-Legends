@@ -5,6 +5,8 @@ import { AddNodePalette } from '@/components/organisms/AddNodePalette'
 import { NodeCard } from '@/components/organisms/NodeCard'
 import type { CanvasConnection, CanvasNode, CanvasPosition, CanvasScene } from '@/core/canvasScene'
 import type { InternalStructureDefinition, NodeParameterDefinition, NodeSchemaDefinition } from '@/core/nodeSchema'
+import { filterInternalStructuresByPathHierarchy } from '@/core/pathHierarchyInternalStructures'
+import { schemaRegistry } from '@/core/nodeStructureRegistry'
 
 import styles from './GraphCanvas.module.css'
 
@@ -1535,7 +1537,12 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
                   const used = new Set(
                     canvasNode.node.schema.internalStructures.map((structure) => structure.schemaId),
                   )
-                  return list.filter((structure) => !used.has(structure.schemaId))
+                  const fresh = list.filter((structure) => !used.has(structure.schemaId))
+                  return filterInternalStructuresByPathHierarchy(
+                    canvasNode.node.schema.nomenclature?.pathHierarchySteps,
+                    fresh,
+                    schemaRegistry,
+                  )
                 })()}
                 catalogParameters={(() => {
                   const sid = canvasNode.node.schema.id

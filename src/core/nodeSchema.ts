@@ -18,11 +18,21 @@ export type NodeParameterDefinition = {
   defaultValue: string
 }
 
+/** Um degrau na pilha hierárquica (ex.: id da entrada no ritual + classificação `#N …`). */
+export type NomenclaturePathSegment = {
+  id: string
+  type: string
+}
+
 /** Alinhado a nomecratura.md (Classification + Set Nomenclature). */
 export type NodeStructureNomenclature = {
   group: string
   collection: string
   collectionType: string
+  /** Trilho legível da raiz do mapa até ao nó (ex.: «Aplicar nomeclatura» no CodeDock). */
+  pathHierarchy?: string
+  /** Pilha estruturada usada por filtros de contexto (ex.: menu + Elemento). */
+  pathHierarchySteps?: NomenclaturePathSegment[]
 }
 
 /** Classificação nominal (Set Nomenclature): Internal_Structures (#3). */

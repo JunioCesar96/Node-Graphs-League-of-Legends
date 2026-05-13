@@ -1,0 +1,6 @@
+{
+  "id": "Emitter_emitterName",
+  "name": "emitterName",
+  "type": "string",
+  "defaultValue": ""
+}

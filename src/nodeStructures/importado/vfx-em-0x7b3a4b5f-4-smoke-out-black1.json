@@ -1,0 +1,67 @@
+{
+  "id": "vfx-em-0x7b3a4b5f-4-smoke-out-black1",
+  "title": "Emitter · SmokeOutBlack1",
+  "parameters": [
+    {
+      "id": "vfx-em-0x7b3a4b5f-4-smoke-out-black1-bind-weight",
+      "name": "bindWeight",
+      "type": "float",
+      "defaultValue": "1"
+    },
+    {
+      "id": "vfx-em-0x7b3a4b5f-4-smoke-out-black1-birth-scale0",
+      "name": "birthScale0",
+      "type": "vector3",
+      "defaultValue": "200, 400, 0"
+    },
+    {
+      "id": "vfx-em-0x7b3a4b5f-4-smoke-out-black1-emitter-name",
+      "name": "emitterName",
+      "type": "string",
+      "defaultValue": "\"SmokeOutBlack1\""
+    },
+    {
+      "id": "vfx-em-0x7b3a4b5f-4-smoke-out-black1-particle-lifetime",
+      "name": "particleLifetime",
+      "type": "float",
+      "defaultValue": "1"
+    },
+    {
+      "id": "vfx-em-0x7b3a4b5f-4-smoke-out-black1-rate",
+      "name": "rate",
+      "type": "float",
+      "defaultValue": "120"
+    },
+    {
+      "id": "vfx-em-0x7b3a4b5f-4-smoke-out-black1-scale0",
+      "name": "scale0",
+      "type": "vector3",
+      "defaultValue": "0.25, 0.25, 0.25"
+    }
+  ],
+  "internalStructures": [],
+  "nomenclature": {
+    "group": "#3 Internal Structures",
+    "collection": "#3 Embed Block",
+    "collectionType": "Emitter",
+    "pathHierarchy": "#1 Root Entry > #2 VFX Definition Root > #3 Internal Structures > #3 Embed Block",
+    "pathHierarchySteps": [
+      {
+        "id": "entries",
+        "type": "#1 Root Entry"
+      },
+      {
+        "id": "0x7b3a4b5f",
+        "type": "#2 VFX Definition Root"
+      },
+      {
+        "id": "",
+        "type": "#3 Internal Structures"
+      },
+      {
+        "id": "SmokeOutBlack1",
+        "type": "#3 Embed Block"
+      }
+    ]
+  }
+}

@@ -1,0 +1,55 @@
+{
+  "id": "vfx-em-0xffbf2a72-1-mouth",
+  "title": "Emitter · Mouth",
+  "parameters": [
+    {
+      "id": "vfx-em-0xffbf2a72-1-mouth-bind-weight",
+      "name": "bindWeight",
+      "type": "float",
+      "defaultValue": "1"
+    },
+    {
+      "id": "vfx-em-0xffbf2a72-1-mouth-emitter-name",
+      "name": "emitterName",
+      "type": "string",
+      "defaultValue": "\"Mouth\""
+    },
+    {
+      "id": "vfx-em-0xffbf2a72-1-mouth-particle-lifetime",
+      "name": "particleLifetime",
+      "type": "float",
+      "defaultValue": "-1"
+    },
+    {
+      "id": "vfx-em-0xffbf2a72-1-mouth-rate",
+      "name": "rate",
+      "type": "float",
+      "defaultValue": "1"
+    }
+  ],
+  "internalStructures": [],
+  "nomenclature": {
+    "group": "#3 Internal Structures",
+    "collection": "#3 Embed Block",
+    "collectionType": "Emitter",
+    "pathHierarchy": "#1 Root Entry > #2 VFX Definition Root > #3 Internal Structures > #3 Embed Block",
+    "pathHierarchySteps": [
+      {
+        "id": "entries",
+        "type": "#1 Root Entry"
+      },
+      {
+        "id": "0xffbf2a72",
+        "type": "#2 VFX Definition Root"
+      },
+      {
+        "id": "",
+        "type": "#3 Internal Structures"
+      },
+      {
+        "id": "Mouth",
+        "type": "#3 Embed Block"
+      }
+    ]
+  }
+}

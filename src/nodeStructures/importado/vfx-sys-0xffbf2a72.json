@@ -1,0 +1,58 @@
+{
+  "id": "vfx-sys-0xffbf2a72",
+  "title": "VFX · my_ut_Zac_Base_Q_Armstretch",
+  "parameters": [
+    {
+      "id": "vfx-sys-0xffbf2a72-particle-name",
+      "name": "particleName",
+      "type": "string",
+      "defaultValue": "\"my_ut_Zac_Base_Q_Armstretch\""
+    },
+    {
+      "id": "vfx-sys-0xffbf2a72-system-path",
+      "name": "systemPath",
+      "type": "string",
+      "defaultValue": "\"0xffbf2a72\""
+    },
+    {
+      "id": "vfx-sys-0xffbf2a72-emitter-count",
+      "name": "emitterCount",
+      "type": "integer",
+      "defaultValue": "2"
+    },
+    {
+      "id": "vfx-sys-0xffbf2a72-emitter-start-line-first",
+      "name": "emitterStartLine(first)",
+      "type": "integer",
+      "defaultValue": "5735"
+    }
+  ],
+  "internalStructures": [
+    {
+      "id": "slot-1-mouth",
+      "name": "Mouth",
+      "schemaId": "vfx-em-0xffbf2a72-1-mouth"
+    },
+    {
+      "id": "slot-0-puddle-mesh",
+      "name": "Puddle_Mesh",
+      "schemaId": "vfx-em-0xffbf2a72-0-puddle-mesh"
+    }
+  ],
+  "nomenclature": {
+    "group": "#2 Entidades",
+    "collection": "#2 VFX Definition Root",
+    "collectionType": "VFX",
+    "pathHierarchy": "#1 Root Entry > #2 VFX Definition Root",
+    "pathHierarchySteps": [
+      {
+        "id": "entries",
+        "type": "#1 Root Entry"
+      },
+      {
+        "id": "0xffbf2a72",
+        "type": "#2 VFX Definition Root"
+      }
+    ]
+  }
+}

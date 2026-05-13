@@ -1,0 +1,78 @@
+{
+  "id": "vfx-sys-characters-zac-skins-skin0-particles-zac-base-w-cas",
+  "title": "VFX · Zac_Base_W_cas",
+  "parameters": [
+    {
+      "id": "vfx-sys-characters-zac-skins-skin0-particles-zac-base-w-cas-particle-name",
+      "name": "particleName",
+      "type": "string",
+      "defaultValue": "\"Zac_Base_W_cas\""
+    },
+    {
+      "id": "vfx-sys-characters-zac-skins-skin0-particles-zac-base-w-cas-system-path",
+      "name": "systemPath",
+      "type": "string",
+      "defaultValue": "\"Characters/Zac/Skins/Skin0/Particles/Zac_Base_W_cas\""
+    },
+    {
+      "id": "vfx-sys-characters-zac-skins-skin0-particles-zac-base-w-cas-emitter-count",
+      "name": "emitterCount",
+      "type": "integer",
+      "defaultValue": "6"
+    },
+    {
+      "id": "vfx-sys-characters-zac-skins-skin0-particles-zac-base-w-cas-emitter-start-line-first",
+      "name": "emitterStartLine(first)",
+      "type": "integer",
+      "defaultValue": "1332"
+    }
+  ],
+  "internalStructures": [
+    {
+      "id": "slot-3-juice",
+      "name": "Juice",
+      "schemaId": "vfx-em-characters-zac-skins-skin0-particles-zac-base-w-cas-3-juice"
+    },
+    {
+      "id": "slot-4-juice-far",
+      "name": "Juice_Far",
+      "schemaId": "vfx-em-characters-zac-skins-skin0-particles-zac-base-w-cas-4-juice-far"
+    },
+    {
+      "id": "slot-0-ring-01",
+      "name": "Ring_01",
+      "schemaId": "vfx-em-characters-zac-skins-skin0-particles-zac-base-w-cas-0-ring-01"
+    },
+    {
+      "id": "slot-1-ring-02",
+      "name": "Ring_02",
+      "schemaId": "vfx-em-characters-zac-skins-skin0-particles-zac-base-w-cas-1-ring-02"
+    },
+    {
+      "id": "slot-5-shadow",
+      "name": "Shadow",
+      "schemaId": "vfx-em-characters-zac-skins-skin0-particles-zac-base-w-cas-5-shadow"
+    },
+    {
+      "id": "slot-2-splat",
+      "name": "Splat",
+      "schemaId": "vfx-em-characters-zac-skins-skin0-particles-zac-base-w-cas-2-splat"
+    }
+  ],
+  "nomenclature": {
+    "group": "#2 Entidades",
+    "collection": "#2 VFX Definition Root",
+    "collectionType": "VFX",
+    "pathHierarchy": "#1 Root Entry > #2 VFX Definition Root",
+    "pathHierarchySteps": [
+      {
+        "id": "entries",
+        "type": "#1 Root Entry"
+      },
+      {
+        "id": "Characters/Zac/Skins/Skin0/Particles/Zac_Base_W_cas",
+        "type": "#2 VFX Definition Root"
+      }
+    ]
+  }
+}
