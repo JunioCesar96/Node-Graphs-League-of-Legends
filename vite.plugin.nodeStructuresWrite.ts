@@ -3,6 +3,8 @@ import path from 'node:path'
 
 import type { Plugin } from 'vite'
 
+import { buildNodeBaseParameterPayload, buildNodeBaseSchemaBody } from './src/core/extractNodeBaseParameters'
+
 /** Pastas dentro de `src/nodeStructures/` que não podem ser criadas/eliminadas via API */
 const RESERVED_NODE_STRUCTURE_FOLDERS = new Set(['default'])
 
@@ -35,6 +37,23 @@ function safeJsonStem(id: string): string | null {
   return t
 }
 
+function safeCollectionTypeDirSegment(collectionType: string): string {
+  const t = collectionType.normalize('NFKC').trim()
+  if (t === '') {
+    return 'unknown'
+  }
+  return t.replace(/[\s/\\]+/g, '-').replace(/[^a-zA-Z0-9_-]/g, '')
+}
+
+async function fileExists(filePath: string): Promise<boolean> {
+  try {
+    await fs.access(filePath)
+    return true
+  } catch {
+    return false
+  }
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
@@ -43,6 +62,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  * Em `npm run dev`:
  * - GET `/api/node-structures-folders` — subpastas de `src/nodeStructures/` (exceto `default`)
  * - POST `/api/node-structures-delete` — corpo `{ folder }`, remove a pasta escolhida
+ * - POST `/api/node-structures-extract-base` — corpo `{ folder }`, extrai parâmetros base (temp + subpastas por collectionType)
  * - POST `/api/node-structures-write` — corpo `{ folder, schemas }`, grava `.json` em `src/nodeStructures/<pasta>/`
  */
 export function vitePluginNodeStructuresWrite(projectRoot: string): Plugin {
@@ -128,6 +148,257 @@ export function vitePluginNodeStructuresWrite(projectRoot: string): Plugin {
                 res.statusCode = 200
                 res.setHeader('Content-Type', 'application/json; charset=utf-8')
                 res.end(JSON.stringify({ ok: true, folder }))
+              } catch (err) {
+                res.statusCode = 500
+                res.setHeader('Content-Type', 'application/json; charset=utf-8')
+                res.end(
+                  JSON.stringify({
+                    ok: false,
+                    error: err instanceof Error ? err.message : String(err),
+                  }),
+                )
+              }
+            })().catch(() => {
+              res.statusCode = 500
+              res.end('')
+            })
+          })
+
+          req.on('error', next)
+          return
+        }
+
+        if (pathname === '/api/node-structures-extract-base' && req.method === 'POST') {
+          const chunks: Buffer[] = []
+
+          req.on('data', (c: Buffer) => {
+            chunks.push(c)
+          })
+
+          req.on('end', () => {
+            void (async () => {
+              try {
+                const rawBody = Buffer.concat(chunks).toString('utf8')
+                const parsed: unknown = JSON.parse(rawBody) as unknown
+
+                if (!isRecord(parsed)) {
+                  res.statusCode = 400
+                  res.setHeader('Content-Type', 'application/json; charset=utf-8')
+                  res.end(JSON.stringify({ ok: false, error: 'Corpo inválido' }))
+                  return
+                }
+
+                const folder = safePackFolder(String(parsed.folder ?? ''))
+
+                if (!folder || RESERVED_NODE_STRUCTURE_FOLDERS.has(folder)) {
+                  res.statusCode = 400
+                  res.setHeader('Content-Type', 'application/json; charset=utf-8')
+                  res.end(JSON.stringify({ ok: false, error: 'Pasta inválida ou reservada' }))
+                  return
+                }
+
+                const targetDir = path.resolve(nodeStructuresRoot, folder)
+                const relative = path.relative(nodeStructuresRoot, targetDir)
+
+                if (relative.startsWith('..') || path.isAbsolute(relative)) {
+                  res.statusCode = 400
+                  res.setHeader('Content-Type', 'application/json; charset=utf-8')
+                  res.end(JSON.stringify({ ok: false, error: 'Pasta fora de nodeStructures' }))
+                  return
+                }
+
+                if (!(await fileExists(targetDir))) {
+                  res.statusCode = 400
+                  res.setHeader('Content-Type', 'application/json; charset=utf-8')
+                  res.end(JSON.stringify({ ok: false, error: 'Pasta do pack não existe' }))
+                  return
+                }
+
+                const tempDir = path.join(targetDir, 'temp')
+                const listPath = path.join(tempDir, 'parameters_list.json')
+
+                const knownIds = new Set<string>()
+                if (await fileExists(listPath)) {
+                  try {
+                    const listRaw = await fs.readFile(listPath, 'utf8')
+                    const listParsed: unknown = JSON.parse(listRaw) as unknown
+                    if (Array.isArray(listParsed)) {
+                      for (const entry of listParsed) {
+                        if (typeof entry === 'string' && entry.trim() !== '') {
+                          knownIds.add(entry.trim())
+                        }
+                      }
+                    }
+                  } catch {
+                    /** ignora JSON inválido — reconstrói lista a partir do zero */
+                  }
+                }
+
+                const created: string[] = []
+                const skipped: string[] = []
+                const errors: string[] = []
+                const collectionTypeInfo: Record<
+                  string,
+                  { nomenclature: { group: string; collection: string; collectionType: string } }
+                > = {}
+
+                const rootEntries = await fs.readdir(targetDir, { withFileTypes: true })
+                const schemaFiles = rootEntries.filter((e) => e.isFile() && e.name.toLowerCase().endsWith('.json'))
+
+                for (const dirent of schemaFiles) {
+                  const filePath = path.join(targetDir, dirent.name)
+
+                  let fileJson: unknown
+                  try {
+                    fileJson = JSON.parse(await fs.readFile(filePath, 'utf8')) as unknown
+                  } catch (err) {
+                    errors.push(`${dirent.name}: ${err instanceof Error ? err.message : String(err)}`)
+                    continue
+                  }
+
+                  if (!isRecord(fileJson)) {
+                    errors.push(`${dirent.name}: raiz inválida`)
+                    continue
+                  }
+
+                  const nom = fileJson.nomenclature
+                  if (!isRecord(nom) || typeof nom.collectionType !== 'string' || nom.collectionType.trim() === '') {
+                    errors.push(`${dirent.name}: falta nomenclature.collectionType`)
+                    continue
+                  }
+
+                  const groupRaw = nom.group
+                  const collectionRaw = nom.collection
+                  if (
+                    typeof groupRaw !== 'string' ||
+                    !groupRaw.trim() ||
+                    typeof collectionRaw !== 'string' ||
+                    !collectionRaw.trim()
+                  ) {
+                    errors.push(`${dirent.name}: nomenclature incompleta (group/collection)`)
+                    continue
+                  }
+
+                  const collectionType = nom.collectionType.trim()
+                  const group = groupRaw.trim()
+                  const collection = collectionRaw.trim()
+
+                  if (!collectionTypeInfo[collectionType]) {
+                    collectionTypeInfo[collectionType] = {
+                      nomenclature: { group, collection, collectionType },
+                    }
+                  }
+
+                  const subdirName = `${folder}_${safeCollectionTypeDirSegment(collectionType)}`
+                  const subdirPath = path.resolve(targetDir, subdirName)
+                  const subRel = path.relative(targetDir, subdirPath)
+                  if (subRel.startsWith('..') || path.isAbsolute(subRel)) {
+                    errors.push(`${dirent.name}: subpasta inválida`)
+                    continue
+                  }
+
+                  const paramsRaw = fileJson.parameters
+                  if (!Array.isArray(paramsRaw)) {
+                    continue
+                  }
+
+                  for (const paramEntry of paramsRaw) {
+                    if (!isRecord(paramEntry)) {
+                      continue
+                    }
+                    const paramName = paramEntry.name
+                    const paramType = paramEntry.type
+                    if (typeof paramName !== 'string' || typeof paramType !== 'string') {
+                      continue
+                    }
+
+                    const payload = buildNodeBaseParameterPayload(collectionType, paramName, paramType)
+                    if (!payload) {
+                      continue
+                    }
+
+                    const stem = safeJsonStem(payload.id)
+                    if (!stem) {
+                      skipped.push(payload.id)
+                      continue
+                    }
+
+                    const outFile = path.join(subdirPath, `${stem}.json`)
+                    const outRel = path.relative(subdirPath, outFile)
+                    if (outRel.startsWith('..') || path.isAbsolute(outRel)) {
+                      skipped.push(payload.id)
+                      continue
+                    }
+
+                    if (knownIds.has(payload.id)) {
+                      skipped.push(payload.id)
+                      continue
+                    }
+
+                    if (await fileExists(outFile)) {
+                      skipped.push(payload.id)
+                      continue
+                    }
+
+                    await fs.mkdir(subdirPath, { recursive: true })
+                    await fs.writeFile(outFile, `${JSON.stringify(payload, null, 2)}\n`, 'utf8')
+                    knownIds.add(payload.id)
+                    created.push(`${subdirName}/${stem}.json`)
+                  }
+                }
+
+                await fs.mkdir(tempDir, { recursive: true })
+                const ordered = Array.from(knownIds).sort((a, b) => a.localeCompare(b))
+                await fs.writeFile(listPath, `${JSON.stringify(ordered, null, 2)}\n`, 'utf8')
+
+                const baseCreated: string[] = []
+                const baseSkipped: string[] = []
+
+                for (const ct of Object.keys(collectionTypeInfo).sort((a, b) => a.localeCompare(b))) {
+                  const entry = collectionTypeInfo[ct]
+                  if (!entry) {
+                    continue
+                  }
+
+                  const subdirName = `${folder}_${safeCollectionTypeDirSegment(ct)}`
+                  const subdirPath = path.resolve(targetDir, subdirName)
+                  const subRel = path.relative(targetDir, subdirPath)
+                  if (subRel.startsWith('..') || path.isAbsolute(subRel)) {
+                    errors.push(`base ${ct}: subpasta inválida`)
+                    continue
+                  }
+
+                  const baseFile = path.join(subdirPath, `${ct}.json`)
+                  const baseRelInside = path.relative(subdirPath, baseFile)
+                  if (baseRelInside.startsWith('..') || path.isAbsolute(baseRelInside)) {
+                    errors.push(`base ${ct}: caminho inválido`)
+                    continue
+                  }
+
+                  if (await fileExists(baseFile)) {
+                    baseSkipped.push(`${subdirName}/${ct}.json`)
+                    continue
+                  }
+
+                  const body = buildNodeBaseSchemaBody(ct, entry.nomenclature)
+                  await fs.mkdir(subdirPath, { recursive: true })
+                  await fs.writeFile(baseFile, `${JSON.stringify(body, null, 2)}\n`, 'utf8')
+                  baseCreated.push(`${subdirName}/${ct}.json`)
+                }
+
+                res.statusCode = 200
+                res.setHeader('Content-Type', 'application/json; charset=utf-8')
+                res.end(
+                  JSON.stringify({
+                    ok: true,
+                    folder,
+                    created,
+                    skipped,
+                    errors,
+                    baseCreated,
+                    baseSkipped,
+                  }),
+                )
               } catch (err) {
                 res.statusCode = 500
                 res.setHeader('Content-Type', 'application/json; charset=utf-8')

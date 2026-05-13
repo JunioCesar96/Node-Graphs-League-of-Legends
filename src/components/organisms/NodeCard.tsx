@@ -6,29 +6,41 @@ import type {
 } from 'react'
 
 import { Button } from '@/components/atoms/Button'
-import { EntityItem } from '@/components/molecules/EntityItem'
+import { InternalStructureItem } from '@/components/molecules/InternalStructureItem'
 import { NodeHeader } from '@/components/molecules/NodeHeader'
 import { ParameterItem } from '@/components/molecules/ParameterItem'
-import type { NodeEntityDefinition, NodeInstance, NodeParameterDefinition } from '@/core/nodeSchema'
+import type { InternalStructureDefinition, NodeInstance, NodeParameterDefinition } from '@/core/nodeSchema'
 
 import styles from './NodeCard.module.css'
 
 type NodeCardProps = {
   canvasNodeId: string
-  activeOutputEntityId?: string
+  activeOutputInternalStructureId?: string
   canAcceptLink?: boolean
-  catalogEntities?: NodeEntityDefinition[]
+  catalogInternalStructures?: InternalStructureDefinition[]
   catalogParameters?: NodeParameterDefinition[]
   node: NodeInstance
-  onAppendCatalogEntity?: (entity: NodeEntityDefinition) => void
+  onAppendCatalogInternalStructure?: (structure: InternalStructureDefinition) => void
   onAppendCatalogParameter?: (parameter: NodeParameterDefinition) => void
-  onCreateElement?: (entity: NodeEntityDefinition) => void
+  onCreateElement?: (structure: InternalStructureDefinition) => void
   onInputPortClick?: () => void
-  onOutputWireKeyboard?: (entity: NodeEntityDefinition) => void
-  onOutputWirePointerCancel?: (entity: NodeEntityDefinition, event: ReactPointerEvent<HTMLButtonElement>) => void
-  onOutputWirePointerDown?: (entity: NodeEntityDefinition, event: ReactPointerEvent<HTMLButtonElement>) => void
-  onOutputWirePointerMove?: (entity: NodeEntityDefinition, event: ReactPointerEvent<HTMLButtonElement>) => void
-  onOutputWirePointerUp?: (entity: NodeEntityDefinition, event: ReactPointerEvent<HTMLButtonElement>) => void
+  onOutputWireKeyboard?: (structure: InternalStructureDefinition) => void
+  onOutputWirePointerCancel?: (
+    structure: InternalStructureDefinition,
+    event: ReactPointerEvent<HTMLButtonElement>,
+  ) => void
+  onOutputWirePointerDown?: (
+    structure: InternalStructureDefinition,
+    event: ReactPointerEvent<HTMLButtonElement>,
+  ) => void
+  onOutputWirePointerMove?: (
+    structure: InternalStructureDefinition,
+    event: ReactPointerEvent<HTMLButtonElement>,
+  ) => void
+  onOutputWirePointerUp?: (
+    structure: InternalStructureDefinition,
+    event: ReactPointerEvent<HTMLButtonElement>,
+  ) => void
   onSelect?: (event?: ReactMouseEvent<HTMLElement>) => void
   onStartDrag?: PointerEventHandler<HTMLElement>
   parameterHints?: Record<string, string>
@@ -39,17 +51,17 @@ function getNodeTooltip(node: NodeInstance) {
   const valueTypes = Array.from(new Set(node.schema.parameters.map((parameter) => parameter.type)))
   const valueSummary = valueTypes.length > 0 ? valueTypes.join(', ') : 'no values'
 
-  return `${node.schema.title}: ${node.schema.parameters.length} parameters, ${node.schema.entities.length} entities, ${valueSummary}`
+  return `${node.schema.title}: ${node.schema.parameters.length} parameters, ${node.schema.internalStructures.length} Internal_Structures, ${valueSummary}`
 }
 
 export function NodeCard({
-  activeOutputEntityId,
+  activeOutputInternalStructureId,
   canvasNodeId,
   canAcceptLink = false,
-  catalogEntities,
+  catalogInternalStructures,
   catalogParameters,
   node,
-  onAppendCatalogEntity,
+  onAppendCatalogInternalStructure,
   onAppendCatalogParameter,
   onCreateElement,
   onInputPortClick,
@@ -71,10 +83,13 @@ export function NodeCard({
     return node.values.find((value) => value.parameterId === parameterId)?.value ?? fallback
   }
 
-  const presetEntityCount = node.schema.entities.length
-  const hasCatalogEntities = Boolean(catalogEntities?.length && onAppendCatalogEntity)
+  const presetStructureCount = node.schema.internalStructures.length
+  const hasCatalogStructures = Boolean(
+    catalogInternalStructures?.length && onAppendCatalogInternalStructure,
+  )
   const hasCatalogParameters = Boolean(catalogParameters?.length && onAppendCatalogParameter)
-  const showElementPicker = presetEntityCount > 0 || hasCatalogEntities || hasCatalogParameters
+  const showElementPicker =
+    presetStructureCount > 0 || hasCatalogStructures || hasCatalogParameters
 
   useEffect(() => {
     if (!isElementSelectorOpen) {
@@ -132,17 +147,17 @@ export function NodeCard({
           </ul>
         </section>
 
-        <section className={styles.section} aria-labelledby={`${sectionId}-entities`}>
-          <h3 className={styles.sectionTitle} id={`${sectionId}-entities`}>
-            Entities
+        <section className={styles.section} aria-labelledby={`${sectionId}-internal-structures`}>
+          <h3 className={styles.sectionTitle} id={`${sectionId}-internal-structures`}>
+            Internal_Structures
           </h3>
           <ul className={styles.list}>
-            {node.schema.entities.map((entity) => (
-              <EntityItem
-                active={entity.id === activeOutputEntityId}
+            {node.schema.internalStructures.map((structure) => (
+              <InternalStructureItem
+                active={structure.id === activeOutputInternalStructureId}
                 canvasNodeId={canvasNodeId}
-                entity={entity}
-                key={entity.id}
+                key={structure.id}
+                structure={structure}
                 onOutputWireKeyboard={onOutputWireKeyboard}
                 onOutputWirePointerCancel={onOutputWirePointerCancel}
                 onOutputWirePointerDown={onOutputWirePointerDown}
@@ -164,32 +179,32 @@ export function NodeCard({
               + Element
             </summary>
             <div className={styles.elementMenu}>
-              {node.schema.entities.map((entity) => (
+              {node.schema.internalStructures.map((structure) => (
                 <button
-                  key={entity.id}
+                  key={structure.id}
                   onClick={() => {
-                    onCreateElement?.(entity)
+                    onCreateElement?.(structure)
                     setIsElementSelectorOpen(false)
                   }}
                   type="button"
                 >
-                  <span>{entity.name}</span>
-                  <small>{entity.schemaId}</small>
+                  <span>{structure.name}</span>
+                  <small>{structure.schemaId}</small>
                 </button>
               ))}
 
-              {hasCatalogEntities
-                ? catalogEntities?.map((entity) => (
+              {hasCatalogStructures
+                ? catalogInternalStructures?.map((structure) => (
                     <button
-                      key={`catalog-entity:${entity.schemaId}:${entity.name}`}
+                      key={`catalog-is:${structure.schemaId}:${structure.name}`}
                       onClick={() => {
-                        onAppendCatalogEntity?.(entity)
+                        onAppendCatalogInternalStructure?.(structure)
                         setIsElementSelectorOpen(false)
                       }}
                       type="button"
                     >
-                      <span>{entity.name}</span>
-                      <small>nova entidade ({entity.schemaId})</small>
+                      <span>{structure.name}</span>
+                      <small>nova Internal_Structure ({structure.schemaId})</small>
                     </button>
                   ))
                 : null}

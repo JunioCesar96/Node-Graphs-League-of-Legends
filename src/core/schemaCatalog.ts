@@ -1,4 +1,8 @@
-import type { NodeEntityDefinition, NodeParameterDefinition, NodeSchemaDefinition } from '@/core/nodeSchema'
+import type {
+  InternalStructureDefinition,
+  NodeParameterDefinition,
+  NodeSchemaDefinition,
+} from '@/core/nodeSchema'
 
 /** Catálogo de parâmetros reutilizáveis para (+ Elemento dinâmico). */
 export function flattenParameterTemplates(
@@ -21,21 +25,19 @@ export function flattenParameterTemplates(
   )
 }
 
-/** Entidades conhecidas no registo para adicionar slots dinâmicos ao corpo do nó. */
-export function flattenEntityTemplates(
+/** Internal_Structures conhecidas no registo para adicionar slots dinâmicos ao corpo do nó. */
+export function flattenInternalStructureTemplates(
   schemas: Iterable<NodeSchemaDefinition>,
-): NodeEntityDefinition[] {
-  const bySchemaTarget = new Map<string, NodeEntityDefinition>()
+): InternalStructureDefinition[] {
+  const bySchemaTarget = new Map<string, InternalStructureDefinition>()
 
   for (const schema of schemas) {
-    for (const entity of schema.entities) {
-      if (!bySchemaTarget.has(entity.schemaId)) {
-        bySchemaTarget.set(entity.schemaId, entity)
+    for (const structure of schema.internalStructures) {
+      if (!bySchemaTarget.has(structure.schemaId)) {
+        bySchemaTarget.set(structure.schemaId, structure)
       }
     }
   }
 
-  return [...bySchemaTarget.values()].sort((entityA, entityB) =>
-    entityA.name.localeCompare(entityB.name),
-  )
+  return [...bySchemaTarget.values()].sort((a, b) => a.name.localeCompare(b.name))
 }

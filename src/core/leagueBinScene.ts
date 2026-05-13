@@ -30,6 +30,10 @@ function isNodeParameterValue(value: unknown): value is NodeParameterValue {
   return isRecord(value) && typeof value.parameterId === 'string' && typeof value.value === 'string'
 }
 
+function hasStructuresArray(schema: Record<string, unknown>): boolean {
+  return Array.isArray(schema.internalStructures) || Array.isArray(schema.entities)
+}
+
 function isNodeSchemaDefinition(value: unknown): value is NodeSchemaDefinition {
   if (!isRecord(value)) {
     return false
@@ -39,7 +43,7 @@ function isNodeSchemaDefinition(value: unknown): value is NodeSchemaDefinition {
     return false
   }
 
-  if (!Array.isArray(value.parameters) || !Array.isArray(value.entities)) {
+  if (!Array.isArray(value.parameters) || !hasStructuresArray(value)) {
     return false
   }
 
@@ -146,15 +150,18 @@ export function parseSceneDocument(data: unknown): CanvasScene | null {
 
     const routing = c.routing === 'flex' || c.routing === 'rigid' ? c.routing : undefined
 
-    if (
-      typeof c.fromNodeId === 'string' &&
-      typeof c.fromEntityId === 'string' &&
-      typeof c.toNodeId === 'string'
-    ) {
+    const fromInternalStructureIdRaw =
+      typeof c.fromInternalStructureId === 'string'
+        ? c.fromInternalStructureId
+        : typeof c.fromEntityId === 'string'
+          ? c.fromEntityId
+          : null
+
+    if (typeof c.fromNodeId === 'string' && fromInternalStructureIdRaw !== null && typeof c.toNodeId === 'string') {
       connections.push({
         id: c.id,
         fromNodeId: c.fromNodeId,
-        fromEntityId: c.fromEntityId,
+        fromInternalStructureId: fromInternalStructureIdRaw,
         toNodeId: c.toNodeId,
         ...(routing ? { routing } : {}),
       })

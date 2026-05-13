@@ -107,3 +107,16 @@ export function dynamicPackFolderMap(packs: DynamicStructurePack[]): Record<stri
 
   return m
 }
+
+/** Packs convertidos ficam conceptualmente na raiz do pack (sem subpasta). */
+export function dynamicPackStructureSubfolderMap(packs: DynamicStructurePack[]): Record<string, string> {
+  const m: Record<string, string> = {}
+
+  for (const pack of packs) {
+    for (const schema of pack.schemas) {
+      m[schema.id] = ''
+    }
+  }
+
+  return m
+}

@@ -1,9 +1,14 @@
-import type { NodeInstance, NodeSchemaDefinition } from './nodeSchema'
+import type {
+  InternalStructureDefinition,
+  NodeInstance,
+  NodeSchemaDefinition,
+} from './nodeSchema'
 
 import {
   schemaRegistry as _registry,
   createNodeInstance as _createNodeInstance,
   schemaPackFolderBySchemaId as _schemaPackFolderBySchemaId,
+  schemaStructureSubfolderBySchemaId as _schemaStructureSubfolderBySchemaId,
 } from './nodeStructureRegistry'
 
 /** Registo construído a partir de JSON sob `src/nodeStructures/<pasta>/` (dinâmico no bundle). */
@@ -11,6 +16,9 @@ export const schemaRegistry = _registry
 
 /** Pasta de cada schema (nome do directório logo abaixo de `nodeStructures/`). */
 export const schemaPackFolderBySchemaId = _schemaPackFolderBySchemaId
+
+/** Subpasta imediata dentro do pack (`''` = raiz). */
+export const schemaStructureSubfolderBySchemaId = _schemaStructureSubfolderBySchemaId
 
 export function createNodeInstance(
   schemaId: string,
@@ -45,9 +53,43 @@ export type ConnectionRouting = 'flex' | 'rigid'
 export type CanvasConnection = {
   id: string
   fromNodeId: string
-  fromEntityId: string
+  /** Origem nominal: campo de Internal_Structures (Set Nomenclature #3). */
+  fromInternalStructureId: string
   toNodeId: string
   routing?: ConnectionRouting
+}
+
+function coerceEmbeddedSchema(schema: NodeSchemaDefinition): NodeSchemaDefinition {
+  const probe = schema as NodeSchemaDefinition & { entities?: InternalStructureDefinition[] }
+  const nominal = probe.internalStructures
+  const legacyList = probe.entities
+  const internalStructures =
+    Array.isArray(nominal) && nominal.length > 0
+      ? nominal
+      : Array.isArray(legacyList)
+        ? legacyList
+        : []
+
+  return {
+    ...schema,
+    internalStructures,
+  }
+}
+
+function migrateConnection(connection: CanvasConnection): CanvasConnection {
+  const legacy = connection as CanvasConnection & { fromEntityId?: string }
+  const fromNew =
+    typeof connection.fromInternalStructureId === 'string' ? connection.fromInternalStructureId : ''
+  const fromLegacyId = typeof legacy.fromEntityId === 'string' ? legacy.fromEntityId : ''
+  const fromInternalStructureId = fromNew || fromLegacyId
+
+  return {
+    id: connection.id,
+    fromNodeId: connection.fromNodeId,
+    fromInternalStructureId,
+    toNodeId: connection.toNodeId,
+    ...(connection.routing ? { routing: connection.routing } : {}),
+  }
 }
 
 export type CanvasScene = {
@@ -60,15 +102,17 @@ export type CanvasScene = {
 export function hydrateScene(scene: CanvasScene): CanvasScene {
   return {
     ...scene,
-    connections: scene.connections.map((c) => ({
-      ...c,
-      ...(c.routing ? { routing: c.routing } : {}),
-    })),
+    connections: scene.connections.map((c) =>
+      migrateConnection({
+        ...c,
+        ...(c.routing ? { routing: c.routing } : {}),
+      }),
+    ),
     nodes: scene.nodes.map((n) => ({
       ...n,
       node: {
         ...n.node,
-        schema: structuredClone(n.node.schema),
+        schema: coerceEmbeddedSchema(structuredClone(n.node.schema)),
         values: structuredClone(n.node.values),
       },
     })),
@@ -201,19 +245,19 @@ const staticCanvasSceneRaw = {
     {
       id: 'root-to-emitter',
       fromNodeId: 'particle-root-01',
-      fromEntityId: 'emitter',
+      fromInternalStructureId: 'emitter',
       toNodeId: 'emitter-01',
     },
     {
       id: 'root-to-force',
       fromNodeId: 'particle-root-01',
-      fromEntityId: 'force',
+      fromInternalStructureId: 'force',
       toNodeId: 'force-01',
     },
     {
       id: 'force-to-falloff',
       fromNodeId: 'force-01',
-      fromEntityId: 'falloff',
+      fromInternalStructureId: 'falloff',
       toNodeId: 'falloff-01',
     },
   ],

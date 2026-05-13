@@ -1,8 +1,9 @@
 import type {
+  InternalStructureDefinition,
   NodeDataType,
-  NodeEntityDefinition,
   NodeParameterDefinition,
   NodeSchemaDefinition,
+  NodeStructureNomenclature,
 } from './nodeSchema'
 
 const NODE_DATA_TYPES: ReadonlySet<string> = new Set<NodeDataType>([
@@ -45,7 +46,22 @@ function parseParameter(raw: unknown): NodeParameterDefinition | null {
   }
 }
 
-function parseEntity(raw: unknown): NodeEntityDefinition | null {
+function parseNomenclature(raw: unknown): NodeStructureNomenclature | undefined {
+  if (!isRecord(raw)) {
+    return undefined
+  }
+  const group = typeof raw.group === 'string' ? raw.group : null
+  const collection = typeof raw.collection === 'string' ? raw.collection : null
+  const collectionType = typeof raw.collectionType === 'string' ? raw.collectionType : null
+
+  if (!group || !collection || !collectionType) {
+    return undefined
+  }
+
+  return { group, collection, collectionType }
+}
+
+function parseInternalStructure(raw: unknown): InternalStructureDefinition | null {
   if (!isRecord(raw)) {
     return null
   }
@@ -60,6 +76,16 @@ function parseEntity(raw: unknown): NodeEntityDefinition | null {
   return { id, name, schemaId }
 }
 
+function readInternalStructuresArray(raw: Record<string, unknown>): unknown[] | null {
+  if (Array.isArray(raw.internalStructures)) {
+    return raw.internalStructures
+  }
+  if (Array.isArray(raw.entities)) {
+    return raw.entities
+  }
+  return null
+}
+
 /** Interpreta um ficheiro JSON de estruturas (ex.: `src/nodeStructures/default/`) como `NodeSchemaDefinition`. */
 export function nodeSchemaFromStructureJson(raw: unknown): NodeSchemaDefinition | null {
   if (!isRecord(raw)) {
@@ -70,7 +96,8 @@ export function nodeSchemaFromStructureJson(raw: unknown): NodeSchemaDefinition 
     return null
   }
 
-  if (!Array.isArray(raw.parameters) || !Array.isArray(raw.entities)) {
+  const structuresRaw = readInternalStructuresArray(raw)
+  if (!Array.isArray(raw.parameters) || !structuresRaw) {
     return null
   }
 
@@ -83,19 +110,27 @@ export function nodeSchemaFromStructureJson(raw: unknown): NodeSchemaDefinition 
     parameters.push(p)
   }
 
-  const entities: NodeEntityDefinition[] = []
-  for (const entry of raw.entities) {
-    const e = parseEntity(entry)
-    if (!e) {
+  const internalStructures: InternalStructureDefinition[] = []
+  for (const entry of structuresRaw) {
+    const s = parseInternalStructure(entry)
+    if (!s) {
       return null
     }
-    entities.push(e)
+    internalStructures.push(s)
   }
 
-  return {
+  const nomenclature = parseNomenclature(raw.nomenclature)
+
+  const result: NodeSchemaDefinition = {
     id: raw.id,
     title: raw.title,
     parameters,
-    entities,
+    internalStructures,
   }
+
+  if (nomenclature) {
+    result.nomenclature = nomenclature
+  }
+
+  return result
 }

@@ -13,11 +13,11 @@ export function matchesSchemaQuery(schema: NodeSchemaDefinition, query: string) 
 }
 
 export function getSchemaStructure(schema: NodeSchemaDefinition) {
-  if (schema.parameters.length > 0 && schema.entities.length > 0) {
+  if (schema.parameters.length > 0 && schema.internalStructures.length > 0) {
     return 'branch'
   }
 
-  return schema.entities.length > 0 ? 'entity' : 'leaf'
+  return schema.internalStructures.length > 0 ? 'internal-structure' : 'leaf'
 }
 
 /** Rótulo curto PT-BR na faixa meta da paleta (tipo de estrutura do schema). */
@@ -25,14 +25,14 @@ export function getSchemaStructureLabel(schema: NodeSchemaDefinition) {
   const kind = getSchemaStructure(schema)
 
   if (kind === 'leaf') {
-    return 'Parâmetros'
+    return 'Parameters'
   }
 
-  if (kind === 'entity') {
-    return 'Entidades'
+  if (kind === 'internal-structure') {
+    return 'Internal_Structures'
   }
 
-  return 'Ramo'
+  return 'Branch'
 }
 
 export function getSchemaValueTypes(schema: NodeSchemaDefinition) {

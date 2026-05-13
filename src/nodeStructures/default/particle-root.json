@@ -21,7 +21,7 @@
       "defaultValue": "1, 0.58, 0.1, 1"
     }
   ],
-  "entities": [
+  "internalStructures": [
     {
       "id": "emitter",
       "name": "EmitterShape",

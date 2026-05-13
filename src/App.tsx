@@ -15,17 +15,28 @@ import { convertBinViaOptionalBridge } from '@/core/jadeBinBridge'
 import { binTreeJsonToCanvasScene } from '@/core/ltkBinTreeScene'
 import { getStoredRitobinExePath } from '@/core/ritobinExePreference'
 import { convertBinViaRitobinExeBridge } from '@/core/ritobinInvokeBridge'
-import { convertRitualTextToNodeSchemas } from '@/core/convertRitualTextToNodeStructures'
-import { hydrateScene, schemaPackFolderBySchemaId, schemaRegistry } from '@/core/canvasScene'
+import type { ConvertRitobinToStructuresResult } from '@/core/convertRitobinTextToNodeStructures'
+import {
+  convertRitualTextClassGroup,
+  convertRitualTextJadeFxEditor,
+} from '@/core/convertRitualTextToNodeStructures'
+import type { NodeSchemaDefinition } from '@/core/nodeSchema'
+import {
+  hydrateScene,
+  schemaPackFolderBySchemaId,
+  schemaRegistry,
+  schemaStructureSubfolderBySchemaId,
+} from '@/core/canvasScene'
 import {
   dynamicPackFolderMap,
+  dynamicPackStructureSubfolderMap,
   dynamicPacksSchemaRecord,
   loadDynamicStructurePacksFromStorage,
   sanitizeStructurePackFolderName,
   saveDynamicStructurePacksToStorage,
 } from '@/core/nodeStructurePackStorage'
 import { parseSceneDocument, serializeScene } from '@/core/leagueBinScene'
-import { flattenEntityTemplates, flattenParameterTemplates } from '@/core/schemaCatalog'
+import { flattenInternalStructureTemplates, flattenParameterTemplates } from '@/core/schemaCatalog'
 import { STORAGE_LAST_STRUCTURE_META, triggerJsonDownload } from '@/core/workspaceStorage'
 import {
   ROOT_NODE_ID,
@@ -104,6 +115,14 @@ function App() {
     [dynamicStructurePacks],
   )
 
+  const mergedStructureSubfolderBySchemaId = useMemo(
+    () => ({
+      ...schemaStructureSubfolderBySchemaId,
+      ...dynamicPackStructureSubfolderMap(dynamicStructurePacks),
+    }),
+    [dynamicStructurePacks],
+  )
+
   const {
     cycleConnectionRouting,
     redoScene,
@@ -125,7 +144,7 @@ function App() {
     selectAllNodes,
     clearSelection,
     replaceScene,
-    addDynamicEntitySlot,
+    addDynamicInternalStructureSlot,
     addDynamicParameter,
   } = useSceneHistory({ extendSchemaLookup })
 
@@ -134,7 +153,10 @@ function App() {
     () => flattenParameterTemplates(availableSchemas),
     [availableSchemas],
   )
-  const entityCatalog = useMemo(() => flattenEntityTemplates(availableSchemas), [availableSchemas])
+  const internalStructureCatalog = useMemo(
+    () => flattenInternalStructureTemplates(availableSchemas),
+    [availableSchemas],
+  )
 
   const [inspectorMinimized, setInspectorMinimized] = useState(false)
   const [inspectorOffset, setInspectorOffset] = useState<InspectorOffset>({ x: 0, y: 0 })
@@ -222,101 +244,128 @@ function App() {
     setPaletteSignal((ticket) => ticket + 1)
   }
 
-  const handleConvertRitualToNodeStructures = useCallback(async () => {
-    const rawName = window.prompt(
-      'Nome da pasta (cria `src/nodeStructures/<nome>/` em dev; aparece na paleta como 📂 [nome]):',
-      'importado',
-    )
+  const persistConvertedStructurePack = useCallback(
+    async (folder: string, schemas: NodeSchemaDefinition[], warnings: string[], modeBanner: string) => {
+      setDynamicStructurePacks((previous) => {
+        const next = previous.filter((pack) => pack.folder !== folder)
+        next.push({ folder, schemas })
+        saveDynamicStructurePacksToStorage(next)
+        return next
+      })
 
-    if (rawName === null) {
-      return
-    }
+      let diskLine = ''
 
-    const folder = sanitizeStructurePackFolderName(rawName)
+      if (import.meta.env.DEV) {
+        try {
+          const res = await fetch('/api/node-structures-write', {
+            body: JSON.stringify({ folder, schemas }),
+            headers: { 'Content-Type': 'application/json' },
+            method: 'POST',
+          })
 
-    if (!folder) {
-      window.alert(
-        'Nome de pasta inválido. Usa letras minúsculas, números, hífen (-) e sublinhado (_), até 48 caracteres.',
-      )
-      return
-    }
+          const payload: unknown = await res.json().catch(() => null)
+          const ok =
+            res.ok &&
+            typeof payload === 'object' &&
+            payload !== null &&
+            'ok' in payload &&
+            Reflect.get(payload, 'ok') === true
 
-    if (folder === 'default') {
-      window.alert('«default» é reservada aos tipos estáticos da app; escolhe outro nome de pasta.')
-      return
-    }
+          if (ok && typeof payload === 'object' && payload !== null) {
+            const paths = Reflect.get(payload, 'paths')
+            const skipped = Reflect.get(payload, 'skippedIds')
+            const list = Array.isArray(paths) ? paths.map(String).join(', ') : ''
 
-    const converted = convertRitualTextToNodeSchemas(codeText)
+            diskLine =
+              `\n\nDisco (dev): src/nodeStructures/${folder}/ (${list}).` +
+              '\nRecarrega (F5) se a paleta não actualizar logo.'
 
-    if ('error' in converted) {
-      window.alert(converted.error)
-      return
-    }
-
-    setDynamicStructurePacks((previous) => {
-      const next = previous.filter((pack) => pack.folder !== folder)
-      next.push({ folder, schemas: converted.schemas })
-      saveDynamicStructurePacksToStorage(next)
-      return next
-    })
-
-    let diskLine = ''
-
-    if (import.meta.env.DEV) {
-      try {
-        const res = await fetch('/api/node-structures-write', {
-          body: JSON.stringify({ folder, schemas: converted.schemas }),
-          headers: { 'Content-Type': 'application/json' },
-          method: 'POST',
-        })
-
-        const payload: unknown = await res.json().catch(() => null)
-        const ok =
-          res.ok &&
-          typeof payload === 'object' &&
-          payload !== null &&
-          'ok' in payload &&
-          Reflect.get(payload, 'ok') === true
-
-        if (ok && typeof payload === 'object' && payload !== null) {
-          const paths = Reflect.get(payload, 'paths')
-          const skipped = Reflect.get(payload, 'skippedIds')
-          const list = Array.isArray(paths) ? paths.map(String).join(', ') : ''
-
-          diskLine =
-            `\n\nDisco (dev): src/nodeStructures/${folder}/ (${list}).` +
-            '\nRecarrega (F5) se a paleta não actualizar logo.'
-
-          if (Array.isArray(skipped) && skipped.length > 0) {
-            diskLine += `\nIgnorados: ${skipped.slice(0, 8).join(', ')}${skipped.length > 8 ? '…' : ''}`
+            if (Array.isArray(skipped) && skipped.length > 0) {
+              diskLine += `\nIgnorados: ${skipped.slice(0, 8).join(', ')}${skipped.length > 8 ? '…' : ''}`
+            }
+          } else {
+            const errMsg =
+              typeof payload === 'object' && payload !== null && typeof Reflect.get(payload, 'error') === 'string'
+                ? String(Reflect.get(payload, 'error'))
+                : `HTTP ${String(res.status)}`
+            diskLine = `\n\nNão gravou no disco (${errMsg}). O pack ficou registado só na sessão/localStorage até corrigires.`
           }
-        } else {
-          const errMsg =
-            typeof payload === 'object' && payload !== null && typeof Reflect.get(payload, 'error') === 'string'
-              ? String(Reflect.get(payload, 'error'))
-              : `HTTP ${String(res.status)}`
-          diskLine = `\n\nNão gravou no disco (${errMsg}). O pack ficou registado só na sessão/localStorage até corrigires.`
+        } catch {
+          diskLine =
+            '\n\nServidor dev indisponível — corre `npm run dev` para gravar na pasta `src/nodeStructures`. O pack ficou registado para a paleta via localStorage.'
         }
-      } catch {
+      } else {
         diskLine =
-          '\n\nServidor dev indisponível — corre `npm run dev` para gravar na pasta `src/nodeStructures`. O pack ficou registado para a paleta via localStorage.'
+          '\n\nBuild estático: os tipos ficam só no armazenamento local da paleta. Para persistir copia-os para src/nodeStructures após usar `npm run dev`.'
       }
-    } else {
-      diskLine =
-        '\n\nBuild estático: os tipos ficam só no armazenamento local da paleta. Para persistir copia-os para src/nodeStructures após usar `npm run dev`.'
-    }
 
-    const warnPreview =
-      converted.warnings.length > 0
-        ? `\n\nNotas:\n${converted.warnings.slice(0, 15).join('\n')}${converted.warnings.length > 15 ? '\n…' : ''}`
-        : ''
+      const warnPreview =
+        warnings.length > 0
+          ? `\n\nNotas:\n${warnings.slice(0, 15).join('\n')}${warnings.length > 15 ? '\n…' : ''}`
+          : ''
 
-    window.alert(
-      `Pack «${folder}» · ${String(converted.schemas.length)} tipo(s) na paleta (📂 [${folder}]).${diskLine}${warnPreview}`,
+      window.alert(
+        `${modeBanner}Pack «${folder}» · ${String(schemas.length)} tipo(s) na paleta (📂 [${folder}]).${diskLine}${warnPreview}`,
+      )
+    },
+    [],
+  )
+
+  const handleConvertRitualToStructurePack = useCallback(
+    async (
+      convertFn: (text: string) => ConvertRitobinToStructuresResult,
+      modeBanner: string,
+    ) => {
+      const rawName = window.prompt(
+        'Nome da pasta (cria `src/nodeStructures/<nome>/` em dev; aparece na paleta como 📂 [nome]):',
+        'importado',
+      )
+
+      if (rawName === null) {
+        return
+      }
+
+      const folder = sanitizeStructurePackFolderName(rawName)
+
+      if (!folder) {
+        window.alert(
+          'Nome de pasta inválido. Usa letras minúsculas, números, hífen (-) e sublinhado (_), até 48 caracteres.',
+        )
+        return
+      }
+
+      if (folder === 'default') {
+        window.alert('«default» é reservada aos tipos estáticos da app; escolhe outro nome de pasta.')
+        return
+      }
+
+      const converted = convertFn(codeText)
+
+      if (!converted.ok) {
+        window.alert(converted.error)
+        return
+      }
+
+      await persistConvertedStructurePack(folder, converted.schemas, converted.warnings, modeBanner)
+    },
+    [codeText, persistConvertedStructurePack],
+  )
+
+  const handleConvertJadeFxEditorPack = useCallback(() => {
+    void handleConvertRitualToStructurePack(
+      convertRitualTextJadeFxEditor,
+      '[Converter · Jade fx_editor]\n\n',
     )
-  }, [codeText])
+  }, [handleConvertRitualToStructurePack])
 
-  const listDeletableStructureFolders = useCallback(async () => {
+  const handleConvertClassGroupPack = useCallback(() => {
+    void handleConvertRitualToStructurePack(
+      convertRitualTextClassGroup,
+      '[Converter · Class Group]\n\n',
+    )
+  }, [handleConvertRitualToStructurePack])
+
+  const listStructurePackFolders = useCallback(async () => {
     const unique = new Set<string>()
 
     for (const pack of dynamicStructurePacks) {
@@ -403,6 +452,95 @@ function App() {
     })
 
     return { ok: true as const, ...(notice ? { notice } : {}) }
+  }, [])
+
+  const handleExtractNodeBasePack = useCallback(async (folder: string): Promise<boolean> => {
+    const safe = sanitizeStructurePackFolderName(folder)
+
+    if (!safe || safe === 'default') {
+      window.alert('Pasta inválida ou reservada (default).')
+      return false
+    }
+
+    if (!import.meta.env.DEV) {
+      window.alert(
+        'Extração só grava em `src/nodeStructures` com o servidor de desenvolvimento (`npm run dev`).',
+      )
+      return false
+    }
+
+    try {
+      const res = await fetch('/api/node-structures-extract-base', {
+        body: JSON.stringify({ folder: safe }),
+        headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
+      })
+
+      const payload: unknown = await res.json().catch(() => null)
+
+      const apiOk =
+        res.ok &&
+        typeof payload === 'object' &&
+        payload !== null &&
+        Reflect.get(payload, 'ok') === true
+
+      if (!apiOk) {
+        const errMsg =
+          typeof payload === 'object' && payload !== null && typeof Reflect.get(payload, 'error') === 'string'
+            ? String(Reflect.get(payload, 'error'))
+            : `HTTP ${String(res.status)}`
+        window.alert(`Extração falhou: ${errMsg}`)
+        return false
+      }
+
+      const created = typeof payload === 'object' && payload !== null ? Reflect.get(payload, 'created') : null
+      const skipped = typeof payload === 'object' && payload !== null ? Reflect.get(payload, 'skipped') : null
+      const errors = typeof payload === 'object' && payload !== null ? Reflect.get(payload, 'errors') : null
+      const baseCreated =
+        typeof payload === 'object' && payload !== null ? Reflect.get(payload, 'baseCreated') : null
+      const baseSkipped =
+        typeof payload === 'object' && payload !== null ? Reflect.get(payload, 'baseSkipped') : null
+
+      const lines = [
+        '[Extrair Node Base]',
+        '',
+        `Pack «${safe}»`,
+        '',
+        `Novos ficheiros (parâmetros): ${Array.isArray(created) ? String(created.length) : '0'}`,
+        `Ignorados (duplicados): ${Array.isArray(skipped) ? String(skipped.length) : '0'}`,
+        `Corpos base novos: ${Array.isArray(baseCreated) ? String(baseCreated.length) : '0'}`,
+        `Corpos base já existentes (não alterados): ${Array.isArray(baseSkipped) ? String(baseSkipped.length) : '0'}`,
+      ]
+
+      if (Array.isArray(baseCreated) && baseCreated.length > 0) {
+        lines.push('', 'Base criada(s):', ...baseCreated.slice(0, 8).map((p) => String(p)))
+        if (baseCreated.length > 8) {
+          lines.push('…')
+        }
+      }
+
+      if (Array.isArray(baseSkipped) && baseSkipped.length > 0) {
+        lines.push('', 'Base ignorada(s):', ...baseSkipped.slice(0, 6).map((p) => String(p)))
+        if (baseSkipped.length > 6) {
+          lines.push('…')
+        }
+      }
+
+      if (Array.isArray(errors) && errors.length > 0) {
+        lines.push('', 'Ficheiros com avisos:', ...errors.slice(0, 15).map((e) => String(e)))
+        if (errors.length > 15) {
+          lines.push('…')
+        }
+      }
+
+      lines.push('', 'Recarrega (F5) se não vires as pastas de imediato.')
+
+      window.alert(lines.join('\n'))
+      return true
+    } catch {
+      window.alert('Servidor dev indisponível ou pedido falhou.')
+      return false
+    }
   }, [])
 
   const loadRitobinTextIntoCodeDock = useCallback((ritualText: string, fileName: string, via: string) => {
@@ -804,9 +942,11 @@ function App() {
             availableSchemas={availableSchemas}
             canRedo={sceneHistory.future.length > 0}
             canUndo={sceneHistory.past.length > 0}
-            entityCatalog={entityCatalog}
+            internalStructureCatalog={internalStructureCatalog}
             hints={tooltipHints}
-            onCatalogEntityAppend={(canvasNodeId, entity) => addDynamicEntitySlot(canvasNodeId, entity)}
+            onAppendCatalogInternalStructure={(canvasNodeId, structure) =>
+              addDynamicInternalStructureSlot(canvasNodeId, structure)
+            }
             onCatalogParameterAppend={(canvasNodeId, definition) =>
               addDynamicParameter(canvasNodeId, definition)
             }
@@ -828,6 +968,7 @@ function App() {
             paletteRequestSignal={paletteSignal}
             scene={scene}
             schemaPackFolderBySchemaId={mergedPackFolderBySchemaId}
+            schemaStructureSubfolderBySchemaId={mergedStructureSubfolderBySchemaId}
             selectedNodeId={primarySelectedId}
             selectedNodeIds={selectedNodeIds}
             viewportControlsSlot={
@@ -891,8 +1032,11 @@ function App() {
               floatingRect={codeDockFloatingRect}
               nodeActions={{
                 deleteFolder: deleteNodeStructurePackFolder,
-                listDeletableFolders: listDeletableStructureFolders,
-                onConvert: handleConvertRitualToNodeStructures,
+                listDeletableFolders: listStructurePackFolders,
+                listStructurePackFolders,
+                onConvertClassGroup: handleConvertClassGroupPack,
+                onConvertJadeFxEditor: handleConvertJadeFxEditorPack,
+                onExtractNodeBase: handleExtractNodeBasePack,
               }}
               onChange={setCodeText}
               onClose={handleCloseCodeDock}

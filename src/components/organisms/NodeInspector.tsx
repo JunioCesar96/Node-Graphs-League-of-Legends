@@ -87,15 +87,15 @@ function SelectedNodeInspectorBody({
         </ul>
       </section>
 
-      <section className={styles.section} aria-labelledby="inspector-entities">
-        <h3 className={styles.sectionTitle} id="inspector-entities">
-          Entities
+      <section className={styles.section} aria-labelledby="inspector-internal-structures">
+        <h3 className={styles.sectionTitle} id="inspector-internal-structures">
+          Internal_Structures
         </h3>
         <ul className={styles.list}>
-          {node.node.schema.entities.map((entity) => (
-            <li className={styles.listItem} key={entity.id}>
-              <span className={styles.name}>{entity.name}</span>
-              <span className={styles.type}>{entity.schemaId}</span>
+          {node.node.schema.internalStructures.map((structure) => (
+            <li className={styles.listItem} key={structure.id}>
+              <span className={styles.name}>{structure.name}</span>
+              <span className={styles.type}>{structure.schemaId}</span>
             </li>
           ))}
         </ul>

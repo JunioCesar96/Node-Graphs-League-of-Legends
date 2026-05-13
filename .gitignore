@@ -9,7 +9,12 @@ lerna-debug.log*
 README.md*
 
 node_modules
-src/nodeStructures/importado/
+src/nodeStructures/title/
+src/nodeStructures/jade/
+src/nodeStructures/nomecratura/
+src/nodeStructures/nomenclature/
+
+
 dist
 dist-ssr
 *.local

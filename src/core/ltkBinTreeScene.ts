@@ -220,7 +220,7 @@ function buildFileMetaSchema(options: {
         type: 'comment',
       },
     ],
-    entities: [
+    internalStructures: [
       {
         id: 'ref-out',
         name: 'Ref',
@@ -249,7 +249,7 @@ function buildBinObjectJadeSchema(
   return {
     propertyTableText,
     schema: {
-      entities: [
+      internalStructures: [
         {
           id: 'ref-out',
           name: 'Ref',
@@ -523,7 +523,7 @@ export function binTreeJsonToCanvasScene(treeUnknown: unknown): CanvasScene | nu
       const linkPrefix = draft.semantic === 'hash_path_hint' ? 'hlk' : 'olk'
 
       connections.push({
-        fromEntityId: `${linkPrefix}-${draft.entityBodySanitized}`,
+        fromInternalStructureId: `${linkPrefix}-${draft.entityBodySanitized}`,
         fromNodeId: nodeId,
         id: `lnk:${nodeId}:${linkPrefix}_${draft.entityBodySanitized}->ltk-bin-obj-${String(draft.targetPathHash)}`,
         toNodeId: `ltk-bin-obj-${draft.targetPathHash}`,

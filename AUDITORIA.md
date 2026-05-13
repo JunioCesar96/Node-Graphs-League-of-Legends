@@ -1,6 +1,6 @@
 # Auditoria do que já está implementado em node-graphs-lol
 
-Este ficheiro espelha o plano de auditoria aprovado para o repositório e foi **atualizado** após o roadmap (menu, JSON, canvas avançado, parâmetros/entidades dinâmicos, stub `.bin`, documentação de spike Jade).
+Este ficheiro espelha o plano de auditoria aprovado para o repositório e foi **atualizado** após o roadmap (menu, JSON, canvas avançado, parâmetros / **Internal_Structures** dinâmicos, stub `.bin`, documentação de spike Jade).
 
 ## Stack real (implementada)
 
@@ -15,16 +15,16 @@ Este ficheiro espelha o plano de auditoria aprovado para o repositório e foi **
 
 ## Modelo de domínio (core)
 
-- **Tipos e exemplo** em `src/core/nodeSchema.ts`: schemas com `parameters` (vários tipos sintáticos), `entities` (slots que apontam para outro schema), instâncias com `values`.
+- **Tipos e exemplo** em `src/core/nodeSchema.ts`: schemas com `parameters` (vários tipos sintáticos), `internalStructures` (**Internal_Structures** — slots que apontam para outro schema), instâncias com `values`.
 
 - **Cena e registro** em `src/core/canvasScene.ts`:
   - `schemaRegistry`: `particle-root`, `emitter-shape`, `world-force`, `falloff-curve`.
   - `createNodeInstance`: instancia valores a partir dos defaults do schema.
   - `hydrateScene`: normaliza cena lida de storage/JSON (incl. defaults de `routing` em conexões).
   - `staticCanvasScene` / `staticCanvasSceneRaw`: grafo inicial de exemplo.
-  - **Conexão** `fromNodeId` + `fromEntityId` → `toNodeId`, com **`ConnectionRouting`** opcional (`flex` | `rigid`) em `CanvasConnection`.
+  - **Conexão** `fromNodeId` + `fromInternalStructureId` → `toNodeId`, com **`ConnectionRouting`** opcional (`flex` | `rigid`) em `CanvasConnection`.
 
-- **Catálogo para UI dinâmica** em `src/core/schemaCatalog.ts`: listas achatadas de templates de parâmetros e entidades a partir dos schemas registados (adicionar linhas `+ Elemento` com tipos permitidos).
+- **Catálogo para UI dinâmica** em `src/core/schemaCatalog.ts`: listas achatadas de templates de parâmetros e de **Internal_Structures** a partir dos schemas registados (adicionar linhas `+ Element` com tipos permitidos).
 
 - **Contrato de ficheiro JSON v1** em `src/core/leagueBinScene.ts`:
   - `LeagueBinGraphDocumentV1` (`format: 'node-graphs-lol'`, `version: 1`, `meta`, dimensões, `nodes`, `connections`).
@@ -44,7 +44,7 @@ A lógica da cena saiu de um monólito exclusivo em `App.tsx` para o hook **`src
 - **Persistência** `localStorage` (`node-graphs-lol:scene`) com `isCanvasScene` + `hydrateScene`; fallback para cena estática.
 - **Multi-seleção** (`selectedNodeIds`, `primarySelectedId`), **seleção em caixa** (marquee) via commit a partir do canvas, **A** = todos os nós.
 - Operações: mover nós, criar nó raiz / filho, remover conexões, atualizar parâmetros do primário, apagar nós selecionados (proteção do `particle-root-01`), reset, substituir cena **`replaceScene`** (import JSON com meta opcional).
-- **Dinâmico:** `addDynamicParameter` / `addDynamicEntitySlot` sobre o nó primário, dentro do catálogo de tipos conhecidos.
+- **Dinâmico:** `addDynamicParameter` / `addDynamicInternalStructureSlot` sobre o nó primário, dentro do catálogo de tipos conhecidos.
 - **Fios:** ciclo de encaminhamento flex/rígido integrado com o canvas.
 
 `App.tsx` orquestra **AppMenuBar**, **CodeDock** (painel **Monaco** com highlight/checker ritual do Jade, alias `@jade`), **GraphCanvas**, **NodeInspector**, fetch de **`/tooltips.json`** para dicionário de dicas passado ao canvas.
@@ -80,7 +80,7 @@ A lógica da cena saiu de um monólito exclusivo em `App.tsx` para o hook **`src
 ## Atomic Design (`src/components`)
 
 - **Atoms:** `Button.tsx`, `Port.tsx`, `SyntaxType.tsx`.
-- **Molecules:** `EntityItem.tsx`, `NodeHeader.tsx`, `ParameterItem.tsx`, `PaletteAddNodeOption.tsx`.
+- **Molecules:** `InternalStructureItem.tsx`, `NodeHeader.tsx`, `ParameterItem.tsx`, `PaletteAddNodeOption.tsx`.
 - **Organisms:** `GraphCanvas`, `NodeCard`, `AddNodePalette`, `NodeInspector`, **`AppMenuBar`**, **`CodeDock`**.
 
 A **conversão `.bin` para o canvas** pelo bridge (`POST /convert-tree` → **`binTreeJsonToCanvasScene`**) está disponível no core / import JSON BinTree — **Open .bin** na UI já **não** usa `/convert-tree`, só texto ritual em **CodeDock**. **`POST /convert`** (texto ritual) via Jade ou ponte Ritobin conforme env. Stub `stubBinStructureDocument` continua a ser usado em **Stub .bin → JSON** no menu File. Ponte real: **`jade-http-bridge`** (Rust) ou mock Node + `JADE_CONVERT_TREE_BINARY` — ver `docs/JADE_SPIKE.md`.

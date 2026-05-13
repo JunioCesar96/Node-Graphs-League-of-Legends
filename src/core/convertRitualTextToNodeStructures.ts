@@ -24,3 +24,28 @@ export function convertRitualTextToNodeSchemas(source: string): ConvertRitobinTo
 
   return convertRitobinStructureTextToNodeSchemas(source)
 }
+
+/** Só VFX Particle Editor Jade (`… = VfxSystemDefinitionData {`); erro se não for esse formato. */
+export function convertRitualTextJadeFxEditor(source: string): ConvertRitobinToStructuresResult {
+  const normalized = normalizeLineEndings(source)
+
+  const looksVfx =
+    /=\s*VfxSystemDefinitionData\s*\{/.test(normalized) || /\bVfxSystemDefinitionData\s*\{/.test(normalized)
+
+  if (!looksVfx) {
+    return {
+      ok: false,
+      error:
+        'Converter [Jade fx_editor]: o texto deve conter blocos «… = VfxSystemDefinitionData {» (Particle Editor Jade). Para structs rituais genéricos usa «Converter [Class Group]».',
+    }
+  }
+
+  const parsed = parseVfxContent(normalized)
+
+  return convertParsedVfxToNodeSchemas(parsed)
+}
+
+/** Structs/classes rituais (blocos «TipoName {»); mesmo motor que structs genéricas, sem ramo VFX. */
+export function convertRitualTextClassGroup(source: string): ConvertRitobinToStructuresResult {
+  return convertRitobinStructureTextToNodeSchemas(normalizeLineEndings(source))
+}

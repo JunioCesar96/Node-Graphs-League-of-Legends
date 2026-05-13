@@ -164,6 +164,58 @@
   opacity: 0.75;
 }
 
+.converterDropdown {
+  position: relative;
+  z-index: 8;
+}
+
+.converterSubmenu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  margin: 0;
+  padding: var(--space-1);
+  min-width: 236px;
+  list-style: none;
+  background: rgb(22 22 22 / 98%);
+  border: 1px solid var(--color-border-soft);
+  border-radius: 10px;
+  box-shadow: 0 12px 40px rgb(0 0 0 / 50%);
+}
+
+.converterDivider {
+  height: 1px;
+  margin: var(--space-1) var(--space-2);
+  list-style: none;
+  background: var(--color-border-soft);
+}
+
+.converterMenuItem {
+  display: flex;
+  width: calc(100% - 4px);
+  margin: 2px auto;
+  padding: var(--space-2) var(--space-3);
+  color: var(--color-text-secondary);
+  font-family: var(--font-data);
+  font-size: 0.67rem;
+  line-height: 1.35;
+  text-align: left;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+}
+
+.converterMenuItem:hover {
+  color: var(--color-text-primary);
+  background: rgb(255 255 255 / 8%);
+}
+
+.converterMenuItemDanger:hover {
+  color: rgb(255 210 215);
+  background: rgb(140 32 40 / 45%);
+}
+
 .dialogBackdrop {
   position: absolute;
   inset: 0;

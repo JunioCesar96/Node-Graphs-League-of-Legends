@@ -4,7 +4,7 @@ import type { CSSProperties, PointerEvent, ReactNode } from 'react'
 import { AddNodePalette } from '@/components/organisms/AddNodePalette'
 import { NodeCard } from '@/components/organisms/NodeCard'
 import type { CanvasConnection, CanvasNode, CanvasPosition, CanvasScene } from '@/core/canvasScene'
-import type { NodeEntityDefinition, NodeParameterDefinition, NodeSchemaDefinition } from '@/core/nodeSchema'
+import type { InternalStructureDefinition, NodeParameterDefinition, NodeSchemaDefinition } from '@/core/nodeSchema'
 
 import styles from './GraphCanvas.module.css'
 
@@ -36,13 +36,19 @@ type GraphCanvasProps = {
   availableSchemas: NodeSchemaDefinition[]
   /** Nome da pasta sob `src/nodeStructures/` por id de schema (filtro 📂 na paleta). */
   schemaPackFolderBySchemaId?: Record<string, string>
+  /** Subpasta imediata dentro do pack (`''` = raiz); `temp` não aparece como etiqueta. */
+  schemaStructureSubfolderBySchemaId?: Record<string, string>
   canRedo: boolean
   canUndo: boolean
   paletteRequestSignal?: number
   onCloseCodePanelShortcut?: () => void
   onConnectNodes: (connection: CanvasConnection) => void
   onCycleConnectionRouting?: (connectionId: string) => void
-  onCreateChildNode: (fromNodeId: string, entity: NodeEntityDefinition, position?: CanvasPosition) => void
+  onCreateChildNode: (
+    fromNodeId: string,
+    structure: InternalStructureDefinition,
+    position?: CanvasPosition,
+  ) => void
   onCreateRootNode: (schema: NodeSchemaDefinition) => void
   onMarqueeCommit: (payload: { additive: boolean; nodeIds: string[] }) => void
   onMoveNode: (
@@ -53,9 +59,12 @@ type GraphCanvasProps = {
   onRedo: () => void
   onRemoveConnection?: (connectionId: string) => void
   onResetScene: () => void
-  entityCatalog?: NodeEntityDefinition[]
+  internalStructureCatalog?: InternalStructureDefinition[]
   hints?: Record<string, string>
-  onCatalogEntityAppend?: (canvasNodeId: string, entity: NodeEntityDefinition) => void
+  onAppendCatalogInternalStructure?: (
+    canvasNodeId: string,
+    structure: InternalStructureDefinition,
+  ) => void
   onCatalogParameterAppend?: (canvasNodeId: string, definition: NodeParameterDefinition) => void
   parameterCatalog?: NodeParameterDefinition[]
   /** Com seleção: limpa todos os nós. Sem seleção: delega seleccionar todos. */
@@ -104,13 +113,13 @@ type NodeDragGesture = {
 
 type PendingLink = {
   draftAnchor: { sx: number; sy: number }
-  fromEntityId: string
+  fromInternalStructureId: string
   fromNodeId: string
   targetSchemaId: string
 }
 
 type OutputWireDragSession = {
-  entity: NodeEntityDefinition
+  entity: InternalStructureDefinition
   fromNodeId: string
   maxScreenDelta: number
   originClientX: number
@@ -119,7 +128,7 @@ type OutputWireDragSession = {
 }
 
 type GraphDropLinkContext = {
-  entity: NodeEntityDefinition
+  entity: InternalStructureDefinition
   fromNodeId: string
   position: CanvasPosition
 }
@@ -144,8 +153,8 @@ function getParameterSectionHeight(node: CanvasNode) {
   return SECTION_TITLE_HEIGHT + SECTION_TITLE_GAP + listHeight
 }
 
-function getEntitySectionHeight(node: CanvasNode) {
-  const itemCount = node.node.schema.entities.length
+function getInternalStructureSectionHeight(node: CanvasNode) {
+  const itemCount = node.node.schema.internalStructures.length
   const listHeight = itemCount * ITEM_HEIGHT + Math.max(0, itemCount - 1) * ITEM_GAP
 
   return SECTION_TITLE_HEIGHT + SECTION_TITLE_GAP + listHeight
@@ -157,7 +166,7 @@ function getNodeCardHeight(node: CanvasNode) {
     BODY_PADDING * 2 +
     getParameterSectionHeight(node) +
     SECTION_GAP +
-    getEntitySectionHeight(node) +
+    getInternalStructureSectionHeight(node) +
     SECTION_GAP +
     BUTTON_HEIGHT
   )
@@ -176,9 +185,9 @@ function getCanvasBounds(scene: CanvasScene): CanvasBounds {
   )
 }
 
-function getEntityPortY(node: CanvasNode, entityId: string) {
-  const entityIndex = node.node.schema.entities.findIndex((entity) => entity.id === entityId)
-  const safeIndex = Math.max(entityIndex, 0)
+function getInternalStructurePortY(node: CanvasNode, structureId: string) {
+  const structureIndex = node.node.schema.internalStructures.findIndex((s) => s.id === structureId)
+  const safeIndex = Math.max(structureIndex, 0)
 
   return (
     node.position.y +
@@ -212,7 +221,7 @@ function createConnectionPath(connection: CanvasConnection, nodes: CanvasNode[])
   }
 
   const startX = fromNode.position.x + CARD_WIDTH - PORT_OVERLAP
-  const startY = getEntityPortY(fromNode, connection.fromEntityId)
+  const startY = getInternalStructurePortY(fromNode, connection.fromInternalStructureId)
   const exitX = fromNode.position.x + CARD_WIDTH + RIGID_SEGMENT_LENGTH
   const endX = toNode.position.x + CARD_WIDTH / 2
   const endY = toNode.position.y
@@ -260,8 +269,8 @@ function graphPointFromElementCenter(canvasEl: HTMLElement, scale: number, inner
   }
 }
 
-function outputAnchorKey(nodeId: string, entityId: string): string {
-  return `${nodeId}|${entityId}`
+function outputAnchorKey(nodeId: string, structureId: string): string {
+  return `${nodeId}|${structureId}`
 }
 
 function collectGraphPortAnchors(canvasEl: HTMLElement, scale: number): PortAnchorMaps {
@@ -284,9 +293,9 @@ function collectGraphPortAnchors(canvasEl: HTMLElement, scale: number): PortAnch
     const p = graphPointFromElementCenter(canvasEl, scale, node)
 
     if (kind === 'output') {
-      const entityId = node.getAttribute('data-graph-entity-id')
-      if (entityId) {
-        outputs.set(outputAnchorKey(nodeId, entityId), p)
+      const structureId = node.getAttribute('data-graph-internal-structure-id')
+      if (structureId) {
+        outputs.set(outputAnchorKey(nodeId, structureId), p)
       }
       return
     }
@@ -328,7 +337,7 @@ function resolveConnectionPath(
     return null
   }
 
-  const outPt = anchors.outputs.get(outputAnchorKey(connection.fromNodeId, connection.fromEntityId))
+  const outPt = anchors.outputs.get(outputAnchorKey(connection.fromNodeId, connection.fromInternalStructureId))
   const inPt = anchors.inputs.get(connection.toNodeId)
 
   const rigidRouting = connection.routing === 'rigid'
@@ -408,6 +417,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
   {
     availableSchemas,
     schemaPackFolderBySchemaId,
+    schemaStructureSubfolderBySchemaId,
     canRedo,
     canUndo,
     paletteRequestSignal = 0,
@@ -421,9 +431,9 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     onRedo,
     onRemoveConnection,
     onResetScene,
-    entityCatalog,
+    internalStructureCatalog,
     hints,
-    onCatalogEntityAppend,
+    onAppendCatalogInternalStructure,
     onCatalogParameterAppend,
     parameterCatalog,
     onClearSelection,
@@ -584,7 +594,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
   }
 
   const beginPendingLink = useCallback(
-    (fromNodeId: string, entity: NodeEntityDefinition, anchorEl: HTMLElement | null) => {
+    (fromNodeId: string, entity: InternalStructureDefinition, anchorEl: HTMLElement | null) => {
       const canvasEl = canvasRef.current
       const fromNode = scene.nodes.find((node) => node.id === fromNodeId)
       let sx: number
@@ -596,7 +606,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
         sy = anchor.y
       } else if (fromNode) {
         sx = fromNode.position.x + CARD_WIDTH - PORT_OVERLAP
-        sy = getEntityPortY(fromNode, entity.id)
+        sy = getInternalStructurePortY(fromNode, entity.id)
       } else {
         return
       }
@@ -605,7 +615,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       setLinkDraftPoint(null)
       setPendingLink({
         draftAnchor: { sx, sy },
-        fromEntityId: entity.id,
+        fromInternalStructureId: entity.id,
         fromNodeId,
         targetSchemaId: entity.schemaId,
       })
@@ -619,7 +629,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       const el = document.elementFromPoint(clientX, clientY)
       const pending = pendingLinkRef.current
 
-      if (!canvasEl || !pending || pending.fromEntityId !== drag.entity.id || pending.fromNodeId !== drag.fromNodeId) {
+      if (!canvasEl || !pending || pending.fromInternalStructureId !== drag.entity.id || pending.fromNodeId !== drag.fromNodeId) {
         return
       }
 
@@ -639,8 +649,8 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
               targetNode.node.schema.id === pending.targetSchemaId
             ) {
               onConnectNodes({
-                id: `${pending.fromNodeId}:${pending.fromEntityId}->${targetNode.id}`,
-                fromEntityId: pending.fromEntityId,
+                id: `${pending.fromNodeId}:${pending.fromInternalStructureId}->${targetNode.id}`,
+                fromInternalStructureId: pending.fromInternalStructureId,
                 fromNodeId: pending.fromNodeId,
                 toNodeId: targetNode.id,
               })
@@ -679,7 +689,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
   )
 
   const handleOutputWirePointerDown = useCallback(
-    (fromNodeId: string, entity: NodeEntityDefinition, event: PointerEvent<HTMLButtonElement>) => {
+    (fromNodeId: string, entity: InternalStructureDefinition, event: PointerEvent<HTMLButtonElement>) => {
       if (event.button !== 0) {
         return
       }
@@ -700,7 +710,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
   )
 
   const handleOutputWirePointerMove = useCallback(
-    (_entity: NodeEntityDefinition, event: PointerEvent<HTMLButtonElement>) => {
+    (_entity: InternalStructureDefinition, event: PointerEvent<HTMLButtonElement>) => {
       const drag = outputWireDragRef.current
 
       if (!drag || drag.pointerId !== event.pointerId) {
@@ -715,7 +725,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
   )
 
   const handleOutputWirePointerUp = useCallback(
-    (_entity: NodeEntityDefinition, event: PointerEvent<HTMLButtonElement>) => {
+    (_entity: InternalStructureDefinition, event: PointerEvent<HTMLButtonElement>) => {
       const drag = outputWireDragRef.current
 
       if (!drag || drag.pointerId !== event.pointerId) {
@@ -734,7 +744,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
   )
 
   const handleOutputWirePointerCancel = useCallback(
-    (_entity: NodeEntityDefinition, event: PointerEvent<HTMLButtonElement>) => {
+    (_entity: InternalStructureDefinition, event: PointerEvent<HTMLButtonElement>) => {
       const drag = outputWireDragRef.current
 
       if (!drag || drag.pointerId !== event.pointerId) {
@@ -753,7 +763,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
   )
 
   const handleOutputWireKeyboard = useCallback(
-    (fromNodeId: string, entity: NodeEntityDefinition) => {
+    (fromNodeId: string, entity: InternalStructureDefinition) => {
       beginPendingLink(fromNodeId, entity, null)
     },
     [beginPendingLink],
@@ -765,8 +775,8 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     }
 
     onConnectNodes({
-      id: `${pendingLink.fromNodeId}:${pendingLink.fromEntityId}->${toNode.id}`,
-      fromEntityId: pendingLink.fromEntityId,
+      id: `${pendingLink.fromNodeId}:${pendingLink.fromInternalStructureId}->${toNode.id}`,
+      fromInternalStructureId: pendingLink.fromInternalStructureId,
       fromNodeId: pendingLink.fromNodeId,
       toNodeId: toNode.id,
     })
@@ -1371,6 +1381,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
           onClose={closePalette}
           onPickSchema={handlePalettePick}
           packFolderBySchemaId={schemaPackFolderBySchemaId}
+          structureSubfolderBySchemaId={schemaStructureSubfolderBySchemaId}
           schemas={paletteSchemas}
         />
       ) : null}
@@ -1504,16 +1515,18 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
               }}
             >
               <NodeCard
-                activeOutputEntityId={
-                  pendingLink?.fromNodeId === canvasNode.id ? pendingLink.fromEntityId : undefined
+                activeOutputInternalStructureId={
+                  pendingLink?.fromNodeId === canvasNode.id ? pendingLink.fromInternalStructureId : undefined
                 }
                 canvasNodeId={canvasNode.id}
                 canAcceptLink={isCompatibleTarget}
-                catalogEntities={entityCatalog}
+                catalogInternalStructures={internalStructureCatalog}
                 catalogParameters={parameterCatalog}
                 node={canvasNode.node}
-                onAppendCatalogEntity={
-                  onCatalogEntityAppend ? (entity) => onCatalogEntityAppend(canvasNode.id, entity) : undefined
+                onAppendCatalogInternalStructure={
+                  onAppendCatalogInternalStructure
+                    ? (structure) => onAppendCatalogInternalStructure(canvasNode.id, structure)
+                    : undefined
                 }
                 onAppendCatalogParameter={
                   onCatalogParameterAppend

@@ -29,8 +29,14 @@ export { clampFloatingDockRect, createDefaultFloatingCodeDockRect } from './code
 export type CodeDockFloatingResizeCorner = 'e' | 's' | 'se'
 
 export type CodeDockNodeActions = {
-  onConvert: () => void | Promise<void>
+  onConvertClassGroup: () => void | Promise<void>
+  /** Particle Editor Jade — só `… = VfxSystemDefinitionData {`. */
+  onConvertJadeFxEditor: () => void | Promise<void>
+  /** Pastas em `src/nodeStructures/` (exceto `default`) — eliminar pack */
   listDeletableFolders: () => Promise<string[]>
+  /** Igual à lista de packs; usado por «Extrair Node Base». */
+  listStructurePackFolders: () => Promise<string[]>
+  onExtractNodeBase: (folder: string) => boolean | Promise<boolean>
   deleteFolder: (folder: string) => Promise<{ ok: boolean; error?: string; notice?: string }>
 }
 
@@ -74,11 +80,18 @@ export function CodeDock({
   nodeActions,
   value,
 }: CodeDockProps) {
+  const [converterMenuOpen, setConverterMenuOpen] = useState(false)
+  const converterMenuRef = useRef<HTMLDivElement | null>(null)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [deleteChoices, setDeleteChoices] = useState<string[]>([])
   const [deleteSelected, setDeleteSelected] = useState('')
   const [deleteBusy, setDeleteBusy] = useState(false)
   const [deleteListError, setDeleteListError] = useState<string | null>(null)
+  const [extractDialogOpen, setExtractDialogOpen] = useState(false)
+  const [extractChoices, setExtractChoices] = useState<string[]>([])
+  const [extractSelected, setExtractSelected] = useState('')
+  const [extractBusy, setExtractBusy] = useState(false)
+  const [extractListError, setExtractListError] = useState<string | null>(null)
 
   const dragPhaseRef = useRef<FloatingDragPhase>(null)
   const dockedResizePhaseRef = useRef(false)
@@ -186,6 +199,37 @@ export function CodeDock({
     }
   }, [floatingActive, onDockedWidthChange])
 
+  const closeConverterMenu = useCallback(() => {
+    setConverterMenuOpen(false)
+  }, [])
+
+  useEffect(() => {
+    if (!converterMenuOpen) {
+      return
+    }
+
+    const onDocMouseDown = (event: MouseEvent) => {
+      const el = converterMenuRef.current
+      if (el && !el.contains(event.target as Node)) {
+        setConverterMenuOpen(false)
+      }
+    }
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setConverterMenuOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', onDocMouseDown)
+    document.addEventListener('keydown', onKeyDown)
+
+    return () => {
+      document.removeEventListener('mousedown', onDocMouseDown)
+      document.removeEventListener('keydown', onKeyDown)
+    }
+  }, [converterMenuOpen])
+
   const openDeleteDialog = useCallback(async () => {
     if (!nodeActions) {
       return
@@ -229,6 +273,45 @@ export function CodeDock({
       setDeleteBusy(false)
     }
   }, [closeDeleteDialog, deleteSelected, nodeActions])
+
+  const openExtractDialog = useCallback(async () => {
+    if (!nodeActions) {
+      return
+    }
+    setExtractListError(null)
+    setExtractBusy(false)
+    setExtractDialogOpen(true)
+    try {
+      const folders = await nodeActions.listStructurePackFolders()
+      setExtractChoices(folders)
+      setExtractSelected(folders[0] ?? '')
+    } catch {
+      setExtractChoices([])
+      setExtractSelected('')
+      setExtractListError('Não foi possível obter a lista de pastas.')
+    }
+  }, [nodeActions])
+
+  const closeExtractDialog = useCallback(() => {
+    setExtractDialogOpen(false)
+    setExtractListError(null)
+    setExtractBusy(false)
+  }, [])
+
+  const confirmExtractNodeBase = useCallback(async () => {
+    if (!nodeActions || !extractSelected) {
+      return
+    }
+    setExtractBusy(true)
+    try {
+      const okOutcome = await nodeActions.onExtractNodeBase(extractSelected)
+      if (okOutcome) {
+        closeExtractDialog()
+      }
+    } finally {
+      setExtractBusy(false)
+    }
+  }, [closeExtractDialog, extractSelected, nodeActions])
 
   const beginDockWidthResize = useCallback((event: ReactPointerEvent) => {
     event.preventDefault()
@@ -404,28 +487,82 @@ export function CodeDock({
           {nodeActions ? (
             <div className={styles.nodeToolbar} role="group" aria-label="Acções pack nodeStructures">
               <span className={styles.nodeToolbarLabel}>node</span>
-              <button
-                className={styles.headerGhostButton}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  void nodeActions.onConvert()
-                }}
-                type="button"
-                title="Converte ritual: VFX (como Particle Editor Jade) ou structs genéricos → tipos na paleta"
-              >
-                Converter
-              </button>
-              <button
-                className={styles.headerGhostButton}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  void openDeleteDialog()
-                }}
-                type="button"
-                title="Eliminar uma pasta pack em src/nodeStructures (exceto default)"
-              >
-                Deletar
-              </button>
+              <div className={styles.converterDropdown} ref={converterMenuRef}>
+                <button
+                  aria-expanded={converterMenuOpen}
+                  aria-haspopup="true"
+                  className={styles.headerGhostButton}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setConverterMenuOpen((previous) => !previous)
+                  }}
+                  type="button"
+                  title="Converter ritual → paleta ou eliminar packs"
+                >
+                  Converter ▾
+                </button>
+                {converterMenuOpen ? (
+                  <ul className={styles.converterSubmenu} role="menu">
+                    <li role="presentation">
+                      <button
+                        className={styles.converterMenuItem}
+                        role="menuitem"
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          closeConverterMenu()
+                          void nodeActions.onConvertJadeFxEditor()
+                        }}
+                      >
+                        Converter [Jade fx_editor]
+                      </button>
+                    </li>
+                    <li role="presentation">
+                      <button
+                        className={styles.converterMenuItem}
+                        role="menuitem"
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          closeConverterMenu()
+                          void nodeActions.onConvertClassGroup()
+                        }}
+                      >
+                        Converter [Class Group]
+                      </button>
+                    </li>
+                    <li role="presentation">
+                      <button
+                        className={styles.converterMenuItem}
+                        role="menuitem"
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          closeConverterMenu()
+                          void openExtractDialog()
+                        }}
+                      >
+                        Extrair Node Base
+                      </button>
+                    </li>
+                    <li aria-hidden className={styles.converterDivider} />
+                    <li role="presentation">
+                      <button
+                        className={`${styles.converterMenuItem} ${styles.converterMenuItemDanger}`}
+                        role="menuitem"
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          closeConverterMenu()
+                          void openDeleteDialog()
+                        }}
+                      >
+                        Deletar
+                      </button>
+                    </li>
+                  </ul>
+                ) : null}
+              </div>
             </div>
           ) : null}
           <button
@@ -502,6 +639,52 @@ export function CodeDock({
                 type="button"
               >
                 {deleteBusy ? 'A eliminar…' : 'Eliminar pasta'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+      {extractDialogOpen ? (
+        <div aria-modal className={styles.dialogBackdrop} role="dialog">
+          <div className={styles.dialogPanel}>
+            <p className={styles.dialogTitle}>Extrair Node Base</p>
+            {extractListError ? (
+              <p className={styles.dialogHint}>{extractListError}</p>
+            ) : extractChoices.length === 0 ? (
+              <p className={styles.dialogHint}>Nenhuma pasta pack (além da default).</p>
+            ) : (
+              <>
+                <label className={styles.dialogField}>
+                  Pasta do pack
+                  <select
+                    className={styles.dialogSelect}
+                    onChange={(e) => setExtractSelected(e.target.value)}
+                    value={extractSelected || extractChoices[0]}
+                  >
+                    {extractChoices.map((f) => (
+                      <option key={f} value={f}>
+                        {f}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <p className={styles.dialogHint}>
+                  Cria <code>temp/parameters_list.json</code> e um JSON por parâmetro dentro de subpastas{' '}
+                  <code>{'{pack}_{collectionType}'}</code> (apenas com <code>npm run dev</code>).
+                </p>
+              </>
+            )}
+            <div className={styles.dialogActions}>
+              <button className={styles.headerGhostButton} onClick={closeExtractDialog} type="button">
+                Cancelar
+              </button>
+              <button
+                className={styles.headerGhostButton}
+                disabled={extractBusy || extractChoices.length === 0 || !extractSelected}
+                onClick={() => void confirmExtractNodeBase()}
+                type="button"
+              >
+                {extractBusy ? 'A processar…' : 'Extrair'}
               </button>
             </div>
           </div>

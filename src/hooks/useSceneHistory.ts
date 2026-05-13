@@ -3,7 +3,11 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { CanvasConnection, CanvasPosition, CanvasScene, ConnectionRouting } from '@/core/canvasScene'
 import { hydrateScene, staticCanvasScene } from '@/core/canvasScene'
 import { createNodeInstanceFromRegistry, schemaRegistry } from '@/core/nodeStructureRegistry'
-import type { NodeEntityDefinition, NodeParameterDefinition, NodeSchemaDefinition } from '@/core/nodeSchema'
+import type {
+  InternalStructureDefinition,
+  NodeParameterDefinition,
+  NodeSchemaDefinition,
+} from '@/core/nodeSchema'
 import { STORAGE_LAST_STRUCTURE_META } from '@/core/workspaceStorage'
 
 export const ROOT_NODE_ID = 'particle-root-01'
@@ -365,7 +369,7 @@ export function useSceneHistory(options?: {
           ...currentScene.connections.filter(
             (currentConnection) =>
               currentConnection.fromNodeId !== connection.fromNodeId ||
-              currentConnection.fromEntityId !== connection.fromEntityId,
+              currentConnection.fromInternalStructureId !== connection.fromInternalStructureId,
           ),
           connection,
         ],
@@ -403,60 +407,63 @@ export function useSceneHistory(options?: {
     [updateScene],
   )
 
-  const createChildNode = useCallback((fromNodeId: string, entity: NodeEntityDefinition, placement?: CanvasPosition) => {
-    updateScene((currentScene) => {
-      const sourceNode = currentScene.nodes.find((node) => node.id === fromNodeId)
+  const createChildNode = useCallback(
+    (fromNodeId: string, slot: InternalStructureDefinition, placement?: CanvasPosition) => {
+      updateScene((currentScene) => {
+        const sourceNode = currentScene.nodes.find((node) => node.id === fromNodeId)
 
-      if (!sourceNode) {
-        return currentScene
-      }
+        if (!sourceNode) {
+          return currentScene
+        }
 
-      const instanceId = createUniqueNodeId(entity.schemaId, currentScene.nodes)
-      const node = createNodeInstanceFromRegistry(schemaLookup, entity.schemaId, instanceId)
+        const instanceId = createUniqueNodeId(slot.schemaId, currentScene.nodes)
+        const node = createNodeInstanceFromRegistry(schemaLookup, slot.schemaId, instanceId)
 
-      if (!node) {
-        return currentScene
-      }
+        if (!node) {
+          return currentScene
+        }
 
-      const defaultPosition: CanvasPosition = {
-        x: sourceNode.position.x + 520,
-        y: sourceNode.position.y + 90,
-      }
+        const defaultPosition: CanvasPosition = {
+          x: sourceNode.position.x + 520,
+          y: sourceNode.position.y + 90,
+        }
 
-      const newCanvasNode = {
-        id: instanceId,
-        node,
-        position: placement ?? defaultPosition,
-      }
+        const newCanvasNode = {
+          id: instanceId,
+          node,
+          position: placement ?? defaultPosition,
+        }
 
-      const connection: CanvasConnection = {
-        id: `${fromNodeId}:${entity.id}->${instanceId}`,
-        fromEntityId: entity.id,
-        fromNodeId,
-        toNodeId: instanceId,
-      }
+        const connection: CanvasConnection = {
+          id: `${fromNodeId}:${slot.id}->${instanceId}`,
+          fromInternalStructureId: slot.id,
+          fromNodeId,
+          toNodeId: instanceId,
+        }
 
-      queueMicrotask(() =>
-        setSelectionState({
-          ids: [instanceId],
-          primaryId: instanceId,
-        }),
-      )
+        queueMicrotask(() =>
+          setSelectionState({
+            ids: [instanceId],
+            primaryId: instanceId,
+          }),
+        )
 
-      return {
-        ...currentScene,
-        connections: [
-          ...currentScene.connections.filter(
-            (currentConnection) =>
-              currentConnection.fromNodeId !== fromNodeId ||
-              currentConnection.fromEntityId !== entity.id,
-          ),
-          connection,
-        ],
-        nodes: [...currentScene.nodes, newCanvasNode],
-      }
-    })
-  }, [updateScene, schemaLookup])
+        return {
+          ...currentScene,
+          connections: [
+            ...currentScene.connections.filter(
+              (currentConnection) =>
+                currentConnection.fromNodeId !== fromNodeId ||
+                currentConnection.fromInternalStructureId !== slot.id,
+            ),
+            connection,
+          ],
+          nodes: [...currentScene.nodes, newCanvasNode],
+        }
+      })
+    },
+    [updateScene, schemaLookup],
+  )
 
   const createRootNode = useCallback((schema: NodeSchemaDefinition) => {
     updateScene((currentScene) => {
@@ -611,12 +618,12 @@ export function useSceneHistory(options?: {
     [updateScene],
   )
 
-  const addDynamicEntitySlot = useCallback(
-    (nodeId: string, template: NodeEntityDefinition) => {
-      const newEntityId = `dyn-ent-${crypto.randomUUID().slice(0, 10)}`
-      const newEntity: NodeEntityDefinition = {
+  const addDynamicInternalStructureSlot = useCallback(
+    (nodeId: string, template: InternalStructureDefinition) => {
+      const newStructureId = `dyn-is-${crypto.randomUUID().slice(0, 10)}`
+      const newStructure: InternalStructureDefinition = {
         ...template,
-        id: newEntityId,
+        id: newStructureId,
       }
 
       updateScene((currentScene) => ({
@@ -630,7 +637,10 @@ export function useSceneHistory(options?: {
                   ...canvasNode.node,
                   schema: {
                     ...canvasNode.node.schema,
-                    entities: [...canvasNode.node.schema.entities, newEntity],
+                    internalStructures: [
+                      ...canvasNode.node.schema.internalStructures,
+                      newStructure,
+                    ],
                   },
                 },
               },
@@ -640,13 +650,13 @@ export function useSceneHistory(options?: {
     [updateScene],
   )
 
-  const removeCanvasEntity = useCallback(
-    (nodeId: string, entityId: string) => {
+  const removeCanvasInternalStructure = useCallback(
+    (nodeId: string, structureId: string) => {
       updateScene((currentScene) => ({
         ...currentScene,
         connections: currentScene.connections.filter(
           (connection) =>
-            !(connection.fromNodeId === nodeId && connection.fromEntityId === entityId),
+            !(connection.fromNodeId === nodeId && connection.fromInternalStructureId === structureId),
         ),
         nodes: currentScene.nodes.map((canvasNode) =>
           canvasNode.id !== nodeId
@@ -657,7 +667,9 @@ export function useSceneHistory(options?: {
                   ...canvasNode.node,
                   schema: {
                     ...canvasNode.node.schema,
-                    entities: canvasNode.node.schema.entities.filter((entity) => entity.id !== entityId),
+                    internalStructures: canvasNode.node.schema.internalStructures.filter(
+                      (structure) => structure.id !== structureId,
+                    ),
                   },
                 },
               },
@@ -781,8 +793,8 @@ export function useSceneHistory(options?: {
     updateSelectedParameter,
     addDynamicParameter,
     removeCanvasParameter,
-    addDynamicEntitySlot,
-    removeCanvasEntity,
+    addDynamicInternalStructureSlot,
+    removeCanvasInternalStructure,
     scene,
     selectedNodeIds: orderedSelectionUnique,
     primarySelectedId,

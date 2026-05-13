@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent, PointerEvent } from 'react'
 
 import { ExpandActionCapsule, type ExpandActionCapsuleKind } from '@/components/molecules/ExpandActionCapsule'
@@ -25,12 +25,18 @@ function packFolderTagLabel(folderName: string) {
   return `📂 [${folderName}]`
 }
 
+function structureSubfolderTagLabel(subPath: string) {
+  return subPath === '' ? '🗂️ Raiz' : `🗂️ ${subPath}`
+}
+
 type AddNodePaletteProps = {
   heading?: string
   onClose: () => void
   onPickSchema: (schema: NodeSchemaDefinition) => void
   /** Por schema id: nome da pasta imediata sob `src/nodeStructures/`. Ativa filtros 📂 [...]. */
   packFolderBySchemaId?: Record<string, string>
+  /** Por schema id: primeira subpasta sob o pack (`''` = raiz). `temp` não gera etiqueta. */
+  structureSubfolderBySchemaId?: Record<string, string>
   schemas: NodeSchemaDefinition[]
 }
 
@@ -39,9 +45,11 @@ export function AddNodePalette({
   onClose,
   onPickSchema,
   packFolderBySchemaId,
+  structureSubfolderBySchemaId,
   schemas,
 }: AddNodePaletteProps) {
   const [palettePackFolder, setPalettePackFolder] = useState<string | null>(null)
+  const [paletteStructureSubfolder, setPaletteStructureSubfolder] = useState<string | null>(null)
   const [paletteQuery, setPaletteQuery] = useState('')
   const [paletteOrganization, setPaletteOrganization] = useState<PaletteOrganizationMode>('az')
   const [highlightedSchemaIndex, setHighlightedSchemaIndex] = useState(0)
@@ -69,6 +77,51 @@ export function AddNodePalette({
       )
     : []
 
+  const schemasInSelectedPack = useMemo(() => {
+    if (palettePackFolder === null) {
+      return schemas
+    }
+    return schemas.filter((s) => (packFolderBySchemaId?.[s.id] ?? '') === palettePackFolder)
+  }, [schemas, packFolderBySchemaId, palettePackFolder])
+
+  const paletteStructureSubfolderTags = useMemo(() => {
+    if (!structureSubfolderBySchemaId) {
+      return []
+    }
+    const next = new Set<string>()
+    for (const s of schemasInSelectedPack) {
+      const sub = structureSubfolderBySchemaId[s.id] ?? ''
+      if (sub === 'temp') {
+        continue
+      }
+      next.add(sub)
+    }
+    return Array.from(next).sort((a, b) => {
+      if (a === '') {
+        return -1
+      }
+      if (b === '') {
+        return 1
+      }
+      return a.localeCompare(b)
+    })
+  }, [schemasInSelectedPack, structureSubfolderBySchemaId])
+
+  const showStructureSubfolderTagsRow =
+    Boolean(structureSubfolderBySchemaId) &&
+    (paletteStructureSubfolderTags.length > 1 ||
+      (paletteStructureSubfolderTags.length === 1 && paletteStructureSubfolderTags[0] !== ''))
+
+  useEffect(() => {
+    setPaletteStructureSubfolder(null)
+  }, [palettePackFolder])
+
+  useEffect(() => {
+    if (!showStructureSubfolderTagsRow) {
+      setPaletteStructureSubfolder(null)
+    }
+  }, [showStructureSubfolderTagsRow])
+
   const filteredSchemas = sortSchemasByOrganization(
     schemas
       .filter(
@@ -76,6 +129,13 @@ export function AddNodePalette({
           palettePackFolder === null ||
           (packFolderBySchemaId?.[schema.id] ?? '') === palettePackFolder,
       )
+      .filter((schema) => {
+        if (!structureSubfolderBySchemaId || paletteStructureSubfolder === null) {
+          return true
+        }
+        const sub = structureSubfolderBySchemaId[schema.id] ?? ''
+        return sub === paletteStructureSubfolder
+      })
       .filter((schema) => matchesSchemaQuery(schema, paletteQuery)),
     paletteOrganization,
   )
@@ -401,6 +461,37 @@ export function AddNodePalette({
                     }}
                   >
                     {packFolderTagLabel(folder)}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+            {showStructureSubfolderTagsRow ? (
+              <div className={styles.tags} aria-label="Filtrar por subpasta do pack">
+                <button
+                  aria-pressed={paletteStructureSubfolder === null}
+                  type="button"
+                  onClick={() => {
+                    setPaletteStructureSubfolder(null)
+                    setHighlightedSchemaIndex(0)
+                    setPaletteHoveredOptionIndex(null)
+                    setPaletteExpandOverride('default')
+                  }}
+                >
+                  Todos
+                </button>
+                {paletteStructureSubfolderTags.map((sub) => (
+                  <button
+                    aria-pressed={paletteStructureSubfolder === sub}
+                    key={sub === '' ? '__root__' : sub}
+                    type="button"
+                    onClick={() => {
+                      setPaletteStructureSubfolder(sub)
+                      setHighlightedSchemaIndex(0)
+                      setPaletteHoveredOptionIndex(null)
+                      setPaletteExpandOverride('default')
+                    }}
+                  >
+                    {structureSubfolderTagLabel(sub)}
                   </button>
                 ))}
               </div>

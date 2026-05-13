@@ -6,16 +6,16 @@ import type { NodeDataType, NodeSchemaDefinition } from '@/core/nodeSchema'
  *
  * Heurística: cada linha que casa `^#?TypeName\\s*\\{\\s*$` inicia um struct; campos
  * `Nome: tipo = valor` numa linha (sem `{` no valor) viram parameters; linhas `x: embed =
- * ChildType {` registam uma entity ligada ao `schemaId` `slug(ChildType)`.
+ * ChildType {` registam uma Internal_Structure ligada ao `schemaId` `slug(ChildType)`.
  */
 
 export type ConvertRitobinToStructuresResult =
   | { ok: true; schemas: NodeSchemaDefinition[]; warnings: string[] }
   | { ok: false; error: string }
 
-type MutableSchema = Omit<NodeSchemaDefinition, 'parameters' | 'entities'> & {
+type MutableSchema = Omit<NodeSchemaDefinition, 'parameters' | 'internalStructures'> & {
   parameters: NodeSchemaDefinition['parameters']
-  entities: NodeSchemaDefinition['entities']
+  internalStructures: NodeSchemaDefinition['internalStructures']
 }
 
 export function slugifyStructureId(title: string): string {
@@ -112,7 +112,7 @@ function emptyMutable(title: string, idFallback: string): MutableSchema {
     id: idFallback || 'struct-unknown',
     title,
     parameters: [],
-    entities: [],
+    internalStructures: [],
   }
 }
 
@@ -175,7 +175,7 @@ export function convertRitobinStructureTextToNodeSchemas(source: string): Conver
                 text.length > 800 ? `${text.slice(0, 797).replace(/\n/g, '\\n')}…` : text.replace(/\n/g, '\\n'),
             },
           ],
-          entities: [],
+          internalStructures: [],
         },
       ],
       warnings: [
@@ -235,7 +235,7 @@ export function convertRitobinStructureTextToNodeSchemas(source: string): Conver
 
         const childSchema = ensure(childName)
 
-        parentSchema.entities.push({
+        parentSchema.internalStructures.push({
           id:
             slugifyStructureId(`${parentType}-${fieldName}`).replace(/^-+/, '') || fieldName.toLowerCase(),
           name: childName,
@@ -304,7 +304,7 @@ export function convertRitobinStructureTextToNodeSchemas(source: string): Conver
       return true
     })
     const seenEnt = new Set<string>()
-    schema.entities = schema.entities.filter((e) => {
+    schema.internalStructures = schema.internalStructures.filter((e) => {
       const k = `${e.id}:${e.schemaId}`
       if (seenEnt.has(k)) {
         return false
@@ -318,7 +318,7 @@ export function convertRitobinStructureTextToNodeSchemas(source: string): Conver
     structuredClone({
       ...sch,
       parameters: [...sch.parameters].sort((a, bb) => a.name.localeCompare(bb.name)),
-      entities: [...sch.entities],
+      internalStructures: [...sch.internalStructures],
     }),
   )
 

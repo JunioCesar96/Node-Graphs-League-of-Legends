@@ -3,7 +3,15 @@ import {
   type ConvertRitobinToStructuresResult,
 } from '@/core/convertRitobinTextToNodeStructures'
 import type { ParsedVfxData, Vec3, VfxEmitter, VfxSystem } from '@/core/jadeVfxParse'
-import type { NodeEntityDefinition, NodeParameterDefinition, NodeSchemaDefinition } from '@/core/nodeSchema'
+import type {
+  InternalStructureDefinition,
+  NodeParameterDefinition,
+  NodeSchemaDefinition,
+} from '@/core/nodeSchema'
+import {
+  buildVfxJadeEmitterSchemaNomenclature,
+  buildVfxJadeSystemSchemaNomenclature,
+} from '@/core/vfxJadeNomenclature'
 
 function trimSchemaId(raw: string, maxLen = 118): string {
   if (raw.length <= maxLen) {
@@ -86,20 +94,23 @@ function emitterToSchema(systemSlug: string, index: number, em: VfxEmitter): Nod
 
   params.sort((a, b) => a.name.localeCompare(b.name))
 
+  const emitterTitle = `Emitter · ${em.name}`
+
   return {
-    entities: [],
+    internalStructures: [],
     id: schemaId,
+    nomenclature: buildVfxJadeEmitterSchemaNomenclature(emitterTitle),
     parameters: params,
-    title: `Emitter · ${em.name}`,
+    title: emitterTitle,
   }
 }
 
-/** Sistema como nó com entities por emitter (mesma hierarquia que o Jade). */
+/** Sistema como nó com Internal_Structures por emitter (mesma hierarquia que o Jade). */
 function systemToSchema(system: VfxSystem, emitterSchemaIds: string[]): NodeSchemaDefinition {
   const slug = slugifyStructureId(system.name) || slugifyStructureId(system.displayName) || 'vfx-system'
   const schemaId = trimSchemaId(`vfx-sys-${slug}`)
 
-  const entities: NodeEntityDefinition[] = []
+  const internalStructures: InternalStructureDefinition[] = []
 
   system.emitters.forEach((emitter, index) => {
     const sid = emitterSchemaIds[index]
@@ -110,23 +121,26 @@ function systemToSchema(system: VfxSystem, emitterSchemaIds: string[]): NodeSche
 
     const entIdRaw = slugifyStructureId(`${index}-${emitter.name}`) || `em-${index}`
 
-    entities.push({
+    internalStructures.push({
       id: trimSchemaId(`slot-${entIdRaw}`, 40),
       name: emitter.name || `emitter-${index}`,
       schemaId: sid,
     })
   })
 
-  entities.sort((a, b) => a.name.localeCompare(b.name))
+  internalStructures.sort((a, b) => a.name.localeCompare(b.name))
 
   const lines = system.emitters.map((e) => e.globalStartLine)
 
   const firstLine =
     lines.length === 0 ? '0' : String(Math.min(...lines.filter((n) => typeof n === 'number' && !Number.isNaN(n))))
 
+  const systemTitle = `VFX · ${system.displayName}`
+
   return {
-    entities,
+    internalStructures,
     id: schemaId,
+    nomenclature: buildVfxJadeSystemSchemaNomenclature(systemTitle),
     parameters: [
       {
         defaultValue: escapeStringDefault(system.displayName),
@@ -153,7 +167,7 @@ function systemToSchema(system: VfxSystem, emitterSchemaIds: string[]): NodeSche
         type: 'integer',
       },
     ],
-    title: `VFX · ${system.displayName}`,
+    title: systemTitle,
   }
 }
 

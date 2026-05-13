@@ -25,11 +25,11 @@
   min-height: var(--palette-add-compact-min-height);
 }
 
-.option[data-entity-shape='square'] {
+.option[data-internal-structure-shape='square'] {
   border-radius: 8px;
 }
 
-.option[data-entity-shape='round'] {
+.option[data-internal-structure-shape='round'] {
   border-radius: 22px;
 }
 
@@ -303,7 +303,7 @@
   text-overflow: clip;
 }
 
-.entityLine {
+.internalStructureLine {
   min-width: 0;
   padding: 0.24rem 0.4rem;
   overflow: hidden;
@@ -316,7 +316,7 @@
   border-radius: 0;
 }
 
-.option[data-expanded='true'] .entityLine {
+.option[data-expanded='true'] .internalStructureLine {
   overflow-wrap: anywhere;
   overflow: visible;
   text-overflow: clip;

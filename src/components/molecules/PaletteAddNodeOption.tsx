@@ -98,7 +98,7 @@ export function PaletteAddNodeOption({
       aria-selected={highlighted}
       className={[styles.option, highlighted ? styles.keyboardSelected : ''].filter(Boolean).join(' ')}
       data-expanded={expanded ? 'true' : 'false'}
-      data-entity-shape={schema.entities.length > 0 ? 'square' : 'round'}
+      data-internal-structure-shape={schema.internalStructures.length > 0 ? 'square' : 'round'}
       id={schema.id}
       role="option"
       tabIndex={-1}
@@ -139,8 +139,8 @@ export function PaletteAddNodeOption({
           }}
           onPointerLeave={scheduleTooltipClose}
         >
-          {schema.parameters.length} parâmetros / {schema.entities.length}{' '}
-          {schema.entities.length === 1 ? 'entidade' : 'entidades'}
+          {schema.parameters.length} parâmetros · {schema.internalStructures.length}{' '}
+          {schema.internalStructures.length === 1 ? 'Internal_Structure' : 'Internal_Structures'}
         </span>,
         document.body,
       )
@@ -165,7 +165,7 @@ export function PaletteAddNodeOption({
         <span className={styles.sections}>
           <span
             className={
-              schema.entities.length > 0 ? styles.sectionsInnerSplit : styles.sectionsInnerSingle
+              schema.internalStructures.length > 0 ? styles.sectionsInnerSplit : styles.sectionsInnerSingle
             }
           >
             <span className={styles.sectionColumn}>
@@ -184,12 +184,12 @@ export function PaletteAddNodeOption({
                   <span className={styles.parameterLineNone}>nenhum</span>
                 )}
             </span>
-            {schema.entities.length > 0 ? (
+            {schema.internalStructures.length > 0 ? (
               <span className={styles.sectionColumn}>
-                <strong>Entidades</strong>
-                {schema.entities.map((entity) => (
-                  <em className={styles.entityLine} key={entity.id}>
-                    {entity.name} -&gt; {entity.schemaId}
+                <strong>Internal_Structures</strong>
+                {schema.internalStructures.map((structure) => (
+                  <em className={styles.internalStructureLine} key={structure.id}>
+                    {structure.name} -&gt; {structure.schemaId}
                   </em>
                 ))}
               </span>

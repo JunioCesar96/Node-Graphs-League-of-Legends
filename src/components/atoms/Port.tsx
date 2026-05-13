@@ -13,7 +13,7 @@ type PortProps = {
   active?: boolean
   compatible?: boolean
   direction: PortDirection
-  graphEntityId?: string
+  graphInternalStructureId?: string
   graphNodeId?: string
   graphPortKind?: 'input' | 'output'
   label?: string
@@ -29,7 +29,7 @@ export function Port({
   active = false,
   compatible = false,
   direction,
-  graphEntityId,
+  graphInternalStructureId,
   graphNodeId,
   graphPortKind,
   label,
@@ -55,8 +55,8 @@ export function Port({
   if (graphNodeId !== undefined && graphPortKind !== undefined) {
     graphDataProps['data-graph-node-id'] = graphNodeId
     graphDataProps['data-graph-port'] = graphPortKind
-    if (graphPortKind === 'output' && graphEntityId !== undefined) {
-      graphDataProps['data-graph-entity-id'] = graphEntityId
+    if (graphPortKind === 'output' && graphInternalStructureId !== undefined) {
+      graphDataProps['data-graph-internal-structure-id'] = graphInternalStructureId
     }
   }
 

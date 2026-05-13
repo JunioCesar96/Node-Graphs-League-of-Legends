@@ -18,7 +18,15 @@ export type NodeParameterDefinition = {
   defaultValue: string
 }
 
-export type NodeEntityDefinition = {
+/** Alinhado a nomecratura.md (Classification + Set Nomenclature). */
+export type NodeStructureNomenclature = {
+  group: string
+  collection: string
+  collectionType: string
+}
+
+/** Classificação nominal (Set Nomenclature): Internal_Structures (#3). */
+export type InternalStructureDefinition = {
   id: string
   name: string
   schemaId: string
@@ -28,7 +36,9 @@ export type NodeSchemaDefinition = {
   id: string
   title: string
   parameters: NodeParameterDefinition[]
-  entities: NodeEntityDefinition[]
+  internalStructures: InternalStructureDefinition[]
+  /** Opcional: classificação nominal para JSON exportado / Jade VFX. */
+  nomenclature?: NodeStructureNomenclature
 }
 
 export type NodeParameterValue = {
@@ -65,7 +75,7 @@ export const sampleNodeSchema = {
       defaultValue: '1, 0.58, 0.1, 1',
     },
   ],
-  entities: [
+  internalStructures: [
     {
       id: 'emitter',
       name: 'EmitterShape',

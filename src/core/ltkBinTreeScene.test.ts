@@ -80,7 +80,7 @@ describe('ltkBinTreeScene', () => {
 
     expect(scene?.connections[0]?.fromNodeId).toBe(`ltk-bin-obj-${referrerHash}`)
     expect(scene?.connections[0]?.toNodeId).toBe(`ltk-bin-obj-${targetHash}`)
-    expect(scene?.connections[0]?.fromEntityId).toBe('olk-111')
+    expect(scene?.connections[0]?.fromInternalStructureId).toBe('olk-111')
 
     const linkTableInspect = scene
       ?.nodes.find((candidate) => candidate.id === `ltk-bin-obj-${referrerHash}`)
@@ -123,7 +123,7 @@ describe('ltkBinTreeScene', () => {
     const scene = binTreeJsonToCanvasScene(tree)
 
     expect(scene?.connections).toHaveLength(1)
-    expect(scene?.connections[0]?.fromEntityId).toBe('olk-50_0')
+    expect(scene?.connections[0]?.fromInternalStructureId).toBe('olk-50_0')
     expect(scene?.connections[0]?.toNodeId).toBe(`ltk-bin-obj-${containerTargetHash}`)
 
     const metaNode = scene?.nodes.find((candidate) => candidate.id === 'ltk-bin-meta-file')
@@ -178,7 +178,7 @@ describe('ltkBinTreeScene', () => {
     const scene = binTreeJsonToCanvasScene(tree)
 
     expect(scene?.connections).toHaveLength(1)
-    expect(scene?.connections[0]?.fromEntityId.startsWith('hlk-hash_777')).toBe(true)
+    expect(scene?.connections[0]?.fromInternalStructureId.startsWith('hlk-hash_777')).toBe(true)
     expect(scene?.connections[0]?.fromNodeId).toBe(`ltk-bin-obj-${referrer}`)
     expect(scene?.connections[0]?.toNodeId).toBe(`ltk-bin-obj-${target}`)
 
