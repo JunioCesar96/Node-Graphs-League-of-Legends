@@ -20,12 +20,19 @@ import {
   convertRitualTextClassGroup,
   convertRitualTextJadeFxEditor,
 } from '@/core/convertRitualTextToNodeStructures'
-import type { NodeSchemaDefinition } from '@/core/nodeSchema'
+import type {
+  InternalStructureDefinition,
+  NodeParameterDefinition,
+  NodeSchemaDefinition,
+} from '@/core/nodeSchema'
 import {
   hydrateScene,
   schemaPackFolderBySchemaId,
   schemaRegistry,
   schemaStructureSubfolderBySchemaId,
+  schemaNodeKindBySchemaId,
+  schemaBaseParameterCatalogBySchemaId,
+  schemaBaseInternalStructureCatalogBySchemaId,
 } from '@/core/canvasScene'
 import {
   dynamicPackFolderMap,
@@ -36,7 +43,6 @@ import {
   saveDynamicStructurePacksToStorage,
 } from '@/core/nodeStructurePackStorage'
 import { parseSceneDocument, serializeScene } from '@/core/leagueBinScene'
-import { flattenInternalStructureTemplates, flattenParameterTemplates } from '@/core/schemaCatalog'
 import { STORAGE_LAST_STRUCTURE_META, triggerJsonDownload } from '@/core/workspaceStorage'
 import {
   ROOT_NODE_ID,
@@ -149,14 +155,40 @@ function App() {
   } = useSceneHistory({ extendSchemaLookup })
 
   const availableSchemas = useMemo(() => Object.values(extendSchemaLookup), [extendSchemaLookup])
-  const parameterCatalog = useMemo(
-    () => flattenParameterTemplates(availableSchemas),
-    [availableSchemas],
-  )
-  const internalStructureCatalog = useMemo(
-    () => flattenInternalStructureTemplates(availableSchemas),
-    [availableSchemas],
-  )
+
+  const mergedSchemaNodeKindBySchemaId = useMemo(() => {
+    const next: Record<string, 'module' | 'base'> = { ...schemaNodeKindBySchemaId }
+    for (const s of availableSchemas) {
+      if (next[s.id] === undefined) {
+        next[s.id] = 'module'
+      }
+    }
+    return next
+  }, [availableSchemas])
+
+  const mergedBaseParameterCatalogBySchemaId = useMemo(() => {
+    const next: Record<string, NodeParameterDefinition[]> = {
+      ...schemaBaseParameterCatalogBySchemaId,
+    }
+    for (const s of availableSchemas) {
+      if (next[s.id] === undefined) {
+        next[s.id] = []
+      }
+    }
+    return next
+  }, [availableSchemas])
+
+  const mergedBaseInternalStructureCatalogBySchemaId = useMemo(() => {
+    const next: Record<string, InternalStructureDefinition[]> = {
+      ...schemaBaseInternalStructureCatalogBySchemaId,
+    }
+    for (const s of availableSchemas) {
+      if (next[s.id] === undefined) {
+        next[s.id] = []
+      }
+    }
+    return next
+  }, [availableSchemas])
 
   const [inspectorMinimized, setInspectorMinimized] = useState(false)
   const [inspectorOffset, setInspectorOffset] = useState<InspectorOffset>({ x: 0, y: 0 })
@@ -942,7 +974,6 @@ function App() {
             availableSchemas={availableSchemas}
             canRedo={sceneHistory.future.length > 0}
             canUndo={sceneHistory.past.length > 0}
-            internalStructureCatalog={internalStructureCatalog}
             hints={tooltipHints}
             onAppendCatalogInternalStructure={(canvasNodeId, structure) =>
               addDynamicInternalStructureSlot(canvasNodeId, structure)
@@ -964,9 +995,11 @@ function App() {
             onSelectAllNodesShortcut={selectAllNodes}
             onSelectNode={(nodeId, options) => selectNode(nodeId, options)}
             onUndo={undoScene}
-            parameterCatalog={parameterCatalog}
             paletteRequestSignal={paletteSignal}
             scene={scene}
+            schemaBaseInternalStructureCatalogBySchemaId={mergedBaseInternalStructureCatalogBySchemaId}
+            schemaBaseParameterCatalogBySchemaId={mergedBaseParameterCatalogBySchemaId}
+            schemaNodeKindBySchemaId={mergedSchemaNodeKindBySchemaId}
             schemaPackFolderBySchemaId={mergedPackFolderBySchemaId}
             schemaStructureSubfolderBySchemaId={mergedStructureSubfolderBySchemaId}
             selectedNodeId={primarySelectedId}

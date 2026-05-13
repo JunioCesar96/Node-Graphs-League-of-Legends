@@ -19,6 +19,8 @@ type NodeCardProps = {
   canAcceptLink?: boolean
   catalogInternalStructures?: InternalStructureDefinition[]
   catalogParameters?: NodeParameterDefinition[]
+  /** `module` — raiz do pack; `base` — subpasta pack_Type (corpo Type.json). */
+  nodeKind?: 'module' | 'base'
   node: NodeInstance
   onAppendCatalogInternalStructure?: (structure: InternalStructureDefinition) => void
   onAppendCatalogParameter?: (parameter: NodeParameterDefinition) => void
@@ -60,6 +62,7 @@ export function NodeCard({
   canAcceptLink = false,
   catalogInternalStructures,
   catalogParameters,
+  nodeKind = 'module',
   node,
   onAppendCatalogInternalStructure,
   onAppendCatalogParameter,
@@ -84,12 +87,13 @@ export function NodeCard({
   }
 
   const presetStructureCount = node.schema.internalStructures.length
+  const isModule = nodeKind === 'module'
   const hasCatalogStructures = Boolean(
-    catalogInternalStructures?.length && onAppendCatalogInternalStructure,
+    !isModule && catalogInternalStructures?.length && onAppendCatalogInternalStructure,
   )
-  const hasCatalogParameters = Boolean(catalogParameters?.length && onAppendCatalogParameter)
+  const hasCatalogParameters = Boolean(!isModule && catalogParameters?.length && onAppendCatalogParameter)
   const showElementPicker =
-    presetStructureCount > 0 || hasCatalogStructures || hasCatalogParameters
+    !isModule && (presetStructureCount > 0 || hasCatalogStructures || hasCatalogParameters)
 
   useEffect(() => {
     if (!isElementSelectorOpen) {
@@ -168,7 +172,15 @@ export function NodeCard({
           </ul>
         </section>
 
-        {showElementPicker ? (
+        {isModule ? (
+          <Button
+            disabled
+            title="Nó módulo: catálogo dinâmico (+ Elemento) será activado numa fase futura."
+            type="button"
+          >
+            + Elemento
+          </Button>
+        ) : showElementPicker ? (
           <details className={styles.elementSelector} open={isElementSelectorOpen} ref={elementSelectorRef}>
             <summary
               onClick={(clickEvent) => {
@@ -176,7 +188,7 @@ export function NodeCard({
                 setIsElementSelectorOpen((openState) => !openState)
               }}
             >
-              + Element
+              + Elemento
             </summary>
             <div className={styles.elementMenu}>
               {node.schema.internalStructures.map((structure) => (
@@ -204,7 +216,7 @@ export function NodeCard({
                       type="button"
                     >
                       <span>{structure.name}</span>
-                      <small>nova Internal_Structure ({structure.schemaId})</small>
+                      <small>Internal_Structure · {structure.schemaId}</small>
                     </button>
                   ))
                 : null}
@@ -227,7 +239,9 @@ export function NodeCard({
             </div>
           </details>
         ) : (
-          <Button disabled>+ Element</Button>
+          <Button disabled title="Não há parâmetros nem Internal_Structures disponíveis para acrescentar.">
+            + Elemento
+          </Button>
         )}
       </div>
     </article>

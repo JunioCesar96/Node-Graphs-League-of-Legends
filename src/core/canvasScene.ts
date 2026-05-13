@@ -9,6 +9,9 @@ import {
   createNodeInstance as _createNodeInstance,
   schemaPackFolderBySchemaId as _schemaPackFolderBySchemaId,
   schemaStructureSubfolderBySchemaId as _schemaStructureSubfolderBySchemaId,
+  schemaNodeKindBySchemaId as _schemaNodeKindBySchemaId,
+  schemaBaseParameterCatalogBySchemaId as _schemaBaseParameterCatalogBySchemaId,
+  schemaBaseInternalStructureCatalogBySchemaId as _schemaBaseInternalStructureCatalogBySchemaId,
 } from './nodeStructureRegistry'
 
 /** Registo construído a partir de JSON sob `src/nodeStructures/<pasta>/` (dinâmico no bundle). */
@@ -19,6 +22,12 @@ export const schemaPackFolderBySchemaId = _schemaPackFolderBySchemaId
 
 /** Subpasta imediata dentro do pack (`''` = raiz). */
 export const schemaStructureSubfolderBySchemaId = _schemaStructureSubfolderBySchemaId
+
+export const schemaNodeKindBySchemaId = _schemaNodeKindBySchemaId
+
+export const schemaBaseParameterCatalogBySchemaId = _schemaBaseParameterCatalogBySchemaId
+
+export const schemaBaseInternalStructureCatalogBySchemaId = _schemaBaseInternalStructureCatalogBySchemaId
 
 export function createNodeInstance(
   schemaId: string,

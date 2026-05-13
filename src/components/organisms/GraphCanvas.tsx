@@ -38,6 +38,12 @@ type GraphCanvasProps = {
   schemaPackFolderBySchemaId?: Record<string, string>
   /** Subpasta imediata dentro do pack (`''` = raiz); `temp` não aparece como etiqueta. */
   schemaStructureSubfolderBySchemaId?: Record<string, string>
+  /** Módulo = JSON na raiz do pack; base = subpasta `pack_Type/Type.json` (exceto temp). */
+  schemaNodeKindBySchemaId?: Record<string, 'module' | 'base'>
+  /** Catálogo de parâmetros-stub na mesma pasta (só sentido para nó base). */
+  schemaBaseParameterCatalogBySchemaId?: Record<string, NodeParameterDefinition[]>
+  /** Outros nós base do mesmo pack com mesmo `#N` em nomenclature.group. */
+  schemaBaseInternalStructureCatalogBySchemaId?: Record<string, InternalStructureDefinition[]>
   canRedo: boolean
   canUndo: boolean
   paletteRequestSignal?: number
@@ -59,14 +65,12 @@ type GraphCanvasProps = {
   onRedo: () => void
   onRemoveConnection?: (connectionId: string) => void
   onResetScene: () => void
-  internalStructureCatalog?: InternalStructureDefinition[]
   hints?: Record<string, string>
   onAppendCatalogInternalStructure?: (
     canvasNodeId: string,
     structure: InternalStructureDefinition,
   ) => void
   onCatalogParameterAppend?: (canvasNodeId: string, definition: NodeParameterDefinition) => void
-  parameterCatalog?: NodeParameterDefinition[]
   /** Com seleção: limpa todos os nós. Sem seleção: delega seleccionar todos. */
   onClearSelection?: () => void
   onSelectAllNodesShortcut?: () => void
@@ -418,6 +422,9 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     availableSchemas,
     schemaPackFolderBySchemaId,
     schemaStructureSubfolderBySchemaId,
+    schemaNodeKindBySchemaId,
+    schemaBaseParameterCatalogBySchemaId,
+    schemaBaseInternalStructureCatalogBySchemaId,
     canRedo,
     canUndo,
     paletteRequestSignal = 0,
@@ -431,11 +438,9 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     onRedo,
     onRemoveConnection,
     onResetScene,
-    internalStructureCatalog,
     hints,
     onAppendCatalogInternalStructure,
     onCatalogParameterAppend,
-    parameterCatalog,
     onClearSelection,
     onSelectAllNodesShortcut,
     onSelectNode,
@@ -1520,9 +1525,31 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
                 }
                 canvasNodeId={canvasNode.id}
                 canAcceptLink={isCompatibleTarget}
-                catalogInternalStructures={internalStructureCatalog}
-                catalogParameters={parameterCatalog}
+                catalogInternalStructures={(() => {
+                  const sid = canvasNode.node.schema.id
+                  const kind = schemaNodeKindBySchemaId?.[sid] ?? 'module'
+                  if (kind !== 'base') {
+                    return undefined
+                  }
+                  const list = schemaBaseInternalStructureCatalogBySchemaId?.[sid] ?? []
+                  const used = new Set(
+                    canvasNode.node.schema.internalStructures.map((structure) => structure.schemaId),
+                  )
+                  return list.filter((structure) => !used.has(structure.schemaId))
+                })()}
+                catalogParameters={(() => {
+                  const sid = canvasNode.node.schema.id
+                  const kind = schemaNodeKindBySchemaId?.[sid] ?? 'module'
+                  if (kind !== 'base') {
+                    return undefined
+                  }
+                  const list = schemaBaseParameterCatalogBySchemaId?.[sid] ?? []
+                  const ids = new Set(canvasNode.node.schema.parameters.map((p) => p.id))
+                  const names = new Set(canvasNode.node.schema.parameters.map((p) => p.name))
+                  return list.filter((p) => !ids.has(p.id) && !names.has(p.name))
+                })()}
                 node={canvasNode.node}
+                nodeKind={schemaNodeKindBySchemaId?.[canvasNode.node.schema.id] ?? 'module'}
                 onAppendCatalogInternalStructure={
                   onAppendCatalogInternalStructure
                     ? (structure) => onAppendCatalogInternalStructure(canvasNode.id, structure)

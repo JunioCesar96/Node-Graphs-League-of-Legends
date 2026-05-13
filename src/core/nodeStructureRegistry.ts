@@ -1,5 +1,14 @@
-import type { NodeInstance, NodeSchemaDefinition } from './nodeSchema'
-import { nodeSchemaFromStructureJson } from './nodeStructureJson'
+import type {
+  InternalStructureDefinition,
+  NodeInstance,
+  NodeParameterDefinition,
+  NodeSchemaDefinition,
+} from './nodeSchema'
+import {
+  nodeParameterDefinitionFromJsonStub,
+  nomenclatureGroupNumberFromLabel,
+  nodeSchemaFromStructureJson,
+} from './nodeStructureJson'
 
 const modules = import.meta.glob<{ default: unknown }>('../nodeStructures/**/*.json', { eager: true })
 
@@ -29,6 +38,12 @@ function structureSubfolderFromModulePath(modulePath: string): string {
     return ''
   }
   return segments[1] ?? ''
+}
+
+function modulePathDirectoryPrefix(modulePath: string): string {
+  const normalized = modulePath.replace(/\\/g, '/')
+  const idx = normalized.lastIndexOf('/')
+  return idx === -1 ? '' : `${normalized.slice(0, idx + 1)}`
 }
 
 /**
@@ -93,10 +108,16 @@ function buildRegistry(): {
   registry: Record<string, NodeSchemaDefinition>
   packFolderBySchemaId: Record<string, string>
   structureSubfolderBySchemaId: Record<string, string>
+  pathBySchemaId: Record<string, string>
+  schemaNodeKindBySchemaId: Record<string, 'module' | 'base'>
+  schemaBaseParameterCatalogBySchemaId: Record<string, NodeParameterDefinition[]>
+  schemaBaseInternalStructureCatalogBySchemaId: Record<string, InternalStructureDefinition[]>
 } {
   const registry: Record<string, NodeSchemaDefinition> = {}
   const packFolderBySchemaId: Record<string, string> = {}
   const structureSubfolderBySchemaId: Record<string, string> = {}
+  const pathBySchemaId: Record<string, string> = {}
+  const schemaNodeKindBySchemaId: Record<string, 'module' | 'base'> = {}
 
   for (const [path, mod] of Object.entries(modules)) {
     if (!isNodeStructureJsonCandidate(path)) {
@@ -118,16 +139,117 @@ function buildRegistry(): {
     registry[parsed.id] = parsed
     packFolderBySchemaId[parsed.id] = packFolder
     structureSubfolderBySchemaId[parsed.id] = subfolder
+    pathBySchemaId[parsed.id] = path
+
+    const segments = pathSegmentsUnderNodeStructures(path)
+    schemaNodeKindBySchemaId[parsed.id] =
+      segments.length === 2 ? 'module' : 'base'
+  }
+
+  const schemaBaseParameterCatalogBySchemaId: Record<string, NodeParameterDefinition[]> = {}
+  const schemaBaseInternalStructureCatalogBySchemaId: Record<string, InternalStructureDefinition[]> = {}
+
+  for (const schemaId of Object.keys(registry)) {
+    const modulePath = pathBySchemaId[schemaId]
+    if (!modulePath) {
+      continue
+    }
+    const segments = pathSegmentsUnderNodeStructures(modulePath)
+    if (segments.length !== 3) {
+      continue
+    }
+
+    const dirPrefix = modulePathDirectoryPrefix(modulePath)
+    const dirNorm = dirPrefix.replace(/\\/g, '/')
+    const stubs: NodeParameterDefinition[] = []
+
+    for (const [otherPath, otherMod] of Object.entries(modules)) {
+      const otherNorm = otherPath.replace(/\\/g, '/')
+      if (!otherNorm.startsWith(dirNorm)) {
+        continue
+      }
+      if (otherNorm === modulePath.replace(/\\/g, '/')) {
+        continue
+      }
+      const stub = nodeParameterDefinitionFromJsonStub(otherMod.default)
+      if (stub) {
+        stubs.push(stub)
+      }
+    }
+
+    stubs.sort((a, b) => a.name.localeCompare(b.name))
+    schemaBaseParameterCatalogBySchemaId[schemaId] = stubs
+  }
+
+  for (const schemaId of Object.keys(registry)) {
+    const modulePath = pathBySchemaId[schemaId]
+    if (!modulePath) {
+      continue
+    }
+    const segments = pathSegmentsUnderNodeStructures(modulePath)
+    if (segments.length !== 3) {
+      continue
+    }
+
+    const pack = packFolderFromModulePath(modulePath)
+    const schema = registry[schemaId]
+    const myGroupN = nomenclatureGroupNumberFromLabel(schema.nomenclature?.group)
+    if (myGroupN === null) {
+      schemaBaseInternalStructureCatalogBySchemaId[schemaId] = []
+      continue
+    }
+
+    const candidates: InternalStructureDefinition[] = []
+    for (const [otherId, otherSchema] of Object.entries(registry)) {
+      if (otherId === schemaId) {
+        continue
+      }
+      const otherPath = pathBySchemaId[otherId]
+      if (!otherPath) {
+        continue
+      }
+      const otherSeg = pathSegmentsUnderNodeStructures(otherPath)
+      if (otherSeg.length !== 3) {
+        continue
+      }
+      if (packFolderFromModulePath(otherPath) !== pack) {
+        continue
+      }
+      const otherG = nomenclatureGroupNumberFromLabel(otherSchema.nomenclature?.group)
+      if (otherG !== myGroupN) {
+        continue
+      }
+
+      candidates.push({
+        id: `catalog-is-${otherId}`,
+        name: otherSchema.title,
+        schemaId: otherId,
+      })
+    }
+
+    candidates.sort((a, b) => a.name.localeCompare(b.name))
+    schemaBaseInternalStructureCatalogBySchemaId[schemaId] = candidates
   }
 
   validateInternalStructureRefs(registry)
-  return { registry, packFolderBySchemaId, structureSubfolderBySchemaId }
+  return {
+    registry,
+    packFolderBySchemaId,
+    structureSubfolderBySchemaId,
+    pathBySchemaId,
+    schemaNodeKindBySchemaId,
+    schemaBaseParameterCatalogBySchemaId,
+    schemaBaseInternalStructureCatalogBySchemaId,
+  }
 }
 
 const {
   registry: builtRegistry,
   packFolderBySchemaId: builtPackMap,
   structureSubfolderBySchemaId: builtStructureSubfolderMap,
+  schemaNodeKindBySchemaId: builtNodeKindMap,
+  schemaBaseParameterCatalogBySchemaId: builtBaseParamCatalog,
+  schemaBaseInternalStructureCatalogBySchemaId: builtBaseISCatalog,
 } = buildRegistry()
 
 export const schemaRegistry: Record<string, NodeSchemaDefinition> = builtRegistry
@@ -140,6 +262,21 @@ export const schemaPackFolderBySchemaId: Record<string, string> = builtPackMap
  * `temp` mantém-se como valor para filtragem mas não entra nas etiquetas da paleta.
  */
 export const schemaStructureSubfolderBySchemaId: Record<string, string> = builtStructureSubfolderMap
+
+/** JSON na raiz do pack (`pack/ficheiro.json`) → módulo; subpasta `pack/pack_Type/Type.json` → base. */
+export const schemaNodeKindBySchemaId: Record<string, 'module' | 'base'> = builtNodeKindMap
+
+/**
+ * Para nós base: parâmetros reutilizáveis a partir de `*.json` na mesma pasta (stubs), exceto o corpo `{type}.json`.
+ */
+export const schemaBaseParameterCatalogBySchemaId: Record<string, NodeParameterDefinition[]> =
+  builtBaseParamCatalog
+
+/**
+ * Para nós base: outros nós base no mesmo pack com o mesmo número em `nomenclature.group` (`#2 …`).
+ */
+export const schemaBaseInternalStructureCatalogBySchemaId: Record<string, InternalStructureDefinition[]> =
+  builtBaseISCatalog
 
 export function createNodeInstanceFromRegistry(
   registry: Record<string, NodeSchemaDefinition>,

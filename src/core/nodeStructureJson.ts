@@ -24,6 +24,23 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
+/** Índice depois de `#` em labels tipo `#2 Entidades` (classificação nominal). */
+export function nomenclatureGroupNumberFromLabel(group: string | undefined): number | null {
+  if (typeof group !== 'string') {
+    return null
+  }
+  const m = /^#\s*(\d+)/.exec(group.trim())
+  if (!m) {
+    return null
+  }
+  const n = Number.parseInt(m[1]!, 10)
+  return Number.isFinite(n) ? n : null
+}
+
+export function nodeParameterDefinitionFromJsonStub(raw: unknown): NodeParameterDefinition | null {
+  return parseParameter(raw)
+}
+
 function parseParameter(raw: unknown): NodeParameterDefinition | null {
   if (!isRecord(raw)) {
     return null
