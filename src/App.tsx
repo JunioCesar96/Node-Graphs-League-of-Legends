@@ -5,6 +5,10 @@ import { ConsoleNotificationCapsule } from '@/components/molecules/ConsoleNotifi
 import { AppMenuBar } from '@/components/organisms/AppMenuBar'
 import { CodeDock } from '@/components/organisms/CodeDock'
 import {
+  NodeInstanceStringPicker,
+  type NodeInstanceStringCandidate,
+} from '@/components/molecules/NodeInstanceStringPicker'
+import {
   clampFloatingDockRect,
   createDefaultFloatingCodeDockRect,
 } from '@/components/organisms/codeDockFloatingRect'
@@ -17,6 +21,13 @@ import { binTreeJsonToCanvasScene } from '@/core/ltkBinTreeScene'
 import { getStoredRitobinExePath } from '@/core/ritobinExePreference'
 import { convertBinViaRitobinExeBridge } from '@/core/ritobinInvokeBridge'
 import type { ConvertRitobinToStructuresResult } from '@/core/convertRitobinTextToNodeStructures'
+import {
+  buildNodeInstanceId,
+  buildNodeInstanceJsonDocument,
+  getNodeParameterRuntimeValue,
+  normalizeNodeInstanceStringName,
+  sanitizeNodeInstanceJsonStem,
+} from '@/core/convertToNodeInstance'
 import { applyNomenclatureFromBinRitualText } from '@/core/binNomenclatureAnalyzer'
 import {
   convertRitualTextClassGroup,
@@ -223,6 +234,7 @@ function App() {
   const [codeText, setCodeText] = useState('// Stub do editor League-Bin\n// Sincronização bidirecional chega na fase E.\n')
   const [nodeConfigurationMode, setNodeConfigurationMode] = useState(false)
   const [parameterValueLinkSourceId, setParameterValueLinkSourceId] = useState<null | string>(null)
+  const [nodeInstanceStringPickerNodeId, setNodeInstanceStringPickerNodeId] = useState<null | string>(null)
   const [paletteSignal, setPaletteSignal] = useState(0)
   const [tooltipHints, setTooltipHints] = useState<TooltipDictionary>({})
   const [bootConsoleTestStamp, setBootConsoleTestStamp] = useState<number | null>(() => Date.now())
@@ -979,9 +991,147 @@ function App() {
       ? mergedBaseParameterCatalogBySchemaId[inspectorTarget.node.schema.id]
       : undefined
 
+  const resolveNodeStructureJsonRelativePath = useCallback(
+    (schemaId: string): string | undefined => {
+      const staticRelativePath = schemaJsonRelativePathBySchemaId[schemaId]
+
+      if (staticRelativePath) {
+        return staticRelativePath
+      }
+
+      const packFolder = mergedPackFolderBySchemaId[schemaId]
+      const stem = sanitizeNodeInstanceJsonStem(schemaId)
+
+      if (!packFolder || !stem) {
+        return undefined
+      }
+
+      const structureSubfolder = mergedStructureSubfolderBySchemaId[schemaId] ?? ''
+
+      return structureSubfolder
+        ? `${packFolder}/${structureSubfolder}/${stem}.json`
+        : `${packFolder}/${stem}.json`
+    },
+    [mergedPackFolderBySchemaId, mergedStructureSubfolderBySchemaId],
+  )
+
   useEffect(() => {
     setParameterValueLinkSourceId(null)
   }, [primarySelectedId])
+
+  const nodeInstanceStringCandidates = useMemo<NodeInstanceStringCandidate[]>(() => {
+    if (!inspectorTarget) {
+      return []
+    }
+
+    return inspectorTarget.node.schema.parameters
+      .filter((parameter) => parameter.type === 'string')
+      .map((parameter) => {
+        const value =
+          getNodeParameterRuntimeValue(inspectorTarget, parameter.id) ?? parameter.defaultValue
+        const stringName = normalizeNodeInstanceStringName(value)
+
+        return { parameter, stringName, value }
+      })
+  }, [inspectorTarget])
+
+  const promptConvertToNodeInstance = useCallback(() => {
+    if (!inspectorTarget) {
+      return
+    }
+
+    if (nodeInstanceStringCandidates.length === 0) {
+      window.alert(
+        'Você precisa adicionar um parâmetro do tipo string em seu node para que defina o nome do node.',
+      )
+      return
+    }
+
+    setNodeInstanceStringPickerNodeId(inspectorTarget.id)
+  }, [inspectorTarget, nodeInstanceStringCandidates.length])
+
+  const closeNodeInstanceStringPicker = useCallback(() => {
+    setNodeInstanceStringPickerNodeId(null)
+  }, [])
+
+  const saveNodeInstanceFromStringParameter = useCallback(
+    (parameterId: string) => {
+      if (!inspectorTarget) {
+        return
+      }
+
+      const candidate = nodeInstanceStringCandidates.find((entry) => entry.parameter.id === parameterId)
+
+      if (!candidate) {
+        return
+      }
+
+      if (candidate.stringName.length === 0) {
+        window.alert('O valor do parâmetro string escolhido está vazio.')
+        return
+      }
+
+      const schemaId = inspectorTarget.node.schema.id
+      const jsonRel = resolveNodeStructureJsonRelativePath(schemaId)
+
+      if (!jsonRel) {
+        window.alert('Não foi possível localizar o JSON de origem deste node em nodeStructures.')
+        return
+      }
+
+      if (!import.meta.env.DEV) {
+        window.alert(
+          'Node Instance só grava em src/nodeStructures com o servidor de desenvolvimento (npm run dev).',
+        )
+        return
+      }
+
+      const instanceId = buildNodeInstanceId(schemaId, candidate.stringName)
+
+      if (!instanceId) {
+        window.alert('O valor do parâmetro string escolhido não gera um nome de arquivo válido.')
+        return
+      }
+
+      const instance = buildNodeInstanceJsonDocument(inspectorTarget, candidate.stringName, instanceId)
+
+      void (async () => {
+        try {
+          const res = await fetch('/api/node-structures-write-instance', {
+            body: JSON.stringify({ instance, relativePath: jsonRel }),
+            headers: { 'Content-Type': 'application/json' },
+            method: 'POST',
+          })
+          const payload: unknown = await res.json().catch(() => null)
+          const ok =
+            res.ok &&
+            typeof payload === 'object' &&
+            payload !== null &&
+            'ok' in payload &&
+            Reflect.get(payload, 'ok') === true
+
+          if (!ok) {
+            const error =
+              typeof payload === 'object' && payload !== null && 'error' in payload
+                ? String(Reflect.get(payload, 'error'))
+                : `HTTP ${String(res.status)}`
+            window.alert(`Node Instance falhou: ${error}`)
+            return
+          }
+
+          const savedRelativePath =
+            typeof payload === 'object' && payload !== null && 'relativePath' in payload
+              ? String(Reflect.get(payload, 'relativePath'))
+              : instance.id
+          setNodeInstanceStringPickerNodeId(null)
+          window.alert(`Node Instance salva em ${savedRelativePath}.`)
+        } catch {
+          window.alert('Servidor dev indisponível ou pedido de Node Instance falhou.')
+        }
+      })()
+    },
+    [inspectorTarget, nodeInstanceStringCandidates, resolveNodeStructureJsonRelativePath],
+  )
 
   const parameterValueLinkPickerModel = useMemo(() => {
     if (!inspectorTarget || !parameterValueLinkSourceId) {
@@ -1269,6 +1419,7 @@ function App() {
                   minimized={inspectorMinimized}
                   nodeConfigurationMode={nodeConfigurationMode}
                   node={inspectorTarget}
+                  onCreateInstance={promptConvertToNodeInstance}
                   onDelete={() => deleteSelectedNodes()}
                   onOpenParameterValueLinkPicker={setParameterValueLinkSourceId}
                   onPromptToggleRequiredParameter={promptToggleRequiredParameter}
@@ -1290,6 +1441,7 @@ function App() {
                 minimized={inspectorMinimized}
                 nodeConfigurationMode={nodeConfigurationMode}
                 node={inspectorTarget}
+                onCreateInstance={promptConvertToNodeInstance}
                 onDelete={() => deleteSelectedNodes()}
                 onOpenParameterValueLinkPicker={setParameterValueLinkSourceId}
                 onPromptToggleRequiredParameter={promptToggleRequiredParameter}
@@ -1316,6 +1468,7 @@ function App() {
                 minimized
                 nodeConfigurationMode={nodeConfigurationMode}
                 node={inspectorTarget}
+                onCreateInstance={promptConvertToNodeInstance}
                 onDelete={() => deleteSelectedNodes()}
                 onOpenParameterValueLinkPicker={setParameterValueLinkSourceId}
                 onPromptToggleRequiredParameter={promptToggleRequiredParameter}
@@ -1380,6 +1533,16 @@ function App() {
             }}
             open
             sourceParameter={parameterValueLinkPickerModel.sourceParameter}
+          />
+        ) : null}
+
+        {inspectorTarget ? (
+          <NodeInstanceStringPicker
+            candidates={nodeInstanceStringCandidates}
+            nodeTitle={inspectorTarget.node.schema.title}
+            onClose={closeNodeInstanceStringPicker}
+            onPick={saveNodeInstanceFromStringParameter}
+            open={nodeInstanceStringPickerNodeId === inspectorTarget.id}
           />
         ) : null}
 

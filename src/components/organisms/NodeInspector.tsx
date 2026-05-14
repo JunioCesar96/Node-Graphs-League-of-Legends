@@ -17,6 +17,7 @@ type NodeInspectorProps = {
   minimized: boolean
   nodeConfigurationMode?: boolean
   node?: CanvasNode | undefined
+  onCreateInstance?: () => void
   onDelete: () => void
   onDockToViewport?: () => void
   onToggleMinimized: () => void
@@ -85,6 +86,7 @@ type BodyProps = {
   nodeConfigurationMode?: boolean
   node: CanvasNode
   onCommitParameter: (parameterId: string, value: string) => void
+  onCreateInstance?: () => void
   onDelete: () => void
   onSwapParameterPositions: (draggedParameterId: string, targetParameterId: string) => void
   onPromptToggleRequiredParameter?: (parameterId: string) => void
@@ -97,6 +99,7 @@ function SelectedNodeInspectorBody({
   nodeConfigurationMode = false,
   node,
   onCommitParameter,
+  onCreateInstance,
   onDelete,
   onSwapParameterPositions,
   onPromptToggleRequiredParameter,
@@ -123,7 +126,12 @@ function SelectedNodeInspectorBody({
       </div>
 
       <div className={styles.actions}>
-        <button disabled={!canDelete} onClick={onDelete} type="button">
+        {onCreateInstance ? (
+          <button className={styles.instanceAction} onClick={onCreateInstance} type="button">
+            Instance
+          </button>
+        ) : null}
+        <button className={styles.deleteAction} disabled={!canDelete} onClick={onDelete} type="button">
           Delete node
         </button>
       </div>
@@ -398,6 +406,7 @@ export function NodeInspector({
   minimized,
   nodeConfigurationMode = false,
   node,
+  onCreateInstance,
   onDelete,
   onDockToViewport,
   onToggleMinimized,
@@ -551,6 +560,7 @@ export function NodeInspector({
           nodeConfigurationMode={nodeConfigurationMode}
           node={node}
           onCommitParameter={commitParameter}
+          onCreateInstance={onCreateInstance}
           onDelete={onDelete}
           onOpenParameterValueLinkPicker={onOpenParameterValueLinkPicker}
           onPromptToggleRequiredParameter={onPromptToggleRequiredParameter}
@@ -595,6 +605,7 @@ export function NodeInspector({
         nodeConfigurationMode={nodeConfigurationMode}
         node={node}
         onCommitParameter={commitParameter}
+        onCreateInstance={onCreateInstance}
         onDelete={onDelete}
         onOpenParameterValueLinkPicker={onOpenParameterValueLinkPicker}
         onPromptToggleRequiredParameter={onPromptToggleRequiredParameter}

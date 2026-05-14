@@ -78,6 +78,7 @@ function safeRelativeNodeStructureJsonPath(raw: string): string | null {
  * - POST `/api/node-structures-extract-base` — corpo `{ folder }`, extrai parâmetros base (temp + subpastas por collectionType)
  * - POST `/api/node-structures-patch-required-parameter` — corpo `{ relativePath, parameterId, add }`, actualiza `required_parameter` no ficheiro do schema
  * - POST `/api/node-structures-patch-linked-parameter-values` — corpo `{ relativePath, unlink?, parameterIdA, parameterIdB? }`, actualiza `linked_parameter_values`
+ * - POST `/api/node-structures-write-instance` — corpo `{ relativePath, instance }`, grava uma instância JSON na pasta mãe do schema
  * - POST `/api/node-structures-write` — corpo `{ folder, schemas }`, grava `.json` em `src/nodeStructures/<pasta>/`
  */
 export function vitePluginNodeStructuresWrite(projectRoot: string): Plugin {
@@ -756,6 +757,120 @@ export function vitePluginNodeStructuresWrite(projectRoot: string): Plugin {
                 res.statusCode = 200
                 res.setHeader('Content-Type', 'application/json; charset=utf-8')
                 res.end(JSON.stringify({ ok: true, relativePath, linked_parameter_values: nextPairs }))
+              } catch (err) {
+                res.statusCode = 500
+                res.setHeader('Content-Type', 'application/json; charset=utf-8')
+                res.end(
+                  JSON.stringify({
+                    ok: false,
+                    error: err instanceof Error ? err.message : String(err),
+                  }),
+                )
+              }
+            })().catch(() => {
+              res.statusCode = 500
+              res.end('')
+            })
+          })
+
+          req.on('error', next)
+          return
+        }
+
+        if (pathname === '/api/node-structures-write-instance' && req.method === 'POST') {
+          const chunks: Buffer[] = []
+
+          req.on('data', (c: Buffer) => {
+            chunks.push(c)
+          })
+
+          req.on('end', () => {
+            void (async () => {
+              try {
+                const rawBody = Buffer.concat(chunks).toString('utf8')
+                const parsed: unknown = JSON.parse(rawBody) as unknown
+
+                if (!isRecord(parsed)) {
+                  res.statusCode = 400
+                  res.setHeader('Content-Type', 'application/json; charset=utf-8')
+                  res.end(JSON.stringify({ ok: false, error: 'Corpo inválido' }))
+                  return
+                }
+
+                const relativePath = safeRelativeNodeStructureJsonPath(String(parsed.relativePath ?? ''))
+                const instance = parsed.instance
+
+                if (!relativePath || !isRecord(instance) || typeof instance.id !== 'string') {
+                  res.statusCode = 400
+                  res.setHeader('Content-Type', 'application/json; charset=utf-8')
+                  res.end(JSON.stringify({ ok: false, error: 'relativePath ou instance inválido' }))
+                  return
+                }
+
+                if (typeof instance.title !== 'string' || !Array.isArray(instance.parameters)) {
+                  res.statusCode = 400
+                  res.setHeader('Content-Type', 'application/json; charset=utf-8')
+                  res.end(JSON.stringify({ ok: false, error: 'Campos title/parameters em falta' }))
+                  return
+                }
+
+                const sourceFile = path.resolve(nodeStructuresRoot, relativePath)
+                const relSourceFromRoot = path.relative(nodeStructuresRoot, sourceFile)
+                if (relSourceFromRoot.startsWith('..') || path.isAbsolute(relSourceFromRoot)) {
+                  res.statusCode = 400
+                  res.setHeader('Content-Type', 'application/json; charset=utf-8')
+                  res.end(JSON.stringify({ ok: false, error: 'Caminho fora de nodeStructures' }))
+                  return
+                }
+
+                if (!(await fileExists(sourceFile))) {
+                  res.statusCode = 400
+                  res.setHeader('Content-Type', 'application/json; charset=utf-8')
+                  res.end(JSON.stringify({ ok: false, error: 'Ficheiro de origem não existe' }))
+                  return
+                }
+
+                const sourceDirRel = path.dirname(relativePath).replace(/\\/g, '/')
+                const targetDirRel = sourceDirRel.includes('/') ? path.dirname(sourceDirRel) : sourceDirRel
+                const targetDir = path.resolve(nodeStructuresRoot, targetDirRel)
+                const relTargetFromRoot = path.relative(nodeStructuresRoot, targetDir)
+
+                if (relTargetFromRoot.startsWith('..') || path.isAbsolute(relTargetFromRoot)) {
+                  res.statusCode = 400
+                  res.setHeader('Content-Type', 'application/json; charset=utf-8')
+                  res.end(JSON.stringify({ ok: false, error: 'Pasta destino fora de nodeStructures' }))
+                  return
+                }
+
+                const stem = safeJsonStem(instance.id)
+
+                if (!stem) {
+                  res.statusCode = 400
+                  res.setHeader('Content-Type', 'application/json; charset=utf-8')
+                  res.end(JSON.stringify({ ok: false, error: 'id da instância inválido' }))
+                  return
+                }
+
+                await fs.mkdir(targetDir, { recursive: true })
+
+                const fileName = `${stem}.json`
+                const filePath = path.resolve(targetDir, fileName)
+                const relFileFromTarget = path.relative(targetDir, filePath)
+
+                if (relFileFromTarget.startsWith('..') || path.isAbsolute(relFileFromTarget)) {
+                  res.statusCode = 400
+                  res.setHeader('Content-Type', 'application/json; charset=utf-8')
+                  res.end(JSON.stringify({ ok: false, error: 'Ficheiro destino inválido' }))
+                  return
+                }
+
+                await fs.writeFile(filePath, `${JSON.stringify(instance, null, 2)}\n`, 'utf8')
+
+                const savedRelativePath = path.relative(nodeStructuresRoot, filePath).replace(/\\/g, '/')
+
+                res.statusCode = 200
+                res.setHeader('Content-Type', 'application/json; charset=utf-8')
+                res.end(JSON.stringify({ ok: true, relativePath: savedRelativePath }))
               } catch (err) {
                 res.statusCode = 500
                 res.setHeader('Content-Type', 'application/json; charset=utf-8')

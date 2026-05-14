@@ -403,21 +403,40 @@
 
 .actions {
   display: grid;
+  gap: var(--space-2);
 }
 
 .actions button {
   padding: var(--space-3) var(--space-4);
-  color: #ffb4ab;
-  background: rgb(255 84 73 / 10%);
-  border: 1px solid rgb(255 84 73 / 28%);
   border-radius: var(--radius-control);
 }
 
-.actions button:hover {
+.instanceAction {
+  color: var(--syntax-keyword, #6cb6ff);
+  background: rgb(108 182 255 / 10%);
+  border: 1px solid rgb(108 182 255 / 28%);
+}
+
+.instanceAction:hover {
+  border-color: rgb(108 182 255 / 58%);
+}
+
+.instanceAction:focus-visible {
+  outline: 2px solid var(--syntax-keyword, #6cb6ff);
+  outline-offset: 2px;
+}
+
+.deleteAction {
+  color: #ffb4ab;
+  background: rgb(255 84 73 / 10%);
+  border: 1px solid rgb(255 84 73 / 28%);
+}
+
+.deleteAction:hover {
   border-color: rgb(255 180 171 / 58%);
 }
 
-.actions button:disabled {
+.deleteAction:disabled {
   color: var(--color-text-muted);
   cursor: not-allowed;
   background: rgb(255 255 255 / 4%);
@@ -425,7 +444,7 @@
   opacity: 0.6;
 }
 
-.actions button:focus-visible {
+.deleteAction:focus-visible {
   outline: 2px solid #ffb4ab;
   outline-offset: 2px;
 }
