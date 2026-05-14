@@ -272,6 +272,100 @@
   gap: var(--space-2);
 }
 
+.paramListRowMain {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.requiredClip {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 1.65rem;
+  height: 1.65rem;
+  padding: 0;
+  cursor: pointer;
+  background: rgb(0 0 0 / 10%);
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-control);
+  transition:
+    color 160ms ease,
+    opacity 160ms ease,
+    border-color 160ms ease;
+}
+
+.requiredClipSvg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.requiredClipOff {
+  color: var(--color-text-muted);
+  opacity: 0.38;
+}
+
+.requiredClipOff:hover {
+  opacity: 0.72;
+  border-color: rgb(255 255 255 / 12%);
+}
+
+.requiredClipOn {
+  color: var(--syntax-keyword, #6cb6ff);
+  opacity: 1;
+  border-color: rgb(108 182 255 / 35%);
+  box-shadow: 0 0 0 1px rgb(108 182 255 / 18%);
+}
+
+.requiredClipOn:hover {
+  filter: brightness(1.08);
+}
+
+.valueLink {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 1.65rem;
+  height: 1.65rem;
+  padding: 0;
+  cursor: pointer;
+  background: rgb(0 0 0 / 10%);
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-control);
+  transition:
+    color 160ms ease,
+    opacity 160ms ease,
+    border-color 160ms ease;
+}
+
+.valueLinkSvg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.valueLinkOff {
+  color: var(--color-text-muted);
+  opacity: 0.38;
+}
+
+.valueLinkOff:hover {
+  opacity: 0.72;
+  border-color: rgb(255 255 255 / 12%);
+}
+
+.valueLinkOn {
+  color: var(--syntax-keyword, #6cb6ff);
+  opacity: 1;
+  border-color: rgb(108 182 255 / 35%);
+  box-shadow: 0 0 0 1px rgb(108 182 255 / 18%);
+}
+
+.valueLinkOn:hover {
+  filter: brightness(1.08);
+}
+
 .listOrderHandle {
   display: grid;
   flex-shrink: 0;

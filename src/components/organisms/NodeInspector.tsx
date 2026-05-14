@@ -5,6 +5,9 @@ import { createPortal } from 'react-dom'
 import { ViewportDockPinIcon } from '@/components/atoms/ViewportDockPinIcon'
 import { ParameterValueInput } from '@/components/molecules/ParameterValueInput'
 import type { CanvasNode } from '@/core/canvasScene'
+import { fx_required_parameter_isMarked } from '@/core/fx_required_parameter'
+import { link_parameter_value_is_linked } from '@/core/link_parameter_value'
+import type { NodeParameterDefinition } from '@/core/nodeSchema'
 
 import styles from './NodeInspector.module.css'
 
@@ -12,6 +15,7 @@ type NodeInspectorProps = {
   canDelete: boolean
   dragHandleProps: HTMLAttributes<HTMLElement>
   minimized: boolean
+  nodeConfigurationMode?: boolean
   node?: CanvasNode | undefined
   onDelete: () => void
   onDockToViewport?: () => void
@@ -20,6 +24,12 @@ type NodeInspectorProps = {
   onUpdateParameter: (parameterId: string, value: string) => void
   /** Troca de posição entre o parâmetro arrastado e o parâmetro alvo (mesma lista). */
   onSwapParameterPositions: (draggedParameterId: string, targetParameterId: string) => void
+  /** Confirmação: em dev grava `required_parameter` no JSON do schema sob `nodeStructures/` e actualiza a instância. */
+  onPromptToggleRequiredParameter?: (parameterId: string) => void
+  /** Abre o diálogo para vincular o valor deste parâmetro a outro do mesmo tipo (`link_parameter_value`). */
+  onOpenParameterValueLinkPicker?: (parameterId: string) => void
+  /** Catálogo de stubs do mesmo pack (nós base); usado para alinhar ids com o JSON em disco. */
+  parameterStubCatalog?: readonly NodeParameterDefinition[]
   /** True quando o painel está dentro da régua «Canvas viewport controls». */
   viewportDocked?: boolean
 }
@@ -72,18 +82,26 @@ function ParameterOrderDragHandle({
 
 type BodyProps = {
   canDelete: boolean
+  nodeConfigurationMode?: boolean
   node: CanvasNode
   onCommitParameter: (parameterId: string, value: string) => void
   onDelete: () => void
   onSwapParameterPositions: (draggedParameterId: string, targetParameterId: string) => void
+  onPromptToggleRequiredParameter?: (parameterId: string) => void
+  onOpenParameterValueLinkPicker?: (parameterId: string) => void
+  parameterStubCatalog?: readonly NodeParameterDefinition[]
 }
 
 function SelectedNodeInspectorBody({
   canDelete,
+  nodeConfigurationMode = false,
   node,
   onCommitParameter,
   onDelete,
   onSwapParameterPositions,
+  onPromptToggleRequiredParameter,
+  onOpenParameterValueLinkPicker,
+  parameterStubCatalog,
 }: BodyProps) {
   const [dragOverIndex, setDragOverIndex] = useState<null | number>(null)
 
@@ -115,7 +133,15 @@ function SelectedNodeInspectorBody({
           Parameters
         </h3>
         <ul className={styles.list}>
-          {node.node.schema.parameters.map((parameter, parameterIndex) => (
+          {node.node.schema.parameters.map((parameter, parameterIndex) => {
+            const parameterRequired = fx_required_parameter_isMarked(
+              node.node,
+              parameter.id,
+              parameterStubCatalog,
+            )
+            const parameterValueLinked = link_parameter_value_is_linked(node.node, parameter.id)
+
+            return (
             <li
               className={[
                 styles.listItem,
@@ -148,7 +174,74 @@ function SelectedNodeInspectorBody({
               }}
             >
               <div className={styles.paramListRow}>
-                <span className={styles.name}>{parameter.name}</span>
+                <div className={styles.paramListRowMain}>
+                  {nodeConfigurationMode && onPromptToggleRequiredParameter ? (
+                    <button
+                      aria-label={
+                        parameterRequired
+                          ? 'Remover parâmetro obrigatório (confirmação)'
+                          : 'Marcar como parâmetro obrigatório (confirmação)'
+                      }
+                      aria-pressed={parameterRequired}
+                      className={[
+                        styles.requiredClip,
+                        parameterRequired ? styles.requiredClipOn : styles.requiredClipOff,
+                      ]
+                        .filter(Boolean)
+                        .join(' ')}
+                      onClick={(event) => {
+                        event.preventDefault()
+                        event.stopPropagation()
+                        onPromptToggleRequiredParameter(parameter.id)
+                      }}
+                      onPointerDown={(event) => event.stopPropagation()}
+                      title="Parâmetro obrigatório (clip)"
+                      type="button"
+                    >
+                      <svg aria-hidden className={styles.requiredClipSvg} viewBox="0 0 24 24">
+                        <path
+                          d="M8.5 14.5L15.5 7.5C16.6 6.4 18.3 6.35 19.45 7.4 20.55 8.45 20.58 10.15 19.5 11.25L12.25 18.5C10.45 20.3 7.55 20.3 5.75 18.5 3.95 16.7 3.95 13.8 5.75 12L13 4.75C14.35 3.4 16.6 3.35 18 4.7 19.4 6.05 19.42 8.3 18.1 9.65L10.65 17.1"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="1.6"
+                        />
+                      </svg>
+                    </button>
+                  ) : null}
+                  {nodeConfigurationMode && onOpenParameterValueLinkPicker ? (
+                    <button
+                      aria-label="Vincular valor a outro parâmetro do mesmo tipo"
+                      aria-pressed={parameterValueLinked}
+                      className={[
+                        styles.valueLink,
+                        parameterValueLinked ? styles.valueLinkOn : styles.valueLinkOff,
+                      ]
+                        .filter(Boolean)
+                        .join(' ')}
+                      onClick={(event) => {
+                        event.preventDefault()
+                        event.stopPropagation()
+                        onOpenParameterValueLinkPicker(parameter.id)
+                      }}
+                      onPointerDown={(event) => event.stopPropagation()}
+                      title="Vincular valor (mesmo tipo)"
+                      type="button"
+                    >
+                      <svg aria-hidden className={styles.valueLinkSvg} viewBox="0 0 24 24">
+                        <path
+                          d="M10.5 13.5a4.5 4.5 0 010-6.36l1.06-1.06a4.5 4.5 0 016.36 6.36l-.71.71M13.5 10.5a4.5 4.5 0 010 6.36l-1.06 1.06a4.5 4.5 0 01-6.36-6.36l.71-.71"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeLinecap="round"
+                          strokeWidth="1.7"
+                        />
+                      </svg>
+                    </button>
+                  ) : null}
+                  <span className={styles.name}>{parameter.name}</span>
+                </div>
                 {parameterCount > 1 ? (
                   <ParameterOrderDragHandle
                     onDragEnd={() => setDragOverIndex(null)}
@@ -160,14 +253,15 @@ function SelectedNodeInspectorBody({
                 <span className={styles.type}>{parameter.type}</span>
                 <ParameterValueInput
                   ariaLabel={`${parameter.name} value`}
-                  key={`${node.id}:${parameter.id}:${getParameterValue(node, parameter.id, parameter.defaultValue)}`}
+                  key={`${node.id}:${parameter.id}`}
                   onCommit={(nextValue) => onCommitParameter(parameter.id, nextValue)}
                   type={parameter.type}
                   value={getParameterValue(node, parameter.id, parameter.defaultValue)}
                 />
               </label>
             </li>
-          ))}
+            )
+          })}
         </ul>
       </section>
 
@@ -302,6 +396,7 @@ export function NodeInspector({
   dragHandleProps,
   canDelete,
   minimized,
+  nodeConfigurationMode = false,
   node,
   onDelete,
   onDockToViewport,
@@ -309,6 +404,9 @@ export function NodeInspector({
   onUndockFromViewportToolbar,
   onUpdateParameter,
   onSwapParameterPositions,
+  onPromptToggleRequiredParameter,
+  onOpenParameterValueLinkPicker,
+  parameterStubCatalog,
   viewportDocked = false,
 }: NodeInspectorProps) {
   const commitParameter = (parameterId: string, value: string) => {
@@ -450,9 +548,13 @@ export function NodeInspector({
       >
         <SelectedNodeInspectorBody
           canDelete={canDelete}
+          nodeConfigurationMode={nodeConfigurationMode}
           node={node}
           onCommitParameter={commitParameter}
           onDelete={onDelete}
+          onOpenParameterValueLinkPicker={onOpenParameterValueLinkPicker}
+          onPromptToggleRequiredParameter={onPromptToggleRequiredParameter}
+          parameterStubCatalog={parameterStubCatalog}
           onSwapParameterPositions={onSwapParameterPositions}
         />
       </aside>
@@ -490,9 +592,13 @@ export function NodeInspector({
 
       <SelectedNodeInspectorBody
         canDelete={canDelete}
+        nodeConfigurationMode={nodeConfigurationMode}
         node={node}
         onCommitParameter={commitParameter}
         onDelete={onDelete}
+        onOpenParameterValueLinkPicker={onOpenParameterValueLinkPicker}
+        onPromptToggleRequiredParameter={onPromptToggleRequiredParameter}
+        parameterStubCatalog={parameterStubCatalog}
         onSwapParameterPositions={onSwapParameterPositions}
       />
     </aside>

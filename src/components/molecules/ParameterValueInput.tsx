@@ -49,6 +49,11 @@ export function ParameterValueInput({
     }, 2600)
   }
 
+  const applyValue = (next: string) => {
+    setLocal(next)
+    onCommit(next)
+  }
+
   return (
     <input
       aria-label={ariaLabel}
@@ -68,7 +73,7 @@ export function ParameterValueInput({
           showRejection()
           return
         }
-        setLocal(next)
+        applyValue(next)
       }}
       onCompositionEnd={(event) => {
         composingRef.current = false
@@ -78,7 +83,7 @@ export function ParameterValueInput({
           setLocal(value)
           return
         }
-        setLocal(next)
+        applyValue(next)
       }}
       onCompositionStart={() => {
         composingRef.current = true

@@ -1,0 +1,48 @@
+import catalogData from '@/messenger_popup/messenger_popup_catalog.json'
+
+/** Id do catálogo para confirmação ao marcar/desmarcar parâmetro obrigatório no inspector. */
+export const MESSENGER_CONFIRM_TOGGLE_REQUIRED_PARAMETER = 'confirm_toggle_required_parameter' as const
+/** Id do catálogo para ativar o modo de configuração de nodes. */
+export const MESSENGER_CONFIRM_NODE_CONFIGURATION_MODE = 'confirm_node_configuration_mode' as const
+
+export type MessengerPopupKind = 'confirm' | 'toast'
+
+export type MessengerPopupCatalogEntry = {
+  id: string
+  message: string
+  /** null = sem fecho automático (adequado a confirmações). */
+  durationMs: number | null
+  kind?: MessengerPopupKind
+}
+
+type CatalogFile = {
+  entries: MessengerPopupCatalogEntry[]
+}
+
+const catalog = catalogData as CatalogFile
+
+const byId = new Map<string, MessengerPopupCatalogEntry>(
+  catalog.entries.map((entry) => [entry.id, entry]),
+)
+
+export function getMessengerCatalogEntry(id: string): MessengerPopupCatalogEntry | undefined {
+  return byId.get(id)
+}
+
+export function messengerEntryKind(entry: MessengerPopupCatalogEntry): MessengerPopupKind {
+  if (entry.kind) {
+    return entry.kind
+  }
+  return entry.durationMs == null ? 'confirm' : 'toast'
+}
+
+export function applyMessengerMessageReplacements(
+  message: string,
+  replacements: Record<string, string>,
+): string {
+  let result = message
+  for (const [key, value] of Object.entries(replacements)) {
+    result = result.split(`{${key}}`).join(value)
+  }
+  return result
+}

@@ -1,0 +1,22 @@
+{
+  "entries": [
+    {
+      "id": "confirm_toggle_required_parameter",
+      "message": "{verb} «{parameterName}» como parâmetro obrigatório neste nó?",
+      "durationMs": null,
+      "kind": "confirm"
+    },
+    {
+      "id": "confirm_node_configuration_mode",
+      "message": "Gostaria de ativar o modo de configuração de nodes? As configurações do sistema ficarão visíveis no inspector.",
+      "durationMs": 10000,
+      "kind": "confirm"
+    },
+    {
+      "id": "example_toast_saved",
+      "message": "Alterações guardadas.",
+      "durationMs": 4000,
+      "kind": "toast"
+    }
+  ]
+}

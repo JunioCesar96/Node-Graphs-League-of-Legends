@@ -9,20 +9,24 @@ import {
 import styles from './AppMenuBar.module.css'
 
 export type AppMenuBarProps = {
+  nodeConfigurationMode: boolean
   onDeleteSelection: () => void
   onExportGraph: () => void
   onImportGraph: (file: File) => void
   onOpenStubBin: () => void
   onRequestAddNode: () => void
+  onToggleNodeConfigurationMode: () => void
   onToggleCodeDock: () => void
 }
 
 export function AppMenuBar({
+  nodeConfigurationMode,
   onDeleteSelection,
   onExportGraph,
   onImportGraph,
   onOpenStubBin,
   onRequestAddNode,
+  onToggleNodeConfigurationMode,
   onToggleCodeDock,
 }: AppMenuBarProps) {
   const fileInputRef = useRef<HTMLInputElement | null>(null)
@@ -206,6 +210,24 @@ export function AppMenuBar({
             </button>
             <button className={styles.menuItemDanger} onClick={onDeleteSelection} type="button">
               Remover selecionados
+            </button>
+            <button
+              aria-checked={nodeConfigurationMode}
+              className={styles.menuItemConfig}
+              onClick={onToggleNodeConfigurationMode}
+              role="menuitemcheckbox"
+              type="button"
+            >
+              <span
+                aria-hidden
+                className={[
+                  styles.menuCheckbox,
+                  nodeConfigurationMode ? styles.menuCheckboxChecked : '',
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
+              />
+              <span>Configurar</span>
             </button>
           </div>
         </div>

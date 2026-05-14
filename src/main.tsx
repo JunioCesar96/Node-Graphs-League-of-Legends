@@ -6,12 +6,15 @@ import { createRoot } from 'react-dom/client'
 import '@/styles/global.css'
 
 import App from './App.tsx'
+import { MessengerPopupProvider } from './messenger_popup/MessengerPopupProvider.tsx'
 
 /** Usa Monaco do `node_modules` em vez do CDN (@monaco-editor/react default) — evita falhas offline/CSP/extensões. */
 loader.config({ monaco })
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    <MessengerPopupProvider>
+      <App />
+    </MessengerPopupProvider>
   </StrictMode>,
 )

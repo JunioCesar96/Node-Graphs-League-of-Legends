@@ -18,6 +18,8 @@ export type StoredCanvasNodePayload = {
     id: string
     schema: NodeSchemaDefinition
     values: NodeParameterValue[]
+    required_parameter?: string[]
+    parameter_value_links?: Array<readonly [string, string]>
   }
   position: { x: number; y: number }
 }
@@ -74,6 +76,12 @@ export function serializeScene(scene: CanvasScene): LeagueBinGraphDocumentV1 {
         id: n.node.id,
         schema: structuredClone(n.node.schema),
         values: structuredClone(n.node.values),
+        ...(Array.isArray(n.node.required_parameter) && n.node.required_parameter.length > 0
+          ? { required_parameter: structuredClone(n.node.required_parameter) }
+          : {}),
+        ...(Array.isArray(n.node.parameter_value_links) && n.node.parameter_value_links.length > 0
+          ? { parameter_value_links: structuredClone(n.node.parameter_value_links) }
+          : {}),
       },
     })),
   }
@@ -130,6 +138,34 @@ export function parseSceneDocument(data: unknown): CanvasScene | null {
       return null
     }
 
+    const requiredRaw = nodeBody.required_parameter
+    let required_parameter: string[] | undefined
+    if (requiredRaw !== undefined) {
+      if (!Array.isArray(requiredRaw) || !requiredRaw.every((item) => typeof item === 'string')) {
+        return null
+      }
+      required_parameter = requiredRaw as string[]
+    }
+
+    const linksRaw = nodeBody.parameter_value_links
+    let parameter_value_links: Array<readonly [string, string]> | undefined
+    if (linksRaw !== undefined) {
+      if (!Array.isArray(linksRaw)) {
+        return null
+      }
+      const pairs: Array<readonly [string, string]> = []
+      for (const entry of linksRaw) {
+        if (!Array.isArray(entry) || entry.length !== 2) {
+          return null
+        }
+        if (typeof entry[0] !== 'string' || typeof entry[1] !== 'string') {
+          return null
+        }
+        pairs.push([entry[0], entry[1]])
+      }
+      parameter_value_links = pairs.length > 0 ? pairs : undefined
+    }
+
     nodes.push({
       id: item.id,
       position: { x: item.position.x, y: item.position.y },
@@ -137,6 +173,10 @@ export function parseSceneDocument(data: unknown): CanvasScene | null {
         id: nodeBody.id,
         schema: structuredClone(nodeBody.schema),
         values: structuredClone(nodeBody.values as NodeParameterValue[]),
+        ...(required_parameter?.length ? { required_parameter: structuredClone(required_parameter) } : {}),
+        ...(parameter_value_links?.length
+          ? { parameter_value_links: structuredClone(parameter_value_links) }
+          : {}),
       },
     })
   }

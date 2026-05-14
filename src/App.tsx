@@ -9,6 +9,7 @@ import {
   createDefaultFloatingCodeDockRect,
 } from '@/components/organisms/codeDockFloatingRect'
 import { GraphCanvas } from '@/components/organisms/GraphCanvas'
+import { ParameterValueLinkPicker } from '@/components/molecules/ParameterValueLinkPicker'
 import { NodeInspector } from '@/components/organisms/NodeInspector'
 import { stubBinStructureDocument } from '@/core/binImportStub'
 import { convertBinViaOptionalBridge } from '@/core/jadeBinBridge'
@@ -29,6 +30,7 @@ import type {
 import {
   hydrateScene,
   schemaPackFolderBySchemaId,
+  schemaJsonRelativePathBySchemaId,
   schemaRegistry,
   schemaStructureSubfolderBySchemaId,
   schemaNodeKindBySchemaId,
@@ -43,7 +45,15 @@ import {
   sanitizeStructurePackFolderName,
   saveDynamicStructurePacksToStorage,
 } from '@/core/nodeStructurePackStorage'
+import { fx_required_parameter_isMarked, resolveRequiredParameterListId } from '@/core/fx_required_parameter'
+import { resolveLinkedPairForDisk } from '@/core/linked_parameter_values'
+import { link_parameter_value_partner } from '@/core/link_parameter_value'
 import { parseSceneDocument, serializeScene } from '@/core/leagueBinScene'
+import {
+  MESSENGER_CONFIRM_NODE_CONFIGURATION_MODE,
+  MESSENGER_CONFIRM_TOGGLE_REQUIRED_PARAMETER,
+} from '@/messenger_popup/messengerCatalog'
+import { useMessengerPopup } from '@/messenger_popup/MessengerPopupProvider'
 import { STORAGE_LAST_STRUCTURE_META, triggerJsonDownload } from '@/core/workspaceStorage'
 import {
   ROOT_NODE_ID,
@@ -145,6 +155,9 @@ function App() {
     updateNodeParameter,
     setNodeParameterOrder,
     swapSelectedNodeParameters,
+    toggleSelectedParameterRequired,
+    linkParameterValuePairForNode,
+    unlinkParameterValueForNode,
     commitMarqueeSelection,
     undoScene,
     scene,
@@ -157,6 +170,8 @@ function App() {
     addDynamicInternalStructureSlot,
     addDynamicParameter,
   } = useSceneHistory({ extendSchemaLookup })
+
+  const { showConfirmByCatalogId } = useMessengerPopup()
 
   const availableSchemas = useMemo(() => Object.values(extendSchemaLookup), [extendSchemaLookup])
 
@@ -206,6 +221,8 @@ function App() {
     clampFloatingDockRect(createDefaultFloatingCodeDockRect()),
   )
   const [codeText, setCodeText] = useState('// Stub do editor League-Bin\n// Sincronização bidirecional chega na fase E.\n')
+  const [nodeConfigurationMode, setNodeConfigurationMode] = useState(false)
+  const [parameterValueLinkSourceId, setParameterValueLinkSourceId] = useState<null | string>(null)
   const [paletteSignal, setPaletteSignal] = useState(0)
   const [tooltipHints, setTooltipHints] = useState<TooltipDictionary>({})
   const [bootConsoleTestStamp, setBootConsoleTestStamp] = useState<number | null>(() => Date.now())
@@ -213,6 +230,22 @@ function App() {
   const dismissBootConsoleTest = useCallback(() => {
     setBootConsoleTestStamp(null)
   }, [])
+
+  const toggleNodeConfigurationMode = useCallback(() => {
+    if (nodeConfigurationMode) {
+      setNodeConfigurationMode(false)
+      setParameterValueLinkSourceId(null)
+      return
+    }
+
+    showConfirmByCatalogId(MESSENGER_CONFIRM_NODE_CONFIGURATION_MODE, {
+      onConfirm: () => setNodeConfigurationMode(true),
+      onCancel: () => {
+        setNodeConfigurationMode(false)
+        setParameterValueLinkSourceId(null)
+      },
+    })
+  }, [nodeConfigurationMode, showConfirmByCatalogId])
 
   /** Ao desacoplar pelo pin: alinha o inspector lateral ao chip da barra (X) e coloca o topo a stripBottom + `--space-3`. */
   const applyInspectorOffsetFromViewportStrip = useCallback(() => {
@@ -377,7 +410,7 @@ function App() {
 
       const converted = convertFn(codeText)
 
-      if (!converted.ok) {
+      if (converted.ok === false) {
         window.alert(converted.error)
         return
       }
@@ -941,6 +974,142 @@ function App() {
       ? scene.nodes.find((node) => node.id === primarySelectedId)
       : undefined
 
+  const inspectorStubCatalog =
+    inspectorTarget !== undefined
+      ? mergedBaseParameterCatalogBySchemaId[inspectorTarget.node.schema.id]
+      : undefined
+
+  useEffect(() => {
+    setParameterValueLinkSourceId(null)
+  }, [primarySelectedId])
+
+  const parameterValueLinkPickerModel = useMemo(() => {
+    if (!inspectorTarget || !parameterValueLinkSourceId) {
+      return null
+    }
+
+    const sourceParameter = inspectorTarget.node.schema.parameters.find(
+      (p) => p.id === parameterValueLinkSourceId,
+    )
+
+    if (!sourceParameter) {
+      return null
+    }
+
+    const candidates = inspectorTarget.node.schema.parameters.filter(
+      (p) => p.id !== parameterValueLinkSourceId && p.type === sourceParameter.type,
+    )
+    const partnerId = link_parameter_value_partner(inspectorTarget.node, parameterValueLinkSourceId)
+    const linkedPartner = partnerId
+      ? inspectorTarget.node.schema.parameters.find((p) => p.id === partnerId)
+      : undefined
+
+    return { candidates, linkedPartner, sourceParameter }
+  }, [inspectorTarget, parameterValueLinkSourceId])
+
+  const closeParameterValueLinkPicker = useCallback(() => {
+    setParameterValueLinkSourceId(null)
+  }, [])
+
+  const promptToggleRequiredParameter = useCallback(
+    (parameterId: string) => {
+      const canvasNode = scene.nodes.find((node) => node.id === primarySelectedId)
+
+      if (!canvasNode) {
+        return
+      }
+
+      const definition = canvasNode.node.schema.parameters.find((parameter) => parameter.id === parameterId)
+
+      if (!definition) {
+        return
+      }
+
+      const schemaId = canvasNode.node.schema.id
+      const stubCatalog = mergedBaseParameterCatalogBySchemaId[schemaId] ?? []
+      const nextIsRequired = !fx_required_parameter_isMarked(canvasNode.node, parameterId, stubCatalog)
+      const jsonRel = schemaJsonRelativePathBySchemaId[schemaId]
+
+      const listId = resolveRequiredParameterListId(definition, stubCatalog)
+
+      showConfirmByCatalogId(MESSENGER_CONFIRM_TOGGLE_REQUIRED_PARAMETER, {
+        replacements: {
+          verb: nextIsRequired ? 'Marcar' : 'Desmarcar',
+          parameterName: definition.name,
+        },
+        onConfirm: () => {
+          void (async () => {
+            if (import.meta.env.DEV && jsonRel) {
+              try {
+                const res = await fetch('/api/node-structures-patch-required-parameter', {
+                  body: JSON.stringify({
+                    add: nextIsRequired,
+                    parameterId: listId,
+                    relativePath: jsonRel,
+                  }),
+                  headers: { 'Content-Type': 'application/json' },
+                  method: 'POST',
+                })
+                const payload: unknown = await res.json().catch(() => null)
+                const ok =
+                  res.ok &&
+                  typeof payload === 'object' &&
+                  payload !== null &&
+                  'ok' in payload &&
+                  Reflect.get(payload, 'ok') === true
+                if (!ok) {
+                  console.warn('[required_parameter] Gravação no disco falhou', payload)
+                  return
+                }
+              } catch (cause) {
+                console.warn('[required_parameter] Gravação no disco falhou', cause)
+                return
+              }
+            }
+
+            toggleSelectedParameterRequired(parameterId)
+          })()
+        },
+      })
+    },
+    [mergedBaseParameterCatalogBySchemaId, primarySelectedId, scene.nodes, showConfirmByCatalogId, toggleSelectedParameterRequired],
+  )
+
+  const persistLinkedParameterValuesToSchemaJson = useCallback(
+    async (options: {
+      parameterIdA: string
+      parameterIdB?: string
+      relativePath: string
+      unlink: boolean
+    }) => {
+      if (!import.meta.env.DEV) {
+        return
+      }
+
+      try {
+        const res = await fetch('/api/node-structures-patch-linked-parameter-values', {
+          body: JSON.stringify(options),
+          headers: { 'Content-Type': 'application/json' },
+          method: 'POST',
+        })
+        const payload: unknown = await res.json().catch(() => null)
+        const ok =
+          res.ok &&
+          typeof payload === 'object' &&
+          payload !== null &&
+          'ok' in payload &&
+          Reflect.get(payload, 'ok') === true
+
+        if (!ok) {
+          console.warn('[linked_parameter_values] Gravação no disco falhou', payload)
+        }
+      } catch (cause) {
+        console.warn('[linked_parameter_values] Gravação no disco falhou', cause)
+      }
+    },
+    [],
+  )
+
   useEffect(() => {
     if (!inspectorGrabFollowActive) {
       return
@@ -980,30 +1149,6 @@ function App() {
     }
   }, [inspectorGrabFollowActive])
 
-  if (!scene.nodes.length) {
-    return (
-      <main className={styles.shell}>
-        {bootConsoleTestStamp !== null ? (
-          <ConsoleNotificationCapsule
-            key={bootConsoleTestStamp}
-            lifetimeSeconds={BOOT_CONSOLE_TEST_SECONDS}
-            message={BOOT_CONSOLE_TEST_MESSAGE}
-            onDismiss={dismissBootConsoleTest}
-          />
-        ) : null}
-        <AppMenuBar
-          onDeleteSelection={() => deleteSelectedNodes()}
-          onExportGraph={handleExportGraph}
-          onImportGraph={handleImportWorkspaceFile}
-          onOpenStubBin={handleStubPipeline}
-          onRequestAddNode={requestPalette}
-          onToggleCodeDock={() => setCodeDockOpen((isOpen) => !isOpen)}
-        />
-        <p className={styles.empty}>Nenhum nó disponível. Use File → Stub .bin ou add node.</p>
-      </main>
-    )
-  }
-
   const showInspectorPinnedToToolbar = inspectorViewportDocked && !inspectorGrabFollowActive
   const inspectorDockShowsSidebar = !inspectorGrabFollowActive && !showInspectorPinnedToToolbar
   const inspectorCanDelete =
@@ -1030,6 +1175,32 @@ function App() {
     [handleUndockFromViewportToolbar],
   )
 
+  if (!scene.nodes.length) {
+    return (
+      <main className={styles.shell}>
+        {bootConsoleTestStamp !== null ? (
+          <ConsoleNotificationCapsule
+            key={bootConsoleTestStamp}
+            lifetimeSeconds={BOOT_CONSOLE_TEST_SECONDS}
+            message={BOOT_CONSOLE_TEST_MESSAGE}
+            onDismiss={dismissBootConsoleTest}
+          />
+        ) : null}
+        <AppMenuBar
+          nodeConfigurationMode={nodeConfigurationMode}
+          onDeleteSelection={() => deleteSelectedNodes()}
+          onExportGraph={handleExportGraph}
+          onImportGraph={handleImportWorkspaceFile}
+          onOpenStubBin={handleStubPipeline}
+          onRequestAddNode={requestPalette}
+          onToggleNodeConfigurationMode={toggleNodeConfigurationMode}
+          onToggleCodeDock={() => setCodeDockOpen((isOpen) => !isOpen)}
+        />
+        <p className={styles.empty}>Nenhum nó disponível. Use File → Stub .bin ou add node.</p>
+      </main>
+    )
+  }
+
   return (
     <main className={styles.shell}>
       {bootConsoleTestStamp !== null ? (
@@ -1041,11 +1212,13 @@ function App() {
         />
       ) : null}
       <AppMenuBar
+        nodeConfigurationMode={nodeConfigurationMode}
         onDeleteSelection={() => deleteSelectedNodes()}
         onExportGraph={handleExportGraph}
         onImportGraph={handleImportWorkspaceFile}
         onOpenStubBin={handleStubPipeline}
         onRequestAddNode={requestPalette}
+        onToggleNodeConfigurationMode={toggleNodeConfigurationMode}
         onToggleCodeDock={() => setCodeDockOpen((isOpen) => !isOpen)}
       />
 
@@ -1094,8 +1267,12 @@ function App() {
                   canDelete={inspectorCanDelete}
                   dragHandleProps={inspectorDragHandleProps}
                   minimized={inspectorMinimized}
+                  nodeConfigurationMode={nodeConfigurationMode}
                   node={inspectorTarget}
                   onDelete={() => deleteSelectedNodes()}
+                  onOpenParameterValueLinkPicker={setParameterValueLinkSourceId}
+                  onPromptToggleRequiredParameter={promptToggleRequiredParameter}
+                  parameterStubCatalog={inspectorStubCatalog}
                   onSwapParameterPositions={swapSelectedNodeParameters}
                   onToggleMinimized={toggleInspectorMinimized}
                   onUpdateParameter={updateSelectedParameter}
@@ -1111,8 +1288,12 @@ function App() {
                 canDelete={inspectorCanDelete}
                 dragHandleProps={inspectorDragHandleProps}
                 minimized={inspectorMinimized}
+                nodeConfigurationMode={nodeConfigurationMode}
                 node={inspectorTarget}
                 onDelete={() => deleteSelectedNodes()}
+                onOpenParameterValueLinkPicker={setParameterValueLinkSourceId}
+                onPromptToggleRequiredParameter={promptToggleRequiredParameter}
+                parameterStubCatalog={inspectorStubCatalog}
                 onSwapParameterPositions={swapSelectedNodeParameters}
                 onToggleMinimized={toggleInspectorMinimized}
                 onUpdateParameter={updateSelectedParameter}
@@ -1133,8 +1314,12 @@ function App() {
                 canDelete={inspectorCanDelete}
                 dragHandleProps={inspectorDragHandleProps}
                 minimized
+                nodeConfigurationMode={nodeConfigurationMode}
                 node={inspectorTarget}
                 onDelete={() => deleteSelectedNodes()}
+                onOpenParameterValueLinkPicker={setParameterValueLinkSourceId}
+                onPromptToggleRequiredParameter={promptToggleRequiredParameter}
+                parameterStubCatalog={inspectorStubCatalog}
                 onSwapParameterPositions={swapSelectedNodeParameters}
                 onToggleMinimized={toggleInspectorMinimized}
                 onUpdateParameter={updateSelectedParameter}
@@ -1142,6 +1327,61 @@ function App() {
             </div>
           ) : null}
         </div>
+
+        {nodeConfigurationMode && parameterValueLinkPickerModel && inspectorTarget ? (
+          <ParameterValueLinkPicker
+            candidates={parameterValueLinkPickerModel.candidates}
+            linkedPartner={parameterValueLinkPickerModel.linkedPartner}
+            onClose={closeParameterValueLinkPicker}
+            onPick={(otherParameterId) => {
+              const schemaId = inspectorTarget.node.schema.id
+              const jsonRel = schemaJsonRelativePathBySchemaId[schemaId]
+              const catalog = mergedBaseParameterCatalogBySchemaId[schemaId] ?? []
+              const [diskA, diskB] = resolveLinkedPairForDisk(
+                inspectorTarget.node,
+                parameterValueLinkPickerModel.sourceParameter.id,
+                otherParameterId,
+                catalog,
+              )
+              linkParameterValuePairForNode(
+                inspectorTarget.id,
+                parameterValueLinkPickerModel.sourceParameter.id,
+                otherParameterId,
+              )
+              setParameterValueLinkSourceId(null)
+              if (jsonRel) {
+                void persistLinkedParameterValuesToSchemaJson({
+                  relativePath: jsonRel,
+                  unlink: false,
+                  parameterIdA: diskA,
+                  parameterIdB: diskB,
+                })
+              }
+            }}
+            onUnlink={() => {
+              const schemaId = inspectorTarget.node.schema.id
+              const jsonRel = schemaJsonRelativePathBySchemaId[schemaId]
+              const catalog = mergedBaseParameterCatalogBySchemaId[schemaId] ?? []
+              const listId = resolveRequiredParameterListId(
+                parameterValueLinkPickerModel.sourceParameter,
+                catalog,
+              )
+              unlinkParameterValueForNode(
+                inspectorTarget.id,
+                parameterValueLinkPickerModel.sourceParameter.id,
+              )
+              if (jsonRel) {
+                void persistLinkedParameterValuesToSchemaJson({
+                  relativePath: jsonRel,
+                  unlink: true,
+                  parameterIdA: listId,
+                })
+              }
+            }}
+            open
+            sourceParameter={parameterValueLinkPickerModel.sourceParameter}
+          />
+        ) : null}
 
         {codeDockOpen ? (
           <div className={codeDockFloating ? styles.codeDockPortalSlot : styles.codeDockColumn}>

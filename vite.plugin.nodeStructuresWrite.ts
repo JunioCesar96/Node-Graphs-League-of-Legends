@@ -5,7 +5,7 @@ import type { Plugin } from 'vite'
 
 import { buildNodeBaseParameterPayload, buildNodeBaseSchemaBody } from './src/core/extractNodeBaseParameters'
 import type { NodeStructureNomenclature } from './src/core/nodeSchema'
-import { parseNomenclatureFromStructureJson } from './src/core/nodeStructureJson'
+import { nodeParameterDefinitionFromJsonStub, parseNomenclatureFromStructureJson } from './src/core/nodeStructureJson'
 
 /** Pastas dentro de `src/nodeStructures/` que não podem ser criadas/eliminadas via API */
 const RESERVED_NODE_STRUCTURE_FOLDERS = new Set(['default'])
@@ -60,11 +60,24 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
+function safeRelativeNodeStructureJsonPath(raw: string): string | null {
+  const norm = raw.replace(/\\/g, '/').replace(/^\/+/g, '').replace(/\/+$/g, '')
+  if (norm === '' || norm.includes('..')) {
+    return null
+  }
+  if (!norm.toLowerCase().endsWith('.json')) {
+    return null
+  }
+  return norm
+}
+
 /**
  * Em `npm run dev`:
  * - GET `/api/node-structures-folders` — subpastas de `src/nodeStructures/` (exceto `default`)
  * - POST `/api/node-structures-delete` — corpo `{ folder }`, remove a pasta escolhida
  * - POST `/api/node-structures-extract-base` — corpo `{ folder }`, extrai parâmetros base (temp + subpastas por collectionType)
+ * - POST `/api/node-structures-patch-required-parameter` — corpo `{ relativePath, parameterId, add }`, actualiza `required_parameter` no ficheiro do schema
+ * - POST `/api/node-structures-patch-linked-parameter-values` — corpo `{ relativePath, unlink?, parameterIdA, parameterIdB? }`, actualiza `linked_parameter_values`
  * - POST `/api/node-structures-write` — corpo `{ folder, schemas }`, grava `.json` em `src/nodeStructures/<pasta>/`
  */
 export function vitePluginNodeStructuresWrite(projectRoot: string): Plugin {
@@ -384,6 +397,365 @@ export function vitePluginNodeStructuresWrite(projectRoot: string): Plugin {
                     baseSkipped,
                   }),
                 )
+              } catch (err) {
+                res.statusCode = 500
+                res.setHeader('Content-Type', 'application/json; charset=utf-8')
+                res.end(
+                  JSON.stringify({
+                    ok: false,
+                    error: err instanceof Error ? err.message : String(err),
+                  }),
+                )
+              }
+            })().catch(() => {
+              res.statusCode = 500
+              res.end('')
+            })
+          })
+
+          req.on('error', next)
+          return
+        }
+
+        if (pathname === '/api/node-structures-patch-required-parameter' && req.method === 'POST') {
+          const chunks: Buffer[] = []
+
+          req.on('data', (c: Buffer) => {
+            chunks.push(c)
+          })
+
+          req.on('end', () => {
+            void (async () => {
+              try {
+                const rawBody = Buffer.concat(chunks).toString('utf8')
+                const parsed: unknown = JSON.parse(rawBody) as unknown
+
+                if (!isRecord(parsed)) {
+                  res.statusCode = 400
+                  res.setHeader('Content-Type', 'application/json; charset=utf-8')
+                  res.end(JSON.stringify({ ok: false, error: 'Corpo inválido' }))
+                  return
+                }
+
+                const relativePath = safeRelativeNodeStructureJsonPath(String(parsed.relativePath ?? ''))
+                const parameterId = typeof parsed.parameterId === 'string' ? parsed.parameterId.trim() : ''
+                const add = parsed.add === true
+
+                if (!relativePath || !parameterId) {
+                  res.statusCode = 400
+                  res.setHeader('Content-Type', 'application/json; charset=utf-8')
+                  res.end(JSON.stringify({ ok: false, error: 'relativePath ou parameterId inválido' }))
+                  return
+                }
+
+                const absFile = path.resolve(nodeStructuresRoot, relativePath)
+                const relFromRoot = path.relative(nodeStructuresRoot, absFile)
+                if (relFromRoot.startsWith('..') || path.isAbsolute(relFromRoot)) {
+                  res.statusCode = 400
+                  res.setHeader('Content-Type', 'application/json; charset=utf-8')
+                  res.end(JSON.stringify({ ok: false, error: 'Caminho fora de nodeStructures' }))
+                  return
+                }
+
+                if (!(await fileExists(absFile))) {
+                  res.statusCode = 400
+                  res.setHeader('Content-Type', 'application/json; charset=utf-8')
+                  res.end(JSON.stringify({ ok: false, error: 'Ficheiro não existe' }))
+                  return
+                }
+
+                const fileText = await fs.readFile(absFile, 'utf8')
+                const docUnknown: unknown = JSON.parse(fileText) as unknown
+
+                if (!isRecord(docUnknown)) {
+                  res.statusCode = 400
+                  res.setHeader('Content-Type', 'application/json; charset=utf-8')
+                  res.end(JSON.stringify({ ok: false, error: 'JSON inválido' }))
+                  return
+                }
+
+                const parametersRaw = docUnknown.parameters
+                if (!Array.isArray(parametersRaw)) {
+                  res.statusCode = 400
+                  res.setHeader('Content-Type', 'application/json; charset=utf-8')
+                  res.end(JSON.stringify({ ok: false, error: 'Campo parameters em falta' }))
+                  return
+                }
+
+                const parameterIdSet = new Set<string>()
+                for (const entry of parametersRaw) {
+                  if (isRecord(entry) && typeof entry.id === 'string') {
+                    parameterIdSet.add(entry.id)
+                  }
+                }
+
+                const schemaDir = path.dirname(absFile)
+                const dirEntries = await fs.readdir(schemaDir, { withFileTypes: true })
+
+                for (const dirent of dirEntries) {
+                  if (!dirent.isFile() || !dirent.name.toLowerCase().endsWith('.json')) {
+                    continue
+                  }
+
+                  const siblingAbs = path.resolve(schemaDir, dirent.name)
+
+                  if (siblingAbs === absFile) {
+                    continue
+                  }
+
+                  try {
+                    const siblingText = await fs.readFile(siblingAbs, 'utf8')
+                    const siblingParsed: unknown = JSON.parse(siblingText) as unknown
+                    const stub = nodeParameterDefinitionFromJsonStub(siblingParsed)
+
+                    if (stub) {
+                      parameterIdSet.add(stub.id)
+                    }
+                  } catch {
+                    /** ignora JSON inválido na pasta do schema */
+                  }
+                }
+
+                if (!parameterIdSet.has(parameterId)) {
+                  res.statusCode = 400
+                  res.setHeader('Content-Type', 'application/json; charset=utf-8')
+                  res.end(JSON.stringify({ ok: false, error: 'parameterId não existe neste schema' }))
+                  return
+                }
+
+                let current: string[] = []
+                if (Array.isArray(docUnknown.required_parameter)) {
+                  for (const entry of docUnknown.required_parameter) {
+                    if (typeof entry === 'string' && parameterIdSet.has(entry) && !current.includes(entry)) {
+                      current.push(entry)
+                    }
+                  }
+                }
+
+                let next: string[]
+                if (add) {
+                  next = current.includes(parameterId) ? current : [...current, parameterId]
+                } else {
+                  next = current.filter((id) => id !== parameterId)
+                }
+
+                const doc = { ...docUnknown, required_parameter: next }
+
+                await fs.writeFile(absFile, `${JSON.stringify(doc, null, 2)}\n`, 'utf8')
+
+                res.statusCode = 200
+                res.setHeader('Content-Type', 'application/json; charset=utf-8')
+                res.end(JSON.stringify({ ok: true, relativePath, required_parameter: next }))
+              } catch (err) {
+                res.statusCode = 500
+                res.setHeader('Content-Type', 'application/json; charset=utf-8')
+                res.end(
+                  JSON.stringify({
+                    ok: false,
+                    error: err instanceof Error ? err.message : String(err),
+                  }),
+                )
+              }
+            })().catch(() => {
+              res.statusCode = 500
+              res.end('')
+            })
+          })
+
+          req.on('error', next)
+          return
+        }
+
+        if (pathname === '/api/node-structures-patch-linked-parameter-values' && req.method === 'POST') {
+          const chunks: Buffer[] = []
+
+          req.on('data', (c: Buffer) => {
+            chunks.push(c)
+          })
+
+          req.on('end', () => {
+            void (async () => {
+              try {
+                const rawBody = Buffer.concat(chunks).toString('utf8')
+                const parsed: unknown = JSON.parse(rawBody) as unknown
+
+                if (!isRecord(parsed)) {
+                  res.statusCode = 400
+                  res.setHeader('Content-Type', 'application/json; charset=utf-8')
+                  res.end(JSON.stringify({ ok: false, error: 'Corpo inválido' }))
+                  return
+                }
+
+                const relativePath = safeRelativeNodeStructureJsonPath(String(parsed.relativePath ?? ''))
+                const parameterIdA = typeof parsed.parameterIdA === 'string' ? parsed.parameterIdA.trim() : ''
+                const parameterIdBRaw =
+                  typeof parsed.parameterIdB === 'string' ? parsed.parameterIdB.trim() : ''
+                const parameterIdB = parameterIdBRaw.length > 0 ? parameterIdBRaw : ''
+                const unlink = parsed.unlink === true
+
+                if (!relativePath || !parameterIdA) {
+                  res.statusCode = 400
+                  res.setHeader('Content-Type', 'application/json; charset=utf-8')
+                  res.end(JSON.stringify({ ok: false, error: 'relativePath ou parameterIdA inválido' }))
+                  return
+                }
+
+                if (!unlink && !parameterIdB) {
+                  res.statusCode = 400
+                  res.setHeader('Content-Type', 'application/json; charset=utf-8')
+                  res.end(JSON.stringify({ ok: false, error: 'parameterIdB em falta para vincular' }))
+                  return
+                }
+
+                const absFile = path.resolve(nodeStructuresRoot, relativePath)
+                const relFromRoot = path.relative(nodeStructuresRoot, absFile)
+                if (relFromRoot.startsWith('..') || path.isAbsolute(relFromRoot)) {
+                  res.statusCode = 400
+                  res.setHeader('Content-Type', 'application/json; charset=utf-8')
+                  res.end(JSON.stringify({ ok: false, error: 'Caminho fora de nodeStructures' }))
+                  return
+                }
+
+                if (!(await fileExists(absFile))) {
+                  res.statusCode = 400
+                  res.setHeader('Content-Type', 'application/json; charset=utf-8')
+                  res.end(JSON.stringify({ ok: false, error: 'Ficheiro não existe' }))
+                  return
+                }
+
+                const fileText = await fs.readFile(absFile, 'utf8')
+                const docUnknown: unknown = JSON.parse(fileText) as unknown
+
+                if (!isRecord(docUnknown)) {
+                  res.statusCode = 400
+                  res.setHeader('Content-Type', 'application/json; charset=utf-8')
+                  res.end(JSON.stringify({ ok: false, error: 'JSON inválido' }))
+                  return
+                }
+
+                const parametersRaw = docUnknown.parameters
+                if (!Array.isArray(parametersRaw)) {
+                  res.statusCode = 400
+                  res.setHeader('Content-Type', 'application/json; charset=utf-8')
+                  res.end(JSON.stringify({ ok: false, error: 'Campo parameters em falta' }))
+                  return
+                }
+
+                const parameterIdSet = new Set<string>()
+                for (const entry of parametersRaw) {
+                  if (isRecord(entry) && typeof entry.id === 'string') {
+                    parameterIdSet.add(entry.id)
+                  }
+                }
+
+                const schemaDir = path.dirname(absFile)
+                const dirEntries = await fs.readdir(schemaDir, { withFileTypes: true })
+
+                for (const dirent of dirEntries) {
+                  if (!dirent.isFile() || !dirent.name.toLowerCase().endsWith('.json')) {
+                    continue
+                  }
+
+                  const siblingAbs = path.resolve(schemaDir, dirent.name)
+
+                  if (siblingAbs === absFile) {
+                    continue
+                  }
+
+                  try {
+                    const siblingText = await fs.readFile(siblingAbs, 'utf8')
+                    const siblingParsed: unknown = JSON.parse(siblingText) as unknown
+                    const stub = nodeParameterDefinitionFromJsonStub(siblingParsed)
+
+                    if (stub) {
+                      parameterIdSet.add(stub.id)
+                    }
+                  } catch {
+                    /** ignora JSON inválido na pasta do schema */
+                  }
+                }
+
+                if (!parameterIdSet.has(parameterIdA)) {
+                  res.statusCode = 400
+                  res.setHeader('Content-Type', 'application/json; charset=utf-8')
+                  res.end(JSON.stringify({ ok: false, error: 'parameterIdA não existe neste schema' }))
+                  return
+                }
+
+                if (!unlink) {
+                  if (!parameterIdSet.has(parameterIdB)) {
+                    res.statusCode = 400
+                    res.setHeader('Content-Type', 'application/json; charset=utf-8')
+                    res.end(JSON.stringify({ ok: false, error: 'parameterIdB não existe neste schema' }))
+                    return
+                  }
+                  if (parameterIdA === parameterIdB) {
+                    res.statusCode = 400
+                    res.setHeader('Content-Type', 'application/json; charset=utf-8')
+                    res.end(JSON.stringify({ ok: false, error: 'Par inválido' }))
+                    return
+                  }
+                }
+
+                const normalizePair = (a: string, b: string): [string, string] =>
+                  a <= b ? [a, b] : [b, a]
+
+                const dedupePairs = (pairs: [string, string][]): [string, string][] => {
+                  const used = new Set<string>()
+                  const filtered: [string, string][] = []
+                  for (const [x, y] of pairs) {
+                    if (used.has(x) || used.has(y)) {
+                      continue
+                    }
+                    used.add(x)
+                    used.add(y)
+                    filtered.push([x, y])
+                  }
+                  return filtered
+                }
+
+                const readPairs = (): [string, string][] => {
+                  const rawList = Array.isArray(docUnknown.linked_parameter_values)
+                    ? docUnknown.linked_parameter_values
+                    : []
+                  const out: [string, string][] = []
+                  for (const item of rawList) {
+                    if (!Array.isArray(item) || item.length !== 2) {
+                      continue
+                    }
+                    const x = item[0]
+                    const y = item[1]
+                    if (typeof x !== 'string' || typeof y !== 'string' || x === y) {
+                      continue
+                    }
+                    if (!parameterIdSet.has(x) || !parameterIdSet.has(y)) {
+                      continue
+                    }
+                    out.push(normalizePair(x, y))
+                  }
+                  return dedupePairs(out)
+                }
+
+                let nextPairs: [string, string][]
+
+                if (unlink) {
+                  nextPairs = readPairs().filter(([x, y]) => x !== parameterIdA && y !== parameterIdA)
+                } else {
+                  const norm = normalizePair(parameterIdA, parameterIdB)
+                  nextPairs = readPairs().filter(
+                    ([x, y]) => x !== norm[0] && x !== norm[1] && y !== norm[0] && y !== norm[1],
+                  )
+                  nextPairs.push(norm)
+                  nextPairs = dedupePairs(nextPairs)
+                }
+
+                const doc = { ...docUnknown, linked_parameter_values: nextPairs }
+
+                await fs.writeFile(absFile, `${JSON.stringify(doc, null, 2)}\n`, 'utf8')
+
+                res.statusCode = 200
+                res.setHeader('Content-Type', 'application/json; charset=utf-8')
+                res.end(JSON.stringify({ ok: true, relativePath, linked_parameter_values: nextPairs }))
               } catch (err) {
                 res.statusCode = 500
                 res.setHeader('Content-Type', 'application/json; charset=utf-8')

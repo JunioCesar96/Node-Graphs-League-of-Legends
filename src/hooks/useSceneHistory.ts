@@ -2,7 +2,25 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import type { CanvasConnection, CanvasPosition, CanvasScene, ConnectionRouting } from '@/core/canvasScene'
 import { hydrateScene, staticCanvasScene } from '@/core/canvasScene'
-import { createNodeInstanceFromRegistry, schemaRegistry } from '@/core/nodeStructureRegistry'
+import { fx_required_parameter, resolveRequiredParameterListId } from '@/core/fx_required_parameter'
+import {
+  link_parameter_value_add_pair,
+  link_parameter_value_partner,
+  link_parameter_value_patch_values,
+  link_parameter_value_remove_involving,
+} from '@/core/link_parameter_value'
+import {
+  createNodeInstanceFromRegistry,
+  schemaBaseParameterCatalogBySchemaId,
+  schemaRegistry,
+} from '@/core/nodeStructureRegistry'
+import {
+  diskLinkedPairsFromCanvas,
+  instanceLinkedPairsEqual,
+  linkedParameterDiskKey,
+  linked_parameter_values_apply_to_instance,
+  translateDiskLinkedPairsToCanvas,
+} from '@/core/linked_parameter_values'
 import type {
   InternalStructureDefinition,
   NodeParameterDefinition,
@@ -187,6 +205,68 @@ export function useSceneHistory(options?: {
       : selectionState.primaryId && orderedSelectionUnique.includes(selectionState.primaryId)
         ? selectionState.primaryId
         : (orderedSelectionUnique[0] ?? '')
+
+  useEffect(() => {
+    if (primarySelectedId === '') {
+      return
+    }
+
+    setSceneHistory((history) => {
+      const present = history.present
+      const nodeIndex = present.nodes.findIndex((node) => node.id === primarySelectedId)
+
+      if (nodeIndex < 0) {
+        return history
+      }
+
+      const canvasNode = present.nodes[nodeIndex]!
+      const schemaId = canvasNode.node.schema.id
+      const canonical = schemaLookup[schemaId]
+
+      if (!canonical || canonical.linked_parameter_values === undefined) {
+        return history
+      }
+
+      const catalog = schemaBaseParameterCatalogBySchemaId[schemaId] ?? []
+      const translated = translateDiskLinkedPairsToCanvas(
+        canonical.linked_parameter_values,
+        canvasNode.node,
+        catalog,
+      )
+
+      if (canonical.linked_parameter_values.length > 0 && translated.length === 0) {
+        return history
+      }
+
+      const canvasAligned = instanceLinkedPairsEqual(
+        canvasNode.node.parameter_value_links,
+        translated,
+      )
+      const diskAligned =
+        linkedParameterDiskKey(canvasNode.node.schema.linked_parameter_values) ===
+        linkedParameterDiskKey(canonical.linked_parameter_values)
+
+      if (canvasAligned && diskAligned) {
+        return history
+      }
+
+      const nextNode = linked_parameter_values_apply_to_instance(
+        canvasNode.node,
+        translated,
+        canonical.linked_parameter_values,
+        catalog,
+      )
+
+      const nextNodes = [...present.nodes]
+      nextNodes[nodeIndex] = { ...canvasNode, node: nextNode }
+
+      return {
+        past: [...history.past, history.present],
+        present: { ...present, nodes: nextNodes },
+        future: [],
+      }
+    })
+  }, [primarySelectedId, schemaLookup])
 
   const selectedNode =
     primarySelectedId === ''
@@ -522,39 +602,76 @@ export function useSceneHistory(options?: {
     (parameterId: string, value: string) => {
       updateScene((currentScene) => {
         const currentNode = currentScene.nodes.find((node) => node.id === primarySelectedId)
-        const currentValue = currentNode?.node.values.find(
-          (parameterValue) => parameterValue.parameterId === parameterId,
-        )
 
-        if (!currentNode || currentValue?.value === value) {
+        if (!currentNode) {
           return currentScene
         }
 
+        const currentValue = currentNode.node.values.find(
+          (parameterValue) => parameterValue.parameterId === parameterId,
+        )
+        const partner = link_parameter_value_partner(currentNode.node, parameterId)
+        const partnerVal = partner
+          ? currentNode.node.values.find((v) => v.parameterId === partner)?.value
+          : undefined
+
+        if (currentValue?.value === value && (!partner || partnerVal === value)) {
+          return currentScene
+        }
+
+        const nextValues = link_parameter_value_patch_values(
+          currentNode.node.values,
+          parameterId,
+          value,
+          currentNode.node.parameter_value_links,
+        )
+
         return {
           ...currentScene,
-          nodes: currentScene.nodes.map((canvasNode) => {
-            if (canvasNode.id !== primarySelectedId) {
-              return canvasNode
-            }
+          nodes: currentScene.nodes.map((canvasNode) =>
+            canvasNode.id !== primarySelectedId
+              ? canvasNode
+              : {
+                  ...canvasNode,
+                  node: {
+                    ...canvasNode.node,
+                    values: nextValues,
+                  },
+                },
+          ),
+        }
+      })
+    },
+    [primarySelectedId, updateScene],
+  )
 
-            const hasValue = canvasNode.node.values.some(
-              (parameterValue) => parameterValue.parameterId === parameterId,
-            )
+  const toggleSelectedParameterRequired = useCallback(
+    (parameterId: string) => {
+      updateScene((currentScene) => {
+        const currentNode = currentScene.nodes.find((node) => node.id === primarySelectedId)
 
-            return {
-              ...canvasNode,
-              node: {
-                ...canvasNode.node,
-                values: hasValue
-                  ? canvasNode.node.values.map((parameterValue) =>
-                      parameterValue.parameterId === parameterId
-                        ? { ...parameterValue, value }
-                        : parameterValue,
-                    )
-                  : [...canvasNode.node.values, { parameterId, value }],
-              },
-            }
-          }),
+        if (!currentNode) {
+          return currentScene
+        }
+
+        const row = currentNode.node.schema.parameters.find((parameter) => parameter.id === parameterId)
+
+        if (!row) {
+          return currentScene
+        }
+
+        const listId = resolveRequiredParameterListId(
+          row,
+          schemaBaseParameterCatalogBySchemaId[currentNode.node.schema.id],
+        )
+
+        return {
+          ...currentScene,
+          nodes: currentScene.nodes.map((canvasNode) =>
+            canvasNode.id !== primarySelectedId
+              ? canvasNode
+              : { ...canvasNode, node: fx_required_parameter(canvasNode.node, listId) },
+          ),
         }
       })
     },
@@ -565,39 +682,43 @@ export function useSceneHistory(options?: {
     (nodeId: string, parameterId: string, value: string) => {
       updateScene((currentScene) => {
         const currentNode = currentScene.nodes.find((node) => node.id === nodeId)
-        const currentValue = currentNode?.node.values.find(
-          (parameterValue) => parameterValue.parameterId === parameterId,
-        )
 
-        if (!currentNode || currentValue?.value === value) {
+        if (!currentNode) {
           return currentScene
         }
 
+        const currentValue = currentNode.node.values.find(
+          (parameterValue) => parameterValue.parameterId === parameterId,
+        )
+        const partner = link_parameter_value_partner(currentNode.node, parameterId)
+        const partnerVal = partner
+          ? currentNode.node.values.find((v) => v.parameterId === partner)?.value
+          : undefined
+
+        if (currentValue?.value === value && (!partner || partnerVal === value)) {
+          return currentScene
+        }
+
+        const nextValues = link_parameter_value_patch_values(
+          currentNode.node.values,
+          parameterId,
+          value,
+          currentNode.node.parameter_value_links,
+        )
+
         return {
           ...currentScene,
-          nodes: currentScene.nodes.map((canvasNode) => {
-            if (canvasNode.id !== nodeId) {
-              return canvasNode
-            }
-
-            const hasValue = canvasNode.node.values.some(
-              (parameterValue) => parameterValue.parameterId === parameterId,
-            )
-
-            return {
-              ...canvasNode,
-              node: {
-                ...canvasNode.node,
-                values: hasValue
-                  ? canvasNode.node.values.map((parameterValue) =>
-                      parameterValue.parameterId === parameterId
-                        ? { ...parameterValue, value }
-                        : parameterValue,
-                    )
-                  : [...canvasNode.node.values, { parameterId, value }],
-              },
-            }
-          }),
+          nodes: currentScene.nodes.map((canvasNode) =>
+            canvasNode.id !== nodeId
+              ? canvasNode
+              : {
+                  ...canvasNode,
+                  node: {
+                    ...canvasNode.node,
+                    values: nextValues,
+                  },
+                },
+          ),
         }
       })
     },
@@ -770,32 +891,119 @@ export function useSceneHistory(options?: {
 
   const addDynamicParameter = useCallback(
     (nodeId: string, template: NodeParameterDefinition) => {
-      const newParameterId = `dyn-param-${crypto.randomUUID().slice(0, 10)}`
-      const newParameterDefinition: NodeParameterDefinition = {
-        ...template,
-        id: newParameterId,
-      }
-
       updateScene((currentScene) => ({
         ...currentScene,
-        nodes: currentScene.nodes.map((canvasNode) =>
-          canvasNode.id !== nodeId
-            ? canvasNode
-            : {
-                ...canvasNode,
-                node: {
-                  ...canvasNode.node,
-                  schema: {
-                    ...canvasNode.node.schema,
-                    parameters: [...canvasNode.node.schema.parameters, newParameterDefinition],
-                  },
-                  values: [
-                    ...canvasNode.node.values,
-                    { parameterId: newParameterId, value: template.defaultValue },
-                  ],
-                },
+        nodes: currentScene.nodes.map((canvasNode) => {
+          if (canvasNode.id !== nodeId) {
+            return canvasNode
+          }
+
+          const existingIds = new Set(canvasNode.node.schema.parameters.map((parameter) => parameter.id))
+          const newParameterId = existingIds.has(template.id)
+            ? `dyn-param-${crypto.randomUUID().slice(0, 10)}`
+            : template.id
+          const newParameterDefinition: NodeParameterDefinition = {
+            ...template,
+            id: newParameterId,
+          }
+
+          return {
+            ...canvasNode,
+            node: {
+              ...canvasNode.node,
+              schema: {
+                ...canvasNode.node.schema,
+                parameters: [...canvasNode.node.schema.parameters, newParameterDefinition],
               },
-        ),
+              values: [
+                ...canvasNode.node.values,
+                { parameterId: newParameterId, value: template.defaultValue },
+              ],
+            },
+          }
+        }),
+      }))
+    },
+    [updateScene],
+  )
+
+  const linkParameterValuePairForNode = useCallback(
+    (nodeId: string, parameterIdA: string, parameterIdB: string) => {
+      updateScene((currentScene) => ({
+        ...currentScene,
+        nodes: currentScene.nodes.map((canvasNode) => {
+          if (canvasNode.id !== nodeId) {
+            return canvasNode
+          }
+
+          let nextNode = link_parameter_value_add_pair(canvasNode.node, parameterIdA, parameterIdB)
+          const sourceValue =
+            nextNode.values.find((v) => v.parameterId === parameterIdA)?.value ??
+            nextNode.schema.parameters.find((p) => p.id === parameterIdA)?.defaultValue ??
+            ''
+
+          nextNode = {
+            ...nextNode,
+            values: link_parameter_value_patch_values(
+              nextNode.values,
+              parameterIdA,
+              sourceValue,
+              nextNode.parameter_value_links,
+            ),
+          }
+
+          const catalog = schemaBaseParameterCatalogBySchemaId[nextNode.schema.id] ?? []
+          const diskList = diskLinkedPairsFromCanvas(
+            nextNode,
+            nextNode.parameter_value_links,
+            catalog,
+          )
+
+          nextNode = {
+            ...nextNode,
+            schema: {
+              ...nextNode.schema,
+              linked_parameter_values: diskList,
+            },
+          }
+
+          return { ...canvasNode, node: nextNode }
+        }),
+      }))
+    },
+    [updateScene],
+  )
+
+  const unlinkParameterValueForNode = useCallback(
+    (nodeId: string, parameterId: string) => {
+      updateScene((currentScene) => ({
+        ...currentScene,
+        nodes: currentScene.nodes.map((canvasNode) => {
+          if (canvasNode.id !== nodeId) {
+            return canvasNode
+          }
+
+          let nextNode = link_parameter_value_remove_involving(canvasNode.node, parameterId)
+          const catalog = schemaBaseParameterCatalogBySchemaId[nextNode.schema.id] ?? []
+          const diskList = diskLinkedPairsFromCanvas(
+            nextNode,
+            nextNode.parameter_value_links,
+            catalog,
+          )
+
+          nextNode = {
+            ...nextNode,
+            schema: {
+              ...nextNode.schema,
+              linked_parameter_values: diskList,
+            },
+          }
+
+          return {
+            ...canvasNode,
+            node: nextNode,
+          }
+        }),
       }))
     },
     [updateScene],
@@ -810,14 +1018,30 @@ export function useSceneHistory(options?: {
             ? canvasNode
             : {
                 ...canvasNode,
-                node: {
-                  ...canvasNode.node,
-                  schema: {
-                    ...canvasNode.node.schema,
-                    parameters: canvasNode.node.schema.parameters.filter((parameter) => parameter.id !== parameterId),
-                  },
-                  values: canvasNode.node.values.filter((value) => value.parameterId !== parameterId),
-                },
+                node: (() => {
+                  let cleaned = link_parameter_value_remove_involving(
+                    {
+                      ...canvasNode.node,
+                      schema: {
+                        ...canvasNode.node.schema,
+                        parameters: canvasNode.node.schema.parameters.filter(
+                          (parameter) => parameter.id !== parameterId,
+                        ),
+                      },
+                      values: canvasNode.node.values.filter(
+                        (value) => value.parameterId !== parameterId,
+                      ),
+                    },
+                    parameterId,
+                  )
+                  cleaned = linked_parameter_values_apply_to_instance(
+                    cleaned,
+                    cleaned.parameter_value_links ?? [],
+                    undefined,
+                    schemaBaseParameterCatalogBySchemaId[cleaned.schema.id] ?? [],
+                  )
+                  return cleaned
+                })(),
               },
         ),
       }))
@@ -1002,6 +1226,9 @@ export function useSceneHistory(options?: {
     setNodeParameterOrder,
     setSelectedNodeParameterOrder,
     swapSelectedNodeParameters,
+    toggleSelectedParameterRequired,
+    linkParameterValuePairForNode,
+    unlinkParameterValueForNode,
     addDynamicParameter,
     removeCanvasParameter,
     addDynamicInternalStructureSlot,

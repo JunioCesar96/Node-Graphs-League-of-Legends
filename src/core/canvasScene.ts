@@ -12,7 +12,14 @@ import {
   schemaNodeKindBySchemaId as _schemaNodeKindBySchemaId,
   schemaBaseParameterCatalogBySchemaId as _schemaBaseParameterCatalogBySchemaId,
   schemaBaseInternalStructureCatalogBySchemaId as _schemaBaseInternalStructureCatalogBySchemaId,
+  schemaJsonRelativePathBySchemaId as _schemaJsonRelativePathBySchemaId,
 } from './nodeStructureRegistry'
+
+import {
+  instanceLinkedPairsEqual,
+  linked_parameter_values_apply_to_instance,
+  translateDiskLinkedPairsToCanvas,
+} from './linked_parameter_values'
 
 /** Registo construído a partir de JSON sob `src/nodeStructures/<pasta>/` (dinâmico no bundle). */
 export const schemaRegistry = _registry
@@ -28,6 +35,8 @@ export const schemaNodeKindBySchemaId = _schemaNodeKindBySchemaId
 export const schemaBaseParameterCatalogBySchemaId = _schemaBaseParameterCatalogBySchemaId
 
 export const schemaBaseInternalStructureCatalogBySchemaId = _schemaBaseInternalStructureCatalogBySchemaId
+
+export const schemaJsonRelativePathBySchemaId = _schemaJsonRelativePathBySchemaId
 
 export function createNodeInstance(
   schemaId: string,
@@ -108,6 +117,25 @@ export type CanvasScene = {
   connections: CanvasConnection[]
 }
 
+function hydrateNodeInstanceFromEmbeddedLinks(node: NodeInstance): NodeInstance {
+  const disk = node.schema.linked_parameter_values
+  if (disk === undefined) {
+    return node
+  }
+
+  const catalog = schemaBaseParameterCatalogBySchemaId[node.schema.id] ?? []
+  const translated = translateDiskLinkedPairsToCanvas(disk, node, catalog)
+  if (disk.length > 0 && translated.length === 0) {
+    return node
+  }
+
+  if (instanceLinkedPairsEqual(node.parameter_value_links, translated)) {
+    return node
+  }
+
+  return linked_parameter_values_apply_to_instance(node, translated, disk, catalog)
+}
+
 export function hydrateScene(scene: CanvasScene): CanvasScene {
   return {
     ...scene,
@@ -117,14 +145,24 @@ export function hydrateScene(scene: CanvasScene): CanvasScene {
         ...(c.routing ? { routing: c.routing } : {}),
       }),
     ),
-    nodes: scene.nodes.map((n) => ({
-      ...n,
-      node: {
+    nodes: scene.nodes.map((n) => {
+      const nodeInstance: NodeInstance = {
         ...n.node,
         schema: coerceEmbeddedSchema(structuredClone(n.node.schema)),
         values: structuredClone(n.node.values),
-      },
-    })),
+        ...(Array.isArray(n.node.required_parameter)
+          ? { required_parameter: structuredClone(n.node.required_parameter) }
+          : {}),
+        ...(Array.isArray(n.node.parameter_value_links)
+          ? { parameter_value_links: structuredClone(n.node.parameter_value_links) }
+          : {}),
+      }
+
+      return {
+        ...n,
+        node: hydrateNodeInstanceFromEmbeddedLinks(nodeInstance),
+      }
+    }),
   }
 }
 

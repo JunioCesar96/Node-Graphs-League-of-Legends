@@ -148,6 +148,77 @@ function readInternalStructuresArray(raw: Record<string, unknown>): unknown[] | 
   return null
 }
 
+function parseSchemaRequiredParameterIds(
+  raw: unknown,
+  parameterIds: Set<string>,
+): string[] | null {
+  if (!Array.isArray(raw)) {
+    return null
+  }
+
+  const out: string[] = []
+
+  for (const item of raw) {
+    if (typeof item !== 'string' || !parameterIds.has(item)) {
+      continue
+    }
+
+    if (!out.includes(item)) {
+      out.push(item)
+    }
+  }
+
+  return out
+}
+
+function parseSchemaLinkedParameterValuePairs(
+  raw: unknown,
+  parameterIds: Set<string>,
+): Array<readonly [string, string]> | null {
+  if (!Array.isArray(raw)) {
+    return null
+  }
+
+  const out: Array<readonly [string, string]> = []
+
+  for (const item of raw) {
+    if (!Array.isArray(item) || item.length !== 2) {
+      continue
+    }
+
+    const a = item[0]
+    const b = item[1]
+
+    if (typeof a !== 'string' || typeof b !== 'string' || a === b) {
+      continue
+    }
+
+    if (!parameterIds.has(a) || !parameterIds.has(b)) {
+      continue
+    }
+
+    const norm = a <= b ? ([a, b] as const) : ([b, a] as const)
+    if (!out.some(([x, y]) => x === norm[0] && y === norm[1])) {
+      out.push(norm)
+    }
+  }
+
+  const used = new Set<string>()
+  const filtered: Array<readonly [string, string]> = []
+
+  for (const [a, b] of out) {
+    if (used.has(a) || used.has(b)) {
+      continue
+    }
+
+    used.add(a)
+    used.add(b)
+    filtered.push([a, b])
+  }
+
+  return filtered
+}
+
 /** Interpreta um ficheiro JSON de estruturas (ex.: `src/nodeStructures/default/`) como `NodeSchemaDefinition`. */
 export function nodeSchemaFromStructureJson(raw: unknown): NodeSchemaDefinition | null {
   if (!isRecord(raw)) {
@@ -188,6 +259,27 @@ export function nodeSchemaFromStructureJson(raw: unknown): NodeSchemaDefinition 
     title: raw.title,
     parameters,
     internalStructures,
+  }
+
+  const parameterIdSet = new Set(parameters.map((parameter) => parameter.id))
+  if ('required_parameter' in raw) {
+    const requiredParameter = parseSchemaRequiredParameterIds(raw.required_parameter, parameterIdSet)
+    if (requiredParameter === null) {
+      return null
+    }
+    result.required_parameter = requiredParameter
+  }
+
+  if ('linked_parameter_values' in raw) {
+    const linked = parseSchemaLinkedParameterValuePairs(raw.linked_parameter_values, parameterIdSet)
+    if (linked === null) {
+      return null
+    }
+    if (linked.length > 0) {
+      result.linked_parameter_values = linked
+    } else if (Array.isArray(raw.linked_parameter_values)) {
+      result.linked_parameter_values = []
+    }
   }
 
   if (nomenclature) {
