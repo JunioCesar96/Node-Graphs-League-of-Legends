@@ -18,7 +18,7 @@ Editor SPA de grafos tipo nós+fios para prototipagem de cenários ligados ao ec
 pnpm install
 pnpm dev          # servidor de desenvolvimento
 pnpm run build    # tsc + build de produção
-pnpm run test     # Vitest (ver src/core/leagueBinScene.test.ts)
+pnpm run test     # Vitest (ex.: `src/core/leagueBinScene.test.ts`, `src/core/parameterValueInput.test.ts`)
 pnpm run lint
 pnpm run jade-bridge:dev   # mock POST /convert para testar bridge (ver JADE_SPIKE)
 pnpm preview      # pré-visualizar dist/
@@ -42,7 +42,12 @@ Fluxo típico:
 | Pasta / ficheiro | Papel |
 |------------------|--------|
 | `src/App.tsx` | Shell: menu, canvas, inspector, dock de código |
-| `src/hooks/useSceneHistory.ts` | Cena, undo/redo, seleção multi, persistência |
+| `src/hooks/useSceneHistory.ts` | Cena, undo/redo, seleção multi, persistência, ordem de parâmetros e valores |
+| `src/core/parameterValueInput.ts` | Validação parcial de texto de entrada por tipo de parâmetro (número, booleano, string, etc.) |
+| `src/components/molecules/ParameterValueInput.tsx` | Input de valor no cartão com *commit* ao perder foco e estado de foco expandido/compacto |
+| `src/components/molecules/ParameterItem.tsx` | Linha de parâmetro no cartão: grelha responsiva, nome arrastável para reordenar |
+| `src/components/organisms/NodeCard.tsx` | Cartão de nó: reordenação de parâmetros em tempo real durante o arrasto |
+| `src/components/organisms/NodeInspector.tsx` | Inspector: reordenar parâmetros por arrasto (ícone de grelha), *swap* de posições |
 | `src/core/leagueBinScene.ts` | Formato JSON v1 (`node-graphs-lol`): `serializeScene` / `parseSceneDocument` |
 | `src/core/canvasScene.ts` | Tipos da cena, schemas registados, `hydrateScene` |
 | `src/core/binImportStub.ts` | Stub até haver parser `.bin` ou mapeamento ritobin→grafo |
@@ -56,6 +61,12 @@ Fluxo típico:
 - Menu **File / Json / Código / Nodes**: abrir/exportar JSON (e fluxo `.bin` com stub), painel de código redimensionável, paleta de nós.
 - Canvas com pan, zoom (incl. roda), marquee, multi-seleção, ímanes/snaps conforme UX documentada na app; conexões com traço flexível/rígido.
 - Persistência da cena em `localStorage`; import substitui a cena válida através de `replaceScene`.
+
+### Cartão de nó e inspector (parâmetros)
+
+- **Valores:** edição com validação por tipo (`parameterValueInput.ts`): entradas parciais inválidas não são aplicadas; o atributo `title` do input mostra uma mensagem de rejeição breve e depois volta à dica de formato. `ParameterValueInput` faz *commit* ao perder foco; o foco pode expandir o layout da linha no cartão.
+- **Ordem dos parâmetros:** no **cartão**, arrastar pelo **nome** do parâmetro; a ordem actualiza durante o movimento. No **inspector**, arrastar pela zona de ordem (ícone de grelha) para trocar posições entre parâmetros seleccionados / lista.
+- **Cursor:** por defeito `default` na maior parte do cartão; excepções explícitas — cabeçalho (arrastar nó), nome arrastável (`grab`), campo de valor (`text`), *hint* (`help`), **portos** e ligação de fios (`crosshair` nos portos interactivos).
 
 **Limitação:** não há conversão binária real nem motor de execução do grafo — ver lacunas em [AUDITORIA.md](./AUDITORIA.md).
 
