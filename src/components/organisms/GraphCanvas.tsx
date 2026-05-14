@@ -15,7 +15,10 @@ const HEADER_HEIGHT = 56
 const BODY_PADDING = 20
 const SECTION_TITLE_HEIGHT = 16
 const SECTION_TITLE_GAP = 8
-const ITEM_HEIGHT = 44
+/** Altura por linha na secção Internal_Structures (layout compacto). */
+const INTERNAL_STRUCTURE_ITEM_HEIGHT = 44
+/** Altura por parâmetro: pilha nome (hint+label) + valor + tipo (cards). */
+const PARAMETER_ITEM_HEIGHT = 128
 const ITEM_GAP = 8
 const SECTION_GAP = 20
 const PORT_OVERLAP = 6
@@ -78,6 +81,14 @@ type GraphCanvasProps = {
   onSelectAllNodesShortcut?: () => void
   onSelectNode: (nodeId: string, options?: { additive?: boolean }) => void
   onUndo: () => void
+  /** Actualiza o valor de um parâmetro directamente no card do nó. */
+  onUpdateNodeParameter?: (canvasNodeId: string, parameterId: string, value: string) => void
+  /** Reordena parâmetros no card (índice 1-based na lista actual). */
+  onSetNodeParameterOrder?: (
+    canvasNodeId: string,
+    parameterId: string,
+    oneBasedIndex: number,
+  ) => void
   scene: CanvasScene
   selectedNodeIds: string[]
   selectedNodeId: string
@@ -154,14 +165,15 @@ function isEditableTarget(target: EventTarget | null) {
 
 function getParameterSectionHeight(node: CanvasNode) {
   const itemCount = node.node.schema.parameters.length
-  const listHeight = itemCount * ITEM_HEIGHT + Math.max(0, itemCount - 1) * ITEM_GAP
+  const listHeight = itemCount * PARAMETER_ITEM_HEIGHT + Math.max(0, itemCount - 1) * ITEM_GAP
 
   return SECTION_TITLE_HEIGHT + SECTION_TITLE_GAP + listHeight
 }
 
 function getInternalStructureSectionHeight(node: CanvasNode) {
   const itemCount = node.node.schema.internalStructures.length
-  const listHeight = itemCount * ITEM_HEIGHT + Math.max(0, itemCount - 1) * ITEM_GAP
+  const listHeight =
+    itemCount * INTERNAL_STRUCTURE_ITEM_HEIGHT + Math.max(0, itemCount - 1) * ITEM_GAP
 
   return SECTION_TITLE_HEIGHT + SECTION_TITLE_GAP + listHeight
 }
@@ -203,8 +215,8 @@ function getInternalStructurePortY(node: CanvasNode, structureId: string) {
     SECTION_GAP +
     SECTION_TITLE_HEIGHT +
     SECTION_TITLE_GAP +
-    safeIndex * (ITEM_HEIGHT + ITEM_GAP) +
-    ITEM_HEIGHT / 2
+    safeIndex * (INTERNAL_STRUCTURE_ITEM_HEIGHT + ITEM_GAP) +
+    INTERNAL_STRUCTURE_ITEM_HEIGHT / 2
   )
 }
 
@@ -446,7 +458,9 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     onClearSelection,
     onSelectAllNodesShortcut,
     onSelectNode,
+    onSetNodeParameterOrder,
     onUndo,
+    onUpdateNodeParameter,
     scene,
     selectedNodeIds,
     selectedNodeId,
@@ -1578,6 +1592,18 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
                 onOutputWirePointerUp={handleOutputWirePointerUp}
                 onSelect={(event) => onSelectNode(canvasNode.id, { additive: Boolean(event?.shiftKey) })}
                 onStartDrag={(event) => startNodeDrag(event, canvasNode)}
+                onReorderNodeParameter={
+                  onSetNodeParameterOrder
+                    ? (parameterId, oneBased) =>
+                        onSetNodeParameterOrder(canvasNode.id, parameterId, oneBased)
+                    : undefined
+                }
+                onUpdateParameter={
+                  onUpdateNodeParameter
+                    ? (parameterId, nextValue) =>
+                        onUpdateNodeParameter(canvasNode.id, parameterId, nextValue)
+                    : undefined
+                }
                 parameterHints={hints}
                 selected={isSelected}
               />

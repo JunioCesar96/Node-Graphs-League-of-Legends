@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState, useCallback } from 'react'
 import type {
   MouseEvent as ReactMouseEvent,
   PointerEvent as ReactPointerEvent,
@@ -45,6 +45,10 @@ type NodeCardProps = {
   ) => void
   onSelect?: (event?: ReactMouseEvent<HTMLElement>) => void
   onStartDrag?: PointerEventHandler<HTMLElement>
+  /** Grava o valor de um parâmetro deste nó (card editável). */
+  onUpdateParameter?: (parameterId: string, value: string) => void
+  /** Reordena parâmetros no card durante o arrasto pelo nome (índice 1-based). */
+  onReorderNodeParameter?: (parameterId: string, oneBasedIndex: number) => void
   parameterHints?: Record<string, string>
   selected?: boolean
 }
@@ -75,12 +79,96 @@ export function NodeCard({
   onOutputWirePointerUp,
   onSelect,
   onStartDrag,
+  onUpdateParameter,
+  onReorderNodeParameter,
   parameterHints,
   selected = false,
 }: NodeCardProps) {
   const elementSelectorRef = useRef<HTMLDetailsElement>(null)
   const [isElementSelectorOpen, setIsElementSelectorOpen] = useState(false)
   const sectionId = useId()
+
+  const parameterRowRefs = useRef(new Map<string, HTMLLIElement>())
+  const registerParameterRowRef = useCallback((parameterId: string, element: HTMLLIElement | null) => {
+    if (element) {
+      parameterRowRefs.current.set(parameterId, element)
+    } else {
+      parameterRowRefs.current.delete(parameterId)
+    }
+  }, [])
+
+  const nodeRef = useRef(node)
+  nodeRef.current = node
+
+  const onReorderRef = useRef(onReorderNodeParameter)
+  onReorderRef.current = onReorderNodeParameter
+
+  const dragParameterIdRef = useRef<string | null>(null)
+  const [dragParameterId, setDragParameterId] = useState<string | null>(null)
+
+  const handleParameterReorderPointerMove = useCallback(
+    (event: ReactPointerEvent<HTMLSpanElement>) => {
+      const reorder = onReorderRef.current
+      const draggedId = dragParameterIdRef.current
+      if (!reorder || !draggedId) {
+        return
+      }
+
+      const parameters = nodeRef.current.schema.parameters
+      const fromIndex = parameters.findIndex((parameter) => parameter.id === draggedId)
+      if (fromIndex < 0) {
+        return
+      }
+
+      let targetIndex = parameters.length - 1
+      for (let i = 0; i < parameters.length; i++) {
+        const rowElement = parameterRowRefs.current.get(parameters[i].id)
+        if (!rowElement) {
+          continue
+        }
+        const rect = rowElement.getBoundingClientRect()
+        const midY = rect.top + rect.height / 2
+        if (event.clientY < midY) {
+          targetIndex = i
+          break
+        }
+      }
+
+      if (targetIndex !== fromIndex) {
+        reorder(draggedId, targetIndex + 1)
+      }
+    },
+    [],
+  )
+
+  const endParameterReorderDrag = useCallback((event: ReactPointerEvent<HTMLSpanElement>) => {
+    try {
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.releasePointerCapture(event.pointerId)
+      }
+    } catch {
+      /** ignore */
+    }
+    dragParameterIdRef.current = null
+    setDragParameterId(null)
+  }, [])
+
+  const beginParameterReorderDrag = useCallback(
+    (parameterId: string, event: ReactPointerEvent<HTMLSpanElement>) => {
+      if (!onReorderNodeParameter || node.schema.parameters.length < 2) {
+        return
+      }
+      if (event.button !== 0) {
+        return
+      }
+      event.stopPropagation()
+      event.preventDefault()
+      dragParameterIdRef.current = parameterId
+      setDragParameterId(parameterId)
+      event.currentTarget.setPointerCapture(event.pointerId)
+    },
+    [onReorderNodeParameter, node.schema.parameters.length],
+  )
 
   const getParameterValue = (parameterId: string, fallback: string) => {
     return node.values.find((value) => value.parameterId === parameterId)?.value ?? fallback
@@ -140,14 +228,35 @@ export function NodeCard({
             Parameters
           </h3>
           <ul className={styles.list}>
-            {node.schema.parameters.map((parameter) => (
-              <ParameterItem
-                hint={parameterHints?.[parameter.name]}
-                key={parameter.id}
-                parameter={parameter}
-                value={getParameterValue(parameter.id, parameter.defaultValue)}
-              />
-            ))}
+            {node.schema.parameters.map((parameter) => {
+              const nameReorderHandlers =
+                onReorderNodeParameter && node.schema.parameters.length > 1
+                  ? {
+                      onPointerDown: (event: ReactPointerEvent<HTMLSpanElement>) =>
+                        beginParameterReorderDrag(parameter.id, event),
+                      onPointerMove: handleParameterReorderPointerMove,
+                      onPointerUp: endParameterReorderDrag,
+                      onLostPointerCapture: endParameterReorderDrag,
+                    }
+                  : undefined
+
+              return (
+                <ParameterItem
+                  hint={parameterHints?.[parameter.name]}
+                  isParameterReorderDragSource={dragParameterId === parameter.id}
+                  key={parameter.id}
+                  onCommitValue={
+                    onUpdateParameter
+                      ? (nextValue) => onUpdateParameter(parameter.id, nextValue)
+                      : undefined
+                  }
+                  parameter={parameter}
+                  parameterNameReorderHandlers={nameReorderHandlers}
+                  registerParameterRowRef={(rowElement) => registerParameterRowRef(parameter.id, rowElement)}
+                  value={getParameterValue(parameter.id, parameter.defaultValue)}
+                />
+              )
+            })}
           </ul>
         </section>
 

@@ -561,6 +561,213 @@ export function useSceneHistory(options?: {
     [primarySelectedId, updateScene],
   )
 
+  const updateNodeParameter = useCallback(
+    (nodeId: string, parameterId: string, value: string) => {
+      updateScene((currentScene) => {
+        const currentNode = currentScene.nodes.find((node) => node.id === nodeId)
+        const currentValue = currentNode?.node.values.find(
+          (parameterValue) => parameterValue.parameterId === parameterId,
+        )
+
+        if (!currentNode || currentValue?.value === value) {
+          return currentScene
+        }
+
+        return {
+          ...currentScene,
+          nodes: currentScene.nodes.map((canvasNode) => {
+            if (canvasNode.id !== nodeId) {
+              return canvasNode
+            }
+
+            const hasValue = canvasNode.node.values.some(
+              (parameterValue) => parameterValue.parameterId === parameterId,
+            )
+
+            return {
+              ...canvasNode,
+              node: {
+                ...canvasNode.node,
+                values: hasValue
+                  ? canvasNode.node.values.map((parameterValue) =>
+                      parameterValue.parameterId === parameterId
+                        ? { ...parameterValue, value }
+                        : parameterValue,
+                    )
+                  : [...canvasNode.node.values, { parameterId, value }],
+              },
+            }
+          }),
+        }
+      })
+    },
+    [updateScene],
+  )
+
+  const setNodeParameterOrder = useCallback(
+    (nodeId: string, parameterId: string, oneBasedIndex: number) => {
+      updateScene((currentScene) => {
+        const canvasNode = currentScene.nodes.find((node) => node.id === nodeId)
+        if (!canvasNode) {
+          return currentScene
+        }
+
+        const parameters = canvasNode.node.schema.parameters
+        const count = parameters.length
+        if (count === 0) {
+          return currentScene
+        }
+
+        const fromIndex = parameters.findIndex((parameter) => parameter.id === parameterId)
+        if (fromIndex < 0) {
+          return currentScene
+        }
+
+        const targetOneBased = Math.max(1, Math.min(count, Math.trunc(oneBasedIndex)))
+        const toIndex = targetOneBased - 1
+        if (fromIndex === toIndex) {
+          return currentScene
+        }
+
+        const nextParameters = [...parameters]
+        const [moved] = nextParameters.splice(fromIndex, 1)
+        nextParameters.splice(toIndex, 0, moved)
+
+        const valueById = new Map(
+          canvasNode.node.values.map((entry) => [entry.parameterId, entry] as const),
+        )
+        const nextValues = nextParameters.map((parameter) => {
+          const existing = valueById.get(parameter.id)
+          return existing ?? { parameterId: parameter.id, value: parameter.defaultValue }
+        })
+
+        return {
+          ...currentScene,
+          nodes: currentScene.nodes.map((node) =>
+            node.id !== nodeId
+              ? node
+              : {
+                  ...node,
+                  node: {
+                    ...node.node,
+                    schema: { ...node.node.schema, parameters: nextParameters },
+                    values: nextValues,
+                  },
+                },
+          ),
+        }
+      })
+    },
+    [updateScene],
+  )
+
+  const setSelectedNodeParameterOrder = useCallback(
+    (parameterId: string, oneBasedIndex: number) => {
+      updateScene((currentScene) => {
+        const canvasNode = currentScene.nodes.find((node) => node.id === primarySelectedId)
+        if (!canvasNode) {
+          return currentScene
+        }
+
+        const parameters = canvasNode.node.schema.parameters
+        const count = parameters.length
+        if (count === 0) {
+          return currentScene
+        }
+
+        const fromIndex = parameters.findIndex((parameter) => parameter.id === parameterId)
+        if (fromIndex < 0) {
+          return currentScene
+        }
+
+        const targetOneBased = Math.max(1, Math.min(count, Math.trunc(oneBasedIndex)))
+        const toIndex = targetOneBased - 1
+        if (fromIndex === toIndex) {
+          return currentScene
+        }
+
+        const nextParameters = [...parameters]
+        const [moved] = nextParameters.splice(fromIndex, 1)
+        nextParameters.splice(toIndex, 0, moved)
+
+        const valueById = new Map(
+          canvasNode.node.values.map((entry) => [entry.parameterId, entry] as const),
+        )
+        const nextValues = nextParameters.map((parameter) => {
+          const existing = valueById.get(parameter.id)
+          return existing ?? { parameterId: parameter.id, value: parameter.defaultValue }
+        })
+
+        return {
+          ...currentScene,
+          nodes: currentScene.nodes.map((node) =>
+            node.id !== primarySelectedId
+              ? node
+              : {
+                  ...node,
+                  node: {
+                    ...node.node,
+                    schema: { ...node.node.schema, parameters: nextParameters },
+                    values: nextValues,
+                  },
+                },
+          ),
+        }
+      })
+    },
+    [primarySelectedId, updateScene],
+  )
+
+  const swapSelectedNodeParameters = useCallback(
+    (parameterIdA: string, parameterIdB: string) => {
+      if (parameterIdA === parameterIdB) {
+        return
+      }
+
+      updateScene((currentScene) => {
+        const canvasNode = currentScene.nodes.find((node) => node.id === primarySelectedId)
+        if (!canvasNode) {
+          return currentScene
+        }
+
+        const parameters = [...canvasNode.node.schema.parameters]
+        const indexA = parameters.findIndex((parameter) => parameter.id === parameterIdA)
+        const indexB = parameters.findIndex((parameter) => parameter.id === parameterIdB)
+
+        if (indexA < 0 || indexB < 0) {
+          return currentScene
+        }
+
+        ;[parameters[indexA], parameters[indexB]] = [parameters[indexB], parameters[indexA]]
+
+        const valueById = new Map(
+          canvasNode.node.values.map((entry) => [entry.parameterId, entry] as const),
+        )
+        const nextValues = parameters.map((parameter) => {
+          const existing = valueById.get(parameter.id)
+          return existing ?? { parameterId: parameter.id, value: parameter.defaultValue }
+        })
+
+        return {
+          ...currentScene,
+          nodes: currentScene.nodes.map((node) =>
+            node.id !== primarySelectedId
+              ? node
+              : {
+                  ...node,
+                  node: {
+                    ...node.node,
+                    schema: { ...node.node.schema, parameters },
+                    values: nextValues,
+                  },
+                },
+          ),
+        }
+      })
+    },
+    [primarySelectedId, updateScene],
+  )
+
   const addDynamicParameter = useCallback(
     (nodeId: string, template: NodeParameterDefinition) => {
       const newParameterId = `dyn-param-${crypto.randomUUID().slice(0, 10)}`
@@ -791,6 +998,10 @@ export function useSceneHistory(options?: {
     deleteSelectedNodes,
     updateScene,
     updateSelectedParameter,
+    updateNodeParameter,
+    setNodeParameterOrder,
+    setSelectedNodeParameterOrder,
+    swapSelectedNodeParameters,
     addDynamicParameter,
     removeCanvasParameter,
     addDynamicInternalStructureSlot,

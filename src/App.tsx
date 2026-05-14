@@ -142,6 +142,9 @@ function App() {
     createRootNode,
     deleteSelectedNodes,
     updateSelectedParameter,
+    updateNodeParameter,
+    setNodeParameterOrder,
+    swapSelectedNodeParameters,
     commitMarqueeSelection,
     undoScene,
     scene,
@@ -1073,6 +1076,8 @@ function App() {
             onSelectAllNodesShortcut={selectAllNodes}
             onSelectNode={(nodeId, options) => selectNode(nodeId, options)}
             onUndo={undoScene}
+            onUpdateNodeParameter={updateNodeParameter}
+            onSetNodeParameterOrder={setNodeParameterOrder}
             paletteRequestSignal={paletteSignal}
             scene={scene}
             schemaBaseInternalStructureCatalogBySchemaId={mergedBaseInternalStructureCatalogBySchemaId}
@@ -1091,6 +1096,7 @@ function App() {
                   minimized={inspectorMinimized}
                   node={inspectorTarget}
                   onDelete={() => deleteSelectedNodes()}
+                  onSwapParameterPositions={swapSelectedNodeParameters}
                   onToggleMinimized={toggleInspectorMinimized}
                   onUpdateParameter={updateSelectedParameter}
                   viewportDocked
@@ -1107,6 +1113,7 @@ function App() {
                 minimized={inspectorMinimized}
                 node={inspectorTarget}
                 onDelete={() => deleteSelectedNodes()}
+                onSwapParameterPositions={swapSelectedNodeParameters}
                 onToggleMinimized={toggleInspectorMinimized}
                 onUpdateParameter={updateSelectedParameter}
               />
@@ -1128,6 +1135,7 @@ function App() {
                 minimized
                 node={inspectorTarget}
                 onDelete={() => deleteSelectedNodes()}
+                onSwapParameterPositions={swapSelectedNodeParameters}
                 onToggleMinimized={toggleInspectorMinimized}
                 onUpdateParameter={updateSelectedParameter}
               />
