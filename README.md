@@ -1,6 +1,6 @@
 # 🔮 League BIN Node Editor (WIP)
 
-![Screenshot da Ferramenta](./assets/preview.png)
+![Screenshot da Ferramenta](./assets/preview.png) 
 *(Substitua o caminho `./assets/preview.png` pelo local e nome real da imagem da sua ferramenta)*
 
 ## 📖 Sobre o Projeto
