@@ -1,32 +1,31 @@
 # 🔮 League BIN Node Editor (WIP)
 
-![Screenshot da Ferramenta](./src/assets/preview.png) 
-*(Substitua o caminho `./assets/preview.png` pelo local e nome real da imagem da sua ferramenta)*
+![Tool Screenshot](./src/assets/preview.png)
 
-## 📖 Sobre o Projeto
-Uma ferramenta interativa baseada em web para converter arquivos `.bin` do League of Legends em **Node Graphs editáveis**. O objetivo principal é transformar a complexidade da estrutura dos arquivos BIN em uma interface visual fluida e intuitiva, permitindo a edição através de nós (nodes) interligados e a posterior conversão de volta para o código/formato original.
+## 📖 About the Project
+An interactive web-based tool to convert League of Legends `.bin` files into editable **Node Graphs**. The main goal is to transform the complexity of BIN file structures into a fluid and intuitive visual interface, allowing editing through interconnected nodes and subsequent conversion back to the original code/format.
 
-Este projeto utiliza o **Vite** para garantir um ambiente de desenvolvimento rápido e moderno, e integra lógicas e funcionalidades da excelente ferramenta [RitoShark/Jade-League-Bin-Editor](https://github.com/RitoShark/Jade-League-Bin-Editor) como motor base para o parsing e manipulação dos arquivos do jogo.
+This project utilizes **Vite** to ensure a fast and modern development environment, and integrates logic and features from the excellent [RitoShark/Jade-League-Bin-Editor](https://github.com/RitoShark/Jade-League-Bin-Editor) tool as the core engine for parsing and manipulating game files.
 
-🚧 **Status:** Em desenvolvimento ativo (Work in Progress).
-
----
-
-## ✨ Funcionalidades (Atuais e Planejadas)
-- 🔄 **Conversão Bidirecional:** Importe estruturas `.bin`, visualize na interface gráfica, faça suas alterações e exporte o código modificado novamente.
-- 🕸️ **Edição via Node Graph:** Manipulação visual de propriedades, lógicas e hierarquias, ideal para quem prefere fluxos visuais em vez de lidar diretamente com grandes blocos de texto estruturado.
-- ⚡ **Alta Performance:** Construído com [Vite](https://vitejs.dev/) para HMR (Hot Module Replacement) instantâneo e carregamento otimizado no navegador.
-- 🛠️ **Integração com Jade BIN Editor:** Aproveitamento do core de parsing robusto já validado pela comunidade.
+🚧 **Status:** Active development (Work in Progress).
 
 ---
 
-## 🚀 Como Executar Localmente
+## ✨ Features (Current and Planned)
+- 🔄 **Bidirectional Conversion:** Import `.bin` structures, view them in the graphical interface, make your changes, and export the modified code.
+- 🕸️ **Node Graph Editing:** Visual manipulation of properties, logic, and hierarchies, ideal for those who prefer visual flows over dealing directly with large blocks of structured text.
+- ⚡ **High Performance:** Built with [Vite](https://vitejs.dev/) for instant HMR (Hot Module Replacement) and optimized browser loading.
+- 🛠️ **Jade BIN Editor Integration:** Leveraging the robust parsing core already validated by the community.
 
-### Pré-requisitos
-- [Node.js](https://nodejs.org/) (versão 18+ recomendada)
-- Gerenciador de pacotes (NPM, Yarn ou PNPM)
+---
 
-### Instalação
-1. Clone o repositório:
+## 🚀 How to Run Locally
+
+### Prerequisites
+- [Node.js](https://nodejs.org/) (version 18+ recommended)
+- Package manager (NPM, Yarn, or PNPM)
+
+### Installation
+1. Clone the repository:
    ```bash
-   git clone https://github.com/SEU_USUARIO/SEU_NOME_DO_REPO.git
+   git clone [https://github.com/JunioCesar96/Node-Graphs-League-of-Legends.git](https://github.com/JunioCesar96/Node-Graphs-League-of-Legends.git)
