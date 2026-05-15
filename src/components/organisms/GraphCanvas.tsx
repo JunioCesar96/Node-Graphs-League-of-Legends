@@ -1574,6 +1574,9 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
                 })()}
                 node={canvasNode.node}
                 nodeKind={schemaNodeKindBySchemaId?.[canvasNode.node.schema.id] ?? 'module'}
+                parameterStubCatalog={
+                  schemaBaseParameterCatalogBySchemaId?.[canvasNode.node.schema.id] ?? []
+                }
                 onAppendCatalogInternalStructure={
                   onAppendCatalogInternalStructure
                     ? (structure) => onAppendCatalogInternalStructure(canvasNode.id, structure)

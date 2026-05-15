@@ -1,4 +1,4 @@
-import { useId, useRef, useState, useCallback } from 'react'
+import { useEffect, useId, useRef, useState, useCallback } from 'react'
 import type {
   MouseEvent as ReactMouseEvent,
   PointerEvent as ReactPointerEvent,
@@ -10,7 +10,7 @@ import { ElementRemovalPicker } from '@/components/molecules/ElementRemovalPicke
 import { InternalStructureItem } from '@/components/molecules/InternalStructureItem'
 import { NodeHeader } from '@/components/molecules/NodeHeader'
 import { ParameterItem } from '@/components/molecules/ParameterItem'
-import { listNodeElements, type NodeElementListItem } from '@/core/listNodeElements'
+import { listRemovableNodeElements, type NodeElementListItem } from '@/core/listNodeElements'
 import type { InternalStructureDefinition, NodeInstance, NodeParameterDefinition } from '@/core/nodeSchema'
 
 import styles from './NodeCard.module.css'
@@ -53,6 +53,8 @@ type NodeCardProps = {
   /** Reordena parâmetros no card durante o arrasto pelo nome (índice 1-based). */
   onReorderNodeParameter?: (parameterId: string, oneBasedIndex: number) => void
   parameterHints?: Record<string, string>
+  /** Catálogo base do schema (stubs) — usado para resolver parâmetros obrigatórios na remoção. */
+  parameterStubCatalog?: readonly NodeParameterDefinition[]
   selected?: boolean
 }
 
@@ -86,9 +88,11 @@ export function NodeCard({
   onUpdateParameter,
   onReorderNodeParameter,
   parameterHints,
+  parameterStubCatalog,
   selected = false,
 }: NodeCardProps) {
   const [removalPickerOpen, setRemovalPickerOpen] = useState(false)
+  const [removalSelectedKey, setRemovalSelectedKey] = useState<string | null>(null)
   const sectionId = useId()
   const removalPickerTitleId = `${sectionId}-element-removal-title`
 
@@ -187,7 +191,13 @@ export function NodeCard({
   const showElementPicker =
     !isModule && (presetStructureCount > 0 || hasCatalogStructures || hasCatalogParameters)
 
-  const removables = listNodeElements(node)
+  const removables = listRemovableNodeElements(node, parameterStubCatalog)
+
+  useEffect(() => {
+    if (!removalPickerOpen) {
+      setRemovalSelectedKey(null)
+    }
+  }, [removalPickerOpen])
 
   return (
     <article className={styles.card} aria-label={`${node.schema.title} node`}>
@@ -276,6 +286,7 @@ export function NodeCard({
               ? () => setRemovalPickerOpen(true)
               : undefined
           }
+          parameterStubCatalog={parameterStubCatalog}
           showPicker={showElementPicker}
         />
 
@@ -283,11 +294,13 @@ export function NodeCard({
           elements={removables}
           nodeTitle={node.schema.title}
           onClose={() => setRemovalPickerOpen(false)}
-          onPick={(item) => {
+          onConfirm={(item) => {
             setRemovalPickerOpen(false)
             onRequestRemoveElement?.(item)
           }}
+          onSelectKey={setRemovalSelectedKey}
           open={removalPickerOpen}
+          selectedKey={removalSelectedKey}
           titleDomId={removalPickerTitleId}
         />
 

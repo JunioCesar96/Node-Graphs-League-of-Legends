@@ -1322,6 +1322,19 @@ function App() {
 
   const handleRequestRemoveNodeElement = useCallback(
     (canvasNodeId: string, item: NodeElementListItem) => {
+      const canvasNode = scene.nodes.find((entry) => entry.id === canvasNodeId)
+      if (!canvasNode) {
+        return
+      }
+
+      if (item.kind === 'parameter') {
+        const schemaId = canvasNode.node.schema.id
+        const stubCatalog = mergedBaseParameterCatalogBySchemaId[schemaId] ?? []
+        if (fx_required_parameter_isMarked(canvasNode.node, item.id, stubCatalog)) {
+          return
+        }
+      }
+
       const dependencyCount = countElementDependencies(scene, canvasNodeId, item.id, item.kind)
       const connectionWarning = formatElementDependencyWarning(dependencyCount)
 
@@ -1339,7 +1352,13 @@ function App() {
         },
       })
     },
-    [removeCanvasInternalStructure, removeCanvasParameter, scene, showConfirmByCatalogId],
+    [
+      mergedBaseParameterCatalogBySchemaId,
+      removeCanvasInternalStructure,
+      removeCanvasParameter,
+      scene,
+      showConfirmByCatalogId,
+    ],
   )
 
   const persistLinkedParameterValuesToSchemaJson = useCallback(

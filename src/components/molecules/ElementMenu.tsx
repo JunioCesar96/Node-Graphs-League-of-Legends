@@ -2,7 +2,9 @@ import { useEffect, useRef, useState } from 'react'
 
 import { Button } from '@/components/atoms/Button'
 import type { InternalStructureDefinition, NodeInstance, NodeParameterDefinition } from '@/core/nodeSchema'
-import { listNodeElements } from '@/core/listNodeElements'
+import { listRemovableNodeElements } from '@/core/listNodeElements'
+
+import { ELEMENT_REMOVAL_PICKER_ROOT_ATTR } from '@/components/molecules/ElementRemovalPicker'
 
 import styles from './ElementMenu.module.css'
 
@@ -18,6 +20,7 @@ type ElementMenuProps = {
   onAppendCatalogParameter?: (parameter: NodeParameterDefinition) => void
   onCreateElement?: (structure: InternalStructureDefinition) => void
   onRemoveElement?: () => void
+  parameterStubCatalog?: readonly NodeParameterDefinition[]
   showPicker: boolean
 }
 
@@ -35,13 +38,14 @@ export function ElementMenu({
   onAppendCatalogParameter,
   onCreateElement,
   onRemoveElement,
+  parameterStubCatalog,
   showPicker,
 }: ElementMenuProps) {
   const elementSelectorRef = useRef<HTMLDetailsElement>(null)
   const [isOpen, setIsOpen] = useState(false)
   const [panel, setPanel] = useState<MenuPanel>('root')
 
-  const removables = listNodeElements(node)
+  const removables = listRemovableNodeElements(node, parameterStubCatalog)
   const canRemove = removables.length > 0 && Boolean(onRemoveElement)
 
   useEffect(() => {
@@ -50,7 +54,13 @@ export function ElementMenu({
     }
 
     const closeOnOutsideClick = (event: MouseEvent) => {
-      const target = event.target as Node
+      const target = event.target
+      if (!(target instanceof globalThis.Node)) {
+        return
+      }
+      if (target instanceof Element && target.closest(`[${ELEMENT_REMOVAL_PICKER_ROOT_ATTR}]`)) {
+        return
+      }
       if (!elementSelectorRef.current?.contains(target)) {
         setIsOpen(false)
         setPanel('root')

@@ -1,5 +1,6 @@
 import type { CanvasScene } from '@/core/canvasScene'
-import type { NodeInstance } from '@/core/nodeSchema'
+import { fx_required_parameter_isMarked } from '@/core/fx_required_parameter'
+import type { NodeInstance, NodeParameterDefinition } from '@/core/nodeSchema'
 
 export type NodeElementKind = 'parameter' | 'internalStructure'
 
@@ -21,6 +22,32 @@ export function listNodeElements(node: NodeInstance): NodeElementListItem[] {
   const structures: NodeElementListItem[] = node.schema.internalStructures.map((structure) => ({
     id: structure.id,
     kind: 'internalStructure',
+    meta: structure.schemaId,
+    name: structure.name,
+  }))
+
+  return [...parameters, ...structures]
+}
+
+/** Lista elementos que podem ser removidos via `- Element` (exclui parâmetros obrigatórios). */
+export function listRemovableNodeElements(
+  node: NodeInstance,
+  stubCatalog?: readonly NodeParameterDefinition[],
+): NodeElementListItem[] {
+  const parameters: NodeElementListItem[] = node.schema.parameters
+    .filter(
+      (parameter) => !fx_required_parameter_isMarked(node, parameter.id, stubCatalog),
+    )
+    .map((parameter) => ({
+      id: parameter.id,
+      kind: 'parameter' as const,
+      meta: parameter.type,
+      name: parameter.name,
+    }))
+
+  const structures: NodeElementListItem[] = node.schema.internalStructures.map((structure) => ({
+    id: structure.id,
+    kind: 'internalStructure' as const,
     meta: structure.schemaId,
     name: structure.name,
   }))

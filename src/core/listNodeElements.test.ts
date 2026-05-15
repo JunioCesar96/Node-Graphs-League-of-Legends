@@ -5,6 +5,7 @@ import {
   countElementDependencies,
   formatElementDependencyWarning,
   listNodeElements,
+  listRemovableNodeElements,
 } from '@/core/listNodeElements'
 
 describe('listNodeElements', () => {
@@ -59,6 +60,37 @@ describe('listNodeElements', () => {
 
     expect(countElementDependencies(scene, emitter.id, 'spawn-rate', 'parameter')).toBe(1)
     expect(countElementDependencies(scene, emitter.id, 'tint', 'parameter')).toBe(0)
+  })
+
+  it('exclui parâmetros obrigatórios da lista removível', () => {
+    const emitter = staticCanvasScene.nodes.find((n) => n.id === 'emitter-01')
+    if (!emitter) {
+      throw new Error('demo sem emitter-01')
+    }
+
+    const requiredId = emitter.node.schema.parameters[0]?.id
+    if (!requiredId) {
+      throw new Error('emitter-01 sem parâmetros')
+    }
+
+    const nodeWithRequired = {
+      ...emitter.node,
+      required_parameter: [requiredId],
+      schema: {
+        ...emitter.node.schema,
+        required_parameter: [requiredId],
+      },
+    }
+
+    const removable = listRemovableNodeElements(nodeWithRequired)
+    expect(removable.some((item) => item.kind === 'parameter' && item.id === requiredId)).toBe(false)
+
+    const otherParameterIds = emitter.node.schema.parameters
+      .map((p) => p.id)
+      .filter((id) => id !== requiredId)
+    for (const id of otherParameterIds) {
+      expect(removable.some((item) => item.kind === 'parameter' && item.id === id)).toBe(true)
+    }
   })
 
   it('formata aviso de dependências apenas quando count > 0', () => {
