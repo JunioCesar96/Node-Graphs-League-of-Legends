@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "width": 1120,
+  "height": 760,
+  "nodes": {
+    "particle-root-01": {
+      "position": {
+        "x": 72,
+        "y": 190
+      }
+    },
+    "emitter-01": {
+      "position": {
+        "x": 600,
+        "y": 72
+      }
+    },
+    "emitter-alt-01": {
+      "position": {
+        "x": 1010,
+        "y": 92
+      }
+    },
+    "force-01": {
+      "position": {
+        "x": 600,
+        "y": 390
+      }
+    },
+    "falloff-01": {
+      "position": {
+        "x": 910,
+        "y": 474
+      }
+    }
+  }
+}

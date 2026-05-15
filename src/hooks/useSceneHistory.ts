@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import type { CanvasConnection, CanvasPosition, CanvasScene, ConnectionRouting } from '@/core/canvasScene'
 import { hydrateScene, schemaJsonRelativePathBySchemaId, staticCanvasScene } from '@/core/canvasScene'
+import { loadStoredScene, SCENE_STORAGE_KEY } from '@/core/sceneStorage'
+import { workspaceService } from '@/services/workspaceService'
 import { fx_required_parameter, resolveRequiredParameterListId } from '@/core/fx_required_parameter'
 import {
   link_parameter_value_add_pair,
@@ -32,7 +34,7 @@ import { STORAGE_LAST_STRUCTURE_META } from '@/core/workspaceStorage'
 
 export const ROOT_NODE_ID = 'particle-root-01'
 
-export const SCENE_STORAGE_KEY = 'node-graphs-lol:scene'
+export { isCanvasScene, loadStoredScene, SCENE_STORAGE_KEY } from '@/core/sceneStorage'
 
 const hashStringPersistTimers = new Map<string, ReturnType<typeof setTimeout>>()
 
@@ -76,50 +78,6 @@ const DETACHED_NODE_START: CanvasPosition = { x: 96, y: 96 }
 const DETACHED_NODE_STEP: CanvasPosition = { x: 420, y: 220 }
 
 const NODE_COLLISION_GAP: CanvasPosition = { x: 380, y: 180 }
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null
-}
-
-export function isCanvasScene(value: unknown): value is CanvasScene {
-  if (!isRecord(value)) {
-    return false
-  }
-
-  return (
-    typeof value.width === 'number' &&
-    typeof value.height === 'number' &&
-    Array.isArray(value.nodes) &&
-    Array.isArray(value.connections)
-  )
-}
-
-export function loadStoredScene(): CanvasScene {
-  try {
-    const storedScene = window.localStorage.getItem(SCENE_STORAGE_KEY)
-
-    if (!storedScene) {
-      return staticCanvasScene
-    }
-
-    const parsedScene: unknown = JSON.parse(storedScene)
-
-    if (!isCanvasScene(parsedScene)) {
-      return staticCanvasScene
-    }
-
-    const hydrated = hydrateScene(parsedScene)
-
-    /** Evita ficar bloqueado no ecrã vazio quando o storage tem grafo válido mas sem nós. */
-    if (hydrated.nodes.length === 0) {
-      return staticCanvasScene
-    }
-
-    return hydrated
-  } catch {
-    return staticCanvasScene
-  }
-}
 
 export function createUniqueNodeId(schemaId: string, nodes: CanvasScene['nodes']) {
   let nextIndex = nodes.filter((node) => node.node.schema.id === schemaId).length + 1
@@ -230,6 +188,49 @@ export function useSceneHistory(options?: {
   useEffect(() => {
     window.localStorage.setItem(SCENE_STORAGE_KEY, JSON.stringify(scene))
   }, [scene])
+
+  useEffect(() => {
+    if (!import.meta.env.DEV) {
+      return
+    }
+    workspaceService.syncSceneToDisk(scene)
+  }, [scene])
+
+  useEffect(() => {
+    if (!import.meta.env.DEV) {
+      return
+    }
+
+    let cancelled = false
+
+    void (async () => {
+      await workspaceService.migrateLocalStorageToDiskOnce()
+      const diskScene = await workspaceService.loadSceneFromDisk()
+      if (cancelled || diskScene === null || diskScene.nodes.length === 0) {
+        return
+      }
+
+      setSceneHistory({
+        future: [],
+        past: [],
+        present: diskScene,
+      })
+
+      const fallbackId =
+        diskScene.nodes.find((node) => node.id === ROOT_NODE_ID)?.id ??
+        diskScene.nodes[0]?.id ??
+        ROOT_NODE_ID
+
+      setSelectionState({
+        ids: fallbackId ? [fallbackId] : [],
+        primaryId: fallbackId,
+      })
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const orderedSelectionUnique = useMemo(
     () => [...new Set(selectionState.ids)],
@@ -1288,6 +1289,7 @@ export function useSceneHistory(options?: {
       present: staticCanvasScene,
     })
     setSelectionState({ ids: emptySelection, primaryId: ROOT_NODE_ID })
+    workspaceService.syncSceneToDisk(staticCanvasScene)
   }, [])
 
   return {
