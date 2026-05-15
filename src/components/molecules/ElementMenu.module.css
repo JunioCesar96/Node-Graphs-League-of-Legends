@@ -143,6 +143,30 @@
   border-color: var(--port-child);
 }
 
+.typeTags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.typeTags button {
+  height: 24px;
+  padding: 0 var(--space-3);
+  color: var(--color-text-muted);
+  font-family: var(--font-data);
+  font-size: 0.62rem;
+  background: rgb(120 180 255 / 8%);
+  border: 1px solid rgb(120 180 255 / 22%);
+  border-radius: 999px;
+}
+
+.typeTags button:hover,
+.typeTags button[aria-pressed='true'] {
+  color: var(--color-text-primary);
+  background: rgb(120 180 255 / 18%);
+  border-color: rgb(120 180 255 / 45%);
+}
+
 .results {
   display: grid;
   gap: var(--space-1);

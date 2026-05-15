@@ -1,6 +1,14 @@
-import type { InternalStructureDefinition, NodeParameterDefinition } from '@/core/nodeSchema'
+import { resolveCollectionTypeForSlot } from '@/core/collectionTypeLinking'
+import type { InternalStructureDefinition, NodeParameterDefinition, NodeSchemaDefinition } from '@/core/nodeSchema'
 
 export type ElementMenuOrganizationMode = 'az' | 'tipo' | 'parameter-type'
+
+export const ELEMENT_MENU_ALL_TYPE_TAG_ID = '__all__'
+
+export type ElementMenuTypeTag = {
+  id: string
+  label: string
+}
 
 export type ElementMenuEntryKind = 'preset-slot' | 'catalog-structure' | 'catalog-parameter'
 
@@ -13,6 +21,8 @@ export type ElementMenuEntry = {
   meta: string
   searchText: string
   sortTipo: string
+  /** Tipo semântico para tags automáticas (collectionType, parameter.type ou Slot). */
+  typeTag: string
   parameterType?: string
   onPick: ElementMenuPickAction
   structure?: InternalStructureDefinition
@@ -25,6 +35,82 @@ export type BuildElementMenuEntriesInput = {
   catalogParameters?: readonly NodeParameterDefinition[]
   includeCatalogStructures: boolean
   includeCatalogParameters: boolean
+  schemaRegistry?: Record<string, NodeSchemaDefinition>
+}
+
+export function identifyElementEntryTypeTag(
+  kind: ElementMenuEntryKind,
+  options: {
+    parameterType?: string
+    schemaId?: string
+    schemaRegistry?: Record<string, NodeSchemaDefinition>
+  },
+): string {
+  if (kind === 'catalog-parameter' && options.parameterType) {
+    return options.parameterType
+  }
+
+  if (kind === 'preset-slot') {
+    return 'Slot'
+  }
+
+  const schemaId = options.schemaId?.trim()
+  if (schemaId && options.schemaRegistry) {
+    const collectionType = resolveCollectionTypeForSlot(schemaId, options.schemaRegistry)
+    if (collectionType) {
+      return collectionType
+    }
+  }
+
+  if (schemaId) {
+    return schemaId
+  }
+
+  return kind === 'catalog-structure' ? 'Internal_Structure' : 'Outro'
+}
+
+export function buildAutomaticTypeTags(entries: readonly ElementMenuEntry[]): ElementMenuTypeTag[] {
+  const uniqueLabels = new Set<string>()
+
+  for (const entry of entries) {
+    const label = entry.typeTag.trim()
+    if (label) {
+      uniqueLabels.add(label)
+    }
+  }
+
+  const sorted = Array.from(uniqueLabels).sort((labelA, labelB) => labelA.localeCompare(labelB))
+
+  if (sorted.length === 0) {
+    return []
+  }
+
+  const tags = sorted.map((label) => ({
+    id: `type:${label}`,
+    label,
+  }))
+
+  if (tags.length <= 1) {
+    return tags
+  }
+
+  return [{ id: ELEMENT_MENU_ALL_TYPE_TAG_ID, label: 'Todos' }, ...tags]
+}
+
+export function filterElementMenuEntriesByTypeTag(
+  entries: readonly ElementMenuEntry[],
+  activeTypeTagId: string | null,
+): ElementMenuEntry[] {
+  if (!activeTypeTagId || activeTypeTagId === ELEMENT_MENU_ALL_TYPE_TAG_ID) {
+    return [...entries]
+  }
+
+  const prefix = 'type:'
+  const label = activeTypeTagId.startsWith(prefix)
+    ? activeTypeTagId.slice(prefix.length)
+    : activeTypeTagId
+
+  return entries.filter((entry) => entry.typeTag === label)
 }
 
 function sortTipoForKind(kind: ElementMenuEntryKind): string {
@@ -41,16 +127,22 @@ function sortTipoForKind(kind: ElementMenuEntryKind): string {
 
 export function buildElementMenuEntries(input: BuildElementMenuEntriesInput): ElementMenuEntry[] {
   const entries: ElementMenuEntry[] = []
+  const registry = input.schemaRegistry
 
   for (const structure of input.presetStructures) {
     const meta = structure.schemaId
+    const typeTag = identifyElementEntryTypeTag('preset-slot', {
+      schemaId: structure.schemaId,
+      schemaRegistry: registry,
+    })
     entries.push({
       id: `preset:${structure.id}`,
       kind: 'preset-slot',
       label: structure.name,
       meta,
-      searchText: `${structure.name} ${meta} Slot`.toLowerCase(),
+      searchText: `${structure.name} ${meta} ${typeTag} Slot`.toLowerCase(),
       sortTipo: sortTipoForKind('preset-slot'),
+      typeTag,
       onPick: 'create-element',
       structure,
     })
@@ -59,13 +151,18 @@ export function buildElementMenuEntries(input: BuildElementMenuEntriesInput): El
   if (input.includeCatalogStructures && input.catalogStructures) {
     for (const structure of input.catalogStructures) {
       const meta = `Internal_Structure · ${structure.schemaId}`
+      const typeTag = identifyElementEntryTypeTag('catalog-structure', {
+        schemaId: structure.schemaId,
+        schemaRegistry: registry,
+      })
       entries.push({
         id: `catalog-is:${structure.schemaId}:${structure.name}`,
         kind: 'catalog-structure',
         label: structure.name,
         meta,
-        searchText: `${structure.name} ${structure.schemaId} Internal_Structure`.toLowerCase(),
+        searchText: `${structure.name} ${structure.schemaId} ${typeTag} Internal_Structure`.toLowerCase(),
         sortTipo: sortTipoForKind('catalog-structure'),
+        typeTag,
         onPick: 'append-structure',
         structure,
       })
@@ -75,13 +172,17 @@ export function buildElementMenuEntries(input: BuildElementMenuEntriesInput): El
   if (input.includeCatalogParameters && input.catalogParameters) {
     for (const parameter of input.catalogParameters) {
       const meta = `novo parâmetro · ${parameter.type}`
+      const typeTag = identifyElementEntryTypeTag('catalog-parameter', {
+        parameterType: parameter.type,
+      })
       entries.push({
         id: `catalog-param:${parameter.type}:${parameter.name}:${parameter.defaultValue}`,
         kind: 'catalog-parameter',
         label: parameter.name,
         meta,
-        searchText: `${parameter.name} ${parameter.type} parâmetro`.toLowerCase(),
+        searchText: `${parameter.name} ${parameter.type} ${typeTag} parâmetro`.toLowerCase(),
         sortTipo: sortTipoForKind('catalog-parameter'),
+        typeTag,
         parameterType: parameter.type,
         onPick: 'append-parameter',
         parameter,
@@ -150,9 +251,10 @@ export function filterAndSortElementMenuEntries(
   entries: readonly ElementMenuEntry[],
   query: string,
   organization: ElementMenuOrganizationMode,
+  activeTypeTagId: string | null = null,
 ): ElementMenuEntry[] {
-  return sortElementMenuEntries(
-    entries.filter((entry) => matchesElementMenuQuery(entry, query)),
-    organization,
-  )
+  const byType = filterElementMenuEntriesByTypeTag(entries, activeTypeTagId)
+  const byQuery = byType.filter((entry) => matchesElementMenuQuery(entry, query))
+
+  return sortElementMenuEntries(byQuery, organization)
 }

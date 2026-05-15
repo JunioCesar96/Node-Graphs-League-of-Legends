@@ -1,8 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  buildAutomaticTypeTags,
   buildElementMenuEntries,
+  ELEMENT_MENU_ALL_TYPE_TAG_ID,
   filterAndSortElementMenuEntries,
+  filterElementMenuEntriesByTypeTag,
+  identifyElementEntryTypeTag,
   matchesElementMenuQuery,
   sortElementMenuEntries,
 } from './elementMenuCatalogUtils'
@@ -53,5 +57,36 @@ describe('elementMenuCatalogUtils', () => {
 
   it('filterAndSortElementMenuEntries devolve vazio para query sem match', () => {
     expect(filterAndSortElementMenuEntries(entries, 'zzzz', 'az')).toEqual([])
+  })
+
+  it('identifyElementEntryTypeTag resolve collectionType do registry', () => {
+    expect(
+      identifyElementEntryTypeTag('catalog-structure', {
+        schemaId: 'Emitter',
+        schemaRegistry: {
+          Emitter: {
+            id: 'Emitter',
+            title: 'Emitter',
+            parameters: [],
+            internalStructures: [],
+            nomenclature: { group: '', collection: '', collectionType: 'Emitter' },
+          },
+        },
+      }),
+    ).toBe('Emitter')
+  })
+
+  it('buildAutomaticTypeTags cria tag Todos quando ha mais de um tipo', () => {
+    const tags = buildAutomaticTypeTags(entries)
+
+    expect(tags[0]).toEqual({ id: ELEMENT_MENU_ALL_TYPE_TAG_ID, label: 'Todos' })
+    expect(tags.some((tag) => tag.label === 'float')).toBe(true)
+  })
+
+  it('filterElementMenuEntriesByTypeTag filtra por typeTag', () => {
+    const onlyFloat = filterElementMenuEntriesByTypeTag(entries, 'type:float')
+
+    expect(onlyFloat.every((entry) => entry.typeTag === 'float')).toBe(true)
+    expect(onlyFloat).toHaveLength(1)
   })
 })

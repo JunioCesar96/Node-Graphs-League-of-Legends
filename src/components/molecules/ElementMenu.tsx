@@ -4,10 +4,13 @@ import { Button } from '@/components/atoms/Button'
 import type { InternalStructureDefinition, NodeInstance, NodeParameterDefinition } from '@/core/nodeSchema'
 import {
   type ElementMenuOrganizationMode,
-  filterAndSortElementMenuEntries,
+  ELEMENT_MENU_ALL_TYPE_TAG_ID,
+  buildAutomaticTypeTags,
   buildElementMenuEntries,
+  filterAndSortElementMenuEntries,
 } from '@/core/elementMenuCatalogUtils'
 import { listRemovableNodeElements } from '@/core/listNodeElements'
+import { schemaRegistry } from '@/core/nodeStructureRegistry'
 
 import { ELEMENT_REMOVAL_PICKER_ROOT_ATTR } from '@/components/molecules/ElementRemovalPicker'
 
@@ -54,6 +57,7 @@ export function ElementMenu({
   const [elementQuery, setElementQuery] = useState('')
   const [elementOrganization, setElementOrganization] =
     useState<ElementMenuOrganizationMode>(DEFAULT_ORGANIZATION)
+  const [activeTypeTagId, setActiveTypeTagId] = useState<string | null>(ELEMENT_MENU_ALL_TYPE_TAG_ID)
 
   const removables = listRemovableNodeElements(node, parameterStubCatalog)
   const canRemove = removables.length > 0 && Boolean(onRemoveElement)
@@ -66,6 +70,7 @@ export function ElementMenu({
         catalogParameters: catalogParameters,
         includeCatalogStructures: hasCatalogStructures,
         includeCatalogParameters: hasCatalogParameters,
+        schemaRegistry,
       }),
     [
       catalogInternalStructures,
@@ -76,14 +81,23 @@ export function ElementMenu({
     ],
   )
 
+  const automaticTypeTags = useMemo(() => buildAutomaticTypeTags(catalogEntries), [catalogEntries])
+
   const visibleEntries = useMemo(
-    () => filterAndSortElementMenuEntries(catalogEntries, elementQuery, elementOrganization),
-    [catalogEntries, elementOrganization, elementQuery],
+    () =>
+      filterAndSortElementMenuEntries(
+        catalogEntries,
+        elementQuery,
+        elementOrganization,
+        activeTypeTagId,
+      ),
+    [activeTypeTagId, catalogEntries, elementOrganization, elementQuery],
   )
 
   const resetAddPanelState = () => {
     setElementQuery('')
     setElementOrganization(DEFAULT_ORGANIZATION)
+    setActiveTypeTagId(ELEMENT_MENU_ALL_TYPE_TAG_ID)
   }
 
   useEffect(() => {
@@ -247,6 +261,25 @@ export function ElementMenu({
                 Tipo de Parâmetro
               </button>
             </div>
+
+            {automaticTypeTags.length > 0 ? (
+              <div aria-label="Filtrar por tipo detectado" className={styles.typeTags}>
+                {automaticTypeTags.map((tag) => (
+                  <button
+                    aria-pressed={
+                      tag.id === ELEMENT_MENU_ALL_TYPE_TAG_ID
+                        ? activeTypeTagId === ELEMENT_MENU_ALL_TYPE_TAG_ID || activeTypeTagId === null
+                        : activeTypeTagId === tag.id
+                    }
+                    key={tag.id}
+                    onClick={() => setActiveTypeTagId(tag.id)}
+                    type="button"
+                  >
+                    {tag.label}
+                  </button>
+                ))}
+              </div>
+            ) : null}
 
             <div className={styles.results}>
               {visibleEntries.length > 0 ? (
