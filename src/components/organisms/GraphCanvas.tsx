@@ -1,9 +1,17 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties, PointerEvent, ReactNode } from 'react'
 
+import { CollectionTypeLinkMenu } from '@/components/molecules/CollectionTypeLinkMenu'
 import { AddNodePalette } from '@/components/organisms/AddNodePalette'
 import { NodeCard } from '@/components/organisms/NodeCard'
 import type { CanvasConnection, CanvasNode, CanvasPosition, CanvasScene } from '@/core/canvasScene'
+import {
+  findConnectionTargetForSlot,
+  getNodesByCollectionType,
+  nodesShareCollectionType,
+  resolveCollectionTypeForInternalStructure,
+  schemaMatchesCollectionType,
+} from '@/core/collectionTypeLinking'
 import type { NodeElementListItem } from '@/core/listNodeElements'
 import type { InternalStructureDefinition, NodeParameterDefinition, NodeSchemaDefinition } from '@/core/nodeSchema'
 import { filterInternalStructuresByPathHierarchy } from '@/core/pathHierarchyInternalStructures'
@@ -55,6 +63,11 @@ type GraphCanvasProps = {
   paletteRequestSignal?: number
   onCloseCodePanelShortcut?: () => void
   onConnectNodes: (connection: CanvasConnection) => void
+  onRelinkInternalStructure?: (
+    fromNodeId: string,
+    structureId: string,
+    targetNodeId: string,
+  ) => void
   onCycleConnectionRouting?: (connectionId: string) => void
   onCreateChildNode: (
     fromNodeId: string,
@@ -134,7 +147,14 @@ type PendingLink = {
   draftAnchor: { sx: number; sy: number }
   fromInternalStructureId: string
   fromNodeId: string
+  targetCollectionType: string
   targetSchemaId: string
+}
+
+type CollectionTypeLinkMenuState = {
+  anchor: { left: number; top: number }
+  fromNodeId: string
+  structure: InternalStructureDefinition
 }
 
 type OutputWireDragSession = {
@@ -446,6 +466,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     paletteRequestSignal = 0,
     onCloseCodePanelShortcut,
     onConnectNodes,
+    onRelinkInternalStructure,
     onCycleConnectionRouting,
     onCreateChildNode,
     onCreateRootNode,
@@ -472,6 +493,9 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
   ref,
 ) {
   const [pendingLink, setPendingLink] = useState<PendingLink | null>(null)
+  const [collectionTypeLinkMenu, setCollectionTypeLinkMenu] = useState<CollectionTypeLinkMenuState | null>(
+    null,
+  )
   const [linkDraftPoint, setLinkDraftPoint] = useState<PanPoint | null>(null)
   const canvasRef = useRef<HTMLDivElement | null>(null)
   const linkDraftClientRef = useRef<{ cx: number; cy: number } | null>(null)
@@ -539,8 +563,24 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       return availableSchemas
     }
 
-    return availableSchemas.filter((schema) => schema.id === linkDropContext.entity.schemaId)
-  }, [availableSchemas, linkDropContext])
+    const connectedTarget = findConnectionTargetForSlot(
+      scene.connections,
+      linkDropContext.fromNodeId,
+      linkDropContext.entity.id,
+      scene.nodes,
+    )
+    const collectionType = resolveCollectionTypeForInternalStructure(
+      linkDropContext.entity,
+      schemaRegistry,
+      connectedTarget,
+    )
+
+    if (!collectionType) {
+      return availableSchemas.filter((schema) => schema.id === linkDropContext.entity.schemaId)
+    }
+
+    return availableSchemas.filter((schema) => schemaMatchesCollectionType(schema, collectionType))
+  }, [availableSchemas, linkDropContext, scene.connections, scene.nodes])
 
   const updateLinkDraftFromClient = useCallback(
     (clientX: number, clientY: number) => {
@@ -635,16 +675,26 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
         return
       }
 
+      const connectedTarget = findConnectionTargetForSlot(
+        scene.connections,
+        fromNodeId,
+        entity.id,
+        scene.nodes,
+      )
+      const targetCollectionType =
+        resolveCollectionTypeForInternalStructure(entity, schemaRegistry, connectedTarget) ?? ''
+
       linkDraftClientRef.current = null
       setLinkDraftPoint(null)
       setPendingLink({
         draftAnchor: { sx, sy },
         fromInternalStructureId: entity.id,
         fromNodeId,
+        targetCollectionType,
         targetSchemaId: entity.schemaId,
       })
     },
-    [scale, scene.nodes],
+    [scale, scene.connections, scene.nodes],
   )
 
   const resolveOutputWireDrop = useCallback(
@@ -670,7 +720,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
             if (
               targetNode &&
               targetNode.id !== pending.fromNodeId &&
-              targetNode.node.schema.id === pending.targetSchemaId
+              nodesShareCollectionType(pending.targetSchemaId, targetNode, schemaRegistry)
             ) {
               onConnectNodes({
                 id: `${pending.fromNodeId}:${pending.fromInternalStructureId}->${targetNode.id}`,
@@ -703,13 +753,47 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
         return
       }
 
-      if (drag.maxScreenDelta < DROP_TO_OPEN_LINK_PALETTE_PX) {
-        return
-      }
-
       endLinkDraft()
     },
     [endLinkDraft, onConnectNodes, onSelectNode, scene.nodes, scale],
+  )
+
+  const openCollectionTypeLinkMenu = useCallback(
+    (
+      fromNodeId: string,
+      structure: InternalStructureDefinition,
+      anchorEl: HTMLElement,
+    ) => {
+      const fromNode = scene.nodes.find((node) => node.id === fromNodeId)
+
+      if (!fromNode) {
+        return
+      }
+
+      const connectedTarget = findConnectionTargetForSlot(
+        scene.connections,
+        fromNodeId,
+        structure.id,
+        scene.nodes,
+      )
+      const collectionType = resolveCollectionTypeForInternalStructure(
+        structure,
+        schemaRegistry,
+        connectedTarget,
+      )
+
+      if (!collectionType) {
+        return
+      }
+
+      const rect = anchorEl.getBoundingClientRect()
+      setCollectionTypeLinkMenu({
+        anchor: { left: rect.right + 8, top: rect.top },
+        fromNodeId,
+        structure,
+      })
+    },
+    [scene.connections, scene.nodes],
   )
 
   const handleOutputWirePointerDown = useCallback(
@@ -749,7 +833,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
   )
 
   const handleOutputWirePointerUp = useCallback(
-    (_entity: InternalStructureDefinition, event: PointerEvent<HTMLButtonElement>) => {
+    (fromNodeId: string, entity: InternalStructureDefinition, event: PointerEvent<HTMLButtonElement>) => {
       const drag = outputWireDragRef.current
 
       if (!drag || drag.pointerId !== event.pointerId) {
@@ -762,9 +846,15 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
         event.currentTarget.releasePointerCapture(event.pointerId)
       }
 
+      if (drag.maxScreenDelta < DROP_TO_OPEN_LINK_PALETTE_PX) {
+        openCollectionTypeLinkMenu(fromNodeId, entity, event.currentTarget)
+        endLinkDraft()
+        return
+      }
+
       resolveOutputWireDrop(drag, event.clientX, event.clientY)
     },
-    [resolveOutputWireDrop],
+    [endLinkDraft, openCollectionTypeLinkMenu, resolveOutputWireDrop],
   )
 
   const handleOutputWirePointerCancel = useCallback(
@@ -794,7 +884,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
   )
 
   const completeLink = (toNode: CanvasNode) => {
-    if (!pendingLink || toNode.node.schema.id !== pendingLink.targetSchemaId) {
+    if (!pendingLink || !nodesShareCollectionType(pendingLink.targetSchemaId, toNode, schemaRegistry)) {
       return
     }
 
@@ -821,12 +911,31 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
   const handlePalettePick = useCallback(
     (schema: NodeSchemaDefinition) => {
       if (linkDropContext) {
-        if (schema.id !== linkDropContext.entity.schemaId) {
+        const connectedTarget = findConnectionTargetForSlot(
+          scene.connections,
+          linkDropContext.fromNodeId,
+          linkDropContext.entity.id,
+          scene.nodes,
+        )
+        const collectionType = resolveCollectionTypeForInternalStructure(
+          linkDropContext.entity,
+          schemaRegistry,
+          connectedTarget,
+        )
+        const isCompatible = collectionType
+          ? schemaMatchesCollectionType(schema, collectionType)
+          : schema.id === linkDropContext.entity.schemaId
+
+        if (!isCompatible) {
           closePalette()
           return
         }
 
-        onCreateChildNode(linkDropContext.fromNodeId, linkDropContext.entity, linkDropContext.position)
+        onCreateChildNode(
+          linkDropContext.fromNodeId,
+          { ...linkDropContext.entity, schemaId: schema.id },
+          linkDropContext.position,
+        )
         closePalette()
         return
       }
@@ -835,7 +944,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       endLinkDraft()
       closePalette()
     },
-    [closePalette, endLinkDraft, linkDropContext, onCreateChildNode, onCreateRootNode],
+    [closePalette, endLinkDraft, linkDropContext, onCreateChildNode, onCreateRootNode, scene.connections, scene.nodes],
   )
 
   useEffect(() => {
@@ -1367,7 +1476,8 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
         <div className={styles.controls} aria-label="Canvas viewport controls">
           {pendingLink ? (
             <span className={styles.linkStatus}>
-              ligando até <strong>{pendingLink.targetSchemaId}</strong>
+              ligando até{' '}
+              <strong>{pendingLink.targetCollectionType || pendingLink.targetSchemaId}</strong>
               {' · '}arrastar à grade vazia adiciona nó · vazio/Esc cancela
             </span>
           ) : null}
@@ -1409,6 +1519,57 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
           schemas={paletteSchemas}
         />
       ) : null}
+
+      {collectionTypeLinkMenu && onRelinkInternalStructure
+        ? (() => {
+            const fromNode = scene.nodes.find((node) => node.id === collectionTypeLinkMenu.fromNodeId)
+
+            if (!fromNode) {
+              return null
+            }
+
+            const currentTarget = findConnectionTargetForSlot(
+              scene.connections,
+              collectionTypeLinkMenu.fromNodeId,
+              collectionTypeLinkMenu.structure.id,
+              scene.nodes,
+            )
+            const collectionType = resolveCollectionTypeForInternalStructure(
+              collectionTypeLinkMenu.structure,
+              schemaRegistry,
+              currentTarget,
+            )
+
+            if (!collectionType) {
+              return null
+            }
+
+            const compatibleNodes = getNodesByCollectionType(scene.nodes, collectionType, {
+              excludeNodeId: fromNode.id,
+            })
+
+            return (
+              <CollectionTypeLinkMenu
+                anchor={collectionTypeLinkMenu.anchor}
+                collectionType={collectionType}
+                compatibleNodes={compatibleNodes}
+                currentTarget={currentTarget}
+                fromNode={fromNode}
+                onClose={() => setCollectionTypeLinkMenu(null)}
+                onSelect={(targetNodeId) => {
+                  onRelinkInternalStructure(
+                    collectionTypeLinkMenu.fromNodeId,
+                    collectionTypeLinkMenu.structure.id,
+                    targetNodeId,
+                  )
+                  setCollectionTypeLinkMenu(null)
+                  onSelectNode(targetNodeId)
+                }}
+                structure={collectionTypeLinkMenu.structure}
+              />
+            )
+          })()
+        : null}
 
       <div
         aria-label="Graph viewport navigation area"
@@ -1510,7 +1671,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
           const isCompatibleTarget =
             pendingLink !== null &&
             pendingLink.fromNodeId !== canvasNode.id &&
-            pendingLink.targetSchemaId === canvasNode.node.schema.id
+            nodesShareCollectionType(pendingLink.targetSchemaId, canvasNode, schemaRegistry)
           const isIncompatibleDuringLink =
             pendingLink !== null &&
             pendingLink.fromNodeId !== canvasNode.id &&
@@ -1600,7 +1761,9 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
                   handleOutputWirePointerDown(canvasNode.id, entity, event)
                 }
                 onOutputWirePointerMove={handleOutputWirePointerMove}
-                onOutputWirePointerUp={handleOutputWirePointerUp}
+                onOutputWirePointerUp={(entity, event) =>
+                  handleOutputWirePointerUp(canvasNode.id, entity, event)
+                }
                 onSelect={(event) => onSelectNode(canvasNode.id, { additive: Boolean(event?.shiftKey) })}
                 onStartDrag={(event) => startNodeDrag(event, canvasNode)}
                 onReorderNodeParameter={

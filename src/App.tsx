@@ -167,6 +167,7 @@ function App() {
     sceneHistory,
     moveNode,
     connectNodes,
+    relinkInternalStructureSlot,
     removeConnection,
     createChildNode,
     createRootNode,
@@ -1540,6 +1541,7 @@ function App() {
             onRequestRemoveElement={handleRequestRemoveNodeElement}
             onCloseCodePanelShortcut={handleCloseCodeDock}
             onConnectNodes={connectNodes}
+            onRelinkInternalStructure={relinkInternalStructureSlot}
             onCreateChildNode={createChildNode}
             onCreateRootNode={createRootNode}
             onCycleConnectionRouting={cycleConnectionRouting}
