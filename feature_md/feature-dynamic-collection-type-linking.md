@@ -7,9 +7,11 @@ Arquivo salvo em: `feature_md/feature-dynamic-collection-type-linking.md`
 | Campo | Valor |
 | --- | --- |
 | Nome da Branch | `feature/dynamic-collection-type-linking` |
-| Nome das Features | Dynamic Collection Type Linking |
+| Nome das Features | Dynamic Collection Type Linking, Sincronização de rótulo do slot |
 | Versão atual | `1.4.0` |
-| Hash do Commit | `e550e9fe2748f64031dff70986c4333af5f29302` |
+| Hash do Commit | `bb98cc3b3d8e62e1953c56d9e4464c99345bcbc9` |
+
+Histórico relevante na branch: `e550e9f` (linking por `collectionType`), `27795f3` (documentação inicial), `bb98cc3` (sincronização de `name` com `title` do alvo).
 
 ## 2. Definição e Resumo de Tags
 
@@ -30,20 +32,24 @@ Não houve itens classificados como `[REMOVIDO]` nesta branch.
 
 ```mermaid
 graph TD
-  A[Usuario clica na porta output de Internal_Structure] --> B{Movimento menor que 12px?}
+  A[Usuario interage com porta output de Internal_Structure] --> B{Movimento menor que 12px?}
   B -- Sim --> C[Abre CollectionTypeLinkMenu]
   B -- Nao --> D[Modo drag de fio]
   C --> E[getNodesByCollectionType filtra grafo]
   E --> F[Usuario escolhe no compativel]
   F --> G[relinkInternalStructureSlot]
-  G --> H[Atualiza schemaId no slot e graph.json]
-  H --> I[workspaceService.syncSceneToDisk em dev]
-  D --> J{Soltou em input compativel?}
-  J -- Sim --> K[connectNodes por collectionType]
-  J -- Nao --> L{Drag longo na grade?}
-  L -- Sim --> M[Paleta filtrada por collectionType]
-  L -- Nao --> N[Cancela ou mantém rascunho]
-  M --> O[createChildNode com schemaId alinhado]
+  G --> H[patchInternalStructureSlotForLink]
+  H --> I[Atualiza schemaId e name no slot]
+  I --> J[Atualiza graph.json]
+  J --> K[workspaceService.syncSceneToDisk em dev]
+  D --> L{Soltou em input compativel?}
+  L -- Sim --> M[connectNodes]
+  M --> H
+  L -- Nao --> N{Drag longo na grade?}
+  N -- Sim --> O[Paleta filtrada por collectionType]
+  N -- Nao --> P[Cancela ou mantem rascunho]
+  O --> Q[createChildNode]
+  Q --> H
 ```
 
 ## 4. Fluxograma de Acionamento de Funções
@@ -66,7 +72,9 @@ sequenceDiagram
   U->>Menu: Seleciona alvo
   Menu->>GC: onSelect targetNodeId
   GC->>Hist: relinkInternalStructureSlot
-  Hist->>Hist: updateScene schemaId + connection
+  Hist->>Core: patchInternalStructureSlotForLink
+  Core->>Core: resolveInternalStructureLabelFromTarget
+  Hist->>Hist: updateScene schemaId name connection
   Hist->>WS: syncSceneToDisk via useEffect
   WS-->>U: logic.json e graph.json atualizados
 
@@ -74,6 +82,7 @@ sequenceDiagram
   Port->>GC: resolveOutputWireDrop
   GC->>Core: nodesShareCollectionType
   GC->>Hist: connectNodes
+  Hist->>Core: patchInternalStructureSlotForLink
   Hist->>WS: syncSceneToDisk
 ```
 
@@ -81,27 +90,31 @@ sequenceDiagram
 
 | Status | Nome | Feature Correspondente | Descrição Técnica | Parâmetros Recebidos / Retorno |
 | --- | --- | --- | --- | --- |
-| `[NOVO]` | `collectionTypeLinking.ts` | Dynamic Collection Type Linking | Utilitários para resolver `collectionType`, filtrar nós do grafo e validar compatibilidade entre slot e alvo. | Funções puras sobre `CanvasNode[]` e `schemaRegistry`; retornam tipos ou listas filtradas. |
+| `[NOVO]` | `collectionTypeLinking.ts` | Dynamic Collection Type Linking | Utilitários para resolver `collectionType`, filtrar nós do grafo, validar compatibilidade e sincronizar rótulo do slot. | Funções puras sobre `CanvasNode[]` e `schemaRegistry`. |
 | `[NOVO]` | `getNodesByCollectionType` | Dynamic Collection Type Linking | Varre nós activos e devolve instâncias cujo `nomenclature.collectionType` coincide. | `(nodes, collectionType, options?)` → `CanvasNode[]`. |
 | `[NOVO]` | `nodesShareCollectionType` | Dynamic Collection Type Linking | Compara tipo semântico; faz fallback para `schema.id` quando nomenclatura falta. | `(sourceSchemaId, targetNode, registry)` → `boolean`. |
+| `[NOVO]` | `resolveInternalStructureLabelFromTarget` | Sincronização de rótulo do slot | Obtém o rótulo exibido no card a partir do `title` do nó alvo (fallback: `schema.id`). | `(target: CanvasNode)` → `string`. |
+| `[NOVO]` | `patchInternalStructureSlotForLink` | Sincronização de rótulo do slot | Actualiza `schemaId` e `name` do slot com base no nó ligado; usado em todos os caminhos de ligação. | `(slot, target)` → `InternalStructureDefinition`. |
 | `[NOVO]` | `CollectionTypeLinkMenu` | Dynamic Collection Type Linking | Menu flutuante na porta de saída com ligação actual e lista «Compatible [Type] Nodes». | Props de âncora, nós compatíveis, callbacks `onSelect` / `onClose`. |
-| `[NOVO]` | `resolveInternalStructureLabelFromTarget` | Dynamic Collection Type Linking | Obtém o rótulo do slot a partir do `title` do nó alvo (fallback: `schema.id`). | `(target: CanvasNode)` → `string`. |
-| `[NOVO]` | `patchInternalStructureSlotForLink` | Dynamic Collection Type Linking | Sincroniza `schemaId` e `name` do slot com o nó ligado. | `(slot, target)` → `InternalStructureDefinition`. |
-| `[NOVO]` | `relinkInternalStructureSlot` | Dynamic Collection Type Linking | Actualiza slot (`schemaId` + `name`) e substitui a conexão no grafo. | `(fromNodeId, structureId, targetNodeId)` → `void`. |
-| `[ATUALIZADO]` | `GraphCanvas.tsx` | Dynamic Collection Type Linking | Clique curto abre menu; drag, highlight e paleta usam `collectionType` em vez de só `schema.id`. | Novas props `onRelinkInternalStructure`; estado `collectionTypeLinkMenu`. |
-| `[ATUALIZADO]` | `useSceneHistory.ts` | Dynamic Collection Type Linking | `connectNodes`, `createChildNode` e `relinkInternalStructureSlot` usam `patchInternalStructureSlotForLink` para o card reflectir o `title` do alvo. | Callbacks no retorno do hook. |
+| `[NOVO]` | `relinkInternalStructureSlot` | Dynamic Collection Type Linking | Religa slot a outro nó do mesmo `collectionType` e sincroniza metadados do slot. | `(fromNodeId, structureId, targetNodeId)` → `void`. |
+| `[ATUALIZADO]` | `connectNodes` | Sincronização de rótulo do slot | Além da aresta, actualiza `internalStructures` do pai via `patchInternalStructureSlotForLink`. | `(connection: CanvasConnection)` → `void`. |
+| `[ATUALIZADO]` | `createChildNode` | Sincronização de rótulo do slot | Ao criar filho, o slot no pai recebe `name` e `schemaId` do título/id da instância criada. | `(fromNodeId, slot, placement?)` → `void`. |
+| `[ATUALIZADO]` | `GraphCanvas.tsx` | Dynamic Collection Type Linking | Clique curto abre menu; drag, highlight e paleta usam `collectionType`. | `onRelinkInternalStructure`; estado `collectionTypeLinkMenu`. |
+| `[ATUALIZADO]` | `InternalStructureItem.tsx` | Sincronização de rótulo do slot | Exibe `structure.name` no card (valor persistido após ligação). | Prop `structure`; render de rótulo. |
 | `[ATUALIZADO]` | `App.tsx` | Dynamic Collection Type Linking | Liga `relinkInternalStructureSlot` ao `GraphCanvas`. | Prop `onRelinkInternalStructure`. |
 
 ## 6. Descrição Detalhada de Funcionamento
 
-[NOVO] A feature introduz linking contextual por `nomenclature.collectionType`. Antes, uma `internalStructure` só aceitava alvos cujo `node.schema.id` era igual ao `schemaId` do slot — bloqueando, por exemplo, ligar um slot genérico `Emitter` a instâncias importadas `vfx-em-*` que partilham o mesmo tipo semântico.
+[NOVO] A feature introduz linking contextual por `nomenclature.collectionType`. Antes, uma `internalStructure` só aceitava alvos cujo `node.schema.id` era igual ao `schemaId` do slot — bloqueando ligar um slot genérico `Emitter` a instâncias importadas `vfx-em-*` com o mesmo tipo semântico.
 
-[NOVO] O módulo `collectionTypeLinking.ts` centraliza a regra: `getNodesByCollectionType` percorre `scene.nodes`; `resolveCollectionTypeForInternalStructure` obtém o tipo a partir do registry do `schemaId` do slot ou, em fallback, do nó já ligado; `nodesShareCollectionType` mantém compatibilidade com schemas legados sem nomenclatura (comparação estrita por `id`).
+[NOVO] O módulo `collectionTypeLinking.ts` centraliza as regras: `getNodesByCollectionType` percorre `scene.nodes`; `resolveCollectionTypeForInternalStructure` resolve o tipo do slot; `nodesShareCollectionType` mantém fallback estrito por `id` para schemas legados.
 
-[NOVO] `CollectionTypeLinkMenu` abre em portal fixo ao clicar na porta de saída com deslocamento inferior a 12px (`DROP_TO_OPEN_LINK_PALETTE_PX`). Mostra a ligação actual (ou «Sem ligação»), o rótulo **Compatible [Type] Nodes** e os demais nós do mesmo tipo no grafo (excluindo o nó pai).
+[NOVO] `CollectionTypeLinkMenu` abre ao clicar na porta de saída com deslocamento inferior a 12px. Lista a ligação actual, o cabeçalho **Compatible [Type] Nodes** e candidatos do mesmo `collectionType` no grafo.
 
-[ATUALIZADO] Ao seleccionar um alvo, `relinkInternalStructureSlot` actualiza atomicamente o `schemaId` e o `name` do slot em `logic.json` (o `name` passa a ser o `title` do nó alvo, ex.: «Emitter · Additive Flame Wave») e a aresta correspondente em `graph.json` via `syncSceneToDisk` em dev.
+[NOVO] `resolveInternalStructureLabelFromTarget` e `patchInternalStructureSlotForLink` garantem que o card do nó pai mostre o título real do alvo (ex.: «Emitter · Additive Flame Wave» em vez de «Emitter» genérico). O rótulo vem de `target.node.schema.title` e é persistido em `logic.json` no campo `internalStructures[].name`, consumido por `InternalStructureItem` no card.
 
-[ATUALIZADO] O fluxo de drag mantém-se: soltar num input compatível chama `connectNodes`, que também sincroniza `name` e `schemaId` no card do pai; soltar na grade vazia com drag longo abre a paleta filtrada por `schemaMatchesCollectionType`; criar filho actualiza slot e rótulo no pai com o título da instância criada.
+[ATUALIZADO] `relinkInternalStructureSlot`, `connectNodes` e `createChildNode` aplicam `patchInternalStructureSlotForLink` de forma atómica: actualizam `schemaId`, `name` e a conexão em `graph.json`, seguido de `workspaceService.syncSceneToDisk` em modo dev.
 
-Tratamento de erros: se não for possível resolver `collectionType`, o menu não abre e o comportamento de drag recai no fallback por `schema.id`. Nós inexistentes ou slots inválidos são ignorados em `relinkInternalStructureSlot` sem alterar a cena. Não houve alterações a `linked_parameter_values` nesta branch.
+[ATUALIZADO] O fluxo de drag mantém-se: soltar num input compatível usa `nodesShareCollectionType`; paleta ao soltar na grade filtra por `schemaMatchesCollectionType`; criar filho alinha slot e rótulo no pai.
+
+Tratamento de erros: sem `collectionType` resolvido, o menu não abre e o drag usa fallback por `schema.id`. Nós ou slots inválidos são ignorados sem alterar a cena. `removeConnection` não repõe o nome genérico anterior. Não houve alterações a `linked_parameter_values` nesta branch.
