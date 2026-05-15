@@ -9,7 +9,7 @@ Arquivo salvo em: `feature_md/feat/inspector-hash-string.md`
 | Nome da Branch | `feat/inspector-hash-string` |
 | Nome das Features | hashString (Inspector, modo Configurar) |
 | Versão atual | `1.4.0` |
-| Hash do Commit | _(ver segundo commit na branch ou `git log -1 --format=%H`)_ |
+| Hash do Commit | `16a4edeb7566ac2669f0aafb5891141d122f9980` |
 
 ## 2. Definição e Resumo de Tags
 
