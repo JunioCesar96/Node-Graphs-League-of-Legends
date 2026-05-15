@@ -4,6 +4,7 @@ import type { CSSProperties, PointerEvent, ReactNode } from 'react'
 import { AddNodePalette } from '@/components/organisms/AddNodePalette'
 import { NodeCard } from '@/components/organisms/NodeCard'
 import type { CanvasConnection, CanvasNode, CanvasPosition, CanvasScene } from '@/core/canvasScene'
+import type { NodeElementListItem } from '@/core/listNodeElements'
 import type { InternalStructureDefinition, NodeParameterDefinition, NodeSchemaDefinition } from '@/core/nodeSchema'
 import { filterInternalStructuresByPathHierarchy } from '@/core/pathHierarchyInternalStructures'
 import { schemaRegistry } from '@/core/nodeStructureRegistry'
@@ -76,6 +77,7 @@ type GraphCanvasProps = {
     structure: InternalStructureDefinition,
   ) => void
   onCatalogParameterAppend?: (canvasNodeId: string, definition: NodeParameterDefinition) => void
+  onRequestRemoveElement?: (canvasNodeId: string, item: NodeElementListItem) => void
   /** Com seleção: limpa todos os nós. Sem seleção: delega seleccionar todos. */
   onClearSelection?: () => void
   onSelectAllNodesShortcut?: () => void
@@ -455,6 +457,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     hints,
     onAppendCatalogInternalStructure,
     onCatalogParameterAppend,
+    onRequestRemoveElement,
     onClearSelection,
     onSelectAllNodesShortcut,
     onSelectNode,
@@ -1582,6 +1585,11 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
                     : undefined
                 }
                 onCreateElement={(entity) => onCreateChildNode(canvasNode.id, entity)}
+                onRequestRemoveElement={
+                  onRequestRemoveElement
+                    ? (item) => onRequestRemoveElement(canvasNode.id, item)
+                    : undefined
+                }
                 onInputPortClick={() => completeLink(canvasNode)}
                 onOutputWireKeyboard={(entity) => handleOutputWireKeyboard(canvasNode.id, entity)}
                 onOutputWirePointerCancel={handleOutputWirePointerCancel}

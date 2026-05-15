@@ -61,7 +61,13 @@ import { resolveLinkedPairForDisk } from '@/core/linked_parameter_values'
 import { link_parameter_value_partner } from '@/core/link_parameter_value'
 import { parseSceneDocument, serializeScene } from '@/core/leagueBinScene'
 import {
+  countElementDependencies,
+  formatElementDependencyWarning,
+  type NodeElementListItem,
+} from '@/core/listNodeElements'
+import {
   MESSENGER_CONFIRM_NODE_CONFIGURATION_MODE,
+  MESSENGER_CONFIRM_REMOVE_NODE_ELEMENT,
   MESSENGER_CONFIRM_TOGGLE_REQUIRED_PARAMETER,
 } from '@/messenger_popup/messengerCatalog'
 import { useMessengerPopup } from '@/messenger_popup/MessengerPopupProvider'
@@ -184,6 +190,8 @@ function App() {
     replaceScene,
     addDynamicInternalStructureSlot,
     addDynamicParameter,
+    removeCanvasParameter,
+    removeCanvasInternalStructure,
   } = useSceneHistory({ extendSchemaLookup })
 
   const { showConfirmByCatalogId } = useMessengerPopup()
@@ -1312,6 +1320,28 @@ function App() {
     [mergedBaseParameterCatalogBySchemaId, primarySelectedId, scene.nodes, showConfirmByCatalogId, toggleSelectedParameterRequired],
   )
 
+  const handleRequestRemoveNodeElement = useCallback(
+    (canvasNodeId: string, item: NodeElementListItem) => {
+      const dependencyCount = countElementDependencies(scene, canvasNodeId, item.id, item.kind)
+      const connectionWarning = formatElementDependencyWarning(dependencyCount)
+
+      showConfirmByCatalogId(MESSENGER_CONFIRM_REMOVE_NODE_ELEMENT, {
+        replacements: {
+          connectionWarning,
+          elementName: item.name,
+        },
+        onConfirm: () => {
+          if (item.kind === 'parameter') {
+            removeCanvasParameter(canvasNodeId, item.id)
+            return
+          }
+          removeCanvasInternalStructure(canvasNodeId, item.id)
+        },
+      })
+    },
+    [removeCanvasInternalStructure, removeCanvasParameter, scene, showConfirmByCatalogId],
+  )
+
   const persistLinkedParameterValuesToSchemaJson = useCallback(
     async (options: {
       parameterIdA: string
@@ -1488,6 +1518,7 @@ function App() {
             onCatalogParameterAppend={(canvasNodeId, definition) =>
               addDynamicParameter(canvasNodeId, definition)
             }
+            onRequestRemoveElement={handleRequestRemoveNodeElement}
             onCloseCodePanelShortcut={handleCloseCodeDock}
             onConnectNodes={connectNodes}
             onCreateChildNode={createChildNode}

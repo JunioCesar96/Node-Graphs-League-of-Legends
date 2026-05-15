@@ -13,6 +13,12 @@
       "kind": "confirm"
     },
     {
+      "id": "confirm_remove_node_element",
+      "message": "Tem certeza que deseja excluir o elemento «{elementName}»?{connectionWarning}",
+      "durationMs": null,
+      "kind": "confirm"
+    },
+    {
       "id": "example_toast_saved",
       "message": "Alterações guardadas.",
       "durationMs": 4000,

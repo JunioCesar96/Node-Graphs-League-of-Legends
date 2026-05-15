@@ -1,14 +1,16 @@
-import { useEffect, useId, useRef, useState, useCallback } from 'react'
+import { useId, useRef, useState, useCallback } from 'react'
 import type {
   MouseEvent as ReactMouseEvent,
   PointerEvent as ReactPointerEvent,
   PointerEventHandler,
 } from 'react'
 
-import { Button } from '@/components/atoms/Button'
+import { ElementMenu } from '@/components/molecules/ElementMenu'
+import { ElementRemovalPicker } from '@/components/molecules/ElementRemovalPicker'
 import { InternalStructureItem } from '@/components/molecules/InternalStructureItem'
 import { NodeHeader } from '@/components/molecules/NodeHeader'
 import { ParameterItem } from '@/components/molecules/ParameterItem'
+import { listNodeElements, type NodeElementListItem } from '@/core/listNodeElements'
 import type { InternalStructureDefinition, NodeInstance, NodeParameterDefinition } from '@/core/nodeSchema'
 
 import styles from './NodeCard.module.css'
@@ -25,6 +27,7 @@ type NodeCardProps = {
   onAppendCatalogInternalStructure?: (structure: InternalStructureDefinition) => void
   onAppendCatalogParameter?: (parameter: NodeParameterDefinition) => void
   onCreateElement?: (structure: InternalStructureDefinition) => void
+  onRequestRemoveElement?: (item: NodeElementListItem) => void
   onInputPortClick?: () => void
   onOutputWireKeyboard?: (structure: InternalStructureDefinition) => void
   onOutputWirePointerCancel?: (
@@ -71,6 +74,7 @@ export function NodeCard({
   onAppendCatalogInternalStructure,
   onAppendCatalogParameter,
   onCreateElement,
+  onRequestRemoveElement,
   onInputPortClick,
   onOutputWireKeyboard,
   onOutputWirePointerCancel,
@@ -84,9 +88,9 @@ export function NodeCard({
   parameterHints,
   selected = false,
 }: NodeCardProps) {
-  const elementSelectorRef = useRef<HTMLDetailsElement>(null)
-  const [isElementSelectorOpen, setIsElementSelectorOpen] = useState(false)
+  const [removalPickerOpen, setRemovalPickerOpen] = useState(false)
   const sectionId = useId()
+  const removalPickerTitleId = `${sectionId}-element-removal-title`
 
   const parameterRowRefs = useRef(new Map<string, HTMLLIElement>())
   const registerParameterRowRef = useCallback((parameterId: string, element: HTMLLIElement | null) => {
@@ -183,32 +187,7 @@ export function NodeCard({
   const showElementPicker =
     !isModule && (presetStructureCount > 0 || hasCatalogStructures || hasCatalogParameters)
 
-  useEffect(() => {
-    if (!isElementSelectorOpen) {
-      return
-    }
-
-    const closeOnOutsideClick = (event: MouseEvent) => {
-      const target = event.target as Node
-
-      if (!elementSelectorRef.current?.contains(target)) {
-        setIsElementSelectorOpen(false)
-      }
-    }
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setIsElementSelectorOpen(false)
-      }
-    }
-
-    document.addEventListener('mousedown', closeOnOutsideClick)
-    document.addEventListener('keydown', closeOnEscape)
-
-    return () => {
-      document.removeEventListener('mousedown', closeOnOutsideClick)
-      document.removeEventListener('keydown', closeOnEscape)
-    }
-  }, [isElementSelectorOpen])
+  const removables = listNodeElements(node)
 
   return (
     <article className={styles.card} aria-label={`${node.schema.title} node`}>
@@ -281,77 +260,37 @@ export function NodeCard({
           </ul>
         </section>
 
-        {isModule ? (
-          <Button
-            disabled
-            title="Nó módulo: catálogo dinâmico (+ Elemento) será activado numa fase futura."
-            type="button"
-          >
-            + Elemento
-          </Button>
-        ) : showElementPicker ? (
-          <details className={styles.elementSelector} open={isElementSelectorOpen} ref={elementSelectorRef}>
-            <summary
-              onClick={(clickEvent) => {
-                clickEvent.preventDefault()
-                setIsElementSelectorOpen((openState) => !openState)
-              }}
-            >
-              + Elemento
-            </summary>
-            <div className={styles.elementMenu}>
-              {node.schema.internalStructures.map((structure) => (
-                <button
-                  key={structure.id}
-                  onClick={() => {
-                    onCreateElement?.(structure)
-                    setIsElementSelectorOpen(false)
-                  }}
-                  type="button"
-                >
-                  <span>{structure.name}</span>
-                  <small>{structure.schemaId}</small>
-                </button>
-              ))}
+        <ElementMenu
+          catalogInternalStructures={catalogInternalStructures}
+          catalogParameters={catalogParameters}
+          disabled={isModule}
+          disabledTitle="Nó módulo: catálogo dinâmico (Element) será activado numa fase futura."
+          hasCatalogParameters={Boolean(hasCatalogParameters)}
+          hasCatalogStructures={Boolean(hasCatalogStructures)}
+          node={node}
+          onAppendCatalogInternalStructure={onAppendCatalogInternalStructure}
+          onAppendCatalogParameter={onAppendCatalogParameter}
+          onCreateElement={onCreateElement}
+          onRemoveElement={
+            onRequestRemoveElement && removables.length > 0
+              ? () => setRemovalPickerOpen(true)
+              : undefined
+          }
+          showPicker={showElementPicker}
+        />
 
-              {hasCatalogStructures
-                ? catalogInternalStructures?.map((structure) => (
-                    <button
-                      key={`catalog-is:${structure.schemaId}:${structure.name}`}
-                      onClick={() => {
-                        onAppendCatalogInternalStructure?.(structure)
-                        setIsElementSelectorOpen(false)
-                      }}
-                      type="button"
-                    >
-                      <span>{structure.name}</span>
-                      <small>Internal_Structure · {structure.schemaId}</small>
-                    </button>
-                  ))
-                : null}
+        <ElementRemovalPicker
+          elements={removables}
+          nodeTitle={node.schema.title}
+          onClose={() => setRemovalPickerOpen(false)}
+          onPick={(item) => {
+            setRemovalPickerOpen(false)
+            onRequestRemoveElement?.(item)
+          }}
+          open={removalPickerOpen}
+          titleDomId={removalPickerTitleId}
+        />
 
-              {hasCatalogParameters
-                ? catalogParameters?.map((parameter) => (
-                    <button
-                      key={`catalog-param:${parameter.type}:${parameter.name}:${parameter.defaultValue}`}
-                      onClick={() => {
-                        onAppendCatalogParameter?.(parameter)
-                        setIsElementSelectorOpen(false)
-                      }}
-                      type="button"
-                    >
-                      <span>{parameter.name}</span>
-                      <small>novo parâmetro · {parameter.type}</small>
-                    </button>
-                  ))
-                : null}
-            </div>
-          </details>
-        ) : (
-          <Button disabled title="Não há parâmetros nem Internal_Structures disponíveis para acrescentar.">
-            + Elemento
-          </Button>
-        )}
       </div>
     </article>
   )
