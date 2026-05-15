@@ -55,6 +55,14 @@
   text-transform: uppercase;
 }
 
+.chromeStripTitleRow {
+  display: flex;
+  flex: 1 1 auto;
+  gap: var(--space-1);
+  align-items: center;
+  min-width: 0;
+}
+
 .chromeStripTitle {
   flex: 1 1 auto;
   min-width: 0;
@@ -66,6 +74,62 @@
   line-height: 1.2;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.titleRow {
+  display: flex;
+  gap: var(--space-2);
+  align-items: baseline;
+}
+
+.hashStringButton {
+  flex-shrink: 0;
+  padding: 0 var(--space-1);
+  color: var(--color-text-primary);
+  font-family: var(--font-data);
+  font-size: 1rem;
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  transition:
+    opacity 140ms ease,
+    filter 140ms ease;
+}
+
+.hashStringButtonCompact {
+  padding: 0 2px;
+  font-size: 0.76rem;
+}
+
+.hashStringButtonIdle {
+  opacity: 0.38;
+}
+
+.hashStringButtonIdle:hover {
+  opacity: 1;
+  filter: brightness(1.12);
+}
+
+.hashStringButtonActive {
+  opacity: 0.95;
+}
+
+.hashStringButtonActive:hover {
+  opacity: 1;
+  filter: brightness(1.18);
+}
+
+.hashStringButton:focus-visible {
+  outline: 2px solid var(--port-child);
+  outline-offset: 2px;
+}
+
+.listItemHashSource {
+  border-radius: 12px;
+  box-shadow: inset 3px 0 0 0 rgb(187 143 206 / 85%);
 }
 
 .header {
@@ -265,23 +329,178 @@
   border-radius: var(--radius-control);
 }
 
+.paramListRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.paramListRowMain {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.requiredClip {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 1.65rem;
+  height: 1.65rem;
+  padding: 0;
+  cursor: pointer;
+  background: rgb(0 0 0 / 10%);
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-control);
+  transition:
+    color 160ms ease,
+    opacity 160ms ease,
+    border-color 160ms ease;
+}
+
+.requiredClipSvg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.requiredClipOff {
+  color: var(--color-text-muted);
+  opacity: 0.38;
+}
+
+.requiredClipOff:hover {
+  opacity: 0.72;
+  border-color: rgb(255 255 255 / 12%);
+}
+
+.requiredClipOn {
+  color: var(--syntax-keyword, #6cb6ff);
+  opacity: 1;
+  border-color: rgb(108 182 255 / 35%);
+  box-shadow: 0 0 0 1px rgb(108 182 255 / 18%);
+}
+
+.requiredClipOn:hover {
+  filter: brightness(1.08);
+}
+
+.valueLink {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 1.65rem;
+  height: 1.65rem;
+  padding: 0;
+  cursor: pointer;
+  background: rgb(0 0 0 / 10%);
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-control);
+  transition:
+    color 160ms ease,
+    opacity 160ms ease,
+    border-color 160ms ease;
+}
+
+.valueLinkSvg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.valueLinkOff {
+  color: var(--color-text-muted);
+  opacity: 0.38;
+}
+
+.valueLinkOff:hover {
+  opacity: 0.72;
+  border-color: rgb(255 255 255 / 12%);
+}
+
+.valueLinkOn {
+  color: var(--syntax-keyword, #6cb6ff);
+  opacity: 1;
+  border-color: rgb(108 182 255 / 35%);
+  box-shadow: 0 0 0 1px rgb(108 182 255 / 18%);
+}
+
+.valueLinkOn:hover {
+  filter: brightness(1.08);
+}
+
+.listOrderHandle {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  color: var(--color-text-muted);
+  cursor: grab;
+  background: rgb(0 0 0 / 12%);
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-control);
+}
+
+.listOrderHandle:hover {
+  color: var(--color-text-secondary);
+  border-color: rgb(255 255 255 / 14%);
+}
+
+.listOrderHandle:active {
+  cursor: grabbing;
+}
+
+.listOrderGrip {
+  display: block;
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+.listItem.listItemDropOver {
+  background: rgb(156 220 254 / 6%);
+  outline: 1px dashed rgb(156 220 254 / 35%);
+  outline-offset: 2px;
+  border-radius: var(--radius-control);
+}
+
 .actions {
   display: grid;
+  gap: var(--space-2);
 }
 
 .actions button {
   padding: var(--space-3) var(--space-4);
-  color: #ffb4ab;
-  background: rgb(255 84 73 / 10%);
-  border: 1px solid rgb(255 84 73 / 28%);
   border-radius: var(--radius-control);
 }
 
-.actions button:hover {
+.instanceAction {
+  color: var(--syntax-keyword, #6cb6ff);
+  background: rgb(108 182 255 / 10%);
+  border: 1px solid rgb(108 182 255 / 28%);
+}
+
+.instanceAction:hover {
+  border-color: rgb(108 182 255 / 58%);
+}
+
+.instanceAction:focus-visible {
+  outline: 2px solid var(--syntax-keyword, #6cb6ff);
+  outline-offset: 2px;
+}
+
+.deleteAction {
+  color: #ffb4ab;
+  background: rgb(255 84 73 / 10%);
+  border: 1px solid rgb(255 84 73 / 28%);
+}
+
+.deleteAction:hover {
   border-color: rgb(255 180 171 / 58%);
 }
 
-.actions button:disabled {
+.deleteAction:disabled {
   color: var(--color-text-muted);
   cursor: not-allowed;
   background: rgb(255 255 255 / 4%);
@@ -289,7 +508,7 @@
   opacity: 0.6;
 }
 
-.actions button:focus-visible {
+.deleteAction:focus-visible {
   outline: 2px solid #ffb4ab;
   outline-offset: 2px;
 }

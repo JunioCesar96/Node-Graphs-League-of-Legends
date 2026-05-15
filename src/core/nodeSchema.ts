@@ -47,8 +47,21 @@ export type NodeSchemaDefinition = {
   title: string
   parameters: NodeParameterDefinition[]
   internalStructures: InternalStructureDefinition[]
+  /** Opcional: parâmetros obrigatórios por defeito (copiados para novas instâncias). */
+  required_parameter?: string[]
+  /**
+   * Opcional: pares de ids (valor sincronizado no editor), persistidos no JSON do schema como `linked_parameter_values`.
+   * Usa os mesmos ids que `required_parameter` (incl. stubs na mesma pasta).
+   */
+  linked_parameter_values?: Array<readonly [string, string]>
   /** Opcional: classificação nominal para JSON exportado / Jade VFX. */
   nomenclature?: NodeStructureNomenclature
+  /**
+   * Opcional: cópia do valor do parâmetro string fonte (id em `hashStringParameterId`, alinhado a `required_parameter` / stubs).
+   */
+  hashString?: string
+  /** Opcional: id do parâmetro tipo `string` cuja cópia vive em `hashString`. */
+  hashStringParameterId?: string
 }
 
 export type NodeParameterValue = {
@@ -60,6 +73,13 @@ export type NodeInstance = {
   id: string
   schema: NodeSchemaDefinition
   values: NodeParameterValue[]
+  /** Instância: ids de parâmetros marcados como obrigatórios neste nó. */
+  required_parameter?: string[]
+  /** Pares de ids cujo valor é mantido sincronizado (ordem canónica por id). */
+  parameter_value_links?: Array<readonly [string, string]>
+  /** Espelho do valor string; `hashStringParameterId` usa o mesmo id de lista que no JSON do schema. */
+  hashString?: string
+  hashStringParameterId?: string
 }
 
 export const sampleNodeSchema = {

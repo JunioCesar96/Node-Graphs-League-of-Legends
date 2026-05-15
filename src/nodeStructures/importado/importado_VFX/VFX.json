@@ -18,5 +18,14 @@
       }
     ]
   },
-  "parameters": []
+  "parameters": [],
+  "required_parameter": [
+    "VFX_systemPath"
+  ],
+  "linked_parameter_values": [
+    [
+      "VFX_particleName",
+      "VFX_systemPath"
+    ]
+  ]
 }

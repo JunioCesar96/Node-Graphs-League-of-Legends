@@ -70,7 +70,8 @@
 }
 
 .menuItem,
-.menuItemDanger {
+.menuItemDanger,
+.menuItemConfig {
   padding: var(--space-2) var(--space-3);
   color: var(--color-text-primary);
   font-family: var(--font-ui);
@@ -91,6 +92,36 @@
 
 .menuItemDanger:hover {
   background: rgb(255 80 80 / 10%);
+}
+
+.menuItemConfig {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  color: rgb(255 211 105);
+}
+
+.menuItemConfig:hover {
+  background: rgb(255 211 105 / 10%);
+}
+
+.menuCheckbox {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 0.9rem;
+  height: 0.9rem;
+  border: 1px solid rgb(255 211 105 / 70%);
+  border-radius: 3px;
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 30%);
+}
+
+.menuCheckboxChecked::after {
+  width: 0.44rem;
+  height: 0.44rem;
+  content: '';
+  background: rgb(255 211 105);
+  border-radius: 2px;
 }
 
 .hiddenInput {

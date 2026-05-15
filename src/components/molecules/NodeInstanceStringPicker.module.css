@@ -1,0 +1,121 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10035;
+  display: grid;
+  place-items: center;
+  padding: var(--space-5);
+  background: rgb(0 0 0 / 44%);
+  backdrop-filter: blur(4px);
+}
+
+.dialog {
+  display: flex;
+  flex-direction: column;
+  width: min(400px, calc(100vw - 28px));
+  max-height: min(460px, calc(100vh - 48px));
+  padding: var(--space-4);
+  background: rgb(37 37 38 / 96%);
+  border: 1px solid var(--color-border-soft);
+  border-radius: 16px;
+  box-shadow:
+    0 24px 64px rgb(0 0 0 / 36%),
+    inset 0 1px 0 rgb(255 255 255 / 5%);
+}
+
+.title {
+  margin: 0 0 var(--space-1);
+  color: var(--color-text-primary);
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.subtitle {
+  margin: 0 0 var(--space-3);
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.list {
+  padding: 0;
+  margin: 0;
+  overflow: auto;
+  list-style: none;
+}
+
+.listItem {
+  margin-bottom: var(--space-1);
+}
+
+.pickRow {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  color: var(--color-text-primary);
+  text-align: left;
+  cursor: pointer;
+  background: rgb(0 0 0 / 14%);
+  border: 1px solid var(--color-border-soft);
+  border-radius: 10px;
+}
+
+.pickRow:hover {
+  border-color: rgb(108 182 255 / 35%);
+}
+
+.pickMain {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.pickName {
+  overflow: hidden;
+  font-size: 0.82rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pickValue {
+  overflow: hidden;
+  color: var(--color-text-muted);
+  font-family: var(--font-data);
+  font-size: 0.68rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pickRowMeta {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--syntax-keyword, #6cb6ff);
+  font-family: var(--font-data);
+  font-size: 0.7rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.closeRow {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--space-3);
+}
+
+.close {
+  padding: var(--space-2) var(--space-4);
+  color: var(--color-text-primary);
+  font-size: 0.82rem;
+  cursor: pointer;
+  background: rgb(255 255 255 / 6%);
+  border: 1px solid var(--color-border-soft);
+  border-radius: 999px;
+}
+
+.close:hover {
+  background: rgb(255 255 255 / 10%);
+}

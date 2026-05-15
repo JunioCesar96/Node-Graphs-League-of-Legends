@@ -1,0 +1,212 @@
+{
+  "version": 1,
+  "nodes": {
+    "particle-root-01": {
+      "id": "particle-root-01",
+      "schema": {
+        "id": "particle-root",
+        "title": "ParticleSystem",
+        "parameters": [
+          {
+            "id": "spawn-rate",
+            "name": "spawnRate",
+            "type": "integer",
+            "defaultValue": "42"
+          },
+          {
+            "id": "lifetime",
+            "name": "lifetime",
+            "type": "float",
+            "defaultValue": "3.14"
+          },
+          {
+            "id": "tint",
+            "name": "tintRGBA",
+            "type": "vector4",
+            "defaultValue": "1, 0.58, 0.1, 1"
+          }
+        ],
+        "internalStructures": [
+          {
+            "id": "emitter",
+            "name": "EmitterShape",
+            "schemaId": "emitter-shape"
+          },
+          {
+            "id": "force",
+            "name": "WorldForce",
+            "schemaId": "world-force"
+          }
+        ]
+      },
+      "values": [
+        {
+          "parameterId": "spawn-rate",
+          "value": "42"
+        },
+        {
+          "parameterId": "lifetime",
+          "value": "3.14"
+        },
+        {
+          "parameterId": "tint",
+          "value": "1, 0.58, 0.1, 1"
+        }
+      ]
+    },
+    "emitter-01": {
+      "id": "emitter-01",
+      "schema": {
+        "id": "emitter-shape",
+        "title": "EmitterShape",
+        "parameters": [
+          {
+            "id": "shape",
+            "name": "shape",
+            "type": "string",
+            "defaultValue": "\"cone\""
+          },
+          {
+            "id": "radius",
+            "name": "radius",
+            "type": "float",
+            "defaultValue": "1.25"
+          },
+          {
+            "id": "offset",
+            "name": "offset",
+            "type": "vector3",
+            "defaultValue": "0, 0.5, 0"
+          }
+        ],
+        "internalStructures": []
+      },
+      "values": [
+        {
+          "parameterId": "shape",
+          "value": "\"cone\""
+        },
+        {
+          "parameterId": "radius",
+          "value": "1.25"
+        },
+        {
+          "parameterId": "offset",
+          "value": "0, 0.5, 0"
+        }
+      ]
+    },
+    "emitter-alt-01": {
+      "id": "emitter-alt-01",
+      "schema": {
+        "id": "emitter-shape",
+        "title": "EmitterShape",
+        "parameters": [
+          {
+            "id": "shape",
+            "name": "shape",
+            "type": "string",
+            "defaultValue": "\"cone\""
+          },
+          {
+            "id": "radius",
+            "name": "radius",
+            "type": "float",
+            "defaultValue": "1.25"
+          },
+          {
+            "id": "offset",
+            "name": "offset",
+            "type": "vector3",
+            "defaultValue": "0, 0.5, 0"
+          }
+        ],
+        "internalStructures": []
+      },
+      "values": [
+        {
+          "parameterId": "shape",
+          "value": "\"sphere\""
+        },
+        {
+          "parameterId": "radius",
+          "value": "2.4"
+        },
+        {
+          "parameterId": "offset",
+          "value": "0, -0.25, 0"
+        }
+      ]
+    },
+    "force-01": {
+      "id": "force-01",
+      "schema": {
+        "id": "world-force",
+        "title": "WorldForce",
+        "parameters": [
+          {
+            "id": "gravity",
+            "name": "gravity",
+            "type": "vector3",
+            "defaultValue": "0, -9.8, 0"
+          },
+          {
+            "id": "drag",
+            "name": "drag",
+            "type": "float",
+            "defaultValue": "0.18"
+          }
+        ],
+        "internalStructures": [
+          {
+            "id": "falloff",
+            "name": "FalloffCurve",
+            "schemaId": "falloff-curve"
+          }
+        ]
+      },
+      "values": [
+        {
+          "parameterId": "gravity",
+          "value": "0, -9.8, 0"
+        },
+        {
+          "parameterId": "drag",
+          "value": "0.18"
+        }
+      ]
+    },
+    "falloff-01": {
+      "id": "falloff-01",
+      "schema": {
+        "id": "falloff-curve",
+        "title": "FalloffCurve",
+        "parameters": [
+          {
+            "id": "mode",
+            "name": "mode",
+            "type": "keyword",
+            "defaultValue": "smoothstep"
+          },
+          {
+            "id": "strength",
+            "name": "strength",
+            "type": "double",
+            "defaultValue": "0.845"
+          }
+        ],
+        "internalStructures": []
+      },
+      "values": [
+        {
+          "parameterId": "mode",
+          "value": "smoothstep"
+        },
+        {
+          "parameterId": "strength",
+          "value": "0.845"
+        }
+      ]
+    }
+  }
+}

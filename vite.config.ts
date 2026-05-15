@@ -5,6 +5,7 @@ import { loadEnv } from 'vite'
 import { defineConfig } from 'vitest/config'
 
 import { vitePluginNodeStructuresWrite } from './vite.plugin.nodeStructuresWrite'
+import { vitePluginWorkspaceSync } from './vite.plugin.workspaceSync'
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
@@ -33,7 +34,11 @@ export default defineConfig(({ mode }) => {
         '@jade': path.resolve(__dirname, '../Jade-League-Bin-Editor/src'),
       },
     },
-    plugins: [react(), vitePluginNodeStructuresWrite(path.resolve(__dirname))],
+    plugins: [
+      react(),
+      vitePluginNodeStructuresWrite(path.resolve(__dirname)),
+      vitePluginWorkspaceSync(path.resolve(__dirname)),
+    ],
     server: {
       proxy: {
         '^/api/jade(?:/|$)': {

@@ -1,14 +1,16 @@
-import { useEffect, useId, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState, useCallback } from 'react'
 import type {
   MouseEvent as ReactMouseEvent,
   PointerEvent as ReactPointerEvent,
   PointerEventHandler,
 } from 'react'
 
-import { Button } from '@/components/atoms/Button'
+import { ElementMenu } from '@/components/molecules/ElementMenu'
+import { ElementRemovalPicker } from '@/components/molecules/ElementRemovalPicker'
 import { InternalStructureItem } from '@/components/molecules/InternalStructureItem'
 import { NodeHeader } from '@/components/molecules/NodeHeader'
 import { ParameterItem } from '@/components/molecules/ParameterItem'
+import { listRemovableNodeElements, type NodeElementListItem } from '@/core/listNodeElements'
 import type { InternalStructureDefinition, NodeInstance, NodeParameterDefinition } from '@/core/nodeSchema'
 
 import styles from './NodeCard.module.css'
@@ -25,6 +27,7 @@ type NodeCardProps = {
   onAppendCatalogInternalStructure?: (structure: InternalStructureDefinition) => void
   onAppendCatalogParameter?: (parameter: NodeParameterDefinition) => void
   onCreateElement?: (structure: InternalStructureDefinition) => void
+  onRequestRemoveElement?: (item: NodeElementListItem) => void
   onInputPortClick?: () => void
   onOutputWireKeyboard?: (structure: InternalStructureDefinition) => void
   onOutputWirePointerCancel?: (
@@ -45,7 +48,13 @@ type NodeCardProps = {
   ) => void
   onSelect?: (event?: ReactMouseEvent<HTMLElement>) => void
   onStartDrag?: PointerEventHandler<HTMLElement>
+  /** Grava o valor de um parâmetro deste nó (card editável). */
+  onUpdateParameter?: (parameterId: string, value: string) => void
+  /** Reordena parâmetros no card durante o arrasto pelo nome (índice 1-based). */
+  onReorderNodeParameter?: (parameterId: string, oneBasedIndex: number) => void
   parameterHints?: Record<string, string>
+  /** Catálogo base do schema (stubs) — usado para resolver parâmetros obrigatórios na remoção. */
+  parameterStubCatalog?: readonly NodeParameterDefinition[]
   selected?: boolean
 }
 
@@ -67,6 +76,7 @@ export function NodeCard({
   onAppendCatalogInternalStructure,
   onAppendCatalogParameter,
   onCreateElement,
+  onRequestRemoveElement,
   onInputPortClick,
   onOutputWireKeyboard,
   onOutputWirePointerCancel,
@@ -75,12 +85,98 @@ export function NodeCard({
   onOutputWirePointerUp,
   onSelect,
   onStartDrag,
+  onUpdateParameter,
+  onReorderNodeParameter,
   parameterHints,
+  parameterStubCatalog,
   selected = false,
 }: NodeCardProps) {
-  const elementSelectorRef = useRef<HTMLDetailsElement>(null)
-  const [isElementSelectorOpen, setIsElementSelectorOpen] = useState(false)
+  const [removalPickerOpen, setRemovalPickerOpen] = useState(false)
+  const [removalSelectedKey, setRemovalSelectedKey] = useState<string | null>(null)
   const sectionId = useId()
+  const removalPickerTitleId = `${sectionId}-element-removal-title`
+
+  const parameterRowRefs = useRef(new Map<string, HTMLLIElement>())
+  const registerParameterRowRef = useCallback((parameterId: string, element: HTMLLIElement | null) => {
+    if (element) {
+      parameterRowRefs.current.set(parameterId, element)
+    } else {
+      parameterRowRefs.current.delete(parameterId)
+    }
+  }, [])
+
+  const nodeRef = useRef(node)
+  nodeRef.current = node
+
+  const onReorderRef = useRef(onReorderNodeParameter)
+  onReorderRef.current = onReorderNodeParameter
+
+  const dragParameterIdRef = useRef<string | null>(null)
+  const [dragParameterId, setDragParameterId] = useState<string | null>(null)
+
+  const handleParameterReorderPointerMove = useCallback(
+    (event: ReactPointerEvent<HTMLSpanElement>) => {
+      const reorder = onReorderRef.current
+      const draggedId = dragParameterIdRef.current
+      if (!reorder || !draggedId) {
+        return
+      }
+
+      const parameters = nodeRef.current.schema.parameters
+      const fromIndex = parameters.findIndex((parameter) => parameter.id === draggedId)
+      if (fromIndex < 0) {
+        return
+      }
+
+      let targetIndex = parameters.length - 1
+      for (let i = 0; i < parameters.length; i++) {
+        const rowElement = parameterRowRefs.current.get(parameters[i].id)
+        if (!rowElement) {
+          continue
+        }
+        const rect = rowElement.getBoundingClientRect()
+        const midY = rect.top + rect.height / 2
+        if (event.clientY < midY) {
+          targetIndex = i
+          break
+        }
+      }
+
+      if (targetIndex !== fromIndex) {
+        reorder(draggedId, targetIndex + 1)
+      }
+    },
+    [],
+  )
+
+  const endParameterReorderDrag = useCallback((event: ReactPointerEvent<HTMLSpanElement>) => {
+    try {
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.releasePointerCapture(event.pointerId)
+      }
+    } catch {
+      /** ignore */
+    }
+    dragParameterIdRef.current = null
+    setDragParameterId(null)
+  }, [])
+
+  const beginParameterReorderDrag = useCallback(
+    (parameterId: string, event: ReactPointerEvent<HTMLSpanElement>) => {
+      if (!onReorderNodeParameter || node.schema.parameters.length < 2) {
+        return
+      }
+      if (event.button !== 0) {
+        return
+      }
+      event.stopPropagation()
+      event.preventDefault()
+      dragParameterIdRef.current = parameterId
+      setDragParameterId(parameterId)
+      event.currentTarget.setPointerCapture(event.pointerId)
+    },
+    [onReorderNodeParameter, node.schema.parameters.length],
+  )
 
   const getParameterValue = (parameterId: string, fallback: string) => {
     return node.values.find((value) => value.parameterId === parameterId)?.value ?? fallback
@@ -95,32 +191,13 @@ export function NodeCard({
   const showElementPicker =
     !isModule && (presetStructureCount > 0 || hasCatalogStructures || hasCatalogParameters)
 
+  const removables = listRemovableNodeElements(node, parameterStubCatalog)
+
   useEffect(() => {
-    if (!isElementSelectorOpen) {
-      return
+    if (!removalPickerOpen) {
+      setRemovalSelectedKey(null)
     }
-
-    const closeOnOutsideClick = (event: MouseEvent) => {
-      const target = event.target as Node
-
-      if (!elementSelectorRef.current?.contains(target)) {
-        setIsElementSelectorOpen(false)
-      }
-    }
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setIsElementSelectorOpen(false)
-      }
-    }
-
-    document.addEventListener('mousedown', closeOnOutsideClick)
-    document.addEventListener('keydown', closeOnEscape)
-
-    return () => {
-      document.removeEventListener('mousedown', closeOnOutsideClick)
-      document.removeEventListener('keydown', closeOnEscape)
-    }
-  }, [isElementSelectorOpen])
+  }, [removalPickerOpen])
 
   return (
     <article className={styles.card} aria-label={`${node.schema.title} node`}>
@@ -140,14 +217,35 @@ export function NodeCard({
             Parameters
           </h3>
           <ul className={styles.list}>
-            {node.schema.parameters.map((parameter) => (
-              <ParameterItem
-                hint={parameterHints?.[parameter.name]}
-                key={parameter.id}
-                parameter={parameter}
-                value={getParameterValue(parameter.id, parameter.defaultValue)}
-              />
-            ))}
+            {node.schema.parameters.map((parameter) => {
+              const nameReorderHandlers =
+                onReorderNodeParameter && node.schema.parameters.length > 1
+                  ? {
+                      onPointerDown: (event: ReactPointerEvent<HTMLSpanElement>) =>
+                        beginParameterReorderDrag(parameter.id, event),
+                      onPointerMove: handleParameterReorderPointerMove,
+                      onPointerUp: endParameterReorderDrag,
+                      onLostPointerCapture: endParameterReorderDrag,
+                    }
+                  : undefined
+
+              return (
+                <ParameterItem
+                  hint={parameterHints?.[parameter.name]}
+                  isParameterReorderDragSource={dragParameterId === parameter.id}
+                  key={parameter.id}
+                  onCommitValue={
+                    onUpdateParameter
+                      ? (nextValue) => onUpdateParameter(parameter.id, nextValue)
+                      : undefined
+                  }
+                  parameter={parameter}
+                  parameterNameReorderHandlers={nameReorderHandlers}
+                  registerParameterRowRef={(rowElement) => registerParameterRowRef(parameter.id, rowElement)}
+                  value={getParameterValue(parameter.id, parameter.defaultValue)}
+                />
+              )
+            })}
           </ul>
         </section>
 
@@ -172,77 +270,40 @@ export function NodeCard({
           </ul>
         </section>
 
-        {isModule ? (
-          <Button
-            disabled
-            title="Nó módulo: catálogo dinâmico (+ Elemento) será activado numa fase futura."
-            type="button"
-          >
-            + Elemento
-          </Button>
-        ) : showElementPicker ? (
-          <details className={styles.elementSelector} open={isElementSelectorOpen} ref={elementSelectorRef}>
-            <summary
-              onClick={(clickEvent) => {
-                clickEvent.preventDefault()
-                setIsElementSelectorOpen((openState) => !openState)
-              }}
-            >
-              + Elemento
-            </summary>
-            <div className={styles.elementMenu}>
-              {node.schema.internalStructures.map((structure) => (
-                <button
-                  key={structure.id}
-                  onClick={() => {
-                    onCreateElement?.(structure)
-                    setIsElementSelectorOpen(false)
-                  }}
-                  type="button"
-                >
-                  <span>{structure.name}</span>
-                  <small>{structure.schemaId}</small>
-                </button>
-              ))}
+        <ElementMenu
+          catalogInternalStructures={catalogInternalStructures}
+          catalogParameters={catalogParameters}
+          disabled={isModule}
+          disabledTitle="Nó módulo: catálogo dinâmico (Element) será activado numa fase futura."
+          hasCatalogParameters={Boolean(hasCatalogParameters)}
+          hasCatalogStructures={Boolean(hasCatalogStructures)}
+          node={node}
+          onAppendCatalogInternalStructure={onAppendCatalogInternalStructure}
+          onAppendCatalogParameter={onAppendCatalogParameter}
+          onCreateElement={onCreateElement}
+          onRemoveElement={
+            onRequestRemoveElement && removables.length > 0
+              ? () => setRemovalPickerOpen(true)
+              : undefined
+          }
+          parameterStubCatalog={parameterStubCatalog}
+          showPicker={showElementPicker}
+        />
 
-              {hasCatalogStructures
-                ? catalogInternalStructures?.map((structure) => (
-                    <button
-                      key={`catalog-is:${structure.schemaId}:${structure.name}`}
-                      onClick={() => {
-                        onAppendCatalogInternalStructure?.(structure)
-                        setIsElementSelectorOpen(false)
-                      }}
-                      type="button"
-                    >
-                      <span>{structure.name}</span>
-                      <small>Internal_Structure · {structure.schemaId}</small>
-                    </button>
-                  ))
-                : null}
+        <ElementRemovalPicker
+          elements={removables}
+          nodeTitle={node.schema.title}
+          onClose={() => setRemovalPickerOpen(false)}
+          onConfirm={(item) => {
+            setRemovalPickerOpen(false)
+            onRequestRemoveElement?.(item)
+          }}
+          onSelectKey={setRemovalSelectedKey}
+          open={removalPickerOpen}
+          selectedKey={removalSelectedKey}
+          titleDomId={removalPickerTitleId}
+        />
 
-              {hasCatalogParameters
-                ? catalogParameters?.map((parameter) => (
-                    <button
-                      key={`catalog-param:${parameter.type}:${parameter.name}:${parameter.defaultValue}`}
-                      onClick={() => {
-                        onAppendCatalogParameter?.(parameter)
-                        setIsElementSelectorOpen(false)
-                      }}
-                      type="button"
-                    >
-                      <span>{parameter.name}</span>
-                      <small>novo parâmetro · {parameter.type}</small>
-                    </button>
-                  ))
-                : null}
-            </div>
-          </details>
-        ) : (
-          <Button disabled title="Não há parâmetros nem Internal_Structures disponíveis para acrescentar.">
-            + Elemento
-          </Button>
-        )}
       </div>
     </article>
   )

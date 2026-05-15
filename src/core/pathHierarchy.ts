@@ -1,4 +1,4 @@
-import type { NomenclaturePathSegment } from '@/core/nodeSchema'
+import type { NomenclaturePathSegment } from './nodeSchema'
 
 /** Cópia defensiva da pilha no momento em que o nó é criado (nome `fx_pathHierarchy` do doc). */
 export function fx_pathHierarchy(stack: readonly NomenclaturePathSegment[]): NomenclaturePathSegment[] {
