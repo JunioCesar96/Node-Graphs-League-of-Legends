@@ -9,7 +9,7 @@ Arquivo salvo em: `feature_md/feat-workspace-disk-persistence.md`
 | Nome da Branch | `feat/workspace-disk-persistence` |
 | Nome das Features | Workspace Disk Persistence |
 | Versao atual | `1.4.0` |
-| Hash do Commit | `TBD` |
+| Hash do Commit | `394598e085160d77fdf0a41d9b84bd6f61580200` |
 
 ## 2. Definicao e Resumo de Tags
 
