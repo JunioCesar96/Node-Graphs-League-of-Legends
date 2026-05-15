@@ -15,6 +15,7 @@ import {
   linked_parameter_values_apply_to_instance,
   translateDiskLinkedPairsToCanvas,
 } from './linked_parameter_values'
+import { hydrateInstanceHashStringFields } from './hashString'
 
 const modules = import.meta.glob<{ default: unknown }>('../nodeStructures/**/*.json', { eager: true })
 
@@ -130,6 +131,60 @@ function mergeLinkedParameterValuesFromStructureJson(
   }
 
   return { ...schema, linked_parameter_values: filtered }
+}
+
+function mergeHashStringFromStructureJson(
+  schema: NodeSchemaDefinition,
+  raw: unknown,
+  stubCatalog: NodeParameterDefinition[],
+): NodeSchemaDefinition {
+  if (!isStructureJsonRecord(raw) || !('hashStringParameterId' in raw)) {
+    return schema
+  }
+
+  const idRaw = raw.hashStringParameterId
+  if (idRaw === undefined || idRaw === null) {
+    return schema
+  }
+
+  if (typeof idRaw !== 'string') {
+    console.warn(`[nodeStructures] hashStringParameterId inválido em "${schema.id}", ignorado`)
+    return schema
+  }
+
+  const id = idRaw.trim()
+  if (id.length === 0) {
+    const next: NodeSchemaDefinition = { ...schema }
+    delete next.hashString
+    delete next.hashStringParameterId
+    return next
+  }
+
+  const inlineIds = new Set(schema.parameters.map((parameter) => parameter.id))
+  const catalogIds = new Set(stubCatalog.map((parameter) => parameter.id))
+  const allowed = new Set([...inlineIds, ...catalogIds])
+
+  if (!allowed.has(id)) {
+    console.warn(`[nodeStructures] hashStringParameterId "${id}" desconhecido em "${schema.id}", ignorado`)
+    return schema
+  }
+
+  const def =
+    schema.parameters.find((parameter) => parameter.id === id) ??
+    stubCatalog.find((parameter) => parameter.id === id)
+
+  if (!def || def.type !== 'string') {
+    console.warn(`[nodeStructures] hashStringParameterId "${id}" não é string em "${schema.id}", ignorado`)
+    return schema
+  }
+
+  const hashFromFile = typeof raw.hashString === 'string' ? raw.hashString : def.defaultValue
+
+  return {
+    ...schema,
+    hashStringParameterId: id,
+    hashString: hashFromFile,
+  }
 }
 
 function pathSegmentsUnderNodeStructures(modulePath: string): string[] {
@@ -378,6 +433,7 @@ function buildRegistry(): {
     const catalog = schemaBaseParameterCatalogBySchemaId[schemaId] ?? []
     registry[schemaId] = mergeRequiredParameterIdsFromStructureJson(registry[schemaId]!, mod.default, catalog)
     registry[schemaId] = mergeLinkedParameterValuesFromStructureJson(registry[schemaId]!, mod.default, catalog)
+    registry[schemaId] = mergeHashStringFromStructureJson(registry[schemaId]!, mod.default, catalog)
   }
 
   validateInternalStructureRefs(registry)
@@ -469,6 +525,16 @@ export function createNodeInstanceFromRegistry(
     }
   }
 
+  const hashListId = schemaClone.hashStringParameterId
+  if (typeof hashListId === 'string' && hashListId.length > 0) {
+    if (!schemaClone.parameters.some((parameter) => parameter.id === hashListId)) {
+      const stub = catalog.find((parameter) => parameter.id === hashListId)
+      if (stub) {
+        schemaClone.parameters.push(structuredClone(stub))
+      }
+    }
+  }
+
   const instance: NodeInstance = {
     id: instanceId,
     schema: schemaClone,
@@ -492,17 +558,20 @@ export function createNodeInstanceFromRegistry(
       schemaClone.linked_parameter_values.length > 0 &&
       canvasLinks.length === 0
     ) {
-      return instance
+      return hydrateInstanceHashStringFields(instance, catalog)
     }
-    return linked_parameter_values_apply_to_instance(
-      instance,
-      canvasLinks,
-      schemaClone.linked_parameter_values,
+    return hydrateInstanceHashStringFields(
+      linked_parameter_values_apply_to_instance(
+        instance,
+        canvasLinks,
+        schemaClone.linked_parameter_values,
+        catalog,
+      ),
       catalog,
     )
   }
 
-  return instance
+  return hydrateInstanceHashStringFields(instance, catalog)
 }
 
 export function createNodeInstance(schemaId: string, instanceId: string): NodeInstance | null {

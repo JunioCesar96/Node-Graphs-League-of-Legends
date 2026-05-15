@@ -7,6 +7,7 @@ import { ParameterValueInput } from '@/components/molecules/ParameterValueInput'
 import type { CanvasNode } from '@/core/canvasScene'
 import { fx_required_parameter_isMarked } from '@/core/fx_required_parameter'
 import { link_parameter_value_is_linked } from '@/core/link_parameter_value'
+import { parameterMatchesHashStringSource } from '@/core/hashString'
 import type { NodeParameterDefinition } from '@/core/nodeSchema'
 
 import styles from './NodeInspector.module.css'
@@ -29,10 +30,10 @@ type NodeInspectorProps = {
   onPromptToggleRequiredParameter?: (parameterId: string) => void
   /** Abre o diálogo para vincular o valor deste parâmetro a outro do mesmo tipo (`link_parameter_value`). */
   onOpenParameterValueLinkPicker?: (parameterId: string) => void
-  /** Fluxo hashString: validar parâmetros string e escolher base. */
-  onAddHashStringInNode?: () => void
   /** Catálogo de stubs do mesmo pack (nós base); usado para alinhar ids com o JSON em disco. */
   parameterStubCatalog?: readonly NodeParameterDefinition[]
+  /** Modo Configurar: abre fluxo para escolher parâmetro string fonte da hashString. */
+  onAddHashStringInNode?: () => void
   /** True quando o painel está dentro da régua «Canvas viewport controls». */
   viewportDocked?: boolean
 }
@@ -42,36 +43,22 @@ type DockedFloatingPlacement = null | 'toolbarAnchoredFloating'
 
 const PARAMETER_DRAG_MIME = 'application/x-node-graph-parameter-id'
 
-function getParameterValue(node: CanvasNode, parameterId: string, fallback: string) {
-  return node.node.values.find((value) => value.parameterId === parameterId)?.value ?? fallback
-}
-
-function hashStringBindingActive(node: CanvasNode): boolean {
-  const id = node.node.hashString
-  if (!id) {
-    return false
-  }
-  return node.node.schema.parameters.some((p) => p.id === id && p.type === 'string')
-}
-
-function InspectorHashStringButton({
+function HashStringInspectorButton({
   active,
+  compact,
   onClick,
 }: {
   active: boolean
-  onClick?: () => void
+  compact?: boolean
+  onClick: () => void
 }) {
-  if (!onClick) {
-    return null
-  }
-
   return (
     <button
       aria-label="Definir hashString a partir de um parâmetro string"
-      aria-pressed={active}
       className={[
         styles.hashStringButton,
-        active ? styles.hashStringButtonActive : styles.hashStringButtonMuted,
+        compact ? styles.hashStringButtonCompact : '',
+        active ? styles.hashStringButtonActive : styles.hashStringButtonIdle,
       ]
         .filter(Boolean)
         .join(' ')}
@@ -79,12 +66,15 @@ function InspectorHashStringButton({
         event.stopPropagation()
         onClick()
       }}
-      onPointerDown={(event) => event.stopPropagation()}
       type="button"
     >
       #
     </button>
   )
+}
+
+function getParameterValue(node: CanvasNode, parameterId: string, fallback: string) {
+  return node.node.values.find((value) => value.parameterId === parameterId)?.value ?? fallback
 }
 
 function ParameterOrderDragHandle({
@@ -191,12 +181,18 @@ function SelectedNodeInspectorBody({
               parameterStubCatalog,
             )
             const parameterValueLinked = link_parameter_value_is_linked(node.node, parameter.id)
+            const hashSource = parameterMatchesHashStringSource(
+              parameter.id,
+              node.node,
+              parameterStubCatalog,
+            )
 
             return (
             <li
               className={[
                 styles.listItem,
                 dragOverIndex === parameterIndex ? styles.listItemDropOver : '',
+                hashSource ? styles.listItemHashSource : '',
               ]
                 .filter(Boolean)
                 .join(' ')}
@@ -458,13 +454,17 @@ export function NodeInspector({
   onSwapParameterPositions,
   onPromptToggleRequiredParameter,
   onOpenParameterValueLinkPicker,
-  onAddHashStringInNode,
   parameterStubCatalog,
+  onAddHashStringInNode,
   viewportDocked = false,
 }: NodeInspectorProps) {
   const commitParameter = (parameterId: string, value: string) => {
     onUpdateParameter(parameterId, value)
   }
+
+  const hashBindingActive = Boolean(
+    node && (node.node.hashStringParameterId ?? node.node.schema.hashStringParameterId),
+  )
 
   const dockedFloating: DockedFloatingPlacement =
     !minimized && viewportDocked ? 'toolbarAnchoredFloating' : null
@@ -585,6 +585,13 @@ export function NodeInspector({
           type="button"
         >
           <span className={styles.minimizedIcon}>N</span>
+          {nodeConfigurationMode && onAddHashStringInNode ? (
+            <HashStringInspectorButton
+              active={hashBindingActive}
+              compact
+              onClick={onAddHashStringInNode}
+            />
+          ) : null}
           <span className={styles.minimizedText}>{node.node.schema.title}</span>
         </button>
         {dockPinButton}
@@ -625,10 +632,13 @@ export function NodeInspector({
             Nó
           </span>
           <div className={styles.chromeStripTitleRow}>
-            <InspectorHashStringButton
-              active={hashStringBindingActive(node)}
-              onClick={onAddHashStringInNode}
-            />
+            {nodeConfigurationMode && onAddHashStringInNode ? (
+              <HashStringInspectorButton
+                active={hashBindingActive}
+                compact
+                onClick={onAddHashStringInNode}
+              />
+            ) : null}
             <h2 className={styles.chromeStripTitle}>{node.node.schema.title}</h2>
           </div>
           <div className={styles.headerActions}>{inspectorToolbarActions}</div>
@@ -645,11 +655,10 @@ export function NodeInspector({
           <span className={styles.eyebrow} {...dragHandleProps}>
             Nó seleccionado
           </span>
-          <div className={styles.nodeTitleRow}>
-            <InspectorHashStringButton
-              active={hashStringBindingActive(node)}
-              onClick={onAddHashStringInNode}
-            />
+          <div className={styles.titleRow}>
+            {nodeConfigurationMode && onAddHashStringInNode ? (
+              <HashStringInspectorButton active={hashBindingActive} onClick={onAddHashStringInNode} />
+            ) : null}
             <h2 className={styles.title}>{node.node.schema.title}</h2>
           </div>
         </div>

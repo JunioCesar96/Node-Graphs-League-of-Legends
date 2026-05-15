@@ -146,18 +146,9 @@ export function hydrateScene(scene: CanvasScene): CanvasScene {
       }),
     ),
     nodes: scene.nodes.map((n) => {
-      const { hashString: incomingHashString, ...nodeWithoutHash } = n.node
-      const schemaClone = coerceEmbeddedSchema(structuredClone(n.node.schema))
-      const hashStringValid =
-        typeof incomingHashString === 'string' &&
-        incomingHashString.length > 0 &&
-        schemaClone.parameters.some((p) => p.id === incomingHashString && p.type === 'string')
-          ? incomingHashString
-          : undefined
-
       const nodeInstance: NodeInstance = {
-        ...nodeWithoutHash,
-        schema: schemaClone,
+        ...n.node,
+        schema: coerceEmbeddedSchema(structuredClone(n.node.schema)),
         values: structuredClone(n.node.values),
         ...(Array.isArray(n.node.required_parameter)
           ? { required_parameter: structuredClone(n.node.required_parameter) }
@@ -165,7 +156,10 @@ export function hydrateScene(scene: CanvasScene): CanvasScene {
         ...(Array.isArray(n.node.parameter_value_links)
           ? { parameter_value_links: structuredClone(n.node.parameter_value_links) }
           : {}),
-        ...(hashStringValid ? { hashString: hashStringValid } : {}),
+        ...(typeof n.node.hashString === 'string' ? { hashString: n.node.hashString } : {}),
+        ...(typeof n.node.hashStringParameterId === 'string'
+          ? { hashStringParameterId: n.node.hashStringParameterId }
+          : {}),
       }
 
       return {

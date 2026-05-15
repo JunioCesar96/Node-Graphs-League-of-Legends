@@ -1,5 +1,4 @@
 import { createPortal } from 'react-dom'
-import type { ReactNode } from 'react'
 
 import type { NodeParameterDefinition } from '@/core/nodeSchema'
 
@@ -14,34 +13,36 @@ export type NodeInstanceStringCandidate = {
 type NodeInstanceStringPickerProps = {
   candidates: NodeInstanceStringCandidate[]
   nodeTitle: string
-  /** Sobrescreve o título do diálogo (ex.: fluxo hashString vs instance). */
-  dialogTitle?: string
-  /** Sobrescreve o subtítulo. */
-  dialogSubtitle?: ReactNode
-  /** `aria-labelledby` do diálogo (único por instância aberta). */
-  ariaTitleId?: string
   onClose: () => void
   onPick: (parameterId: string) => void
   open: boolean
+  /** Título do diálogo (por defeito: Node Instance). */
+  dialogTitle?: string
+  /** Subtítulo; por defeito texto para criação de instância. */
+  dialogSubtitle?: string
+  /** `aria-labelledby` — ids únicos se vários diálogos na mesma página. */
+  titleDomId?: string
 }
 
 export function NodeInstanceStringPicker({
   candidates,
   nodeTitle,
-  dialogTitle,
-  dialogSubtitle,
-  ariaTitleId = 'node-instance-string-title',
   onClose,
   onPick,
   open,
+  dialogTitle,
+  dialogSubtitle,
+  titleDomId = 'node-instance-string-title',
 }: NodeInstanceStringPickerProps) {
   if (!open || typeof document === 'undefined') {
     return null
   }
 
+  const resolvedTitle = dialogTitle ?? 'Criar Node Instance'
+
   return createPortal(
     <div
-      aria-labelledby={ariaTitleId}
+      aria-labelledby={titleDomId}
       aria-modal="true"
       className={styles.backdrop}
       role="dialog"
@@ -52,11 +53,13 @@ export function NodeInstanceStringPicker({
       }}
     >
       <div className={styles.dialog}>
-        <h2 className={styles.title} id={ariaTitleId}>
-          {dialogTitle ?? 'Criar Node Instance'}
+        <h2 className={styles.title} id={titleDomId}>
+          {resolvedTitle}
         </h2>
         <p className={styles.subtitle}>
-          {dialogSubtitle ?? (
+          {dialogSubtitle !== undefined ? (
+            dialogSubtitle
+          ) : (
             <>
               Escolha qual parâmetro string de <strong>{nodeTitle}</strong> define o nome da nova instância.
             </>

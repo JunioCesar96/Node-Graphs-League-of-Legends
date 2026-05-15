@@ -63,7 +63,6 @@ import { parseSceneDocument, serializeScene } from '@/core/leagueBinScene'
 import {
   MESSENGER_CONFIRM_NODE_CONFIGURATION_MODE,
   MESSENGER_CONFIRM_TOGGLE_REQUIRED_PARAMETER,
-  MESSENGER_TOAST_HASH_STRING_REQUIRES_STRING_PARAM,
 } from '@/messenger_popup/messengerCatalog'
 import { useMessengerPopup } from '@/messenger_popup/MessengerPopupProvider'
 import { STORAGE_LAST_STRUCTURE_META, triggerJsonDownload } from '@/core/workspaceStorage'
@@ -78,6 +77,9 @@ import styles from './App.module.css'
 /** Notificação de teste ao carregar a app (cápsula consola / 3s). */
 const BOOT_CONSOLE_TEST_MESSAGE = 'Teste, console de notificação funcionado.'
 const BOOT_CONSOLE_TEST_SECONDS = 3
+
+const HASH_STRING_EMPTY_NOTICE =
+  'Você precisa adicionar um parâmetro do tipo string name em seu node, adicione para definir a hashString'
 
 type TooltipDictionary = Record<string, string>
 
@@ -165,10 +167,10 @@ function App() {
     deleteSelectedNodes,
     updateSelectedParameter,
     updateNodeParameter,
-    setNodeHashString,
     setNodeParameterOrder,
     swapSelectedNodeParameters,
     toggleSelectedParameterRequired,
+    applyHashStringSourceToSelectedNode,
     linkParameterValuePairForNode,
     unlinkParameterValueForNode,
     commitMarqueeSelection,
@@ -184,7 +186,7 @@ function App() {
     addDynamicParameter,
   } = useSceneHistory({ extendSchemaLookup })
 
-  const { showConfirmByCatalogId, showToastByCatalogId } = useMessengerPopup()
+  const { showConfirmByCatalogId } = useMessengerPopup()
 
   const availableSchemas = useMemo(() => Object.values(extendSchemaLookup), [extendSchemaLookup])
 
@@ -238,6 +240,7 @@ function App() {
   const [parameterValueLinkSourceId, setParameterValueLinkSourceId] = useState<null | string>(null)
   const [nodeInstanceStringPickerNodeId, setNodeInstanceStringPickerNodeId] = useState<null | string>(null)
   const [hashStringPickerNodeId, setHashStringPickerNodeId] = useState<null | string>(null)
+  const [hashStringNoticeStamp, setHashStringNoticeStamp] = useState<number | null>(null)
   const [paletteSignal, setPaletteSignal] = useState(0)
   const [tooltipHints, setTooltipHints] = useState<TooltipDictionary>({})
   const [bootConsoleTestStamp, setBootConsoleTestStamp] = useState<number | null>(() => Date.now())
@@ -246,10 +249,15 @@ function App() {
     setBootConsoleTestStamp(null)
   }, [])
 
+  const dismissHashStringNotice = useCallback(() => {
+    setHashStringNoticeStamp(null)
+  }, [])
+
   const toggleNodeConfigurationMode = useCallback(() => {
     if (nodeConfigurationMode) {
       setNodeConfigurationMode(false)
       setParameterValueLinkSourceId(null)
+      setHashStringPickerNodeId(null)
       return
     }
 
@@ -1022,10 +1030,6 @@ function App() {
     setParameterValueLinkSourceId(null)
   }, [primarySelectedId])
 
-  useEffect(() => {
-    setHashStringPickerNodeId(null)
-  }, [primarySelectedId])
-
   const nodeInstanceStringCandidates = useMemo<NodeInstanceStringCandidate[]>(() => {
     if (!inspectorTarget) {
       return []
@@ -1062,60 +1066,79 @@ function App() {
     setNodeInstanceStringPickerNodeId(null)
   }, [])
 
-  const closeHashStringPicker = useCallback(() => {
-    setHashStringPickerNodeId(null)
-  }, [])
-
-  const hashStringPickerTarget = useMemo(
-    () => scene.nodes.find((canvasNode) => canvasNode.id === hashStringPickerNodeId),
-    [hashStringPickerNodeId, scene.nodes],
-  )
-
-  const hashStringPickerCandidates = useMemo<NodeInstanceStringCandidate[]>(() => {
-    if (!hashStringPickerTarget) {
-      return []
-    }
-
-    return hashStringPickerTarget.node.schema.parameters
-      .filter((parameter) => parameter.type === 'string')
-      .map((parameter) => {
-        const value =
-          getNodeParameterRuntimeValue(hashStringPickerTarget, parameter.id) ?? parameter.defaultValue
-        const stringName = normalizeNodeInstanceStringName(value)
-
-        return { parameter, stringName, value }
-      })
-  }, [hashStringPickerTarget])
-
   const addHashStringInNode = useCallback(() => {
     if (!inspectorTarget) {
       return
     }
 
-    const stringParameters = inspectorTarget.node.schema.parameters.filter(
-      (parameter) => parameter.type === 'string',
-    )
-
-    if (stringParameters.length === 0) {
-      showToastByCatalogId(MESSENGER_TOAST_HASH_STRING_REQUIRES_STRING_PARAM)
+    const stringParams = inspectorTarget.node.schema.parameters.filter((parameter) => parameter.type === 'string')
+    if (stringParams.length === 0) {
+      setHashStringNoticeStamp(Date.now())
       return
     }
 
     setNodeInstanceStringPickerNodeId(null)
     setHashStringPickerNodeId(inspectorTarget.id)
-  }, [inspectorTarget, showToastByCatalogId])
+  }, [inspectorTarget])
+
+  const closeHashStringPicker = useCallback(() => {
+    setHashStringPickerNodeId(null)
+  }, [])
 
   const saveHashStringFromPicker = useCallback(
     (parameterId: string) => {
-      const targetId = hashStringPickerNodeId
-      if (!targetId) {
+      if (!inspectorTarget) {
         return
       }
 
-      setNodeHashString(targetId, parameterId)
+      const catalog = mergedBaseParameterCatalogBySchemaId[inspectorTarget.node.schema.id] ?? []
+      const row = inspectorTarget.node.schema.parameters.find((parameter) => parameter.id === parameterId)
+      if (!row || row.type !== 'string') {
+        return
+      }
+
+      const listId = resolveRequiredParameterListId(row, catalog)
+      const hashString = getNodeParameterRuntimeValue(inspectorTarget, parameterId) ?? row.defaultValue
+      const jsonRel = resolveNodeStructureJsonRelativePath(inspectorTarget.node.schema.id)
+
+      applyHashStringSourceToSelectedNode(parameterId)
       setHashStringPickerNodeId(null)
+
+      if (import.meta.env.DEV && jsonRel) {
+        void (async () => {
+          try {
+            const res = await fetch('/api/node-structures-patch-hash-string', {
+              body: JSON.stringify({
+                hashString,
+                hashStringParameterId: listId,
+                relativePath: jsonRel,
+              }),
+              headers: { 'Content-Type': 'application/json' },
+              method: 'POST',
+            })
+            const payload: unknown = await res.json().catch(() => null)
+            const ok =
+              res.ok &&
+              typeof payload === 'object' &&
+              payload !== null &&
+              'ok' in payload &&
+              Reflect.get(payload, 'ok') === true
+
+            if (!ok) {
+              console.warn('[hashString] Gravação no disco falhou', payload)
+            }
+          } catch (cause) {
+            console.warn('[hashString] Gravação no disco falhou', cause)
+          }
+        })()
+      }
     },
-    [hashStringPickerNodeId, setNodeHashString],
+    [
+      applyHashStringSourceToSelectedNode,
+      inspectorTarget,
+      mergedBaseParameterCatalogBySchemaId,
+      resolveNodeStructureJsonRelativePath,
+    ],
   )
 
   const saveNodeInstanceFromStringParameter = useCallback(
@@ -1400,6 +1423,14 @@ function App() {
             onDismiss={dismissBootConsoleTest}
           />
         ) : null}
+        {hashStringNoticeStamp !== null ? (
+          <ConsoleNotificationCapsule
+            key={`hash-${String(hashStringNoticeStamp)}`}
+            lifetimeSeconds={10}
+            message={HASH_STRING_EMPTY_NOTICE}
+            onDismiss={dismissHashStringNotice}
+          />
+        ) : null}
         <AppMenuBar
           nodeConfigurationMode={nodeConfigurationMode}
           onDeleteSelection={() => deleteSelectedNodes()}
@@ -1423,6 +1454,14 @@ function App() {
           lifetimeSeconds={BOOT_CONSOLE_TEST_SECONDS}
           message={BOOT_CONSOLE_TEST_MESSAGE}
           onDismiss={dismissBootConsoleTest}
+        />
+      ) : null}
+      {hashStringNoticeStamp !== null ? (
+        <ConsoleNotificationCapsule
+          key={`hash-${String(hashStringNoticeStamp)}`}
+          lifetimeSeconds={10}
+          message={HASH_STRING_EMPTY_NOTICE}
+          onDismiss={dismissHashStringNotice}
         />
       ) : null}
       <AppMenuBar
@@ -1483,9 +1522,9 @@ function App() {
                   minimized={inspectorMinimized}
                   nodeConfigurationMode={nodeConfigurationMode}
                   node={inspectorTarget}
+                  onAddHashStringInNode={nodeConfigurationMode ? addHashStringInNode : undefined}
                   onCreateInstance={promptConvertToNodeInstance}
                   onDelete={() => deleteSelectedNodes()}
-                  onAddHashStringInNode={addHashStringInNode}
                   onOpenParameterValueLinkPicker={setParameterValueLinkSourceId}
                   onPromptToggleRequiredParameter={promptToggleRequiredParameter}
                   parameterStubCatalog={inspectorStubCatalog}
@@ -1506,9 +1545,9 @@ function App() {
                 minimized={inspectorMinimized}
                 nodeConfigurationMode={nodeConfigurationMode}
                 node={inspectorTarget}
+                onAddHashStringInNode={nodeConfigurationMode ? addHashStringInNode : undefined}
                 onCreateInstance={promptConvertToNodeInstance}
                 onDelete={() => deleteSelectedNodes()}
-                onAddHashStringInNode={addHashStringInNode}
                 onOpenParameterValueLinkPicker={setParameterValueLinkSourceId}
                 onPromptToggleRequiredParameter={promptToggleRequiredParameter}
                 parameterStubCatalog={inspectorStubCatalog}
@@ -1534,9 +1573,9 @@ function App() {
                 minimized
                 nodeConfigurationMode={nodeConfigurationMode}
                 node={inspectorTarget}
+                onAddHashStringInNode={nodeConfigurationMode ? addHashStringInNode : undefined}
                 onCreateInstance={promptConvertToNodeInstance}
                 onDelete={() => deleteSelectedNodes()}
-                onAddHashStringInNode={addHashStringInNode}
                 onOpenParameterValueLinkPicker={setParameterValueLinkSourceId}
                 onPromptToggleRequiredParameter={promptToggleRequiredParameter}
                 parameterStubCatalog={inspectorStubCatalog}
@@ -1613,21 +1652,16 @@ function App() {
           />
         ) : null}
 
-        {hashStringPickerTarget && hashStringPickerNodeId ? (
+        {inspectorTarget ? (
           <NodeInstanceStringPicker
-            ariaTitleId="hash-string-picker-dialog-title"
-            candidates={hashStringPickerCandidates}
+            candidates={nodeInstanceStringCandidates}
+            dialogSubtitle={`Escolha qual parâmetro string de ${inspectorTarget.node.schema.title} será a base para gravar hashString no JSON do schema.`}
             dialogTitle="Definir hashString"
-            dialogSubtitle={
-              <>
-                Escolha o parâmetro string de <strong>{hashStringPickerTarget.node.schema.title}</strong> que
-                servirá de base para a hashString.
-              </>
-            }
-            nodeTitle={hashStringPickerTarget.node.schema.title}
+            nodeTitle={inspectorTarget.node.schema.title}
             onClose={closeHashStringPicker}
             onPick={saveHashStringFromPicker}
-            open
+            open={hashStringPickerNodeId === inspectorTarget.id}
+            titleDomId="hash-string-picker-title"
           />
         ) : null}
 

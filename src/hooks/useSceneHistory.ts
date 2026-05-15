@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import type { CanvasConnection, CanvasPosition, CanvasScene, ConnectionRouting } from '@/core/canvasScene'
-import { hydrateScene, staticCanvasScene } from '@/core/canvasScene'
+import { hydrateScene, schemaJsonRelativePathBySchemaId, staticCanvasScene } from '@/core/canvasScene'
 import { fx_required_parameter, resolveRequiredParameterListId } from '@/core/fx_required_parameter'
 import {
   link_parameter_value_add_pair,
@@ -23,14 +23,51 @@ import {
 } from '@/core/linked_parameter_values'
 import type {
   InternalStructureDefinition,
+  NodeInstance,
   NodeParameterDefinition,
   NodeSchemaDefinition,
 } from '@/core/nodeSchema'
+import { addHashStringInNode, syncHashStringMirrorFromValues } from '@/core/hashString'
 import { STORAGE_LAST_STRUCTURE_META } from '@/core/workspaceStorage'
 
 export const ROOT_NODE_ID = 'particle-root-01'
 
 export const SCENE_STORAGE_KEY = 'node-graphs-lol:scene'
+
+const hashStringPersistTimers = new Map<string, ReturnType<typeof setTimeout>>()
+
+function scheduleHashStringSchemaDiskPersist(
+  sceneNodeId: string,
+  schemaId: string,
+  hashStringParameterId: string,
+  hashString: string,
+) {
+  if (!import.meta.env.DEV) {
+    return
+  }
+
+  const relativePath = schemaJsonRelativePathBySchemaId[schemaId]
+  if (!relativePath) {
+    return
+  }
+
+  const key = `${sceneNodeId}:${schemaId}`
+  const prev = hashStringPersistTimers.get(key)
+  if (prev !== undefined) {
+    window.clearTimeout(prev)
+  }
+
+  const token = window.setTimeout(() => {
+    hashStringPersistTimers.delete(key)
+    void fetch('/api/node-structures-patch-hash-string', {
+      body: JSON.stringify({ hashString, hashStringParameterId, relativePath }),
+      headers: { 'Content-Type': 'application/json' },
+      method: 'POST',
+    }).catch(() => {})
+  }, 480)
+
+  hashStringPersistTimers.set(key, token)
+}
 
 const DETACHED_NODE_COLUMNS = 3
 
@@ -626,6 +663,18 @@ export function useSceneHistory(options?: {
           currentNode.node.parameter_value_links,
         )
 
+        const catalog = schemaBaseParameterCatalogBySchemaId[currentNode.node.schema.id] ?? []
+        const patched: NodeInstance = {
+          ...currentNode.node,
+          values: nextValues,
+        }
+        const synced = syncHashStringMirrorFromValues(patched, catalog)
+        const listId = synced.hashStringParameterId ?? synced.schema.hashStringParameterId
+        const mirror = synced.hashString ?? synced.schema.hashString
+        if (listId !== undefined && typeof mirror === 'string') {
+          scheduleHashStringSchemaDiskPersist(currentNode.id, currentNode.node.schema.id, listId, mirror)
+        }
+
         return {
           ...currentScene,
           nodes: currentScene.nodes.map((canvasNode) =>
@@ -633,11 +682,35 @@ export function useSceneHistory(options?: {
               ? canvasNode
               : {
                   ...canvasNode,
-                  node: {
-                    ...canvasNode.node,
-                    values: nextValues,
-                  },
+                  node: synced,
                 },
+          ),
+        }
+      })
+    },
+    [primarySelectedId, updateScene],
+  )
+
+  const applyHashStringSourceToSelectedNode = useCallback(
+    (canvasParameterId: string) => {
+      updateScene((currentScene) => {
+        const currentNode = currentScene.nodes.find((node) => node.id === primarySelectedId)
+
+        if (!currentNode) {
+          return currentScene
+        }
+
+        const catalog = schemaBaseParameterCatalogBySchemaId[currentNode.node.schema.id] ?? []
+        const nextNode = addHashStringInNode(currentNode.node, canvasParameterId, catalog)
+
+        if (!nextNode) {
+          return currentScene
+        }
+
+        return {
+          ...currentScene,
+          nodes: currentScene.nodes.map((canvasNode) =>
+            canvasNode.id !== primarySelectedId ? canvasNode : { ...canvasNode, node: nextNode },
           ),
         }
       })
@@ -706,6 +779,18 @@ export function useSceneHistory(options?: {
           currentNode.node.parameter_value_links,
         )
 
+        const catalog = schemaBaseParameterCatalogBySchemaId[currentNode.node.schema.id] ?? []
+        const patched: NodeInstance = {
+          ...currentNode.node,
+          values: nextValues,
+        }
+        const synced = syncHashStringMirrorFromValues(patched, catalog)
+        const listId = synced.hashStringParameterId ?? synced.schema.hashStringParameterId
+        const mirror = synced.hashString ?? synced.schema.hashString
+        if (listId !== undefined && typeof mirror === 'string') {
+          scheduleHashStringSchemaDiskPersist(currentNode.id, currentNode.node.schema.id, listId, mirror)
+        }
+
         return {
           ...currentScene,
           nodes: currentScene.nodes.map((canvasNode) =>
@@ -713,48 +798,7 @@ export function useSceneHistory(options?: {
               ? canvasNode
               : {
                   ...canvasNode,
-                  node: {
-                    ...canvasNode.node,
-                    values: nextValues,
-                  },
-                },
-          ),
-        }
-      })
-    },
-    [updateScene],
-  )
-
-  const setNodeHashString = useCallback(
-    (nodeId: string, parameterId: string) => {
-      updateScene((currentScene) => {
-        const canvasNode = currentScene.nodes.find((node) => node.id === nodeId)
-
-        if (!canvasNode) {
-          return currentScene
-        }
-
-        const row = canvasNode.node.schema.parameters.find((parameter) => parameter.id === parameterId)
-
-        if (!row || row.type !== 'string') {
-          return currentScene
-        }
-
-        if (canvasNode.node.hashString === parameterId) {
-          return currentScene
-        }
-
-        return {
-          ...currentScene,
-          nodes: currentScene.nodes.map((node) =>
-            node.id !== nodeId
-              ? node
-              : {
-                  ...node,
-                  node: {
-                    ...node.node,
-                    hashString: parameterId,
-                  },
+                  node: synced,
                 },
           ),
         }
@@ -1261,11 +1305,11 @@ export function useSceneHistory(options?: {
     updateScene,
     updateSelectedParameter,
     updateNodeParameter,
-    setNodeHashString,
     setNodeParameterOrder,
     setSelectedNodeParameterOrder,
     swapSelectedNodeParameters,
     toggleSelectedParameterRequired,
+    applyHashStringSourceToSelectedNode,
     linkParameterValuePairForNode,
     unlinkParameterValueForNode,
     addDynamicParameter,

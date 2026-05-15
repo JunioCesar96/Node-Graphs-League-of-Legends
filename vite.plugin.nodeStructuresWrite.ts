@@ -78,6 +78,7 @@ function safeRelativeNodeStructureJsonPath(raw: string): string | null {
  * - POST `/api/node-structures-extract-base` — corpo `{ folder }`, extrai parâmetros base (temp + subpastas por collectionType)
  * - POST `/api/node-structures-patch-required-parameter` — corpo `{ relativePath, parameterId, add }`, actualiza `required_parameter` no ficheiro do schema
  * - POST `/api/node-structures-patch-linked-parameter-values` — corpo `{ relativePath, unlink?, parameterIdA, parameterIdB? }`, actualiza `linked_parameter_values`
+ * - POST `/api/node-structures-patch-hash-string` — corpo `{ relativePath, hashStringParameterId, hashString }`, actualiza `hashString` / `hashStringParameterId` no JSON do schema
  * - POST `/api/node-structures-write-instance` — corpo `{ relativePath, instance }`, grava uma instância JSON na pasta mãe do schema
  * - POST `/api/node-structures-write` — corpo `{ folder, schemas }`, grava `.json` em `src/nodeStructures/<pasta>/`
  */
@@ -757,6 +758,188 @@ export function vitePluginNodeStructuresWrite(projectRoot: string): Plugin {
                 res.statusCode = 200
                 res.setHeader('Content-Type', 'application/json; charset=utf-8')
                 res.end(JSON.stringify({ ok: true, relativePath, linked_parameter_values: nextPairs }))
+              } catch (err) {
+                res.statusCode = 500
+                res.setHeader('Content-Type', 'application/json; charset=utf-8')
+                res.end(
+                  JSON.stringify({
+                    ok: false,
+                    error: err instanceof Error ? err.message : String(err),
+                  }),
+                )
+              }
+            })().catch(() => {
+              res.statusCode = 500
+              res.end('')
+            })
+          })
+
+          req.on('error', next)
+          return
+        }
+
+        if (pathname === '/api/node-structures-patch-hash-string' && req.method === 'POST') {
+          const chunks: Buffer[] = []
+
+          req.on('data', (c: Buffer) => {
+            chunks.push(c)
+          })
+
+          req.on('end', () => {
+            void (async () => {
+              try {
+                const rawBody = Buffer.concat(chunks).toString('utf8')
+                const parsed: unknown = JSON.parse(rawBody) as unknown
+
+                if (!isRecord(parsed)) {
+                  res.statusCode = 400
+                  res.setHeader('Content-Type', 'application/json; charset=utf-8')
+                  res.end(JSON.stringify({ ok: false, error: 'Corpo inválido' }))
+                  return
+                }
+
+                const relativePath = safeRelativeNodeStructureJsonPath(String(parsed.relativePath ?? ''))
+                const hashStringParameterId =
+                  typeof parsed.hashStringParameterId === 'string' ? parsed.hashStringParameterId.trim() : ''
+                const hashString = typeof parsed.hashString === 'string' ? parsed.hashString : ''
+
+                if (!relativePath || !hashStringParameterId) {
+                  res.statusCode = 400
+                  res.setHeader('Content-Type', 'application/json; charset=utf-8')
+                  res.end(JSON.stringify({ ok: false, error: 'relativePath ou hashStringParameterId inválido' }))
+                  return
+                }
+
+                const absFile = path.resolve(nodeStructuresRoot, relativePath)
+                const relFromRoot = path.relative(nodeStructuresRoot, absFile)
+                if (relFromRoot.startsWith('..') || path.isAbsolute(relFromRoot)) {
+                  res.statusCode = 400
+                  res.setHeader('Content-Type', 'application/json; charset=utf-8')
+                  res.end(JSON.stringify({ ok: false, error: 'Caminho fora de nodeStructures' }))
+                  return
+                }
+
+                if (!(await fileExists(absFile))) {
+                  res.statusCode = 400
+                  res.setHeader('Content-Type', 'application/json; charset=utf-8')
+                  res.end(JSON.stringify({ ok: false, error: 'Ficheiro não existe' }))
+                  return
+                }
+
+                const fileText = await fs.readFile(absFile, 'utf8')
+                const docUnknown: unknown = JSON.parse(fileText) as unknown
+
+                if (!isRecord(docUnknown)) {
+                  res.statusCode = 400
+                  res.setHeader('Content-Type', 'application/json; charset=utf-8')
+                  res.end(JSON.stringify({ ok: false, error: 'JSON inválido' }))
+                  return
+                }
+
+                const parametersRaw = docUnknown.parameters
+                if (!Array.isArray(parametersRaw)) {
+                  res.statusCode = 400
+                  res.setHeader('Content-Type', 'application/json; charset=utf-8')
+                  res.end(JSON.stringify({ ok: false, error: 'Campo parameters em falta' }))
+                  return
+                }
+
+                const parameterIdSet = new Set<string>()
+                for (const entry of parametersRaw) {
+                  if (isRecord(entry) && typeof entry.id === 'string') {
+                    parameterIdSet.add(entry.id)
+                  }
+                }
+
+                const schemaDir = path.dirname(absFile)
+                const dirEntries = await fs.readdir(schemaDir, { withFileTypes: true })
+
+                for (const dirent of dirEntries) {
+                  if (!dirent.isFile() || !dirent.name.toLowerCase().endsWith('.json')) {
+                    continue
+                  }
+
+                  const siblingAbs = path.resolve(schemaDir, dirent.name)
+
+                  if (siblingAbs === absFile) {
+                    continue
+                  }
+
+                  try {
+                    const siblingText = await fs.readFile(siblingAbs, 'utf8')
+                    const siblingParsed: unknown = JSON.parse(siblingText) as unknown
+                    const stub = nodeParameterDefinitionFromJsonStub(siblingParsed)
+
+                    if (stub) {
+                      parameterIdSet.add(stub.id)
+                    }
+                  } catch {
+                    /** ignora JSON inválido na pasta do schema */
+                  }
+                }
+
+                if (!parameterIdSet.has(hashStringParameterId)) {
+                  res.statusCode = 400
+                  res.setHeader('Content-Type', 'application/json; charset=utf-8')
+                  res.end(JSON.stringify({ ok: false, error: 'hashStringParameterId não existe neste schema' }))
+                  return
+                }
+
+                let stringType = false
+                for (const entry of parametersRaw) {
+                  if (isRecord(entry) && entry.id === hashStringParameterId && entry.type === 'string') {
+                    stringType = true
+                    break
+                  }
+                }
+                if (!stringType) {
+                  for (const dirent of dirEntries) {
+                    if (!dirent.isFile() || !dirent.name.toLowerCase().endsWith('.json')) {
+                      continue
+                    }
+                    const siblingAbs = path.resolve(schemaDir, dirent.name)
+                    if (siblingAbs === absFile) {
+                      continue
+                    }
+                    try {
+                      const siblingText = await fs.readFile(siblingAbs, 'utf8')
+                      const siblingParsed: unknown = JSON.parse(siblingText) as unknown
+                      const stub = nodeParameterDefinitionFromJsonStub(siblingParsed)
+                      if (stub && stub.id === hashStringParameterId && stub.type === 'string') {
+                        stringType = true
+                        break
+                      }
+                    } catch {
+                      /** ignora */
+                    }
+                  }
+                }
+
+                if (!stringType) {
+                  res.statusCode = 400
+                  res.setHeader('Content-Type', 'application/json; charset=utf-8')
+                  res.end(JSON.stringify({ ok: false, error: 'Parâmetro hashString não é do tipo string' }))
+                  return
+                }
+
+                const doc = {
+                  ...docUnknown,
+                  hashString,
+                  hashStringParameterId,
+                }
+
+                await fs.writeFile(absFile, `${JSON.stringify(doc, null, 2)}\n`, 'utf8')
+
+                res.statusCode = 200
+                res.setHeader('Content-Type', 'application/json; charset=utf-8')
+                res.end(
+                  JSON.stringify({
+                    ok: true,
+                    hashString,
+                    hashStringParameterId,
+                    relativePath,
+                  }),
+                )
               } catch (err) {
                 res.statusCode = 500
                 res.setHeader('Content-Type', 'application/json; charset=utf-8')

@@ -55,6 +55,14 @@
   text-transform: uppercase;
 }
 
+.chromeStripTitleRow {
+  display: flex;
+  flex: 1 1 auto;
+  gap: var(--space-1);
+  align-items: center;
+  min-width: 0;
+}
+
 .chromeStripTitle {
   flex: 1 1 auto;
   min-width: 0;
@@ -68,60 +76,60 @@
   white-space: nowrap;
 }
 
-.chromeStripTitleRow {
-  display: flex;
-  flex: 1 1 auto;
-  gap: var(--space-1);
-  align-items: center;
-  min-width: 0;
-}
-
-.nodeTitleRow {
+.titleRow {
   display: flex;
   gap: var(--space-2);
-  align-items: center;
-}
-
-.nodeTitleRow .title {
-  flex: 1 1 auto;
-  min-width: 0;
+  align-items: baseline;
 }
 
 .hashStringButton {
-  flex: 0 0 auto;
-  padding: 0 0.35rem;
+  flex-shrink: 0;
+  padding: 0 var(--space-1);
   color: var(--color-text-primary);
   font-family: var(--font-data);
-  font-size: 0.95rem;
-  font-weight: 700;
+  font-size: 1rem;
+  font-weight: 800;
   line-height: 1;
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: 6px;
   cursor: pointer;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
   transition:
-    opacity 0.15s ease,
-    filter 0.15s ease,
-    border-color 0.15s ease;
+    opacity 140ms ease,
+    filter 140ms ease;
 }
 
-.hashStringButtonMuted {
+.hashStringButtonCompact {
+  padding: 0 2px;
+  font-size: 0.76rem;
+}
+
+.hashStringButtonIdle {
   opacity: 0.38;
 }
 
-.hashStringButtonMuted:hover {
+.hashStringButtonIdle:hover {
   opacity: 1;
-  filter: brightness(1.2);
-}
-
-.hashStringButtonActive {
-  opacity: 1;
-  border-color: var(--color-border-soft);
   filter: brightness(1.12);
 }
 
+.hashStringButtonActive {
+  opacity: 0.95;
+}
+
 .hashStringButtonActive:hover {
-  filter: brightness(1.25);
+  opacity: 1;
+  filter: brightness(1.18);
+}
+
+.hashStringButton:focus-visible {
+  outline: 2px solid var(--port-child);
+  outline-offset: 2px;
+}
+
+.listItemHashSource {
+  border-radius: 12px;
+  box-shadow: inset 3px 0 0 0 rgb(187 143 206 / 85%);
 }
 
 .header {

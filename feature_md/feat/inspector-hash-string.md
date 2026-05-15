@@ -1,4 +1,4 @@
-# Documentação de implementação — `feat/inspector-hash-string`
+# Documentação de Implementação — hashString (Inspector)
 
 Arquivo salvo em: `feature_md/feat/inspector-hash-string.md`
 
@@ -7,15 +7,15 @@ Arquivo salvo em: `feature_md/feat/inspector-hash-string.md`
 | Campo | Valor |
 | --- | --- |
 | Nome da Branch | `feat/inspector-hash-string` |
-| Nome das Features | hashString no Inspector |
+| Nome das Features | hashString (Inspector, modo Configurar) |
 | Versão atual | `1.4.0` |
-| Hash do Commit | `d5a4f32908975c1bf2f950c1ab8f0f78b98d010a` |
+| Hash do Commit | _(ver segundo commit na branch ou `git log -1 --format=%H`)_ |
 
-## 2. Definição e resumo de tags
+## 2. Definição e Resumo de Tags
 
 | Tag | Definição |
 | --- | --- |
-| `[NOVO]` | Novo componente, ficheiro, função ou estrutura de dados criado nesta branch. |
+| `[NOVO]` | Novo componente, arquivo, endpoint, função ou estrutura de dados criado nesta branch. |
 | `[ATUALIZADO]` | Componente, função, schema ou fluxo existente alterado para suportar a feature. |
 | `[REMOVIDO]` | Código, comportamento ou componente removido da aplicação. |
 
@@ -26,76 +26,87 @@ Tags presentes nesta implementação:
 
 Não houve itens classificados como `[REMOVIDO]` nesta branch.
 
-## 3. Fluxograma de funcionamento
+## 3. Fluxograma de Funcionamento
 
 ```mermaid
 graph TD
-  UserClick[Utilizador clica no botão hash no Inspector]
-  ListStrings[Listar parâmetros do schema com type string]
-  UserClick --> ListStrings
-  ListStrings -->|lista vazia| Toast10[Toast do catálogo messenger 10s]
-  ListStrings -->|há parâmetros| OpenPicker[Abrir diálogo de escolha do parâmetro]
-  OpenPicker --> Pick[Utilizador escolhe uma linha]
-  Pick --> Persist[setNodeHashString grava hashString no NodeInstance]
-  Persist --> Scene[Histórico da cena e serialização JSON incluem o campo]
+  subgraph config [Modo Configurar]
+    Cfg[Menu Nodes Configurar activo]
+  end
+  subgraph inspector [Inspector]
+    Btn[Botao hash]
+    Pick[Picker parametros string]
+  end
+  subgraph memoria [Cena e schema embutido]
+    Sync[syncHashStringMirrorFromValues]
+  end
+  subgraph disco [Dev npm run dev]
+    Api[POST patch-hash-string]
+  end
+  Cfg --> Btn
+  Btn -->|sem strings| Caps[ConsoleNotificationCapsule 10s]
+  Btn -->|com strings| Pick
+  Pick -->|escolha| Apply[applyHashStringSourceToSelectedNode]
+  Apply --> Sync
+  Apply --> Api
+  Edit[Editar parametro string] --> Sync
+  Sync --> Api
 ```
 
-## 4. Fluxograma de acionamento de funções (sequência)
+## 4. Fluxograma de Acionamento de Funções (sequência)
 
 ```mermaid
 sequenceDiagram
-  participant U as Utilizador
-  participant NI as NodeInspector
+  participant U as Usuario
+  participant I as NodeInspector
   participant A as App
-  participant MP as MessengerPopupProvider
-  participant P as NodeInstanceStringPicker
   participant H as useSceneHistory
+  participant V as Vite API
 
-  U->>NI: clique no botão #
-  NI->>A: onAddHashStringInNode()
-  alt sem parâmetros string
-    A->>MP: showToastByCatalogId(toast_hash_string_requires_string_param)
-    MP-->>U: toast 10 segundos
-  else com parâmetros string
-    A->>A: setHashStringPickerNodeId(nodeId)
-    A->>P: open=true com candidatos
-    U->>P: escolhe parâmetro
-    P->>A: onPick(parameterId)
-    A->>H: setNodeHashString(nodeId, parameterId)
-    H-->>A: updateScene com node.hashString
-    A->>A: fecha picker
+  U->>I: Clica botao hash
+  I->>A: onAddHashStringInNode
+  alt Sem parametros string
+    A->>A: setHashStringNoticeStamp
+    A-->>U: ConsoleNotificationCapsule 10s
+  else Com strings
+    A->>A: setHashStringPickerNodeId
+    U->>A: onPick parameterId
+    A->>H: applyHashStringSourceToSelectedNode
+    H->>H: addHashStringInNode
+    H->>H: updateScene
+    A->>V: fetch patch-hash-string
   end
+  U->>H: updateSelectedParameter
+  H->>H: syncHashStringMirrorFromValues
+  H->>H: scheduleHashStringSchemaDiskPersist debounce 480ms
+  H->>V: fetch patch-hash-string
 ```
 
-## 5. Tabela de funções e componentes
+## 5. Tabela de Funções e Componentes
 
-| Status | Nome | Feature correspondente | Descrição técnica | Parâmetros / retorno |
+| Status | Nome | Feature | Descrição técnica | Parâmetros / Retorno |
 | --- | --- | --- | --- | --- |
-| `[NOVO]` | `hashString` em `NodeInstance` | hashString | Campo opcional na instância: id do parâmetro `string` escolhido. | Persistido no JSON da cena e no export de instância. |
-| `[NOVO]` | `toast_hash_string_requires_string_param` | hashString | Entrada no `messenger_popup_catalog.json` com `durationMs: 10000`. | Mensagem fixa do requisito. |
-| `[NOVO]` | `MESSENGER_TOAST_HASH_STRING_REQUIRES_STRING_PARAM` | hashString | Constante de id no `messengerCatalog.ts`. | — |
-| `[NOVO]` | `resolveHashStringFromPayload` | hashString | Valida `hashString` ao importar cena: só aceita id existente e `type === 'string'`. | `(schema, raw) => string \| undefined` |
-| `[NOVO]` | `setNodeHashString` | hashString | Atualiza a cena com validação do parâmetro. | `(nodeId, parameterId) => void` |
-| `[NOVO]` | `InspectorHashStringButton` | hashString | Botão `#` com estados muted/active no Inspector. | Props `active`, `onClick`. |
-| `[NOVO]` | `addHashStringInNode` | hashString | Fluxo principal em `App.tsx`: toast ou abertura do picker. | `() => void` |
-| `[NOVO]` | `hashStringPickerNodeId` / `hashStringPickerCandidates` | hashString | Estado e memo para o diálogo independente da selecção durante o pick. | — |
-| `[ATUALIZADO]` | `serializeScene` / `parseSceneDocument` | hashString | Round-trip do campo `hashString` em `leagueBinScene.ts`. | — |
-| `[ATUALIZADO]` | `hydrateScene` | hashString | Reidrata `hashString` só se válido face ao schema clonado. | — |
-| `[ATUALIZADO]` | `buildNodeInstanceJsonDocument` | hashString | Inclui `hashString` no documento exportado quando aplicável. | — |
-| `[ATUALIZADO]` | `NodeInspector` | hashString | Nova prop opcional `onAddHashStringInNode`; título com fila `#` + título. | — |
-| `[ATUALIZADO]` | `NodeInstanceStringPicker` | hashString | Props opcionais `dialogTitle`, `dialogSubtitle`, `ariaTitleId` para reutilização. | — |
-| `[ATUALIZADO]` | `pathHierarchy.ts` | Build | Import relativo `./nodeSchema` para `tsc -b` resolver correctamente. | — |
+| `[NOVO]` | `hashString.ts` | hashString | `addHashStringInNode`, `syncHashStringMirrorFromValues`, `parameterMatchesHashStringSource`, `hydrateInstanceHashStringFields`, `resolveHashStringCanvasParameterId`. | Recebe `NodeInstance` e catálogo; devolve instância actualizada ou booleano de match. |
+| `[NOVO]` | `POST /api/node-structures-patch-hash-string` | hashString | Endpoint Vite dev que grava `hashString` e `hashStringParameterId` no JSON do schema; valida id em parâmetros inline + stubs e tipo `string`. | Body JSON `relativePath`, `hashStringParameterId`, `hashString`; resposta `{ ok, ... }`. |
+| `[ATUALIZADO]` | `NodeInspector.tsx` / `.module.css` | hashString | Botão `#` à esquerda do título (painel, chrome strip, minimizado); destaque do parâmetro fonte na lista. | Props `onAddHashStringInNode?`; callback sem argumentos. |
+| `[ATUALIZADO]` | `NodeInstanceStringPicker.tsx` | hashString | Props opcionais `dialogTitle`, `dialogSubtitle`, `titleDomId` para reutilizar o diálogo no fluxo hashString. | Mesmas props de instância + opcionais. |
+| `[ATUALIZADO]` | `App.tsx` | hashString | `addHashStringInNode`, pickers mutuamente exclusivos, notificação 10s, `saveHashStringFromPicker` com fetch ao endpoint. | Estado local e callbacks. |
+| `[ATUALIZADO]` | `useSceneHistory.ts` | hashString | `applyHashStringSourceToSelectedNode`; `updateSelectedParameter` e `updateNodeParameter` chamam `syncHashStringMirrorFromValues`; debounce de persistência em disco. | Export do novo callback. |
+| `[ATUALIZADO]` | `nodeSchema.ts` | hashString | Campos opcionais `hashString`, `hashStringParameterId` em `NodeSchemaDefinition` e `NodeInstance`. | Tipos apenas. |
+| `[ATUALIZADO]` | `nodeStructureRegistry.ts` | hashString | `mergeHashStringFromStructureJson`; inclusão de stubs para id de hash; `hydrateInstanceHashStringFields` ao criar instância. | Merge no build do registry. |
+| `[ATUALIZADO]` | `canvasScene.ts` / `leagueBinScene.ts` | hashString | Hidratação e serialização do grafo com os novos campos no `NodeInstance`. | Round-trip localStorage / export. |
+| `[ATUALIZADO]` | `convertToNodeInstance.ts` | hashString | `NodeInstanceJsonDocument` inclui `hashString` / `hashStringParameterId` quando existirem. | Documento JSON de instância. |
+| `[ATUALIZADO]` | `vite.plugin.nodeStructuresWrite.ts` | hashString | Registo do novo endpoint no middleware do servidor de desenvolvimento. | Plugin Vite. |
+| `[ATUALIZADO]` | `pathHierarchy.ts` | Build | Import relativo `./nodeSchema` para resolução consistente no `tsc -b`. | Import apenas. |
 
-## 6. Descrição detalhada de funcionamento
+## 6. Descrição Detalhada de Funcionamento
 
-A feature **hashString** liga o editor ao requisito de poder assinalar, por instância de nó, qual parâmetro do tipo `string` do schema serve de base para uma hash lógica (`hashString` guarda o **id** desse parâmetro, alinhado a `required_parameter` e `parameter_value_links`).
+A feature **hashString** liga um valor espelhado (`hashString`) a um parâmetro do tipo `string` identificado por `hashStringParameterId`. O id persistido segue a mesma convenção de **lista** que `required_parameter` (incluindo stubs na pasta do pack), o que mantém o JSON em `src/nodeStructures` alinhado ao disco.
 
-O **Inspector** mostra um botão `#` à esquerda do título do nó nas vistas expandidas (painel lateral e faixa acoplada à viewport). O botão aparece esbatido quando não há vínculo válido e ganha destaque quando já existe `hashString` referenciando um parâmetro `string` ainda presente no schema. O estado minimizado do Inspector não mostra este botão, para não comprimir a faixa minimizada.
+No **Inspector**, com o modo **Configurar** activo (`AppMenuBar` → Nodes → Configurar), o utilizador vê o botão `#` à esquerda do título do nó. O botão aparece esbatido até hover ou até existir vínculo activo; o parâmetro fonte ganha realce na lista de parâmetros (`parameterMatchesHashStringSource`).
 
-Ao clicar, `addHashStringInNode` corre no `App.tsx`. Se não existir nenhum parâmetro `string` no schema do nó seleccionado, chama-se `showToastByCatalogId` com a mensagem exacta pedida no spec, com fecho automático aos **10 segundos**, via infraestrutura existente de messenger (toast). Caso existam parâmetros `string`, fecha-se o picker de Node Instance se estiver aberto, abre-se o `NodeInstanceStringPicker` com textos específicos para hashString, e ao confirmar chama-se `setNodeHashString` no `useSceneHistory`, que valida o tipo antes de gravar.
+Se não existir nenhum parâmetro `string`, dispara-se a **`ConsoleNotificationCapsule`** com a mensagem definida no PRD e duração de **10 segundos**. Caso contrário, abre-se o **`NodeInstanceStringPicker`** reutilizado com título/subtítulo específicos para a hashString.
 
-A **persistência** segue o mesmo padrão dos outros campos opcionais da instância: `StoredCanvasNodePayload` em `leagueBinScene.ts`, cópia segura em `hydrateScene` (descarta valores inválidos após clonar o schema), e inclusão no JSON gerado por `buildNodeInstanceJsonDocument` para ficheiros de instância. O parse da cena ignora `hashString` inválidos em vez de falhar o documento inteiro.
+Ao escolher o parâmetro, **`applyHashStringSourceToSelectedNode`** aplica **`addHashStringInNode`** na cena (histórico undo/redo) e, em desenvolvimento com caminho JSON resolvido, **`App.tsx`** envia um PATCH imediato ao endpoint. Quando o valor do parâmetro fonte muda (incluindo vínculos de valor entre parâmetros), **`syncHashStringMirrorFromValues`** mantém `hashString` coerente na instância e no `schema` embutido; a gravação no disco é **debounced** (~480 ms) por nó/schema em **`useSceneHistory`** para evitar escritas excessivas.
 
-**Excepções e robustez:** parâmetros removidos ou alterados de tipo podem tornar `hashString` obsoleta; nesse caso deixa de ser serializada e é omitida na hidratação até o utilizador voltar a definir um vínculo válido.
-
-**Teste:** `leagueBinScene.test.ts` cobre round-trip com `hashString` num nó da demo (`emitter-01`, parâmetro `shape`).
+**Excepções:** gravação em disco só em `import.meta.env.DEV` com servidor Vite; falhas de rede são registadas em `console.warn` sem bloquear a UI. Campos inválidos no JSON de pack são ignorados no merge com aviso (`mergeHashStringFromStructureJson`).
