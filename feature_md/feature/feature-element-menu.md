@@ -1,6 +1,6 @@
 # Documentação de Implementação — Element Menu
 
-Arquivo salvo em: `feature_md/feature/feature-element-menu.md`
+Arquivo salvo em: `feature_md/feature-element-menu.md`
 
 ## 1. Cabeçalho
 
@@ -9,7 +9,7 @@ Arquivo salvo em: `feature_md/feature/feature-element-menu.md`
 | Nome da Branch | `feature/element-menu` |
 | Nome das Features | Element Menu, Remoção Dinâmica de Elementos |
 | Versão atual | `1.4.0` |
-| Hash do Commit | `969223d` |
+| Hash do Commit | `7a7ecb60d8c23660128290c3c85f47086a22f638` |
 
 ## 2. Definição e Resumo de Tags
 
@@ -30,10 +30,15 @@ Tags presentes nesta implementação:
 ```mermaid
 graph TD
   subgraph card [NodeCard]
-    EM[ElementMenu botão Element]
-    Plus["+ Element painel de adição"]
+    EM[Botao Element]
+    Plus["+ Element painel de adicao"]
     Minus["- Element abre picker"]
     ERP[ElementRemovalPicker]
+  end
+  subgraph filtros [Regras de lista]
+    RP[listRemovableNodeElements]
+    REQ[Exclui parametros obrigatorios]
+    RP --> REQ
   end
   subgraph app [App.tsx]
     Confirm[Messenger confirm_remove_node_element]
@@ -45,8 +50,9 @@ graph TD
   end
   EM --> Plus
   EM --> Minus
-  Minus --> ERP
-  ERP --> Confirm
+  Minus --> RP
+  RP --> ERP
+  ERP -->|selecionar item + Confirmar| Confirm
   Confirm --> Remove
   Remove --> Scene
   Scene --> Sync
@@ -63,6 +69,7 @@ sequenceDiagram
   participant NC as NodeCard
   participant GC as GraphCanvas
   participant App as App.tsx
+  participant Core as listRemovableNodeElements
   participant Msg as MessengerPopup
   participant Hook as useSceneHistory
   participant WS as workspaceService
@@ -70,40 +77,45 @@ sequenceDiagram
   U->>EM: Clica Element
   U->>EM: Clica - Element
   EM->>NC: onRemoveElement
+  NC->>Core: listRemovableNodeElements
   NC->>ERP: open picker
-  U->>ERP: Escolhe elemento
-  ERP->>NC: onPick item
+  U->>ERP: pointerdown em item
+  ERP->>NC: onSelectKey
+  U->>ERP: Clica Confirmar
+  ERP->>NC: onConfirm item
   NC->>GC: onRequestRemoveElement
   GC->>App: handleRequestRemoveNodeElement
+  App->>App: fx_required_parameter_isMarked guard
   App->>App: countElementDependencies
   App->>Msg: showConfirmByCatalogId
-  U->>Msg: Confirma
+  U->>Msg: Confirma exclusao
   Msg->>Hook: removeCanvasParameter ou removeCanvasInternalStructure
   Hook->>WS: syncSceneToDisk
 ```
 
 ## 5. Tabela de Funções e Componentes
 
-| Status | Nome | Feature | Descrição técnica | Parâmetros / Retorno |
+| Status | Nome | Feature | Descrição Técnica | Parâmetros / Retorno |
 | --- | --- | --- | --- | --- |
-| `[NOVO]` | `listNodeElements.ts` | Element Menu | `listNodeElements` combina `parameters` e `internalStructures`; `countElementDependencies` e `formatElementDependencyWarning` para aviso na confirmação. | `(node) => NodeElementListItem[]`; `(scene, nodeId, id, kind) => number` |
-| `[NOVO]` | `ElementMenu.tsx` | Element Menu | Dropdown raiz **Element** com **+ Element** (painel de adição) e **- Element** (dispara remoção). | Props de catálogo, `onRemoveElement`, `showPicker`, `disabled` |
-| `[NOVO]` | `ElementRemovalPicker.tsx` | Remoção | Modal portal listando elementos removíveis do nó. | `elements`, `onPick`, `onClose`, `open` |
-| `[NOVO]` | `confirm_remove_node_element` | Remoção | Entrada no catálogo Messenger para confirmação com `{elementName}` e `{connectionWarning}`. | JSON + `MESSENGER_CONFIRM_REMOVE_NODE_ELEMENT` |
-| `[ATUALIZADO]` | `NodeCard.tsx` | Element Menu | Substitui `<details> + Elemento` por `ElementMenu` + `ElementRemovalPicker`. | `onRequestRemoveElement?: (item) => void` |
-| `[ATUALIZADO]` | `GraphCanvas.tsx` | Element Menu | Prop `onRequestRemoveElement(canvasNodeId, item)` repassada ao card. | Callback opcional |
-| `[ATUALIZADO]` | `App.tsx` | Remoção | `handleRequestRemoveNodeElement` com confirmação e chamada a `removeCanvasParameter` / `removeCanvasInternalStructure`. | Wiring do hook exportado |
-| `[ATUALIZADO]` | `useSceneHistory.ts` | Remoção | Export de `removeCanvasParameter` e `removeCanvasInternalStructure` (lógica já existente). | `(nodeId, elementId) => void` |
-| `[REMOVIDO]` | Label `+ Elemento` | Element Menu | Botão e menu flat substituídos pelo menu em dois níveis **Element**. | — |
+| `[NOVO]` | `listNodeElements.ts` | Element Menu | `listNodeElements` lista parâmetros e internal structures; `listRemovableNodeElements` exclui obrigatórios; `countElementDependencies` e `formatElementDependencyWarning` para aviso na confirmação. | `(node, stubCatalog?) => NodeElementListItem[]` |
+| `[NOVO]` | `ElementMenu.tsx` | Element Menu | Dropdown **Element** com **+ Element** (adição) e **- Element** (remoção). Ignora cliques no picker via `data-element-removal-picker`. | Props de catálogo, `onRemoveElement`, `parameterStubCatalog` |
+| `[NOVO]` | `ElementRemovalPicker.tsx` | Remoção | Modal com seleção em dois passos: clique seleciona item, **Confirmar** dispara `onConfirm`. Estado `selectedKey` controlado pelo `NodeCard`. | `elements`, `selectedKey`, `onSelectKey`, `onConfirm`, `onClose` |
+| `[NOVO]` | `ElementRemovalPicker.module.css` | Remoção | Estilos de item selecionado, botão Confirmar e z-index do backdrop. | — |
+| `[NOVO]` | `confirm_remove_node_element` | Remoção | Entrada Messenger com `{elementName}` e `{connectionWarning}`. | Catálogo JSON + constante `MESSENGER_CONFIRM_REMOVE_NODE_ELEMENT` |
+| `[ATUALIZADO]` | `NodeCard.tsx` | Element Menu | Substitui `+ Elemento` por `ElementMenu` + `ElementRemovalPicker`; estado `removalSelectedKey`. | `parameterStubCatalog`, `onRequestRemoveElement` |
+| `[ATUALIZADO]` | `GraphCanvas.tsx` | Element Menu | Repassa `onRequestRemoveElement` e `parameterStubCatalog` do schema base. | `(canvasNodeId, item) => void` |
+| `[ATUALIZADO]` | `App.tsx` | Remoção | `handleRequestRemoveNodeElement` com guard de parâmetro obrigatório, confirmação Messenger e remoção via hook. | Usa `removeCanvasParameter` / `removeCanvasInternalStructure` |
+| `[ATUALIZADO]` | `useSceneHistory.ts` | Remoção | Export e uso de `removeCanvasParameter` e `removeCanvasInternalStructure` (limpeza de schema, values, links e conexões de IS). | `(nodeId, elementId) => void` |
+| `[REMOVIDO]` | Botão `+ Elemento` | Element Menu | Label e menu flat único substituídos pelo menu em dois níveis **Element**. | — |
 
 ## 6. Descrição Detalhada de Funcionamento
 
-A gestão de elementos internos do nó passou de um único botão **+ Elemento** (lista flat só de adição) para o componente **ElementMenu**, com menu em dois níveis: **+ Element** reutiliza o fluxo anterior (criar filho a partir de IS existente, acrescentar IS ou parâmetro do catálogo) e **- Element** abre o **ElementRemovalPicker** com todos os parâmetros e internal structures listados via `listNodeElements`.
+A gestão de elementos internos do nó deixou de usar o botão estático **+ Elemento** (lista única de adição) e passou ao componente **ElementMenu**, com menu em dois níveis: **+ Element** mantém o fluxo anterior (criar filho a partir de internal structure existente, acrescentar IS ou parâmetro do catálogo) e **- Element** abre o **ElementRemovalPicker**.
 
-Ao escolher um item para remover, o **App** calcula dependências com `countElementDependencies`: para internal structures conta ligações em `scene.connections` cuja origem é o slot; para parâmetros conta pares em `parameter_value_links`. O texto extra entra na confirmação Messenger (`formatElementDependencyWarning`). Após confirmar, `removeCanvasInternalStructure` remove o slot do schema e filtra conexões órfãs no grafo; `removeCanvasParameter` remove parâmetro, valores e vínculos via `link_parameter_value_remove_involving`. Em desenvolvimento, qualquer alteração de `scene` dispara `workspaceService.syncSceneToDisk`, persistindo `logic.json`, `layout.json` e `graph.json` sem chamada manual a `processAndSave`.
+O picker lista apenas elementos removíveis via `listRemovableNodeElements`, que omite parâmetros marcados como obrigatórios em `required_parameter` / `schema.required_parameter`, resolvendo ids dinâmicos (`dyn-param-*`) com o catálogo base do schema (`fx_required_parameter_isMarked`). Internal structures continuam sempre listáveis. O utilizador seleciona um item (destaque visual), activa **Confirmar** no rodapé do modal (ao lado de **Fechar**) e só então o **App** valida novamente se o parâmetro não é obrigatório, calcula dependências (`countElementDependencies`: conexões de grafo para IS, `parameter_value_links` para parâmetros) e mostra confirmação **Messenger**. Após confirmar, `removeCanvasInternalStructure` remove o slot e filtra conexões órfãs em `graph.json`; `removeCanvasParameter` remove parâmetro, valores e vínculos. Em desenvolvimento, `workspaceService.syncSceneToDisk` persiste `logic.json`, `layout.json` e `graph.json` automaticamente quando a cena muda.
 
-Nós do tipo `module` mantêm o botão **Element** desabilitado. Se não houver itens removíveis, **- Element** fica desabilitado com tooltip explicativo. A renderização do card permanece estável porque apenas o schema e valores do nó são alterados; não há referências a elementos removidos nos componentes filhos após o update da cena.
+**Regras de negócio:** nós `module` mantêm **Element** desabilitado; **- Element** desabilitado se não houver itens removíveis; parâmetros obrigatórios nunca aparecem na lista nem podem ser removidos pelo handler; confirmação Messenger obrigatória antes de excluir; aviso textual quando existem conexões ou vínculos activos.
 
-**Regras de negócio:** confirmação obrigatória antes de excluir; aviso quando existem conexões ou vínculos; limpeza automática de conexões de grafo ao remover internal structure; undo/redo via histórico de cena existente.
+**Tratamento de erros:** tentativa de remover parâmetro obrigatório no `App` é ignorada (defesa em profundidade); picker com `z-index` elevado e `stopPropagation` em `pointerdown` para não conflitar com o `mousedown` do `ElementMenu`.
 
-**Tecnologias:** React, TypeScript, Vitest, Messenger Popup catalog, `useSceneHistory`, persistência workspace em DEV.
+**Tecnologias:** React 19, TypeScript, Vitest, Messenger Popup, `useSceneHistory`, persistência workspace em DEV.
