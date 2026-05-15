@@ -71,6 +71,8 @@ export type NodeInstance = {
   required_parameter?: string[]
   /** Pares de ids cujo valor é mantido sincronizado (ordem canónica por id). */
   parameter_value_links?: Array<readonly [string, string]>
+  /** Opcional: id do parâmetro `string` cuja valor serve de base à hashString. */
+  hashString?: string
 }
 
 export const sampleNodeSchema = {

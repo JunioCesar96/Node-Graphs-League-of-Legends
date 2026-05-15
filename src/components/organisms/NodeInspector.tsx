@@ -29,6 +29,8 @@ type NodeInspectorProps = {
   onPromptToggleRequiredParameter?: (parameterId: string) => void
   /** Abre o diálogo para vincular o valor deste parâmetro a outro do mesmo tipo (`link_parameter_value`). */
   onOpenParameterValueLinkPicker?: (parameterId: string) => void
+  /** Fluxo hashString: validar parâmetros string e escolher base. */
+  onAddHashStringInNode?: () => void
   /** Catálogo de stubs do mesmo pack (nós base); usado para alinhar ids com o JSON em disco. */
   parameterStubCatalog?: readonly NodeParameterDefinition[]
   /** True quando o painel está dentro da régua «Canvas viewport controls». */
@@ -42,6 +44,47 @@ const PARAMETER_DRAG_MIME = 'application/x-node-graph-parameter-id'
 
 function getParameterValue(node: CanvasNode, parameterId: string, fallback: string) {
   return node.node.values.find((value) => value.parameterId === parameterId)?.value ?? fallback
+}
+
+function hashStringBindingActive(node: CanvasNode): boolean {
+  const id = node.node.hashString
+  if (!id) {
+    return false
+  }
+  return node.node.schema.parameters.some((p) => p.id === id && p.type === 'string')
+}
+
+function InspectorHashStringButton({
+  active,
+  onClick,
+}: {
+  active: boolean
+  onClick?: () => void
+}) {
+  if (!onClick) {
+    return null
+  }
+
+  return (
+    <button
+      aria-label="Definir hashString a partir de um parâmetro string"
+      aria-pressed={active}
+      className={[
+        styles.hashStringButton,
+        active ? styles.hashStringButtonActive : styles.hashStringButtonMuted,
+      ]
+        .filter(Boolean)
+        .join(' ')}
+      onClick={(event) => {
+        event.stopPropagation()
+        onClick()
+      }}
+      onPointerDown={(event) => event.stopPropagation()}
+      type="button"
+    >
+      #
+    </button>
+  )
 }
 
 function ParameterOrderDragHandle({
@@ -415,6 +458,7 @@ export function NodeInspector({
   onSwapParameterPositions,
   onPromptToggleRequiredParameter,
   onOpenParameterValueLinkPicker,
+  onAddHashStringInNode,
   parameterStubCatalog,
   viewportDocked = false,
 }: NodeInspectorProps) {
@@ -580,7 +624,13 @@ export function NodeInspector({
           <span className={styles.chromeStripEyebrow} {...dragHandleProps}>
             Nó
           </span>
-          <h2 className={styles.chromeStripTitle}>{node.node.schema.title}</h2>
+          <div className={styles.chromeStripTitleRow}>
+            <InspectorHashStringButton
+              active={hashStringBindingActive(node)}
+              onClick={onAddHashStringInNode}
+            />
+            <h2 className={styles.chromeStripTitle}>{node.node.schema.title}</h2>
+          </div>
           <div className={styles.headerActions}>{inspectorToolbarActions}</div>
         </div>
         {renderFloatingBodyToBody(flyoutAside)}
@@ -595,7 +645,13 @@ export function NodeInspector({
           <span className={styles.eyebrow} {...dragHandleProps}>
             Nó seleccionado
           </span>
-          <h2 className={styles.title}>{node.node.schema.title}</h2>
+          <div className={styles.nodeTitleRow}>
+            <InspectorHashStringButton
+              active={hashStringBindingActive(node)}
+              onClick={onAddHashStringInNode}
+            />
+            <h2 className={styles.title}>{node.node.schema.title}</h2>
+          </div>
         </div>
         <div className={styles.headerActions}>{inspectorToolbarActions}</div>
       </div>

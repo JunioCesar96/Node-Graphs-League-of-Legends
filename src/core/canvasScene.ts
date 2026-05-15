@@ -146,9 +146,18 @@ export function hydrateScene(scene: CanvasScene): CanvasScene {
       }),
     ),
     nodes: scene.nodes.map((n) => {
+      const { hashString: incomingHashString, ...nodeWithoutHash } = n.node
+      const schemaClone = coerceEmbeddedSchema(structuredClone(n.node.schema))
+      const hashStringValid =
+        typeof incomingHashString === 'string' &&
+        incomingHashString.length > 0 &&
+        schemaClone.parameters.some((p) => p.id === incomingHashString && p.type === 'string')
+          ? incomingHashString
+          : undefined
+
       const nodeInstance: NodeInstance = {
-        ...n.node,
-        schema: coerceEmbeddedSchema(structuredClone(n.node.schema)),
+        ...nodeWithoutHash,
+        schema: schemaClone,
         values: structuredClone(n.node.values),
         ...(Array.isArray(n.node.required_parameter)
           ? { required_parameter: structuredClone(n.node.required_parameter) }
@@ -156,6 +165,7 @@ export function hydrateScene(scene: CanvasScene): CanvasScene {
         ...(Array.isArray(n.node.parameter_value_links)
           ? { parameter_value_links: structuredClone(n.node.parameter_value_links) }
           : {}),
+        ...(hashStringValid ? { hashString: hashStringValid } : {}),
       }
 
       return {

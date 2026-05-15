@@ -1,4 +1,5 @@
 import { createPortal } from 'react-dom'
+import type { ReactNode } from 'react'
 
 import type { NodeParameterDefinition } from '@/core/nodeSchema'
 
@@ -13,6 +14,12 @@ export type NodeInstanceStringCandidate = {
 type NodeInstanceStringPickerProps = {
   candidates: NodeInstanceStringCandidate[]
   nodeTitle: string
+  /** Sobrescreve o título do diálogo (ex.: fluxo hashString vs instance). */
+  dialogTitle?: string
+  /** Sobrescreve o subtítulo. */
+  dialogSubtitle?: ReactNode
+  /** `aria-labelledby` do diálogo (único por instância aberta). */
+  ariaTitleId?: string
   onClose: () => void
   onPick: (parameterId: string) => void
   open: boolean
@@ -21,6 +28,9 @@ type NodeInstanceStringPickerProps = {
 export function NodeInstanceStringPicker({
   candidates,
   nodeTitle,
+  dialogTitle,
+  dialogSubtitle,
+  ariaTitleId = 'node-instance-string-title',
   onClose,
   onPick,
   open,
@@ -31,7 +41,7 @@ export function NodeInstanceStringPicker({
 
   return createPortal(
     <div
-      aria-labelledby="node-instance-string-title"
+      aria-labelledby={ariaTitleId}
       aria-modal="true"
       className={styles.backdrop}
       role="dialog"
@@ -42,11 +52,15 @@ export function NodeInstanceStringPicker({
       }}
     >
       <div className={styles.dialog}>
-        <h2 className={styles.title} id="node-instance-string-title">
-          Criar Node Instance
+        <h2 className={styles.title} id={ariaTitleId}>
+          {dialogTitle ?? 'Criar Node Instance'}
         </h2>
         <p className={styles.subtitle}>
-          Escolha qual parâmetro string de <strong>{nodeTitle}</strong> define o nome da nova instância.
+          {dialogSubtitle ?? (
+            <>
+              Escolha qual parâmetro string de <strong>{nodeTitle}</strong> define o nome da nova instância.
+            </>
+          )}
         </p>
 
         <ul className={styles.list}>

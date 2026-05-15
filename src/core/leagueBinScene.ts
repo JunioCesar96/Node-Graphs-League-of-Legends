@@ -1,6 +1,17 @@
 import type { CanvasConnection, CanvasScene } from '@/core/canvasScene'
 import type { NodeParameterValue, NodeSchemaDefinition } from '@/core/nodeSchema'
 
+function resolveHashStringFromPayload(
+  schema: NodeSchemaDefinition,
+  raw: unknown,
+): string | undefined {
+  if (typeof raw !== 'string' || raw.trim().length === 0) {
+    return undefined
+  }
+  const row = schema.parameters.find((p) => p.id === raw)
+  return row?.type === 'string' ? raw : undefined
+}
+
 export type LeagueBinGraphDocumentV1 = {
   connections: CanvasConnection[]
   format: 'node-graphs-lol'
@@ -20,6 +31,7 @@ export type StoredCanvasNodePayload = {
     values: NodeParameterValue[]
     required_parameter?: string[]
     parameter_value_links?: Array<readonly [string, string]>
+    hashString?: string
   }
   position: { x: number; y: number }
 }
@@ -81,6 +93,11 @@ export function serializeScene(scene: CanvasScene): LeagueBinGraphDocumentV1 {
           : {}),
         ...(Array.isArray(n.node.parameter_value_links) && n.node.parameter_value_links.length > 0
           ? { parameter_value_links: structuredClone(n.node.parameter_value_links) }
+          : {}),
+        ...(typeof n.node.hashString === 'string' &&
+        n.node.hashString.length > 0 &&
+        n.node.schema.parameters.some((p) => p.id === n.node.hashString && p.type === 'string')
+          ? { hashString: n.node.hashString }
           : {}),
       },
     })),
@@ -166,17 +183,21 @@ export function parseSceneDocument(data: unknown): CanvasScene | null {
       parameter_value_links = pairs.length > 0 ? pairs : undefined
     }
 
+    const schemaClone = structuredClone(nodeBody.schema) as NodeSchemaDefinition
+    const hashString = resolveHashStringFromPayload(schemaClone, nodeBody.hashString)
+
     nodes.push({
       id: item.id,
       position: { x: item.position.x, y: item.position.y },
       node: {
         id: nodeBody.id,
-        schema: structuredClone(nodeBody.schema),
+        schema: schemaClone,
         values: structuredClone(nodeBody.values as NodeParameterValue[]),
         ...(required_parameter?.length ? { required_parameter: structuredClone(required_parameter) } : {}),
         ...(parameter_value_links?.length
           ? { parameter_value_links: structuredClone(parameter_value_links) }
           : {}),
+        ...(hashString ? { hashString } : {}),
       },
     })
   }

@@ -725,6 +725,44 @@ export function useSceneHistory(options?: {
     [updateScene],
   )
 
+  const setNodeHashString = useCallback(
+    (nodeId: string, parameterId: string) => {
+      updateScene((currentScene) => {
+        const canvasNode = currentScene.nodes.find((node) => node.id === nodeId)
+
+        if (!canvasNode) {
+          return currentScene
+        }
+
+        const row = canvasNode.node.schema.parameters.find((parameter) => parameter.id === parameterId)
+
+        if (!row || row.type !== 'string') {
+          return currentScene
+        }
+
+        if (canvasNode.node.hashString === parameterId) {
+          return currentScene
+        }
+
+        return {
+          ...currentScene,
+          nodes: currentScene.nodes.map((node) =>
+            node.id !== nodeId
+              ? node
+              : {
+                  ...node,
+                  node: {
+                    ...node.node,
+                    hashString: parameterId,
+                  },
+                },
+          ),
+        }
+      })
+    },
+    [updateScene],
+  )
+
   const setNodeParameterOrder = useCallback(
     (nodeId: string, parameterId: string, oneBasedIndex: number) => {
       updateScene((currentScene) => {
@@ -1223,6 +1261,7 @@ export function useSceneHistory(options?: {
     updateScene,
     updateSelectedParameter,
     updateNodeParameter,
+    setNodeHashString,
     setNodeParameterOrder,
     setSelectedNodeParameterOrder,
     swapSelectedNodeParameters,

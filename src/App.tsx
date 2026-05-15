@@ -63,6 +63,7 @@ import { parseSceneDocument, serializeScene } from '@/core/leagueBinScene'
 import {
   MESSENGER_CONFIRM_NODE_CONFIGURATION_MODE,
   MESSENGER_CONFIRM_TOGGLE_REQUIRED_PARAMETER,
+  MESSENGER_TOAST_HASH_STRING_REQUIRES_STRING_PARAM,
 } from '@/messenger_popup/messengerCatalog'
 import { useMessengerPopup } from '@/messenger_popup/MessengerPopupProvider'
 import { STORAGE_LAST_STRUCTURE_META, triggerJsonDownload } from '@/core/workspaceStorage'
@@ -164,6 +165,7 @@ function App() {
     deleteSelectedNodes,
     updateSelectedParameter,
     updateNodeParameter,
+    setNodeHashString,
     setNodeParameterOrder,
     swapSelectedNodeParameters,
     toggleSelectedParameterRequired,
@@ -182,7 +184,7 @@ function App() {
     addDynamicParameter,
   } = useSceneHistory({ extendSchemaLookup })
 
-  const { showConfirmByCatalogId } = useMessengerPopup()
+  const { showConfirmByCatalogId, showToastByCatalogId } = useMessengerPopup()
 
   const availableSchemas = useMemo(() => Object.values(extendSchemaLookup), [extendSchemaLookup])
 
@@ -235,6 +237,7 @@ function App() {
   const [nodeConfigurationMode, setNodeConfigurationMode] = useState(false)
   const [parameterValueLinkSourceId, setParameterValueLinkSourceId] = useState<null | string>(null)
   const [nodeInstanceStringPickerNodeId, setNodeInstanceStringPickerNodeId] = useState<null | string>(null)
+  const [hashStringPickerNodeId, setHashStringPickerNodeId] = useState<null | string>(null)
   const [paletteSignal, setPaletteSignal] = useState(0)
   const [tooltipHints, setTooltipHints] = useState<TooltipDictionary>({})
   const [bootConsoleTestStamp, setBootConsoleTestStamp] = useState<number | null>(() => Date.now())
@@ -1019,6 +1022,10 @@ function App() {
     setParameterValueLinkSourceId(null)
   }, [primarySelectedId])
 
+  useEffect(() => {
+    setHashStringPickerNodeId(null)
+  }, [primarySelectedId])
+
   const nodeInstanceStringCandidates = useMemo<NodeInstanceStringCandidate[]>(() => {
     if (!inspectorTarget) {
       return []
@@ -1048,11 +1055,68 @@ function App() {
     }
 
     setNodeInstanceStringPickerNodeId(inspectorTarget.id)
+    setHashStringPickerNodeId(null)
   }, [inspectorTarget, nodeInstanceStringCandidates.length])
 
   const closeNodeInstanceStringPicker = useCallback(() => {
     setNodeInstanceStringPickerNodeId(null)
   }, [])
+
+  const closeHashStringPicker = useCallback(() => {
+    setHashStringPickerNodeId(null)
+  }, [])
+
+  const hashStringPickerTarget = useMemo(
+    () => scene.nodes.find((canvasNode) => canvasNode.id === hashStringPickerNodeId),
+    [hashStringPickerNodeId, scene.nodes],
+  )
+
+  const hashStringPickerCandidates = useMemo<NodeInstanceStringCandidate[]>(() => {
+    if (!hashStringPickerTarget) {
+      return []
+    }
+
+    return hashStringPickerTarget.node.schema.parameters
+      .filter((parameter) => parameter.type === 'string')
+      .map((parameter) => {
+        const value =
+          getNodeParameterRuntimeValue(hashStringPickerTarget, parameter.id) ?? parameter.defaultValue
+        const stringName = normalizeNodeInstanceStringName(value)
+
+        return { parameter, stringName, value }
+      })
+  }, [hashStringPickerTarget])
+
+  const addHashStringInNode = useCallback(() => {
+    if (!inspectorTarget) {
+      return
+    }
+
+    const stringParameters = inspectorTarget.node.schema.parameters.filter(
+      (parameter) => parameter.type === 'string',
+    )
+
+    if (stringParameters.length === 0) {
+      showToastByCatalogId(MESSENGER_TOAST_HASH_STRING_REQUIRES_STRING_PARAM)
+      return
+    }
+
+    setNodeInstanceStringPickerNodeId(null)
+    setHashStringPickerNodeId(inspectorTarget.id)
+  }, [inspectorTarget, showToastByCatalogId])
+
+  const saveHashStringFromPicker = useCallback(
+    (parameterId: string) => {
+      const targetId = hashStringPickerNodeId
+      if (!targetId) {
+        return
+      }
+
+      setNodeHashString(targetId, parameterId)
+      setHashStringPickerNodeId(null)
+    },
+    [hashStringPickerNodeId, setNodeHashString],
+  )
 
   const saveNodeInstanceFromStringParameter = useCallback(
     (parameterId: string) => {
@@ -1421,6 +1485,7 @@ function App() {
                   node={inspectorTarget}
                   onCreateInstance={promptConvertToNodeInstance}
                   onDelete={() => deleteSelectedNodes()}
+                  onAddHashStringInNode={addHashStringInNode}
                   onOpenParameterValueLinkPicker={setParameterValueLinkSourceId}
                   onPromptToggleRequiredParameter={promptToggleRequiredParameter}
                   parameterStubCatalog={inspectorStubCatalog}
@@ -1443,6 +1508,7 @@ function App() {
                 node={inspectorTarget}
                 onCreateInstance={promptConvertToNodeInstance}
                 onDelete={() => deleteSelectedNodes()}
+                onAddHashStringInNode={addHashStringInNode}
                 onOpenParameterValueLinkPicker={setParameterValueLinkSourceId}
                 onPromptToggleRequiredParameter={promptToggleRequiredParameter}
                 parameterStubCatalog={inspectorStubCatalog}
@@ -1470,6 +1536,7 @@ function App() {
                 node={inspectorTarget}
                 onCreateInstance={promptConvertToNodeInstance}
                 onDelete={() => deleteSelectedNodes()}
+                onAddHashStringInNode={addHashStringInNode}
                 onOpenParameterValueLinkPicker={setParameterValueLinkSourceId}
                 onPromptToggleRequiredParameter={promptToggleRequiredParameter}
                 parameterStubCatalog={inspectorStubCatalog}
@@ -1543,6 +1610,24 @@ function App() {
             onClose={closeNodeInstanceStringPicker}
             onPick={saveNodeInstanceFromStringParameter}
             open={nodeInstanceStringPickerNodeId === inspectorTarget.id}
+          />
+        ) : null}
+
+        {hashStringPickerTarget && hashStringPickerNodeId ? (
+          <NodeInstanceStringPicker
+            ariaTitleId="hash-string-picker-dialog-title"
+            candidates={hashStringPickerCandidates}
+            dialogTitle="Definir hashString"
+            dialogSubtitle={
+              <>
+                Escolha o parâmetro string de <strong>{hashStringPickerTarget.node.schema.title}</strong> que
+                servirá de base para a hashString.
+              </>
+            }
+            nodeTitle={hashStringPickerTarget.node.schema.title}
+            onClose={closeHashStringPicker}
+            onPick={saveHashStringFromPicker}
+            open
           />
         ) : null}
 

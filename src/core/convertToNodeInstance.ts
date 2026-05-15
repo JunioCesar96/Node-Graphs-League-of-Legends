@@ -9,6 +9,8 @@ export type NodeInstanceJsonDocument = {
   nomenclature?: NodeStructureNomenclature
   required_parameter?: string[]
   linked_parameter_values?: Array<readonly [string, string]>
+  /** Id do parâmetro `string` escolhido como base da hashString (instância). */
+  hashString?: string
 }
 
 export function getNodeParameterRuntimeValue(
@@ -97,6 +99,15 @@ export function buildNodeInstanceJsonDocument(
     canvasNode.node.parameter_value_links ?? canvasNode.node.schema.linked_parameter_values
   if (linkedParameterValues) {
     document.linked_parameter_values = linkedParameterValues.map(([a, b]) => [a, b] as const)
+  }
+
+  const hashParamId = canvasNode.node.hashString
+  if (
+    typeof hashParamId === 'string' &&
+    hashParamId.length > 0 &&
+    parameters.some((p) => p.id === hashParamId && p.type === 'string')
+  ) {
+    document.hashString = hashParamId
   }
 
   return document
