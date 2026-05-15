@@ -576,11 +576,89 @@ export function useSceneHistory(options?: {
             ),
             connection,
           ],
-          nodes: [...currentScene.nodes, newCanvasNode],
+          nodes: [
+            ...currentScene.nodes.map((canvasNode) => {
+              if (canvasNode.id !== fromNodeId) {
+                return canvasNode
+              }
+
+              return {
+                ...canvasNode,
+                node: {
+                  ...canvasNode.node,
+                  schema: {
+                    ...canvasNode.node.schema,
+                    internalStructures: canvasNode.node.schema.internalStructures.map((structure) =>
+                      structure.id === slot.id ? { ...structure, schemaId: slot.schemaId } : structure,
+                    ),
+                  },
+                },
+              }
+            }),
+            newCanvasNode,
+          ],
         }
       })
     },
     [updateScene, schemaLookup],
+  )
+
+  const relinkInternalStructureSlot = useCallback(
+    (fromNodeId: string, structureId: string, targetNodeId: string) => {
+      updateScene((currentScene) => {
+        const sourceNode = currentScene.nodes.find((node) => node.id === fromNodeId)
+        const targetNode = currentScene.nodes.find((node) => node.id === targetNodeId)
+
+        if (!sourceNode || !targetNode) {
+          return currentScene
+        }
+
+        const structure = sourceNode.node.schema.internalStructures.find((item) => item.id === structureId)
+
+        if (!structure) {
+          return currentScene
+        }
+
+        const nextSchemaId = targetNode.node.schema.id
+        const connection: CanvasConnection = {
+          id: `${fromNodeId}:${structureId}->${targetNodeId}`,
+          fromInternalStructureId: structureId,
+          fromNodeId,
+          toNodeId: targetNodeId,
+        }
+
+        return {
+          ...currentScene,
+          connections: [
+            ...currentScene.connections.filter(
+              (currentConnection) =>
+                currentConnection.fromNodeId !== fromNodeId ||
+                currentConnection.fromInternalStructureId !== structureId,
+            ),
+            connection,
+          ],
+          nodes: currentScene.nodes.map((canvasNode) => {
+            if (canvasNode.id !== fromNodeId) {
+              return canvasNode
+            }
+
+            return {
+              ...canvasNode,
+              node: {
+                ...canvasNode.node,
+                schema: {
+                  ...canvasNode.node.schema,
+                  internalStructures: canvasNode.node.schema.internalStructures.map((item) =>
+                    item.id === structureId ? { ...item, schemaId: nextSchemaId } : item,
+                  ),
+                },
+              },
+            }
+          }),
+        }
+      })
+    },
+    [updateScene],
   )
 
   const createRootNode = useCallback((schema: NodeSchemaDefinition) => {
@@ -1300,6 +1378,7 @@ export function useSceneHistory(options?: {
     moveNode,
     connectNodes,
     removeConnection,
+    relinkInternalStructureSlot,
     createChildNode,
     createRootNode,
     deleteNodeIds,
