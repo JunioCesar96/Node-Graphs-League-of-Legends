@@ -86,6 +86,26 @@ export function schemaMatchesCollectionType(
   return schema.id === normalizedType
 }
 
+export function resolveInternalStructureLabelFromTarget(target: CanvasNode): string {
+  const title = target.node.schema.title.trim()
+  if (title) {
+    return title
+  }
+
+  return target.node.schema.id
+}
+
+export function patchInternalStructureSlotForLink(
+  slot: InternalStructureDefinition,
+  target: CanvasNode,
+): InternalStructureDefinition {
+  return {
+    ...slot,
+    schemaId: target.node.schema.id,
+    name: resolveInternalStructureLabelFromTarget(target),
+  }
+}
+
 export function findConnectionTargetForSlot(
   connections: readonly { fromNodeId: string; fromInternalStructureId: string; toNodeId: string }[],
   fromNodeId: string,

@@ -85,9 +85,11 @@ sequenceDiagram
 | `[NOVO]` | `getNodesByCollectionType` | Dynamic Collection Type Linking | Varre nós activos e devolve instâncias cujo `nomenclature.collectionType` coincide. | `(nodes, collectionType, options?)` → `CanvasNode[]`. |
 | `[NOVO]` | `nodesShareCollectionType` | Dynamic Collection Type Linking | Compara tipo semântico; faz fallback para `schema.id` quando nomenclatura falta. | `(sourceSchemaId, targetNode, registry)` → `boolean`. |
 | `[NOVO]` | `CollectionTypeLinkMenu` | Dynamic Collection Type Linking | Menu flutuante na porta de saída com ligação actual e lista «Compatible [Type] Nodes». | Props de âncora, nós compatíveis, callbacks `onSelect` / `onClose`. |
-| `[NOVO]` | `relinkInternalStructureSlot` | Dynamic Collection Type Linking | Actualiza `internalStructures[].schemaId` e substitui a conexão do slot no grafo. | `(fromNodeId, structureId, targetNodeId)` → `void`. |
+| `[NOVO]` | `resolveInternalStructureLabelFromTarget` | Dynamic Collection Type Linking | Obtém o rótulo do slot a partir do `title` do nó alvo (fallback: `schema.id`). | `(target: CanvasNode)` → `string`. |
+| `[NOVO]` | `patchInternalStructureSlotForLink` | Dynamic Collection Type Linking | Sincroniza `schemaId` e `name` do slot com o nó ligado. | `(slot, target)` → `InternalStructureDefinition`. |
+| `[NOVO]` | `relinkInternalStructureSlot` | Dynamic Collection Type Linking | Actualiza slot (`schemaId` + `name`) e substitui a conexão no grafo. | `(fromNodeId, structureId, targetNodeId)` → `void`. |
 | `[ATUALIZADO]` | `GraphCanvas.tsx` | Dynamic Collection Type Linking | Clique curto abre menu; drag, highlight e paleta usam `collectionType` em vez de só `schema.id`. | Novas props `onRelinkInternalStructure`; estado `collectionTypeLinkMenu`. |
-| `[ATUALIZADO]` | `useSceneHistory.ts` | Dynamic Collection Type Linking | Expõe `relinkInternalStructureSlot`; `createChildNode` alinha `schemaId` do slot ao filho criado. | Callbacks no retorno do hook. |
+| `[ATUALIZADO]` | `useSceneHistory.ts` | Dynamic Collection Type Linking | `connectNodes`, `createChildNode` e `relinkInternalStructureSlot` usam `patchInternalStructureSlotForLink` para o card reflectir o `title` do alvo. | Callbacks no retorno do hook. |
 | `[ATUALIZADO]` | `App.tsx` | Dynamic Collection Type Linking | Liga `relinkInternalStructureSlot` ao `GraphCanvas`. | Prop `onRelinkInternalStructure`. |
 
 ## 6. Descrição Detalhada de Funcionamento
@@ -98,8 +100,8 @@ sequenceDiagram
 
 [NOVO] `CollectionTypeLinkMenu` abre em portal fixo ao clicar na porta de saída com deslocamento inferior a 12px (`DROP_TO_OPEN_LINK_PALETTE_PX`). Mostra a ligação actual (ou «Sem ligação»), o rótulo **Compatible [Type] Nodes** e os demais nós do mesmo tipo no grafo (excluindo o nó pai).
 
-[ATUALIZADO] Ao seleccionar um alvo, `relinkInternalStructureSlot` actualiza atomicamente o `schemaId` do slot em `logic.json` e a aresta correspondente em `graph.json` via `splitSceneToWorkspace` / `syncSceneToDisk` já existente em modo dev.
+[ATUALIZADO] Ao seleccionar um alvo, `relinkInternalStructureSlot` actualiza atomicamente o `schemaId` e o `name` do slot em `logic.json` (o `name` passa a ser o `title` do nó alvo, ex.: «Emitter · Additive Flame Wave») e a aresta correspondente em `graph.json` via `syncSceneToDisk` em dev.
 
-[ATUALIZADO] O fluxo de drag mantém-se: soltar num input compatível chama `connectNodes`; soltar na grade vazia com drag longo abre a paleta filtrada por `schemaMatchesCollectionType`; criar filho actualiza o `schemaId` do slot no pai.
+[ATUALIZADO] O fluxo de drag mantém-se: soltar num input compatível chama `connectNodes`, que também sincroniza `name` e `schemaId` no card do pai; soltar na grade vazia com drag longo abre a paleta filtrada por `schemaMatchesCollectionType`; criar filho actualiza slot e rótulo no pai com o título da instância criada.
 
 Tratamento de erros: se não for possível resolver `collectionType`, o menu não abre e o comportamento de drag recai no fallback por `schema.id`. Nós inexistentes ou slots inválidos são ignorados em `relinkInternalStructureSlot` sem alterar a cena. Não houve alterações a `linked_parameter_values` nesta branch.

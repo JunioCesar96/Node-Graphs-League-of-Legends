@@ -23,6 +23,7 @@ import {
   linked_parameter_values_apply_to_instance,
   translateDiskLinkedPairsToCanvas,
 } from '@/core/linked_parameter_values'
+import { patchInternalStructureSlotForLink } from '@/core/collectionTypeLinking'
 import type {
   InternalStructureDefinition,
   NodeInstance,
@@ -481,17 +482,43 @@ export function useSceneHistory(options?: {
 
   const connectNodes = useCallback(
     (connection: CanvasConnection) => {
-      updateScene((currentScene) => ({
-        ...currentScene,
-        connections: [
-          ...currentScene.connections.filter(
-            (currentConnection) =>
-              currentConnection.fromNodeId !== connection.fromNodeId ||
-              currentConnection.fromInternalStructureId !== connection.fromInternalStructureId,
-          ),
-          connection,
-        ],
-      }))
+      updateScene((currentScene) => {
+        const targetNode = currentScene.nodes.find((node) => node.id === connection.toNodeId)
+
+        return {
+          ...currentScene,
+          connections: [
+            ...currentScene.connections.filter(
+              (currentConnection) =>
+                currentConnection.fromNodeId !== connection.fromNodeId ||
+                currentConnection.fromInternalStructureId !== connection.fromInternalStructureId,
+            ),
+            connection,
+          ],
+          nodes: targetNode
+            ? currentScene.nodes.map((canvasNode) => {
+                if (canvasNode.id !== connection.fromNodeId) {
+                  return canvasNode
+                }
+
+                return {
+                  ...canvasNode,
+                  node: {
+                    ...canvasNode.node,
+                    schema: {
+                      ...canvasNode.node.schema,
+                      internalStructures: canvasNode.node.schema.internalStructures.map((item) =>
+                        item.id === connection.fromInternalStructureId
+                          ? patchInternalStructureSlotForLink(item, targetNode)
+                          : item,
+                      ),
+                    },
+                  },
+                }
+              })
+            : currentScene.nodes,
+        }
+      })
     },
     [updateScene],
   )
@@ -589,7 +616,9 @@ export function useSceneHistory(options?: {
                   schema: {
                     ...canvasNode.node.schema,
                     internalStructures: canvasNode.node.schema.internalStructures.map((structure) =>
-                      structure.id === slot.id ? { ...structure, schemaId: slot.schemaId } : structure,
+                      structure.id === slot.id
+                        ? patchInternalStructureSlotForLink(structure, newCanvasNode)
+                        : structure,
                     ),
                   },
                 },
@@ -619,7 +648,6 @@ export function useSceneHistory(options?: {
           return currentScene
         }
 
-        const nextSchemaId = targetNode.node.schema.id
         const connection: CanvasConnection = {
           id: `${fromNodeId}:${structureId}->${targetNodeId}`,
           fromInternalStructureId: structureId,
@@ -649,7 +677,9 @@ export function useSceneHistory(options?: {
                 schema: {
                   ...canvasNode.node.schema,
                   internalStructures: canvasNode.node.schema.internalStructures.map((item) =>
-                    item.id === structureId ? { ...item, schemaId: nextSchemaId } : item,
+                    item.id === structureId
+                      ? patchInternalStructureSlotForLink(item, targetNode)
+                      : item,
                   ),
                 },
               },

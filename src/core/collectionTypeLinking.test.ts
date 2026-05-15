@@ -7,8 +7,10 @@ import {
   findConnectionTargetForSlot,
   getNodesByCollectionType,
   nodesShareCollectionType,
+  patchInternalStructureSlotForLink,
   resolveCollectionTypeForInternalStructure,
   resolveCollectionTypeForSlot,
+  resolveInternalStructureLabelFromTarget,
   schemaMatchesCollectionType,
 } from './collectionTypeLinking'
 
@@ -52,6 +54,7 @@ function canvasNode(
   id: string,
   schemaId: string,
   collectionType?: string,
+  title?: string,
 ): CanvasNode {
   return {
     id,
@@ -60,7 +63,7 @@ function canvasNode(
       id,
       schema: {
         id: schemaId,
-        title: schemaId,
+        title: title ?? schemaId,
         parameters: [],
         internalStructures: [],
         nomenclature: collectionType
@@ -124,6 +127,52 @@ describe('collectionTypeLinking', () => {
   it('schemaMatchesCollectionType compara nomenclatura ou id', () => {
     expect(schemaMatchesCollectionType(registry.Emitter, 'Emitter')).toBe(true)
     expect(schemaMatchesCollectionType(registry.VFX, 'Emitter')).toBe(false)
+  })
+
+  it('resolveInternalStructureLabelFromTarget usa title do alvo', () => {
+    const target = canvasNode(
+      'em-02',
+      'vfx-em-imported',
+      'Emitter',
+      'Emitter · Additive Flame Wave',
+    )
+
+    expect(resolveInternalStructureLabelFromTarget(target)).toBe('Emitter · Additive Flame Wave')
+  })
+
+  it('resolveInternalStructureLabelFromTarget faz fallback para schema.id sem title', () => {
+    const target: CanvasNode = {
+      id: 'legacy-01',
+      position: { x: 0, y: 0 },
+      node: {
+        id: 'legacy-01',
+        schema: {
+          id: 'legacy-schema',
+          title: '   ',
+          parameters: [],
+          internalStructures: [],
+        },
+        values: [],
+      },
+    }
+
+    expect(resolveInternalStructureLabelFromTarget(target)).toBe('legacy-schema')
+  })
+
+  it('patchInternalStructureSlotForLink actualiza name e schemaId', () => {
+    const slot = { id: 'slot-1', name: 'Emitter', schemaId: 'Emitter' }
+    const target = canvasNode(
+      'em-02',
+      'vfx-em-0xa2fa6a01-1-additive-flame-wave',
+      'Emitter',
+      'Emitter · Additive Flame Wave',
+    )
+
+    expect(patchInternalStructureSlotForLink(slot, target)).toEqual({
+      id: 'slot-1',
+      name: 'Emitter · Additive Flame Wave',
+      schemaId: 'vfx-em-0xa2fa6a01-1-additive-flame-wave',
+    })
   })
 
   it('findConnectionTargetForSlot resolve alvo da conexão', () => {
