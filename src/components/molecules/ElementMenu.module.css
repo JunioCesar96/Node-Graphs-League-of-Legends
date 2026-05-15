@@ -42,7 +42,7 @@
   display: grid;
   gap: var(--space-1);
   width: 100%;
-  min-width: 220px;
+  min-width: 260px;
   padding: var(--space-2);
   background: rgb(37 37 38 / 96%);
   border: 1px solid var(--color-border-soft);
@@ -101,4 +101,58 @@
 .backRow {
   color: var(--color-text-muted);
   font-size: 0.72rem;
+}
+
+.searchInput {
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  color: var(--color-text-primary);
+  font: 500 0.82rem var(--font-body);
+  background: rgb(0 0 0 / 24%);
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-control);
+}
+
+.searchInput:focus {
+  border-color: var(--port-child);
+  outline: none;
+  box-shadow: 0 0 0 3px rgb(255 193 7 / 10%);
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.tags button {
+  height: 26px;
+  padding: 0 var(--space-3);
+  color: var(--color-text-muted);
+  font-family: var(--font-data);
+  font-size: 0.64rem;
+  background: rgb(255 255 255 / 4%);
+  border: 1px solid var(--color-border-soft);
+  border-radius: 999px;
+}
+
+.tags button:hover,
+.tags button[aria-pressed='true'] {
+  color: var(--color-text-primary);
+  background: rgb(255 193 7 / 12%);
+  border-color: var(--port-child);
+}
+
+.results {
+  display: grid;
+  gap: var(--space-1);
+  max-height: min(280px, 50vh);
+  overflow-y: auto;
+}
+
+.emptyState {
+  padding: var(--space-2) var(--space-3);
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+  text-align: center;
 }

@@ -1,7 +1,12 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { Button } from '@/components/atoms/Button'
 import type { InternalStructureDefinition, NodeInstance, NodeParameterDefinition } from '@/core/nodeSchema'
+import {
+  type ElementMenuOrganizationMode,
+  filterAndSortElementMenuEntries,
+  buildElementMenuEntries,
+} from '@/core/elementMenuCatalogUtils'
 import { listRemovableNodeElements } from '@/core/listNodeElements'
 
 import { ELEMENT_REMOVAL_PICKER_ROOT_ATTR } from '@/components/molecules/ElementRemovalPicker'
@@ -26,6 +31,8 @@ type ElementMenuProps = {
 
 type MenuPanel = 'root' | 'add'
 
+const DEFAULT_ORGANIZATION: ElementMenuOrganizationMode = 'az'
+
 export function ElementMenu({
   catalogInternalStructures,
   catalogParameters,
@@ -44,9 +51,40 @@ export function ElementMenu({
   const elementSelectorRef = useRef<HTMLDetailsElement>(null)
   const [isOpen, setIsOpen] = useState(false)
   const [panel, setPanel] = useState<MenuPanel>('root')
+  const [elementQuery, setElementQuery] = useState('')
+  const [elementOrganization, setElementOrganization] =
+    useState<ElementMenuOrganizationMode>(DEFAULT_ORGANIZATION)
 
   const removables = listRemovableNodeElements(node, parameterStubCatalog)
   const canRemove = removables.length > 0 && Boolean(onRemoveElement)
+
+  const catalogEntries = useMemo(
+    () =>
+      buildElementMenuEntries({
+        presetStructures: node.schema.internalStructures,
+        catalogStructures: catalogInternalStructures,
+        catalogParameters: catalogParameters,
+        includeCatalogStructures: hasCatalogStructures,
+        includeCatalogParameters: hasCatalogParameters,
+      }),
+    [
+      catalogInternalStructures,
+      catalogParameters,
+      hasCatalogParameters,
+      hasCatalogStructures,
+      node.schema.internalStructures,
+    ],
+  )
+
+  const visibleEntries = useMemo(
+    () => filterAndSortElementMenuEntries(catalogEntries, elementQuery, elementOrganization),
+    [catalogEntries, elementOrganization, elementQuery],
+  )
+
+  const resetAddPanelState = () => {
+    setElementQuery('')
+    setElementOrganization(DEFAULT_ORGANIZATION)
+  }
 
   useEffect(() => {
     if (!isOpen) {
@@ -64,12 +102,14 @@ export function ElementMenu({
       if (!elementSelectorRef.current?.contains(target)) {
         setIsOpen(false)
         setPanel('root')
+        resetAddPanelState()
       }
     }
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         setIsOpen(false)
         setPanel('root')
+        resetAddPanelState()
       }
     }
 
@@ -100,6 +140,19 @@ export function ElementMenu({
   const closeMenu = () => {
     setIsOpen(false)
     setPanel('root')
+    resetAddPanelState()
+  }
+
+  const handlePickEntry = (entry: (typeof visibleEntries)[number]) => {
+    if (entry.onPick === 'create-element' && entry.structure) {
+      onCreateElement?.(entry.structure)
+    } else if (entry.onPick === 'append-structure' && entry.structure) {
+      onAppendCatalogInternalStructure?.(entry.structure)
+    } else if (entry.onPick === 'append-parameter' && entry.parameter) {
+      onAppendCatalogParameter?.(entry.parameter)
+    }
+
+    closeMenu()
   }
 
   return (
@@ -111,6 +164,7 @@ export function ElementMenu({
             const next = !openState
             if (!next) {
               setPanel('root')
+              resetAddPanelState()
             }
             return next
           })
@@ -149,55 +203,63 @@ export function ElementMenu({
           </>
         ) : (
           <div className={styles.addPanel}>
-            <button className={styles.backRow} onClick={() => setPanel('root')} type="button">
+            <button
+              className={styles.backRow}
+              onClick={() => {
+                setPanel('root')
+                resetAddPanelState()
+              }}
+              type="button"
+            >
               ← Element
             </button>
 
-            {node.schema.internalStructures.map((structure) => (
+            <input
+              aria-label="Pesquisar elementos do catálogo"
+              autoComplete="off"
+              className={styles.searchInput}
+              onChange={(event) => setElementQuery(event.target.value)}
+              placeholder="Pesquisar elemento…"
+              type="search"
+              value={elementQuery}
+            />
+
+            <div aria-label="Modos de organização" className={styles.tags}>
               <button
-                key={structure.id}
-                onClick={() => {
-                  onCreateElement?.(structure)
-                  closeMenu()
-                }}
+                aria-pressed={elementOrganization === 'az'}
+                onClick={() => setElementOrganization('az')}
                 type="button"
               >
-                <span>{structure.name}</span>
-                <small>{structure.schemaId}</small>
+                A-Z
               </button>
-            ))}
+              <button
+                aria-pressed={elementOrganization === 'tipo'}
+                onClick={() => setElementOrganization('tipo')}
+                type="button"
+              >
+                Tipo
+              </button>
+              <button
+                aria-pressed={elementOrganization === 'parameter-type'}
+                onClick={() => setElementOrganization('parameter-type')}
+                type="button"
+              >
+                Tipo de Parâmetro
+              </button>
+            </div>
 
-            {hasCatalogStructures
-              ? catalogInternalStructures?.map((structure) => (
-                  <button
-                    key={`catalog-is:${structure.schemaId}:${structure.name}`}
-                    onClick={() => {
-                      onAppendCatalogInternalStructure?.(structure)
-                      closeMenu()
-                    }}
-                    type="button"
-                  >
-                    <span>{structure.name}</span>
-                    <small>Internal_Structure · {structure.schemaId}</small>
+            <div className={styles.results}>
+              {visibleEntries.length > 0 ? (
+                visibleEntries.map((entry) => (
+                  <button key={entry.id} onClick={() => handlePickEntry(entry)} type="button">
+                    <span>{entry.label}</span>
+                    <small>{entry.meta}</small>
                   </button>
                 ))
-              : null}
-
-            {hasCatalogParameters
-              ? catalogParameters?.map((parameter) => (
-                  <button
-                    key={`catalog-param:${parameter.type}:${parameter.name}:${parameter.defaultValue}`}
-                    onClick={() => {
-                      onAppendCatalogParameter?.(parameter)
-                      closeMenu()
-                    }}
-                    type="button"
-                  >
-                    <span>{parameter.name}</span>
-                    <small>novo parâmetro · {parameter.type}</small>
-                  </button>
-                ))
-              : null}
+              ) : (
+                <p className={styles.emptyState}>Nenhum elemento encontrado</p>
+              )}
+            </div>
           </div>
         )}
       </div>
