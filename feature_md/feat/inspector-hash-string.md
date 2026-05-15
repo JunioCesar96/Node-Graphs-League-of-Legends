@@ -6,7 +6,7 @@ Arquivo salvo em: `feature_md/feat/inspector-hash-string.md`
 
 | Campo | Valor |
 | --- | --- |
-| Nome da Branch | `feat/inspector-hash-string` |
+| Nome da Branch | `feature/inspector-hash-string` |
 | Nome das Features | hashString (Inspector, modo Configurar) |
 | Versão atual | `1.4.0` |
 | Hash do Commit | `16a4edeb7566ac2669f0aafb5891141d122f9980` |

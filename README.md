@@ -6,7 +6,7 @@ Arquivo salvo em: `feature_md/feat/workspace-disk-persistence.md`
 
 | Campo | Valor |
 | --- | --- |
-| Nome da Branch | `feat/workspace-disk-persistence` |
+| Nome da Branch | `feature/workspace-disk-persistence` |
 | Nome das Features | Workspace Disk Persistence (persistência tripartida em disco) |
 | Versão atual | `1.4.0` |
 | Hash do Commit | `394598e085160d77fdf0a41d9b84bd6f61580200` |

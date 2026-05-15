@@ -1,4 +1,4 @@
-# Documentacao de Implementacao - feat/parametros-v0.0.2-obrigatorios
+# Documentacao de Implementacao - feature/parametros-v0.0.2-obrigatorios
 
 Arquivo salvo em: `feature_md/feat/parametros-v0.0.2-obrigatorios.md`
 
@@ -6,7 +6,7 @@ Arquivo salvo em: `feature_md/feat/parametros-v0.0.2-obrigatorios.md`
 
 | Campo | Valor |
 | --- | --- |
-| Nome da Branch | `feat/parametros-v0.0.2-obrigatorios` |
+| Nome da Branch | `feature/parametros-v0.0.2-obrigatorios` |
 | Nome das Features | Parametros obrigatorios, valores vinculados, modo de configuracao de nodes e edicao dinamica |
 | Versao atual | `1.4.0` |
 | Hash do Commit | `507bfdbe85fd9bd1ae2626d5ca60721e84f34c6e` |
