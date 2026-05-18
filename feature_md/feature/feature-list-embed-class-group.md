@@ -9,7 +9,7 @@ Arquivo salvo em: `feature_md/feature/feature-list-embed-class-group.md`
 | Nome da Branch | `feature/list-embed-class-group` |
 | Nome das Features | LIST_EMBED no schema e conversor Class Group; secção LIST_EMBED no card; slots dinâmicos e ligações no canvas; menus Element (+/−) e pickers por bloco |
 | Versão atual | `1.4.0` |
-| Hash do Commit | `PENDING_COMMIT_HASH` |
+| Hash do Commit | `fde4cb52d0507f8f5c4956260fa842220251380c` |
 
 Base: `feature/parameter-pickers-class-group` (`8a0f6cb`).
 
