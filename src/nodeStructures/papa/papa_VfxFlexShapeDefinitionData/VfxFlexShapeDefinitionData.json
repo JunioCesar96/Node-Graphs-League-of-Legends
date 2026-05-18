@@ -1,0 +1,44 @@
+{
+  "id": "vfx-flex-shape-definition-data",
+  "title": "VfxFlexShapeDefinitionData",
+  "parameters": [
+    {
+      "id": "vfx-flex-shape-definition-data-scale-birth-scale-by-bound-object-size",
+      "name": "scaleBirthScaleByBoundObjectSize",
+      "type": "f32",
+      "defaultValue": "0.0055"
+    },
+    {
+      "id": "vfx-flex-shape-definition-data-scale-emit-offset-by-bound-object-size",
+      "name": "scaleEmitOffsetByBoundObjectSize",
+      "type": "f32",
+      "defaultValue": "0.005"
+    }
+  ],
+  "listEmbed": [],
+  "internalStructures": [],
+  "nomenclature": {
+    "group": "#3 Internal Structures",
+    "collection": "#3 Pointer Node",
+    "collectionType": "VfxFlexShapeDefinitionData",
+    "pathHierarchy": "entries > Characters/Zac/Skins/Skin0/Particles/Zac_Base_Q_tar > complexEmitterDefinitionData:0 > FlexShapeDefinition",
+    "pathHierarchySteps": [
+      {
+        "id": "entries",
+        "type": "#1 Root Entry"
+      },
+      {
+        "id": "Characters/Zac/Skins/Skin0/Particles/Zac_Base_Q_tar",
+        "type": "#2 Root Entry (VfxSystemDefinitionData)"
+      },
+      {
+        "id": "complexEmitterDefinitionData:0",
+        "type": "#3 Collection Block"
+      },
+      {
+        "id": "FlexShapeDefinition",
+        "type": "#3 Pointer Node"
+      }
+    ]
+  }
+}

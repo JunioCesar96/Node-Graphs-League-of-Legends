@@ -1,0 +1,6 @@
+{
+  "id": "VfxSystemDefinitionData_soundOnCreateDefault",
+  "name": "soundOnCreateDefault",
+  "type": "string",
+  "defaultValue": ""
+}

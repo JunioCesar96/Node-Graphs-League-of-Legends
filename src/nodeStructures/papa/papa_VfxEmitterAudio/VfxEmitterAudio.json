@@ -1,0 +1,44 @@
+{
+  "id": "vfx-emitter-audio",
+  "title": "VfxEmitterAudio",
+  "parameters": [
+    {
+      "id": "vfx-emitter-audio-sound-on-create",
+      "name": "SoundOnCreate",
+      "type": "string",
+      "defaultValue": "Play_sfx_Zac_ZacE_hit"
+    },
+    {
+      "id": "vfx-emitter-audio-sound-persistent",
+      "name": "SoundPersistent",
+      "type": "string",
+      "defaultValue": "Play_sfx_Zac_ZacEMove_missilelaunch"
+    }
+  ],
+  "listEmbed": [],
+  "internalStructures": [],
+  "nomenclature": {
+    "group": "#3 Internal Structures",
+    "collection": "#3 Pointer Node",
+    "collectionType": "VfxEmitterAudio",
+    "pathHierarchy": "entries > Characters/Zac/Skins/Skin0/Particles/Zac_Base_E_Moving > complexEmitterDefinitionData:0 > Audio",
+    "pathHierarchySteps": [
+      {
+        "id": "entries",
+        "type": "#1 Root Entry"
+      },
+      {
+        "id": "Characters/Zac/Skins/Skin0/Particles/Zac_Base_E_Moving",
+        "type": "#2 Root Entry (VfxSystemDefinitionData)"
+      },
+      {
+        "id": "complexEmitterDefinitionData:0",
+        "type": "#3 Collection Block"
+      },
+      {
+        "id": "Audio",
+        "type": "#3 Pointer Node"
+      }
+    ]
+  }
+}

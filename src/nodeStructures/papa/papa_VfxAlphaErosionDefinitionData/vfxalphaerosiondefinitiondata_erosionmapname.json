@@ -1,0 +1,6 @@
+{
+  "id": "VfxAlphaErosionDefinitionData_erosionMapName",
+  "name": "erosionMapName",
+  "type": "string",
+  "defaultValue": ""
+}

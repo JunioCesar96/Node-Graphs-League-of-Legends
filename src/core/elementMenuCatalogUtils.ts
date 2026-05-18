@@ -16,9 +16,17 @@ export type ElementMenuTypeTag = {
   label: string
 }
 
-export type ElementMenuEntryKind = 'preset-slot' | 'catalog-structure' | 'catalog-parameter'
+export type ElementMenuEntryKind =
+  | 'preset-slot'
+  | 'catalog-structure'
+  | 'catalog-parameter'
+  | 'catalog-list-embed'
 
-export type ElementMenuPickAction = 'create-element' | 'append-structure' | 'append-parameter'
+export type ElementMenuPickAction =
+  | 'create-element'
+  | 'append-structure'
+  | 'append-parameter'
+  | 'append-list-embed-catalog'
 
 export type ElementMenuCatalogLabelMode = 'base' | 'path-hierarchy'
 
@@ -37,6 +45,7 @@ export type ElementMenuEntry = {
   catalogScope?: ElementMenuCatalogScope
   parameterType?: string
   onPick: ElementMenuPickAction
+  listEmbedId?: string
   structure?: InternalStructureDefinition
   parameter?: NodeParameterDefinition
 }
@@ -45,8 +54,14 @@ export type BuildElementMenuEntriesInput = {
   presetStructures: readonly InternalStructureDefinition[]
   catalogStructures?: readonly InternalStructureDefinition[]
   catalogParameters?: readonly NodeParameterDefinition[]
+  listEmbedCatalog?: readonly {
+    listEmbedId: string
+    listEmbedTitle: string
+    structure: InternalStructureDefinition
+  }[]
   includeCatalogStructures: boolean
   includeCatalogParameters: boolean
+  includeListEmbedCatalog?: boolean
   schemaRegistry?: Record<string, NodeSchemaDefinition>
   catalogScope?: ElementMenuCatalogScope
 }
@@ -153,6 +168,10 @@ function sortTipoForKind(kind: ElementMenuEntryKind): string {
 
   if (kind === 'catalog-structure') {
     return 'Internal_Structure'
+  }
+
+  if (kind === 'catalog-list-embed') {
+    return 'LIST_EMBED'
   }
 
   return 'Parâmetro'
@@ -279,6 +298,36 @@ export function buildElementMenuEntries(input: BuildElementMenuEntriesInput): El
           structure,
         })
       }
+    }
+  }
+
+  if (input.includeListEmbedCatalog && input.listEmbedCatalog) {
+    for (const pick of input.listEmbedCatalog) {
+      const schemaId = pick.structure.schemaId.trim()
+      const childSchema = schemaId && registry?.[schemaId]
+      const childLabel = childSchema
+        ? catalogStructureMenuLabel(pick.structure, registry)
+        : pick.structure.name
+      const label = pick.listEmbedTitle
+      const meta = `LIST_EMBED · ${childLabel}`
+      const typeTag = identifyElementEntryTypeTag('catalog-list-embed', {
+        schemaId: pick.structure.schemaId,
+        schemaRegistry: registry,
+      })
+
+      entries.push({
+        id: `list-embed-catalog:${pick.listEmbedId}:${schemaId}:${pick.structure.id}`,
+        kind: 'catalog-list-embed',
+        label,
+        meta,
+        searchText: `${label} ${pick.listEmbedTitle} ${childLabel} ${schemaId} LIST_EMBED ${typeTag}`.toLowerCase(),
+        sortTipo: sortTipoForKind('catalog-list-embed'),
+        typeTag,
+        catalogScope: scope,
+        listEmbedId: pick.listEmbedId,
+        onPick: 'append-list-embed-catalog',
+        structure: pick.structure,
+      })
     }
   }
 

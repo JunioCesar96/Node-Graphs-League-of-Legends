@@ -1,0 +1,6 @@
+{
+  "id": "VfxEmitterAudio_SoundPersistent",
+  "name": "SoundPersistent",
+  "type": "string",
+  "defaultValue": ""
+}

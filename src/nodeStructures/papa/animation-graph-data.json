@@ -1,0 +1,42 @@
+{
+  "id": "animation-graph-data",
+  "title": "AnimationGraphData",
+  "parameters": [
+    {
+      "id": "animation-graph-data-m-cascade-blend-value",
+      "name": "mCascadeBlendValue",
+      "type": "f32",
+      "defaultValue": "0"
+    },
+    {
+      "id": "animation-graph-data-m-clip-name",
+      "name": "mClipName",
+      "type": "integer",
+      "defaultValue": "0xda0f555e"
+    },
+    {
+      "id": "animation-graph-data-m-time",
+      "name": "mTime",
+      "type": "f32",
+      "defaultValue": "0"
+    }
+  ],
+  "listEmbed": [],
+  "internalStructures": [],
+  "nomenclature": {
+    "group": "#2 Entidades",
+    "collection": "#2 Root Entry (AnimationGraphData)",
+    "collectionType": "AnimationGraphData",
+    "pathHierarchy": "entries > Characters/Zac/Animations/Skin0",
+    "pathHierarchySteps": [
+      {
+        "id": "entries",
+        "type": "#1 Root Entry"
+      },
+      {
+        "id": "Characters/Zac/Animations/Skin0",
+        "type": "#2 Root Entry (AnimationGraphData)"
+      }
+    ]
+  }
+}

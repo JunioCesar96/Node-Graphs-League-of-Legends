@@ -16,6 +16,10 @@ import {
 } from './nodeStructureRegistry'
 
 import {
+  applyListEmbedSlotsToSchema,
+  migrateSceneListEmbedConnections,
+} from './listEmbedSlots'
+import {
   instanceLinkedPairsEqual,
   linked_parameter_values_apply_to_instance,
   translateDiskLinkedPairsToCanvas,
@@ -88,9 +92,12 @@ function coerceEmbeddedSchema(schema: NodeSchemaDefinition): NodeSchemaDefinitio
         ? legacyList
         : []
 
+  const listEmbed = Array.isArray(schema.listEmbed) ? schema.listEmbed : []
+
   return {
     ...schema,
     internalStructures,
+    ...(listEmbed.length > 0 ? { listEmbed } : {}),
   }
 }
 
@@ -137,19 +144,11 @@ function hydrateNodeInstanceFromEmbeddedLinks(node: NodeInstance): NodeInstance 
 }
 
 export function hydrateScene(scene: CanvasScene): CanvasScene {
-  return {
-    ...scene,
-    connections: scene.connections.map((c) =>
-      migrateConnection({
-        ...c,
-        ...(c.routing ? { routing: c.routing } : {}),
-      }),
-    ),
-    nodes: scene.nodes.map((n) => {
-      const nodeInstance: NodeInstance = {
-        ...n.node,
-        schema: coerceEmbeddedSchema(structuredClone(n.node.schema)),
-        values: structuredClone(n.node.values),
+  const nodes = scene.nodes.map((n) => {
+    const nodeInstance: NodeInstance = {
+      ...n.node,
+      schema: applyListEmbedSlotsToSchema(coerceEmbeddedSchema(structuredClone(n.node.schema))),
+      values: structuredClone(n.node.values),
         ...(Array.isArray(n.node.required_parameter)
           ? { required_parameter: structuredClone(n.node.required_parameter) }
           : {}),
@@ -162,11 +161,24 @@ export function hydrateScene(scene: CanvasScene): CanvasScene {
           : {}),
       }
 
-      return {
-        ...n,
-        node: hydrateNodeInstanceFromEmbeddedLinks(nodeInstance),
-      }
-    }),
+    return {
+      ...n,
+      node: hydrateNodeInstanceFromEmbeddedLinks(nodeInstance),
+    }
+  })
+
+  return {
+    ...scene,
+    connections: migrateSceneListEmbedConnections(
+      nodes,
+      scene.connections.map((c) =>
+        migrateConnection({
+          ...c,
+          ...(c.routing ? { routing: c.routing } : {}),
+        }),
+      ),
+    ),
+    nodes,
   }
 }
 

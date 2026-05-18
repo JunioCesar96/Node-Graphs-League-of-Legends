@@ -1,0 +1,6 @@
+{
+  "id": "BankUnit_name",
+  "name": "name",
+  "type": "string",
+  "defaultValue": ""
+}

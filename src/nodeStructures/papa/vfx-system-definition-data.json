@@ -1,0 +1,127 @@
+{
+  "id": "vfx-system-definition-data",
+  "title": "VfxSystemDefinitionData",
+  "parameters": [
+    {
+      "id": "vfx-system-definition-data-flags",
+      "name": "flags",
+      "type": "u16",
+      "defaultValue": "198"
+    },
+    {
+      "id": "vfx-system-definition-data-particle-name",
+      "name": "particleName",
+      "type": "string",
+      "defaultValue": "Zac_Base_Q_tar"
+    },
+    {
+      "id": "vfx-system-definition-data-particle-path",
+      "name": "particlePath",
+      "type": "string",
+      "defaultValue": "Characters/Zac/Skins/Skin0/Particles/Zac_Base_Q_tar"
+    },
+    {
+      "id": "vfx-system-definition-data-sound-on-create-default",
+      "name": "soundOnCreateDefault",
+      "type": "string",
+      "defaultValue": "Play_sfx_Zac_ZacQHit_hit"
+    },
+    {
+      "id": "vfx-system-definition-data-sound-persistent-default",
+      "name": "soundPersistentDefault",
+      "type": "string",
+      "defaultValue": "Play_sfx_Zac_ZacR_hit_splat"
+    },
+    {
+      "id": "vfx-system-definition-data-visibility-radius",
+      "name": "visibilityRadius",
+      "type": "f32",
+      "defaultValue": "25000"
+    },
+    {
+      "id": "vfx-system-definition-data-voice-over-on-create-default",
+      "name": "voiceOverOnCreateDefault",
+      "type": "string",
+      "defaultValue": "Play_vo_Zac_ZacR_buffactivate"
+    }
+  ],
+  "listEmbed": [],
+  "internalStructures": [
+    {
+      "id": "vfx-system-definition-data-complex-emitter-definition-data-0",
+      "name": "complexEmitterDefinitionData",
+      "schemaId": "vfx-emitter-definition-data"
+    },
+    {
+      "id": "vfx-system-definition-data-complex-emitter-definition-data-1",
+      "name": "complexEmitterDefinitionData:1",
+      "schemaId": "vfx-emitter-definition-data"
+    },
+    {
+      "id": "vfx-system-definition-data-complex-emitter-definition-data-2",
+      "name": "complexEmitterDefinitionData:2",
+      "schemaId": "vfx-emitter-definition-data"
+    },
+    {
+      "id": "vfx-system-definition-data-complex-emitter-definition-data-3",
+      "name": "complexEmitterDefinitionData:3",
+      "schemaId": "vfx-emitter-definition-data"
+    },
+    {
+      "id": "vfx-system-definition-data-complex-emitter-definition-data-4",
+      "name": "complexEmitterDefinitionData:4",
+      "schemaId": "vfx-emitter-definition-data"
+    },
+    {
+      "id": "vfx-system-definition-data-simple-emitter-definition-data-0",
+      "name": "simpleEmitterDefinitionData",
+      "schemaId": "vfx-emitter-definition-data"
+    },
+    {
+      "id": "vfx-system-definition-data-complex-emitter-definition-data-5",
+      "name": "complexEmitterDefinitionData:5",
+      "schemaId": "vfx-emitter-definition-data"
+    },
+    {
+      "id": "vfx-system-definition-data-complex-emitter-definition-data-6",
+      "name": "complexEmitterDefinitionData:6",
+      "schemaId": "vfx-emitter-definition-data"
+    },
+    {
+      "id": "vfx-system-definition-data-complex-emitter-definition-data-7",
+      "name": "complexEmitterDefinitionData:7",
+      "schemaId": "vfx-emitter-definition-data"
+    },
+    {
+      "id": "vfx-system-definition-data-complex-emitter-definition-data-8",
+      "name": "complexEmitterDefinitionData:8",
+      "schemaId": "vfx-emitter-definition-data"
+    },
+    {
+      "id": "vfx-system-definition-data-complex-emitter-definition-data-9",
+      "name": "complexEmitterDefinitionData:9",
+      "schemaId": "vfx-emitter-definition-data"
+    },
+    {
+      "id": "vfx-system-definition-data-complex-emitter-definition-data-10",
+      "name": "complexEmitterDefinitionData:10",
+      "schemaId": "vfx-emitter-definition-data"
+    }
+  ],
+  "nomenclature": {
+    "group": "#2 Entidades",
+    "collection": "#2 Root Entry (VfxSystemDefinitionData)",
+    "collectionType": "VfxSystemDefinitionData",
+    "pathHierarchy": "entries > Characters/Zac/Skins/Skin0/Particles/Zac_Base_Q_tar",
+    "pathHierarchySteps": [
+      {
+        "id": "entries",
+        "type": "#1 Root Entry"
+      },
+      {
+        "id": "Characters/Zac/Skins/Skin0/Particles/Zac_Base_Q_tar",
+        "type": "#2 Root Entry (VfxSystemDefinitionData)"
+      }
+    ]
+  }
+}

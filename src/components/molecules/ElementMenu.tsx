@@ -13,6 +13,7 @@ import {
   filterAndSortElementMenuEntries,
   filterElementMenuEntriesByCatalogScope,
 } from '@/core/elementMenuCatalogUtils'
+import { structureForListEmbedAdd } from '@/core/listEmbedElementMenu'
 import { ElementMenuAddPanel } from '@/components/molecules/ElementMenuAddPanel'
 import { listRemovableNodeElements } from '@/core/listNodeElements'
 import {
@@ -28,6 +29,7 @@ import {
   schemaRegistry,
 } from '@/core/nodeStructureRegistry'
 
+import { LIST_EMBED_ADD_PICKER_ROOT_ATTR } from '@/components/molecules/ListEmbedAddPicker'
 import { ELEMENT_REMOVAL_PICKER_ROOT_ATTR } from '@/components/molecules/ElementRemovalPicker'
 
 import styles from './ElementMenu.module.css'
@@ -43,6 +45,7 @@ type ElementMenuProps = {
   node: NodeInstance
   onAppendCatalogInternalStructure?: (structure: InternalStructureDefinition) => void
   onAppendCatalogParameter?: (parameter: NodeParameterDefinition) => void
+  onAppendListEmbedCatalogItem?: (listEmbedId: string, structure: InternalStructureDefinition) => void
   onCreateElement?: (structure: InternalStructureDefinition) => void
   onRemoveElement?: () => void
   parameterStubCatalog?: readonly NodeParameterDefinition[]
@@ -65,6 +68,7 @@ export function ElementMenu({
   node,
   onAppendCatalogInternalStructure,
   onAppendCatalogParameter,
+  onAppendListEmbedCatalogItem,
   onCreateElement,
   onRemoveElement,
   parameterStubCatalog,
@@ -214,6 +218,9 @@ export function ElementMenu({
       if (target instanceof Element && target.closest(`[${ELEMENT_REMOVAL_PICKER_ROOT_ATTR}]`)) {
         return
       }
+      if (target instanceof Element && target.closest(`[${LIST_EMBED_ADD_PICKER_ROOT_ATTR}]`)) {
+        return
+      }
       if (!elementSelectorRef.current?.contains(target)) {
         setIsOpen(false)
         setPanel('root')
@@ -275,7 +282,7 @@ export function ElementMenu({
     return (
       <Button
         disabled
-        title={'N\u00e3o h\u00e1 par\u00e2metros nem Internal_Structures dispon\u00edveis para acrescentar.'}
+        title={'N\u00e3o h\u00e1 par\u00e2metros, Internal_Structures nem LIST_EMBED dispon\u00edveis para acrescentar.'}
       >
         Element
       </Button>
@@ -298,6 +305,12 @@ export function ElementMenu({
       })
     } else if (entry.onPick === 'append-parameter' && entry.parameter) {
       onAppendCatalogParameter?.(entry.parameter)
+    } else if (
+      entry.onPick === 'append-list-embed-catalog' &&
+      entry.structure &&
+      entry.listEmbedId
+    ) {
+      onAppendListEmbedCatalogItem?.(entry.listEmbedId, structureForListEmbedAdd(entry.structure))
     }
 
     closeMenu()
@@ -336,7 +349,7 @@ export function ElementMenu({
               }}
               title={
                 canRemove
-                  ? 'Remover par\u00e2metro ou Internal_Structure deste n\u00f3'
+                  ? 'Remover par\u00e2metro, Internal_Structure ou slot LIST_EMBED deste n\u00f3'
                   : 'N\u00e3o h\u00e1 elementos para remover neste n\u00f3'
               }
               type="button"

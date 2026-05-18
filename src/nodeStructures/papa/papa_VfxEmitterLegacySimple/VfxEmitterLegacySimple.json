@@ -1,0 +1,52 @@
+{
+  "id": "vfx-emitter-legacy-simple",
+  "title": "VfxEmitterLegacySimple",
+  "parameters": [],
+  "listEmbed": [],
+  "internalStructures": [
+    {
+      "id": "vfx-emitter-legacy-simple-birth-scale",
+      "name": "birthScale",
+      "schemaId": "value-float"
+    },
+    {
+      "id": "vfx-emitter-legacy-simple-scale",
+      "name": "Scale",
+      "schemaId": "value-float"
+    },
+    {
+      "id": "vfx-emitter-legacy-simple-birth-rotation",
+      "name": "birthRotation",
+      "schemaId": "value-float"
+    },
+    {
+      "id": "vfx-emitter-legacy-simple-birth-rotational-velocity",
+      "name": "birthRotationalVelocity",
+      "schemaId": "value-float"
+    }
+  ],
+  "nomenclature": {
+    "group": "#3 Internal Structures",
+    "collection": "#3 Pointer Node",
+    "collectionType": "VfxEmitterLegacySimple",
+    "pathHierarchy": "entries > Characters/Zac/Skins/Skin0/Particles/Zac_Base_W_cas > simpleEmitterDefinitionData:0 > LegacySimple",
+    "pathHierarchySteps": [
+      {
+        "id": "entries",
+        "type": "#1 Root Entry"
+      },
+      {
+        "id": "Characters/Zac/Skins/Skin0/Particles/Zac_Base_W_cas",
+        "type": "#2 Root Entry (VfxSystemDefinitionData)"
+      },
+      {
+        "id": "simpleEmitterDefinitionData:0",
+        "type": "#3 Collection Block"
+      },
+      {
+        "id": "LegacySimple",
+        "type": "#3 Pointer Node"
+      }
+    ]
+  }
+}

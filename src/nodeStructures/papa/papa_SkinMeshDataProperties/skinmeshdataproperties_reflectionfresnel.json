@@ -1,0 +1,6 @@
+{
+  "id": "SkinMeshDataProperties_reflectionFresnel",
+  "name": "reflectionFresnel",
+  "type": "f32",
+  "defaultValue": "0"
+}

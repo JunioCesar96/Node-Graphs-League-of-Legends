@@ -1,0 +1,6 @@
+{
+  "id": "SkinCharacterDataProperties_metaDataTags",
+  "name": "metaDataTags",
+  "type": "string",
+  "defaultValue": ""
+}

@@ -1,0 +1,6 @@
+{
+  "id": "AnimationResourceData_mAnimationFilePath",
+  "name": "mAnimationFilePath",
+  "type": "string",
+  "defaultValue": ""
+}

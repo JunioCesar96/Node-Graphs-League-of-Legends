@@ -1,0 +1,6 @@
+{
+  "id": "SkinCharacterDataProperties_championSkinName",
+  "name": "championSkinName",
+  "type": "string",
+  "defaultValue": ""
+}

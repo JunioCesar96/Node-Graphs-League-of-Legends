@@ -1,0 +1,6 @@
+{
+  "id": "SoundEventData_mIsKillEvent",
+  "name": "mIsKillEvent",
+  "type": "bool",
+  "defaultValue": "false"
+}

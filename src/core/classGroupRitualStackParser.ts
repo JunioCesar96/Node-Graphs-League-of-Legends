@@ -12,6 +12,7 @@ import {
   MAP_ENTRY_HEAD_REGEX,
   STRUCT_ONLY_LINE,
   classifyRitualLine,
+  isEmbedListType,
   isPrimitiveListType,
   isStructuralListType,
 } from '@/core/classGroupFieldClassifier'
@@ -49,12 +50,21 @@ import {
   normalizeListVector4String,
 } from '@/core/listVector4Value'
 import { formatVector3String, parseVector3String } from '@/core/vector3Value'
-import type { NodeDataType, NodeSchemaDefinition, NomenclaturePathSegment } from '@/core/nodeSchema'
+import type {
+  ListEmbedDefinition,
+  NodeDataType,
+  NodeSchemaDefinition,
+  NomenclaturePathSegment,
+} from '@/core/nodeSchema'
 import { slugifyStructureId } from '@/core/convertRitobinTextToNodeStructures'
 
-export type MutableClassGroupSchema = Omit<NodeSchemaDefinition, 'parameters' | 'internalStructures'> & {
+export type MutableClassGroupSchema = Omit<
+  NodeSchemaDefinition,
+  'parameters' | 'internalStructures' | 'listEmbed'
+> & {
   parameters: NodeSchemaDefinition['parameters']
   internalStructures: NodeSchemaDefinition['internalStructures']
+  listEmbed: ListEmbedDefinition[]
 }
 
 type ScopeKind = 'entries' | 'entity' | 'internal' | 'listItem'
@@ -250,6 +260,7 @@ function emptyMutable(title: string, idFallback: string): MutableClassGroupSchem
     id: idFallback || 'struct-unknown',
     title,
     parameters: [],
+    listEmbed: [],
     internalStructures: [],
   }
 }
@@ -402,6 +413,35 @@ function pushInternalStructure(
   })
 }
 
+function ensureListEmbed(parentSchema: MutableClassGroupSchema, parentType: string, fieldName: string): ListEmbedDefinition {
+  const existing = parentSchema.listEmbed.find((block) => block.title === fieldName)
+  if (existing) {
+    return existing
+  }
+
+  const block: ListEmbedDefinition = {
+    id: slugifyStructureId(`${parentType}-${fieldName}`).replace(/^-+/, '') || fieldName.toLowerCase(),
+    title: fieldName,
+    internalStructures: [],
+  }
+  parentSchema.listEmbed.push(block)
+  return block
+}
+
+function pushListEmbedCatalogItem(
+  listEmbed: ListEmbedDefinition,
+  parentType: string,
+  childName: string,
+  childSchemaId: string,
+  segId: string,
+): void {
+  listEmbed.internalStructures.push({
+    id: slugifyStructureId(`${parentType}-${segId}`).replace(/^-+/, '') || segId.toLowerCase(),
+    name: childName,
+    schemaId: childSchemaId,
+  })
+}
+
 function normalizeScalarDefaultValue(ritType: string, rawValue: string): string | null {
   let value = rawValue.trim()
 
@@ -478,7 +518,7 @@ function normalizeScalarDefaultValue(ritType: string, rawValue: string): string 
 }
 
 function pushScalarParameter(
-  ctx: ParseCtx,
+  _ctx: ParseCtx,
   parentType: string,
   parentSchema: MutableClassGroupSchema,
   fieldName: string,
@@ -529,7 +569,9 @@ function parseStructuralListBody(
   fieldName: string,
   listInner: string,
   parentSchema: MutableClassGroupSchema,
+  useListEmbed: boolean,
 ): void {
+  const listEmbed = useListEmbed ? ensureListEmbed(parentSchema, parentType, fieldName) : null
   const listLines = listInner.replace(/\t/g, '  ').split('\n')
   let li = 0
   let itemIdx = 0
@@ -563,7 +605,11 @@ function parseStructuralListBody(
       const childSchema = ensureSchema(ctx, childName)
       const segId = `${fieldName}:${String(itemIdx)}:${childField}`
 
-      pushInternalStructure(parentSchema, parentType, childField, childSchema.id, segId)
+      if (listEmbed) {
+        pushListEmbedCatalogItem(listEmbed, parentType, childName, childSchema.id, segId)
+      } else {
+        pushInternalStructure(parentSchema, parentType, childField, childSchema.id, segId)
+      }
 
       pushScope(
         ctx,
@@ -606,9 +652,13 @@ function parseStructuralListBody(
 
     const childSchema = ensureSchema(ctx, childName)
     const segId = `${fieldName}:${String(itemIdx)}`
-    const listItemFieldName = itemIdx === 0 ? fieldName : `${fieldName}:${String(itemIdx)}`
 
-    pushInternalStructure(parentSchema, parentType, listItemFieldName, childSchema.id, segId)
+    if (listEmbed) {
+      pushListEmbedCatalogItem(listEmbed, parentType, childName, childSchema.id, segId)
+    } else {
+      const listItemFieldName = itemIdx === 0 ? fieldName : `${fieldName}:${String(itemIdx)}`
+      pushInternalStructure(parentSchema, parentType, listItemFieldName, childSchema.id, segId)
+    }
 
     pushScope(
       ctx,
@@ -707,8 +757,10 @@ function parseBlockBody(ctx: ParseCtx, parentType: string, body: string): void {
       const consumedHead = concatFromHere.slice(0, closeAbs + 1)
       idx += consumedHead.split('\n').length - 1
 
-      if (isStructuralListType(listType)) {
-        parseStructuralListBody(ctx, parentType, fieldName, listInner, parentSchema)
+      if (isEmbedListType(listType)) {
+        parseStructuralListBody(ctx, parentType, fieldName, listInner, parentSchema, true)
+      } else if (isStructuralListType(listType)) {
+        parseStructuralListBody(ctx, parentType, fieldName, listInner, parentSchema, false)
       } else if (isPrimitiveListType(listType)) {
         const listValue = normalizePrimitiveListBody(listType, listInner)
         pushScalarParameter(ctx, parentType, parentSchema, fieldName, listType, listValue)
@@ -864,6 +916,20 @@ function dedupeSchemas(ctx: ParseCtx): void {
       seenEnt.add(k)
       return true
     })
+
+    for (const block of schema.listEmbed) {
+      const seenCatalog = new Set<string>()
+      block.internalStructures = block.internalStructures.filter((e) => {
+        const k = `${e.id}:${e.schemaId}`
+        if (seenCatalog.has(k)) {
+          return false
+        }
+        seenCatalog.add(k)
+        return true
+      })
+    }
+
+    schema.listEmbed = schema.listEmbed.filter((block) => block.internalStructures.length > 0)
   }
 }
 
@@ -881,6 +947,14 @@ function collectReachableSchemaIds(ctx: ParseCtx): Set<string> {
       if (!out.has(ref.schemaId)) {
         out.add(ref.schemaId)
         queue.push(ref.schemaId)
+      }
+    }
+    for (const block of schema.listEmbed) {
+      for (const ref of block.internalStructures) {
+        if (!out.has(ref.schemaId)) {
+          out.add(ref.schemaId)
+          queue.push(ref.schemaId)
+        }
       }
     }
   }
@@ -994,6 +1068,7 @@ export function schemasFromClassGroupStackParse(
       structuredClone({
         ...sch,
         parameters: [...sch.parameters].sort((a, bb) => a.name.localeCompare(bb.name)),
+        ...(sch.listEmbed.length > 0 ? { listEmbed: [...sch.listEmbed] } : {}),
         internalStructures: [...sch.internalStructures],
       }),
     )

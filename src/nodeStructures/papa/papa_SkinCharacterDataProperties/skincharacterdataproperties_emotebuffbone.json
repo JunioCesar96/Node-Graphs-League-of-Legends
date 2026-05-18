@@ -1,0 +1,6 @@
+{
+  "id": "SkinCharacterDataProperties_emoteBuffbone",
+  "name": "emoteBuffbone",
+  "type": "string",
+  "defaultValue": ""
+}

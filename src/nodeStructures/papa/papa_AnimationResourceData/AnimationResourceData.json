@@ -1,0 +1,38 @@
+{
+  "id": "animation-resource-data",
+  "title": "AnimationResourceData",
+  "parameters": [
+    {
+      "id": "animation-resource-data-m-animation-file-path",
+      "name": "mAnimationFilePath",
+      "type": "string",
+      "defaultValue": "ASSETS/Characters/Zac/Skins/Base/Animations/Zac_death.anm"
+    }
+  ],
+  "listEmbed": [],
+  "internalStructures": [],
+  "nomenclature": {
+    "group": "#3 Internal Structures",
+    "collection": "#3 Embed Block",
+    "collectionType": "AnimationResourceData",
+    "pathHierarchy": "entries > Characters/Zac/Animations/Skin0 > Death_Passive > mAnimationResourceData",
+    "pathHierarchySteps": [
+      {
+        "id": "entries",
+        "type": "#1 Root Entry"
+      },
+      {
+        "id": "Characters/Zac/Animations/Skin0",
+        "type": "#2 Root Entry (AnimationGraphData)"
+      },
+      {
+        "id": "Death_Passive",
+        "type": "#3 Collection Block"
+      },
+      {
+        "id": "mAnimationResourceData",
+        "type": "#3 Embed Block"
+      }
+    ]
+  }
+}

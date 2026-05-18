@@ -374,4 +374,36 @@ entries: map[hash,embed] = {
     expect(filtered.some((f) => f.schemaId === emitter!.id)).toBe(true)
     expect(emitter?.nomenclature?.collection).toBe('#3 Collection Block')
   })
+
+  it('list[embed] MaterialOverride vira listEmbed com title do campo e name do tipo filho', () => {
+    const text = `
+entries: map[hash,embed] = {
+  "Characters/Zac/Skins/Skin0" = SkinCharacterDataProperties {
+    SkinMeshProperties: embed = SkinMeshDataProperties {
+      MaterialOverride: list[embed] = {
+        SkinMeshDataProperties_MaterialOverride {
+          Submesh: string = "Puddle"
+        }
+        SkinMeshDataProperties_MaterialOverride {
+          Submesh: string = "Ult"
+        }
+      }
+    }
+  }
+}
+`.trim()
+
+    const parsed = parseClassGroupRitualWithStack(text)
+    const mesh = parsed.registry.get('skin-mesh-data-properties')
+    expect(mesh).toBeDefined()
+    expect(mesh!.internalStructures.some((x) => x.name === 'MaterialOverride')).toBe(false)
+
+    const block = mesh!.listEmbed.find((b) => b.title === 'MaterialOverride')
+    expect(block).toBeDefined()
+    expect(block!.internalStructures).toHaveLength(2)
+    expect(block!.internalStructures.every((x) => x.name === 'SkinMeshDataProperties_MaterialOverride')).toBe(
+      true,
+    )
+    expect(block!.internalStructures[0]!.schemaId).toBe('skin-mesh-data-properties-material-override')
+  })
 })

@@ -1,0 +1,52 @@
+{
+  "id": "vfx-probability-table-data",
+  "title": "VfxProbabilityTableData",
+  "parameters": [
+    {
+      "id": "vfx-probability-table-data-key-times",
+      "name": "keyTimes",
+      "type": "listF32",
+      "defaultValue": "0\n1"
+    },
+    {
+      "id": "vfx-probability-table-data-key-values",
+      "name": "keyValues",
+      "type": "listF32",
+      "defaultValue": "1\n1.5"
+    }
+  ],
+  "listEmbed": [],
+  "internalStructures": [],
+  "nomenclature": {
+    "group": "#3 Internal Structures",
+    "collection": "#3 Collection Block",
+    "collectionType": "VfxProbabilityTableData",
+    "pathHierarchy": "entries > Characters/Zac/Skins/Skin0/Particles/Zac_Base_Q_tar > complexEmitterDefinitionData:0 > particleLifetime > dynamics > probabilityTables:0",
+    "pathHierarchySteps": [
+      {
+        "id": "entries",
+        "type": "#1 Root Entry"
+      },
+      {
+        "id": "Characters/Zac/Skins/Skin0/Particles/Zac_Base_Q_tar",
+        "type": "#2 Root Entry (VfxSystemDefinitionData)"
+      },
+      {
+        "id": "complexEmitterDefinitionData:0",
+        "type": "#3 Collection Block"
+      },
+      {
+        "id": "particleLifetime",
+        "type": "#3 Embed Block"
+      },
+      {
+        "id": "dynamics",
+        "type": "#3 Pointer Node"
+      },
+      {
+        "id": "probabilityTables:0",
+        "type": "#3 Collection Block"
+      }
+    ]
+  }
+}

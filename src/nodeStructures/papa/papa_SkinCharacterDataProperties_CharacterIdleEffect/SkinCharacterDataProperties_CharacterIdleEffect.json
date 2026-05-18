@@ -1,0 +1,34 @@
+{
+  "id": "skin-character-data-properties-character-idle-effect",
+  "title": "SkinCharacterDataProperties_CharacterIdleEffect",
+  "parameters": [
+    {
+      "id": "skin-character-data-properties-character-idle-effect-effect-name",
+      "name": "effectName",
+      "type": "string",
+      "defaultValue": "DATA/Particles/Malphite_Glacial_Idle.troy"
+    }
+  ],
+  "listEmbed": [],
+  "internalStructures": [],
+  "nomenclature": {
+    "group": "#3 Internal Structures",
+    "collection": "#3 Collection Block",
+    "collectionType": "SkinCharacterDataProperties_CharacterIdleEffect",
+    "pathHierarchy": "entries > Characters/Zac/Skins/Skin0 > idleParticlesEffects:0",
+    "pathHierarchySteps": [
+      {
+        "id": "entries",
+        "type": "#1 Root Entry"
+      },
+      {
+        "id": "Characters/Zac/Skins/Skin0",
+        "type": "#2 Root Entry (SkinCharacterDataProperties)"
+      },
+      {
+        "id": "idleParticlesEffects:0",
+        "type": "#3 Collection Block"
+      }
+    ]
+  }
+}

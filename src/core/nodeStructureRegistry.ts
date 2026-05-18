@@ -1,10 +1,13 @@
 import type {
   InternalStructureDefinition,
+  ListEmbedDefinition,
   NodeInstance,
   NodeParameterDefinition,
   NodeSchemaDefinition,
 } from './nodeSchema'
+import { applyListEmbedSlotsToSchema } from './listEmbedSlots'
 import {
+  listEmbedDefinitionFromJsonStub,
   nodeParameterDefinitionFromJsonStub,
   nomenclatureGroupNumberFromLabel,
   nodeSchemaFromStructureJson,
@@ -24,6 +27,28 @@ const modules = import.meta.glob<{ default: unknown }>('../nodeStructures/**/*.j
 
 function isStructureJsonRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function mergeListEmbedStubsIntoSchema(
+  schema: NodeSchemaDefinition,
+  stubs: readonly ListEmbedDefinition[],
+): NodeSchemaDefinition {
+  if (stubs.length === 0) {
+    return schema
+  }
+
+  const byId = new Map<string, ListEmbedDefinition>()
+  for (const block of schema.listEmbed ?? []) {
+    byId.set(block.id, block)
+  }
+  for (const stub of stubs) {
+    if (!byId.has(stub.id)) {
+      byId.set(stub.id, stub)
+    }
+  }
+
+  const merged = [...byId.values()].sort((a, b) => a.title.localeCompare(b.title))
+  return { ...schema, listEmbed: merged }
 }
 
 /**
@@ -272,7 +297,14 @@ function isNodeStructureJsonCandidate(modulePath: string): boolean {
 
 function validateInternalStructureRefs(registry: Record<string, NodeSchemaDefinition>): void {
   for (const schema of Object.values(registry)) {
-    for (const structure of schema.internalStructures) {
+    const refs = [
+      ...schema.internalStructures,
+      ...(schema.listEmbed ?? []).flatMap((block) => [
+        ...block.internalStructures,
+        ...(block.slots ?? []),
+      ]),
+    ]
+    for (const structure of refs) {
       if (!registry[structure.schemaId]) {
         console.warn(
           `[nodeStructures] schema "${schema.id}" referencia Internal_Structure inválida: "${structure.schemaId}"`,
@@ -291,6 +323,7 @@ function buildRegistry(): {
   jsonRelativePathBySchemaId: Record<string, string>
   schemaNodeKindBySchemaId: Record<string, 'module' | 'base'>
   schemaBaseParameterCatalogBySchemaId: Record<string, NodeParameterDefinition[]>
+  schemaBaseListEmbedCatalogBySchemaId: Record<string, ListEmbedDefinition[]>
   schemaBaseInternalStructureCatalogBySchemaId: Record<string, InternalStructureDefinition[]>
 } {
   const registry: Record<string, NodeSchemaDefinition> = {}
@@ -329,6 +362,7 @@ function buildRegistry(): {
   }
 
   const schemaBaseParameterCatalogBySchemaId: Record<string, NodeParameterDefinition[]> = {}
+  const schemaBaseListEmbedCatalogBySchemaId: Record<string, ListEmbedDefinition[]> = {}
   const schemaBaseInternalStructureCatalogBySchemaId: Record<string, InternalStructureDefinition[]> = {}
 
   for (const schemaId of Object.keys(registry)) {
@@ -344,6 +378,7 @@ function buildRegistry(): {
     const dirPrefix = modulePathDirectoryPrefix(modulePath)
     const dirNorm = dirPrefix.replace(/\\/g, '/')
     const stubs: NodeParameterDefinition[] = []
+    const listEmbedStubs: ListEmbedDefinition[] = []
 
     for (const [otherPath, otherMod] of Object.entries(modules)) {
       const otherNorm = otherPath.replace(/\\/g, '/')
@@ -356,11 +391,22 @@ function buildRegistry(): {
       const stub = nodeParameterDefinitionFromJsonStub(otherMod.default)
       if (stub) {
         stubs.push(stub)
+        continue
+      }
+      const listEmbedStub = listEmbedDefinitionFromJsonStub(otherMod.default)
+      if (listEmbedStub) {
+        listEmbedStubs.push(listEmbedStub)
       }
     }
 
     stubs.sort((a, b) => a.name.localeCompare(b.name))
     schemaBaseParameterCatalogBySchemaId[schemaId] = stubs
+
+    listEmbedStubs.sort((a, b) => a.title.localeCompare(b.title))
+    schemaBaseListEmbedCatalogBySchemaId[schemaId] = listEmbedStubs
+    if (listEmbedStubs.length > 0) {
+      registry[schemaId] = mergeListEmbedStubsIntoSchema(registry[schemaId]!, listEmbedStubs)
+    }
   }
 
   for (const schemaId of Object.keys(registry)) {
@@ -435,6 +481,7 @@ function buildRegistry(): {
     jsonRelativePathBySchemaId,
     schemaNodeKindBySchemaId,
     schemaBaseParameterCatalogBySchemaId,
+    schemaBaseListEmbedCatalogBySchemaId,
     schemaBaseInternalStructureCatalogBySchemaId,
   }
 }
@@ -446,6 +493,7 @@ const {
   jsonRelativePathBySchemaId: builtJsonRelPathMap,
   schemaNodeKindBySchemaId: builtNodeKindMap,
   schemaBaseParameterCatalogBySchemaId: builtBaseParamCatalog,
+  schemaBaseListEmbedCatalogBySchemaId: builtBaseListEmbedCatalog,
   schemaBaseInternalStructureCatalogBySchemaId: builtBaseISCatalog,
 } = buildRegistry()
 
@@ -472,6 +520,10 @@ export const schemaNodeKindBySchemaId: Record<string, 'module' | 'base'> = built
 export const schemaBaseParameterCatalogBySchemaId: Record<string, NodeParameterDefinition[]> =
   builtBaseParamCatalog
 
+/** Para nós base: blocos LIST_EMBED reutilizáveis (`{collectionType}_listEmbed_{title}.json` na mesma pasta). */
+export const schemaBaseListEmbedCatalogBySchemaId: Record<string, ListEmbedDefinition[]> =
+  builtBaseListEmbedCatalog
+
 /**
  * Para nós base: outros nós base no mesmo pack com o mesmo número em `nomenclature.group` (`#2 …`).
  */
@@ -489,7 +541,7 @@ export function createNodeInstanceFromRegistry(
     return null
   }
 
-  const schemaClone = structuredClone(schema)
+  const schemaClone = applyListEmbedSlotsToSchema(structuredClone(schema))
   const catalog = schemaBaseParameterCatalogBySchemaId[schemaId] ?? []
   const requiredList = schemaClone.required_parameter ?? []
   const linkedPairs = schemaClone.linked_parameter_values ?? []

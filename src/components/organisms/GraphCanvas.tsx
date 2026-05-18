@@ -8,10 +8,17 @@ import type { CanvasConnection, CanvasNode, CanvasPosition, CanvasScene } from '
 import {
   findConnectionTargetForSlot,
   getNodesByCollectionType,
-  nodesShareCollectionType,
+  nodesShareCollectionTypeForOutputSlot,
   resolveCollectionTypeForInternalStructure,
   schemaMatchesCollectionType,
 } from '@/core/collectionTypeLinking'
+import {
+  findOutputSlotInNode,
+  findSlotInSchema,
+  resolveCollectionTypeForListEmbedSlot,
+  populatedSlotsForListEmbed,
+} from '@/core/listEmbedSlots'
+import { filterOutListEmbedCatalogChildStructures } from '@/core/listEmbedElementMenu'
 import type { NodeElementListItem } from '@/core/listNodeElements'
 import type { InternalStructureDefinition, NodeParameterDefinition, NodeSchemaDefinition } from '@/core/nodeSchema'
 import {
@@ -31,6 +38,8 @@ const SECTION_TITLE_HEIGHT = 16
 const SECTION_TITLE_GAP = 8
 /** Altura por linha na secção Internal_Structures (layout compacto). */
 const INTERNAL_STRUCTURE_ITEM_HEIGHT = 44
+/** Cabeçalho de cada bloco LIST_EMBED (título + botão +). */
+const LIST_EMBED_BLOCK_HEADER_HEIGHT = 42
 /** Altura por parâmetro: pilha nome (hint+label) + valor + tipo (cards). */
 const PARAMETER_ITEM_HEIGHT = 128
 const ITEM_GAP = 8
@@ -92,6 +101,11 @@ type GraphCanvasProps = {
   hints?: Record<string, string>
   onAppendCatalogInternalStructure?: (
     canvasNodeId: string,
+    structure: InternalStructureDefinition,
+  ) => void
+  onAppendListEmbedCatalogItem?: (
+    canvasNodeId: string,
+    listEmbedId: string,
     structure: InternalStructureDefinition,
   ) => void
   onCatalogParameterAppend?: (canvasNodeId: string, definition: NodeParameterDefinition) => void
@@ -197,6 +211,38 @@ function getParameterSectionHeight(node: CanvasNode) {
   return SECTION_TITLE_HEIGHT + SECTION_TITLE_GAP + listHeight
 }
 
+function getListEmbedBlocksHeight(node: CanvasNode, connections: readonly CanvasConnection[]) {
+  const blocks = node.node.schema.listEmbed ?? []
+  if (blocks.length === 0) {
+    return 0
+  }
+
+  let height = 0
+  for (let i = 0; i < blocks.length; i += 1) {
+    const block = blocks[i]!
+    const slots = populatedSlotsForListEmbed(block)
+    const slotsHeight =
+      slots.length > 0
+        ? slots.length * INTERNAL_STRUCTURE_ITEM_HEIGHT + Math.max(0, slots.length - 1) * ITEM_GAP + ITEM_GAP
+        : 0
+    height += LIST_EMBED_BLOCK_HEADER_HEIGHT + slotsHeight
+    if (i < blocks.length - 1) {
+      height += ITEM_GAP
+    }
+  }
+
+  return height
+}
+
+function getListEmbedSectionHeight(node: CanvasNode, connections: readonly CanvasConnection[]) {
+  const blocksHeight = getListEmbedBlocksHeight(node, connections)
+  if (blocksHeight === 0) {
+    return SECTION_TITLE_HEIGHT + SECTION_TITLE_GAP
+  }
+
+  return SECTION_TITLE_HEIGHT + SECTION_TITLE_GAP + blocksHeight
+}
+
 function getInternalStructureSectionHeight(node: CanvasNode) {
   const itemCount = node.node.schema.internalStructures.length
   const listHeight =
@@ -205,11 +251,13 @@ function getInternalStructureSectionHeight(node: CanvasNode) {
   return SECTION_TITLE_HEIGHT + SECTION_TITLE_GAP + listHeight
 }
 
-function getNodeCardHeight(node: CanvasNode) {
+function getNodeCardHeight(node: CanvasNode, connections: readonly CanvasConnection[]) {
   return (
     HEADER_HEIGHT +
     BODY_PADDING * 2 +
     getParameterSectionHeight(node) +
+    SECTION_GAP +
+    getListEmbedSectionHeight(node, connections) +
     SECTION_GAP +
     getInternalStructureSectionHeight(node) +
     SECTION_GAP +
@@ -220,7 +268,7 @@ function getNodeCardHeight(node: CanvasNode) {
 function getCanvasBounds(scene: CanvasScene): CanvasBounds {
   return scene.nodes.reduce(
     (bounds, node) => ({
-      height: Math.max(bounds.height, node.position.y + getNodeCardHeight(node) + CANVAS_PADDING),
+      height: Math.max(bounds.height, node.position.y + getNodeCardHeight(node, scene.connections) + CANVAS_PADDING),
       width: Math.max(bounds.width, node.position.x + CARD_WIDTH + RIGID_SEGMENT_LENGTH + CANVAS_PADDING),
     }),
     {
@@ -230,7 +278,57 @@ function getCanvasBounds(scene: CanvasScene): CanvasBounds {
   )
 }
 
-function getInternalStructurePortY(node: CanvasNode, structureId: string) {
+function getListEmbedPortY(
+  node: CanvasNode,
+  structureId: string,
+  connections: readonly CanvasConnection[],
+) {
+  let cursor =
+    node.position.y +
+    HEADER_HEIGHT +
+    BODY_PADDING +
+    getParameterSectionHeight(node) +
+    SECTION_GAP +
+    SECTION_TITLE_HEIGHT +
+    SECTION_TITLE_GAP
+
+  for (const block of node.node.schema.listEmbed ?? []) {
+    cursor += LIST_EMBED_BLOCK_HEADER_HEIGHT
+    const slots = populatedSlotsForListEmbed(block)
+    const slotIndex = slots.findIndex((slot) => slot.id === structureId)
+    if (slotIndex >= 0) {
+      return (
+        cursor +
+        slotIndex * (INTERNAL_STRUCTURE_ITEM_HEIGHT + ITEM_GAP) +
+        INTERNAL_STRUCTURE_ITEM_HEIGHT / 2
+      )
+    }
+    if (slots.length > 0) {
+      cursor +=
+        ITEM_GAP +
+        slots.length * INTERNAL_STRUCTURE_ITEM_HEIGHT +
+        Math.max(0, slots.length - 1) * ITEM_GAP
+    }
+    cursor += ITEM_GAP
+  }
+
+  return cursor
+}
+
+function getInternalStructurePortY(
+  node: CanvasNode,
+  structureId: string,
+  connections: readonly CanvasConnection[],
+) {
+  const listEmbedY = getListEmbedPortY(node, structureId, connections)
+  const blocks = node.node.schema.listEmbed ?? []
+  const inListEmbed = blocks.some((block) =>
+    populatedSlotsForListEmbed(block).some((slot) => slot.id === structureId),
+  )
+  if (inListEmbed) {
+    return listEmbedY
+  }
+
   const structureIndex = node.node.schema.internalStructures.findIndex((s) => s.id === structureId)
   const safeIndex = Math.max(structureIndex, 0)
 
@@ -240,11 +338,17 @@ function getInternalStructurePortY(node: CanvasNode, structureId: string) {
     BODY_PADDING +
     getParameterSectionHeight(node) +
     SECTION_GAP +
+    getListEmbedSectionHeight(node, connections) +
+    SECTION_GAP +
     SECTION_TITLE_HEIGHT +
     SECTION_TITLE_GAP +
     safeIndex * (INTERNAL_STRUCTURE_ITEM_HEIGHT + ITEM_GAP) +
     INTERNAL_STRUCTURE_ITEM_HEIGHT / 2
   )
+}
+
+function getOutputPortY(node: CanvasNode, structureId: string, connections: readonly CanvasConnection[]) {
+  return getInternalStructurePortY(node, structureId, connections)
 }
 
 function createOrthoAnchoredConnectionPath(id: string, sx: number, sy: number, ix: number, iy: number): ConnectionPath {
@@ -257,7 +361,11 @@ function createOrthoAnchoredConnectionPath(id: string, sx: number, sy: number, i
   }
 }
 
-function createConnectionPath(connection: CanvasConnection, nodes: CanvasNode[]): ConnectionPath | null {
+function createConnectionPath(
+  connection: CanvasConnection,
+  nodes: CanvasNode[],
+  connections: readonly CanvasConnection[],
+): ConnectionPath | null {
   const fromNode = nodes.find((node) => node.id === connection.fromNodeId)
   const toNode = nodes.find((node) => node.id === connection.toNodeId)
 
@@ -266,7 +374,7 @@ function createConnectionPath(connection: CanvasConnection, nodes: CanvasNode[])
   }
 
   const startX = fromNode.position.x + CARD_WIDTH - PORT_OVERLAP
-  const startY = getInternalStructurePortY(fromNode, connection.fromInternalStructureId)
+  const startY = getOutputPortY(fromNode, connection.fromInternalStructureId, connections)
   const exitX = fromNode.position.x + CARD_WIDTH + RIGID_SEGMENT_LENGTH
   const endX = toNode.position.x + CARD_WIDTH / 2
   const endY = toNode.position.y
@@ -373,6 +481,7 @@ function createAnchoredConnectionPath(id: string, sx: number, sy: number, ix: nu
 function resolveConnectionPath(
   connection: CanvasConnection,
   nodes: CanvasNode[],
+  connections: readonly CanvasConnection[],
   anchors: PortAnchorMaps,
 ): ConnectionPath | null {
   const fromNode = nodes.find((node) => node.id === connection.fromNodeId)
@@ -395,7 +504,7 @@ function resolveConnectionPath(
     return createAnchoredConnectionPath(connection.id, outPt.x, outPt.y, inPt.x, inPt.y)
   }
 
-  return createConnectionPath(connection, nodes)
+  return createConnectionPath(connection, nodes, connections)
 }
 
 function createDraftConnectionPath(sx: number, sy: number, ex: number, ey: number): string {
@@ -432,9 +541,10 @@ function normalizeMarqueeRect(start: CanvasPosition, end: CanvasPosition) {
 function intersectsCanvasNodeRect(
   marquee: { height: number; width: number; x: number; y: number },
   node: CanvasNode,
+  connections: readonly CanvasConnection[],
 ): boolean {
   const nodeRect = {
-    height: getNodeCardHeight(node),
+    height: getNodeCardHeight(node, connections),
     width: CARD_WIDTH,
     x: node.position.x,
     y: node.position.y,
@@ -455,7 +565,9 @@ function collectNodesInMarquee(scene: CanvasScene, start: CanvasPosition, end: C
     return []
   }
 
-  return scene.nodes.filter((node) => intersectsCanvasNodeRect(marquee, node)).map((node) => node.id)
+  return scene.nodes
+    .filter((node) => intersectsCanvasNodeRect(marquee, node, scene.connections))
+    .map((node) => node.id)
 }
 
 export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(function GraphCanvas(
@@ -482,6 +594,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     onResetScene,
     hints,
     onAppendCatalogInternalStructure,
+    onAppendListEmbedCatalogItem,
     onCatalogParameterAppend,
     onRequestRemoveElement,
     onClearSelection,
@@ -559,7 +672,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
 
   const connectionPaths = useMemo(() => {
     return scene.connections
-      .map((connection) => resolveConnectionPath(connection, scene.nodes, portAnchors))
+      .map((connection) => resolveConnectionPath(connection, scene.nodes, scene.connections, portAnchors))
       .filter((path): path is ConnectionPath => path !== null)
   }, [portAnchors, scene.connections, scene.nodes])
 
@@ -675,7 +788,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
         sy = anchor.y
       } else if (fromNode) {
         sx = fromNode.position.x + CARD_WIDTH - PORT_OVERLAP
-        sy = getInternalStructurePortY(fromNode, entity.id)
+        sy = getOutputPortY(fromNode, entity.id, scene.connections)
       } else {
         return
       }
@@ -686,8 +799,10 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
         entity.id,
         scene.nodes,
       )
-      const targetCollectionType =
-        resolveCollectionTypeForInternalStructure(entity, schemaRegistry, connectedTarget) ?? ''
+      const listHit = fromNode ? findSlotInSchema(fromNode.node.schema, entity.id) : null
+      const targetCollectionType = listHit
+        ? resolveCollectionTypeForListEmbedSlot(entity, listHit.listEmbed, schemaRegistry, connectedTarget) ?? ''
+        : resolveCollectionTypeForInternalStructure(entity, schemaRegistry, connectedTarget) ?? ''
 
       linkDraftClientRef.current = null
       setLinkDraftPoint(null)
@@ -722,10 +837,16 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
           if (id) {
             const targetNode = scene.nodes.find((node) => node.id === id)
 
+            const fromNode = scene.nodes.find((node) => node.id === pending.fromNodeId)
+            const outputSlot =
+              fromNode ? findOutputSlotInNode(fromNode, pending.fromInternalStructureId, scene.connections) : null
+
             if (
               targetNode &&
+              fromNode &&
+              outputSlot &&
               targetNode.id !== pending.fromNodeId &&
-              nodesShareCollectionType(pending.targetSchemaId, targetNode, schemaRegistry)
+              nodesShareCollectionTypeForOutputSlot(fromNode, outputSlot, targetNode, schemaRegistry)
             ) {
               onConnectNodes({
                 id: `${pending.fromNodeId}:${pending.fromInternalStructureId}->${targetNode.id}`,
@@ -781,11 +902,15 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
         structure.id,
         scene.nodes,
       )
-      const collectionType = resolveCollectionTypeForInternalStructure(
-        structure,
-        schemaRegistry,
-        connectedTarget,
-      )
+      const listHit = findSlotInSchema(fromNode.node.schema, structure.id)
+      const collectionType = listHit
+        ? resolveCollectionTypeForListEmbedSlot(
+            structure,
+            listHit.listEmbed,
+            schemaRegistry,
+            connectedTarget,
+          )
+        : resolveCollectionTypeForInternalStructure(structure, schemaRegistry, connectedTarget)
 
       if (!collectionType) {
         return
@@ -889,7 +1014,20 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
   )
 
   const completeLink = (toNode: CanvasNode) => {
-    if (!pendingLink || !nodesShareCollectionType(pendingLink.targetSchemaId, toNode, schemaRegistry)) {
+    const fromNode = pendingLink
+      ? scene.nodes.find((node) => node.id === pendingLink.fromNodeId)
+      : undefined
+    const outputSlot =
+      pendingLink && fromNode
+        ? findOutputSlotInNode(fromNode, pendingLink.fromInternalStructureId, scene.connections)
+        : null
+
+    if (
+      !pendingLink ||
+      !fromNode ||
+      !outputSlot ||
+      !nodesShareCollectionTypeForOutputSlot(fromNode, outputSlot, toNode, schemaRegistry)
+    ) {
       return
     }
 
@@ -1301,7 +1439,10 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
         minLeft = Math.min(minLeft, canvasNode.position.x)
         minTop = Math.min(minTop, canvasNode.position.y)
         maxRight = Math.max(maxRight, canvasNode.position.x + CARD_WIDTH)
-        maxBottom = Math.max(maxBottom, canvasNode.position.y + getNodeCardHeight(canvasNode))
+        maxBottom = Math.max(
+          maxBottom,
+          canvasNode.position.y + getNodeCardHeight(canvasNode, scene.connections),
+        )
       }
 
       if (!Number.isFinite(minLeft)) {
@@ -1685,10 +1826,24 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
 
         {scene.nodes.map((canvasNode) => {
           const isSelected = selectedNodeIds.includes(canvasNode.id)
+          const pendingFromNode = pendingLink
+            ? scene.nodes.find((node) => node.id === pendingLink.fromNodeId)
+            : undefined
+          const pendingOutputSlot =
+            pendingLink && pendingFromNode
+              ? findOutputSlotInNode(pendingFromNode, pendingLink.fromInternalStructureId, scene.connections)
+              : null
           const isCompatibleTarget =
             pendingLink !== null &&
+            pendingFromNode !== undefined &&
+            pendingOutputSlot !== null &&
             pendingLink.fromNodeId !== canvasNode.id &&
-            nodesShareCollectionType(pendingLink.targetSchemaId, canvasNode, schemaRegistry)
+            nodesShareCollectionTypeForOutputSlot(
+              pendingFromNode,
+              pendingOutputSlot,
+              canvasNode,
+              schemaRegistry,
+            )
           const isIncompatibleDuringLink =
             pendingLink !== null &&
             pendingLink.fromNodeId !== canvasNode.id &&
@@ -1722,6 +1877,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
                 }
                 canvasNodeId={canvasNode.id}
                 canAcceptLink={isCompatibleTarget}
+                connections={scene.connections}
                 catalogInternalStructures={(() => {
                   const sid = canvasNode.node.schema.id
                   const parentSchema = canvasNode.node.schema
@@ -1736,11 +1892,15 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
                     canvasNode.node.schema.internalStructures.map((structure) => structure.schemaId),
                   )
                   const fresh = list.filter((structure) => !used.has(structure.schemaId))
-                  return filterInternalStructuresByPathHierarchy(
-                    parentSchema,
-                    fresh,
-                    schemaRegistry,
-                    schemaJsonRelativePathBySchemaId,
+                  const templateSchema = schemaRegistry[sid] ?? null
+                  return filterOutListEmbedCatalogChildStructures(
+                    filterInternalStructuresByPathHierarchy(
+                      parentSchema,
+                      fresh,
+                      schemaRegistry,
+                      schemaJsonRelativePathBySchemaId,
+                    ),
+                    templateSchema,
                   )
                 })()}
                 catalogParameters={(() => {
@@ -1756,6 +1916,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
                 })()}
                 node={canvasNode.node}
                 nodeKind={schemaNodeKindBySchemaId?.[canvasNode.node.schema.id] ?? 'module'}
+                templateSchema={schemaRegistry[canvasNode.node.schema.id] ?? null}
                 parameterStubCatalog={
                   schemaBaseParameterCatalogBySchemaId?.[canvasNode.node.schema.id] ?? []
                 }
@@ -1767,6 +1928,12 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
                 onAppendCatalogParameter={
                   onCatalogParameterAppend
                     ? (definition) => onCatalogParameterAppend(canvasNode.id, definition)
+                    : undefined
+                }
+                onAppendListEmbedCatalogItem={
+                  onAppendListEmbedCatalogItem
+                    ? (listEmbedId, structure) =>
+                        onAppendListEmbedCatalogItem(canvasNode.id, listEmbedId, structure)
                     : undefined
                 }
                 onCreateElement={(entity) => onCreateChildNode(canvasNode.id, entity)}

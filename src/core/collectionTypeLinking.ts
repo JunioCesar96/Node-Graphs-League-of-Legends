@@ -1,5 +1,11 @@
 import type { CanvasNode } from '@/core/canvasScene'
 import type { InternalStructureDefinition, NodeSchemaDefinition } from '@/core/nodeSchema'
+import {
+  catalogSchemaIdsForListEmbed,
+  findSlotInSchema,
+  isListEmbedSlotId,
+  slotMatchesListEmbedCatalog,
+} from '@/core/listEmbedSlots'
 
 export function resolveCollectionTypeForSlot(
   schemaId: string,
@@ -67,6 +73,41 @@ export function nodesShareCollectionType(
   }
 
   return targetNode.node.schema.id === sourceSchemaId
+}
+
+export function nodesShareCollectionTypeForOutputSlot(
+  fromNode: CanvasNode,
+  slot: InternalStructureDefinition,
+  targetNode: CanvasNode,
+  registry: Record<string, NodeSchemaDefinition>,
+): boolean {
+  if (isListEmbedSlotId(slot.id)) {
+    const hit = findSlotInSchema(fromNode.node.schema, slot.id)
+    if (!hit) {
+      return false
+    }
+
+    if (!slotMatchesListEmbedCatalog(hit.listEmbed, targetNode.node.schema.id)) {
+      return false
+    }
+
+    const targetType = getCollectionTypeForCanvasNode(targetNode)
+    if (!targetType) {
+      return catalogSchemaIdsForListEmbed(hit.listEmbed).includes(targetNode.node.schema.id)
+    }
+
+    const allowedTypes = catalogSchemaIdsForListEmbed(hit.listEmbed)
+      .map((schemaId) => resolveCollectionTypeForSlot(schemaId, registry))
+      .filter((value): value is string => Boolean(value))
+
+    if (allowedTypes.length === 0) {
+      return true
+    }
+
+    return allowedTypes.includes(targetType)
+  }
+
+  return nodesShareCollectionType(slot.schemaId, targetNode, registry)
 }
 
 export function schemaMatchesCollectionType(

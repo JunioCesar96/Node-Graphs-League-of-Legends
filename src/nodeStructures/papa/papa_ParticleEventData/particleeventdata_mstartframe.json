@@ -1,0 +1,6 @@
+{
+  "id": "ParticleEventData_mStartFrame",
+  "name": "mStartFrame",
+  "type": "f32",
+  "defaultValue": "0"
+}

@@ -241,4 +241,30 @@ describe('elementMenuCatalogUtils', () => {
     )
     expect(sorted.map((e) => e.label)).toEqual(['idleParticlesEffects:0'])
   })
+
+  it('entrada LIST_EMBED no menu usa título do campo e estrutura interna na meta', () => {
+    const entries = buildElementMenuEntries({
+      presetStructures: [],
+      includeCatalogStructures: false,
+      includeCatalogParameters: false,
+      includeListEmbedCatalog: true,
+      listEmbedCatalog: [
+        {
+          listEmbedId: 'skin-idle-particles',
+          listEmbedTitle: 'idleParticlesEffects',
+          structure: {
+            id: 'catalog-0',
+            name: 'SkinCharacterDataProperties_CharacterIdleEffect',
+            schemaId: 'skin-character-data-properties-character-idle-effect',
+          },
+        },
+      ],
+    })
+
+    const listEmbedEntry = entries.find((entry) => entry.kind === 'catalog-list-embed')
+    expect(listEmbedEntry?.label).toBe('idleParticlesEffects')
+    expect(listEmbedEntry?.meta).toContain('LIST_EMBED')
+    expect(listEmbedEntry?.meta).toContain('SkinCharacterDataProperties_CharacterIdleEffect')
+    expect(listEmbedEntry?.sortTipo).toBe('LIST_EMBED')
+  })
 })

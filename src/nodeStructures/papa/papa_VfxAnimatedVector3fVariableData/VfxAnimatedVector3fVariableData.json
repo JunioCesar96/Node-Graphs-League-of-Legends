@@ -1,0 +1,64 @@
+{
+  "id": "vfx-animated-vector3f-variable-data",
+  "title": "VfxAnimatedVector3fVariableData",
+  "parameters": [
+    {
+      "id": "vfx-animated-vector3f-variable-data-times",
+      "name": "times",
+      "type": "listF32",
+      "defaultValue": "0"
+    },
+    {
+      "id": "vfx-animated-vector3f-variable-data-values",
+      "name": "values",
+      "type": "listVector3",
+      "defaultValue": "0, -200, 0"
+    }
+  ],
+  "listEmbed": [],
+  "internalStructures": [
+    {
+      "id": "vfx-animated-vector3f-variable-data-probability-tables-0",
+      "name": "probabilityTables",
+      "schemaId": "vfx-probability-table-data"
+    },
+    {
+      "id": "vfx-animated-vector3f-variable-data-probability-tables-1",
+      "name": "probabilityTables:1",
+      "schemaId": "vfx-probability-table-data"
+    },
+    {
+      "id": "vfx-animated-vector3f-variable-data-probability-tables-2",
+      "name": "probabilityTables:2",
+      "schemaId": "vfx-probability-table-data"
+    }
+  ],
+  "nomenclature": {
+    "group": "#3 Internal Structures",
+    "collection": "#3 Pointer Node",
+    "collectionType": "VfxAnimatedVector3fVariableData",
+    "pathHierarchy": "entries > Characters/Zac/Skins/Skin0/Particles/Zac_Base_Q_tar > complexEmitterDefinitionData:0 > birthVelocity > dynamics",
+    "pathHierarchySteps": [
+      {
+        "id": "entries",
+        "type": "#1 Root Entry"
+      },
+      {
+        "id": "Characters/Zac/Skins/Skin0/Particles/Zac_Base_Q_tar",
+        "type": "#2 Root Entry (VfxSystemDefinitionData)"
+      },
+      {
+        "id": "complexEmitterDefinitionData:0",
+        "type": "#3 Collection Block"
+      },
+      {
+        "id": "birthVelocity",
+        "type": "#3 Embed Block"
+      },
+      {
+        "id": "dynamics",
+        "type": "#3 Pointer Node"
+      }
+    ]
+  }
+}

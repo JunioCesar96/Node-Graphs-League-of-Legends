@@ -1,0 +1,27 @@
+{
+  "internalStructures": [],
+  "listEmbed": [],
+  "id": "SequencerClipData",
+  "title": "SequencerClipData",
+  "nomenclature": {
+    "group": "#3 Internal Structures",
+    "collection": "#3 Collection Block",
+    "collectionType": "SequencerClipData",
+    "pathHierarchy": "entries > Characters/Zac/Animations/Skin0 > Idle1",
+    "pathHierarchySteps": [
+      {
+        "id": "entries",
+        "type": "#1 Root Entry"
+      },
+      {
+        "id": "Characters/Zac/Animations/Skin0",
+        "type": "#2 Root Entry (AnimationGraphData)"
+      },
+      {
+        "id": "Idle1",
+        "type": "#3 Collection Block"
+      }
+    ]
+  },
+  "parameters": []
+}

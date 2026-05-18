@@ -1,5 +1,6 @@
 import type {
   InternalStructureDefinition,
+  ListEmbedDefinition,
   NodeDataType,
   NodeParameterDefinition,
   NodeSchemaDefinition,
@@ -165,6 +166,78 @@ function readInternalStructuresArray(raw: Record<string, unknown>): unknown[] | 
   return null
 }
 
+function parseInternalStructuresList(raw: unknown): InternalStructureDefinition[] | null {
+  if (!Array.isArray(raw)) {
+    return null
+  }
+  const out: InternalStructureDefinition[] = []
+  for (const entry of raw) {
+    const s = parseInternalStructure(entry)
+    if (!s) {
+      return null
+    }
+    out.push(s)
+  }
+  return out
+}
+
+/** Stub individual de LIST_EMBED na pasta do nó base (`{collectionType}_listEmbed_{title}.json`). */
+export function listEmbedDefinitionFromJsonStub(raw: unknown): ListEmbedDefinition | null {
+  return parseListEmbed(raw)
+}
+
+function parseListEmbed(raw: unknown): ListEmbedDefinition | null {
+  if (!isRecord(raw)) {
+    return null
+  }
+  const id = typeof raw.id === 'string' ? raw.id : null
+  const title = typeof raw.title === 'string' ? raw.title : null
+  if (!id || !title) {
+    return null
+  }
+
+  const catalog = parseInternalStructuresList(raw.internalStructures)
+  if (!catalog) {
+    return null
+  }
+
+  const result: ListEmbedDefinition = {
+    id,
+    title,
+    internalStructures: catalog,
+  }
+
+  if ('slots' in raw && raw.slots !== undefined) {
+    const slots = parseInternalStructuresList(raw.slots)
+    if (!slots) {
+      return null
+    }
+    if (slots.length > 0) {
+      result.slots = slots
+    }
+  }
+
+  return result
+}
+
+function parseListEmbedArray(raw: unknown): ListEmbedDefinition[] | null {
+  if (raw === undefined) {
+    return []
+  }
+  if (!Array.isArray(raw)) {
+    return null
+  }
+  const out: ListEmbedDefinition[] = []
+  for (const entry of raw) {
+    const block = parseListEmbed(entry)
+    if (!block) {
+      return null
+    }
+    out.push(block)
+  }
+  return out
+}
+
 function parseSchemaRequiredParameterIds(
   raw: unknown,
   parameterIds: Set<string>,
@@ -269,6 +342,11 @@ export function nodeSchemaFromStructureJson(raw: unknown): NodeSchemaDefinition 
     internalStructures.push(s)
   }
 
+  const listEmbed = parseListEmbedArray(raw.listEmbed)
+  if (listEmbed === null) {
+    return null
+  }
+
   const nomenclature = parseNomenclature(raw.nomenclature)
 
   const result: NodeSchemaDefinition = {
@@ -276,6 +354,7 @@ export function nodeSchemaFromStructureJson(raw: unknown): NodeSchemaDefinition 
     title: raw.title,
     parameters,
     internalStructures,
+    ...(listEmbed.length > 0 ? { listEmbed } : {}),
   }
 
   const parameterIdSet = new Set(parameters.map((parameter) => parameter.id))

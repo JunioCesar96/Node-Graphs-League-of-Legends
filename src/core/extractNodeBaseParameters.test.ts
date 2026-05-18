@@ -1,12 +1,16 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  buildNodeBaseListEmbedPayload,
   buildNodeBaseParameterPayload,
   buildNodeBaseSchemaBody,
   cloneNomenclatureForNodeBase,
+  collectSchemaIdsFromListEmbedJson,
   defaultValueForNodeBaseType,
   isKnownStructureParameterType,
+  nodeBaseListEmbedId,
   nodeBaseParameterId,
+  readListEmbedBlocksFromSchemaJson,
 } from './extractNodeBaseParameters'
 
 describe('defaultValueForNodeBaseType', () => {
@@ -30,6 +34,44 @@ describe('defaultValueForNodeBaseType', () => {
 describe('nodeBaseParameterId', () => {
   it('preserva capitalização de collectionType e nome', () => {
     expect(nodeBaseParameterId('Emitter', 'birthScale0')).toBe('Emitter_birthScale0')
+  })
+})
+
+describe('nodeBaseListEmbedId', () => {
+  it('usa o padrão collectionType_listEmbed_title', () => {
+    expect(nodeBaseListEmbedId('SkinMeshDataProperties', 'materialOverride')).toBe(
+      'SkinMeshDataProperties_listEmbed_materialOverride',
+    )
+  })
+})
+
+describe('buildNodeBaseListEmbedPayload', () => {
+  it('gera stub com catálogo deduplicado por schemaId', () => {
+    const payload = buildNodeBaseListEmbedPayload('SkinMeshDataProperties', {
+      id: 'skin-mesh-data-properties-material-override',
+      title: 'materialOverride',
+      internalStructures: [
+        {
+          schemaId: 'skin-mesh-data-properties-material-override',
+          name: 'SkinMeshDataProperties_MaterialOverride',
+        },
+        {
+          schemaId: 'skin-mesh-data-properties-material-override',
+          name: 'SkinMeshDataProperties_MaterialOverride',
+        },
+      ],
+    })
+    expect(payload).toEqual({
+      id: 'SkinMeshDataProperties_listEmbed_materialOverride',
+      title: 'materialOverride',
+      internalStructures: [
+        {
+          id: 'SkinMeshDataProperties_listEmbed_materialOverride-catalog-0',
+          name: 'SkinMeshDataProperties_MaterialOverride',
+          schemaId: 'skin-mesh-data-properties-material-override',
+        },
+      ],
+    })
   })
 })
 
@@ -59,6 +101,7 @@ describe('buildNodeBaseSchemaBody', () => {
     const body = buildNodeBaseSchemaBody('Emitter', nom)
     expect(body).toEqual({
       internalStructures: [],
+      listEmbed: [],
       id: 'Emitter',
       title: 'Emitter',
       nomenclature: { ...nom },
@@ -110,5 +153,53 @@ describe('isKnownStructureParameterType', () => {
     expect(isKnownStructureParameterType('vector3')).toBe(true)
     expect(isKnownStructureParameterType('string')).toBe(true)
     expect(isKnownStructureParameterType('bool')).toBe(true)
+  })
+})
+
+describe('readListEmbedBlocksFromSchemaJson', () => {
+  it('lê listEmbed oficial', () => {
+    const raw = {
+      listEmbed: [
+        {
+          id: 'mesh-material-override',
+          title: 'materialOverride',
+          internalStructures: [
+            {
+              id: 'mesh-material-override-0',
+              name: 'SkinMeshDataProperties_MaterialOverride',
+              schemaId: 'skin-mesh-data-properties-material-override',
+            },
+          ],
+        },
+      ],
+    }
+    const blocks = readListEmbedBlocksFromSchemaJson(raw)
+    expect(blocks).toHaveLength(1)
+    expect(blocks[0]!.title).toBe('materialOverride')
+    expect(collectSchemaIdsFromListEmbedJson(raw)).toEqual(['skin-mesh-data-properties-material-override'])
+  })
+
+  it('aceita blocos LIST_EMBED com chave top-level incorreta', () => {
+    const raw = {
+      '       ': [
+        {
+          id: 'skin-idle',
+          title: 'idleParticlesEffects',
+          internalStructures: [
+            {
+              id: 'skin-idle-0',
+              name: 'SkinCharacterDataProperties_CharacterIdleEffect',
+              schemaId: 'skin-character-data-properties-character-idle-effect',
+            },
+          ],
+        },
+      ],
+    }
+    const blocks = readListEmbedBlocksFromSchemaJson(raw)
+    expect(blocks).toHaveLength(1)
+    expect(blocks[0]!.title).toBe('idleParticlesEffects')
+    expect(collectSchemaIdsFromListEmbedJson(raw)).toEqual([
+      'skin-character-data-properties-character-idle-effect',
+    ])
   })
 })

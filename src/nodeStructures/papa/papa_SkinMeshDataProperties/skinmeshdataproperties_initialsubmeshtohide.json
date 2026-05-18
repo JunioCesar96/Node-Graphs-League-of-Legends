@@ -1,0 +1,6 @@
+{
+  "id": "SkinMeshDataProperties_initialSubmeshToHide",
+  "name": "initialSubmeshToHide",
+  "type": "string",
+  "defaultValue": ""
+}

@@ -24,6 +24,14 @@ import {
   translateDiskLinkedPairsToCanvas,
 } from '@/core/linked_parameter_values'
 import { patchInternalStructureSlotForLink } from '@/core/collectionTypeLinking'
+import {
+  appendListEmbedCatalogItemToSchema,
+  removeListEmbedBlockFromSchema,
+  removeListEmbedSlotFromSchema,
+  slotIdsForListEmbedBlock,
+  structureForListEmbedAdd,
+} from '@/core/listEmbedElementMenu'
+import { findOutputSlotInNode, patchOutputSlotInNodeSchema } from '@/core/listEmbedSlots'
 import type {
   InternalStructureDefinition,
   NodeInstance,
@@ -484,20 +492,31 @@ export function useSceneHistory(options?: {
     (connection: CanvasConnection) => {
       updateScene((currentScene) => {
         const targetNode = currentScene.nodes.find((node) => node.id === connection.toNodeId)
+        const nextConnections = [
+          ...currentScene.connections.filter(
+            (currentConnection) =>
+              currentConnection.fromNodeId !== connection.fromNodeId ||
+              currentConnection.fromInternalStructureId !== connection.fromInternalStructureId,
+          ),
+          connection,
+        ]
 
         return {
           ...currentScene,
-          connections: [
-            ...currentScene.connections.filter(
-              (currentConnection) =>
-                currentConnection.fromNodeId !== connection.fromNodeId ||
-                currentConnection.fromInternalStructureId !== connection.fromInternalStructureId,
-            ),
-            connection,
-          ],
+          connections: nextConnections,
           nodes: targetNode
             ? currentScene.nodes.map((canvasNode) => {
                 if (canvasNode.id !== connection.fromNodeId) {
+                  return canvasNode
+                }
+
+                const slot = findOutputSlotInNode(
+                  canvasNode,
+                  connection.fromInternalStructureId,
+                  nextConnections,
+                )
+
+                if (!slot) {
                   return canvasNode
                 }
 
@@ -505,14 +524,13 @@ export function useSceneHistory(options?: {
                   ...canvasNode,
                   node: {
                     ...canvasNode.node,
-                    schema: {
-                      ...canvasNode.node.schema,
-                      internalStructures: canvasNode.node.schema.internalStructures.map((item) =>
-                        item.id === connection.fromInternalStructureId
-                          ? patchInternalStructureSlotForLink(item, targetNode)
-                          : item,
-                      ),
-                    },
+                    schema: patchOutputSlotInNodeSchema(
+                      canvasNode.node.schema,
+                      connection.fromInternalStructureId,
+                      patchInternalStructureSlotForLink(slot, targetNode),
+                      nextConnections,
+                      connection.fromNodeId,
+                    ),
                   },
                 }
               })
@@ -593,16 +611,18 @@ export function useSceneHistory(options?: {
           }),
         )
 
+        const nextConnections = [
+          ...currentScene.connections.filter(
+            (currentConnection) =>
+              currentConnection.fromNodeId !== fromNodeId ||
+              currentConnection.fromInternalStructureId !== slot.id,
+          ),
+          connection,
+        ]
+
         return {
           ...currentScene,
-          connections: [
-            ...currentScene.connections.filter(
-              (currentConnection) =>
-                currentConnection.fromNodeId !== fromNodeId ||
-                currentConnection.fromInternalStructureId !== slot.id,
-            ),
-            connection,
-          ],
+          connections: nextConnections,
           nodes: [
             ...currentScene.nodes.map((canvasNode) => {
               if (canvasNode.id !== fromNodeId) {
@@ -613,14 +633,13 @@ export function useSceneHistory(options?: {
                 ...canvasNode,
                 node: {
                   ...canvasNode.node,
-                  schema: {
-                    ...canvasNode.node.schema,
-                    internalStructures: canvasNode.node.schema.internalStructures.map((structure) =>
-                      structure.id === slot.id
-                        ? patchInternalStructureSlotForLink(structure, newCanvasNode)
-                        : structure,
-                    ),
-                  },
+                  schema: patchOutputSlotInNodeSchema(
+                    canvasNode.node.schema,
+                    slot.id,
+                    patchInternalStructureSlotForLink(slot, newCanvasNode),
+                    nextConnections,
+                    fromNodeId,
+                  ),
                 },
               }
             }),
@@ -642,7 +661,7 @@ export function useSceneHistory(options?: {
           return currentScene
         }
 
-        const structure = sourceNode.node.schema.internalStructures.find((item) => item.id === structureId)
+        const structure = findOutputSlotInNode(sourceNode, structureId, currentScene.connections)
 
         if (!structure) {
           return currentScene
@@ -655,16 +674,18 @@ export function useSceneHistory(options?: {
           toNodeId: targetNodeId,
         }
 
+        const nextConnections = [
+          ...currentScene.connections.filter(
+            (currentConnection) =>
+              currentConnection.fromNodeId !== fromNodeId ||
+              currentConnection.fromInternalStructureId !== structureId,
+          ),
+          connection,
+        ]
+
         return {
           ...currentScene,
-          connections: [
-            ...currentScene.connections.filter(
-              (currentConnection) =>
-                currentConnection.fromNodeId !== fromNodeId ||
-                currentConnection.fromInternalStructureId !== structureId,
-            ),
-            connection,
-          ],
+          connections: nextConnections,
           nodes: currentScene.nodes.map((canvasNode) => {
             if (canvasNode.id !== fromNodeId) {
               return canvasNode
@@ -674,14 +695,13 @@ export function useSceneHistory(options?: {
               ...canvasNode,
               node: {
                 ...canvasNode.node,
-                schema: {
-                  ...canvasNode.node.schema,
-                  internalStructures: canvasNode.node.schema.internalStructures.map((item) =>
-                    item.id === structureId
-                      ? patchInternalStructureSlotForLink(item, targetNode)
-                      : item,
-                  ),
-                },
+                schema: patchOutputSlotInNodeSchema(
+                  canvasNode.node.schema,
+                  structureId,
+                  patchInternalStructureSlotForLink(structure, targetNode),
+                  nextConnections,
+                  fromNodeId,
+                ),
               },
             }
           }),
@@ -1301,6 +1321,102 @@ export function useSceneHistory(options?: {
     [updateScene],
   )
 
+  const appendListEmbedCatalogItem = useCallback(
+    (nodeId: string, templateListEmbedId: string, structure: InternalStructureDefinition) => {
+      updateScene((currentScene) => ({
+        ...currentScene,
+        nodes: currentScene.nodes.map((canvasNode) => {
+          if (canvasNode.id !== nodeId) {
+            return canvasNode
+          }
+
+          const templateSchema = schemaLookup[canvasNode.node.schema.id] ?? null
+          return {
+            ...canvasNode,
+            node: {
+              ...canvasNode.node,
+              schema: appendListEmbedCatalogItemToSchema(
+                canvasNode.node.schema,
+                templateListEmbedId,
+                structureForListEmbedAdd(structure),
+                templateSchema,
+              ),
+            },
+          }
+        }),
+      }))
+    },
+    [schemaLookup, updateScene],
+  )
+
+  const removeListEmbedSlot = useCallback(
+    (nodeId: string, slotId: string) => {
+      updateScene((currentScene) => {
+        const nextConnections = currentScene.connections.filter(
+          (connection) =>
+            !(connection.fromNodeId === nodeId && connection.fromInternalStructureId === slotId),
+        )
+
+        return {
+          ...currentScene,
+          connections: nextConnections,
+          nodes: currentScene.nodes.map((canvasNode) =>
+            canvasNode.id !== nodeId
+              ? canvasNode
+              : {
+                  ...canvasNode,
+                  node: {
+                    ...canvasNode.node,
+                    schema: removeListEmbedSlotFromSchema(
+                      canvasNode.node.schema,
+                      slotId,
+                      nextConnections,
+                      nodeId,
+                    ),
+                  },
+                },
+          ),
+        }
+      })
+    },
+    [updateScene],
+  )
+
+  const removeListEmbedBlock = useCallback(
+    (nodeId: string, blockInstanceId: string) => {
+      updateScene((currentScene) => {
+        const canvasNode = currentScene.nodes.find((entry) => entry.id === nodeId)
+        const block = canvasNode?.node.schema.listEmbed?.find((entry) => entry.id === blockInstanceId)
+        const slotIds = block ? new Set(slotIdsForListEmbedBlock(block)) : new Set<string>()
+
+        const nextConnections = currentScene.connections.filter(
+          (connection) =>
+            !(
+              connection.fromNodeId === nodeId &&
+              slotIds.has(connection.fromInternalStructureId)
+            ),
+        )
+
+        return {
+          ...currentScene,
+          connections: nextConnections,
+          nodes: currentScene.nodes.map((entry) =>
+            entry.id !== nodeId
+              ? entry
+              : {
+                  ...entry,
+                  node: {
+                    ...entry.node,
+                    schema: removeListEmbedBlockFromSchema(entry.node.schema, blockInstanceId),
+                  },
+                },
+          ),
+        }
+      })
+    },
+    [updateScene],
+  )
+
   const undoScene = useCallback(() => {
     setSceneHistory((currentHistory) => {
       const previousScene = currentHistory.past.at(-1)
@@ -1426,7 +1542,10 @@ export function useSceneHistory(options?: {
     addDynamicParameter,
     removeCanvasParameter,
     addDynamicInternalStructureSlot,
+    appendListEmbedCatalogItem,
     removeCanvasInternalStructure,
+    removeListEmbedSlot,
+    removeListEmbedBlock,
     scene,
     selectedNodeIds: orderedSelectionUnique,
     primarySelectedId,

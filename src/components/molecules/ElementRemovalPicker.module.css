@@ -32,3 +32,14 @@
   opacity: 0.4;
   cursor: not-allowed;
 }
+
+.searchInput {
+  width: 100%;
+  margin-bottom: var(--space-2);
+}
+
+.searchSummary {
+  margin: 0 0 var(--space-2);
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+}

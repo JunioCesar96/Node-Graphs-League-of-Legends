@@ -3,7 +3,13 @@ import path from 'node:path'
 
 import type { Plugin } from 'vite'
 
-import { buildNodeBaseParameterPayload, buildNodeBaseSchemaBody } from './src/core/extractNodeBaseParameters'
+import {
+  buildNodeBaseListEmbedPayload,
+  buildNodeBaseParameterPayload,
+  buildNodeBaseSchemaBody,
+  collectSchemaIdsFromListEmbedBlocks,
+  readListEmbedBlocksFromSchemaJson,
+} from './src/core/extractNodeBaseParameters'
 import type { NodeStructureNomenclature } from './src/core/nodeSchema'
 import { nodeParameterDefinitionFromJsonStub, parseNomenclatureFromStructureJson } from './src/core/nodeStructureJson'
 
@@ -53,6 +59,135 @@ async function fileExists(filePath: string): Promise<boolean> {
     return true
   } catch {
     return false
+  }
+}
+
+async function listPackJsonFilesRecursive(packDir: string): Promise<string[]> {
+  const out: string[] = []
+
+  async function walk(dir: string): Promise<void> {
+    const entries = await fs.readdir(dir, { withFileTypes: true })
+    for (const entry of entries) {
+      if (entry.name === 'temp') {
+        continue
+      }
+      const fullPath = path.join(dir, entry.name)
+      if (entry.isDirectory()) {
+        await walk(fullPath)
+        continue
+      }
+      if (!entry.name.toLowerCase().endsWith('.json')) {
+        continue
+      }
+      if (entry.name.toLowerCase() === 'parameters_list.json') {
+        continue
+      }
+      out.push(fullPath)
+    }
+  }
+
+  await walk(packDir)
+  return out
+}
+
+async function buildPackSchemaIdIndex(packDir: string): Promise<Map<string, string>> {
+  const index = new Map<string, string>()
+  const files = await listPackJsonFilesRecursive(packDir)
+
+  for (const filePath of files) {
+    let fileJson: unknown
+    try {
+      fileJson = JSON.parse(await fs.readFile(filePath, 'utf8')) as unknown
+    } catch {
+      continue
+    }
+    if (!isRecord(fileJson)) {
+      continue
+    }
+    const schemaId = fileJson.id
+    if (typeof schemaId !== 'string' || schemaId.trim() === '') {
+      continue
+    }
+    const key = schemaId.trim()
+    if (!index.has(key)) {
+      index.set(key, filePath)
+    }
+  }
+
+  return index
+}
+
+function registerCollectionTypeInInfo(
+  collectionTypeInfo: Record<string, { nomenclature: NodeStructureNomenclature }>,
+  collectionType: string,
+  nomenclature: NodeStructureNomenclature,
+): void {
+  if (!collectionTypeInfo[collectionType]) {
+    collectionTypeInfo[collectionType] = { nomenclature }
+  }
+}
+
+async function registerListEmbedChildrenInInfo(
+  fileJson: Record<string, unknown>,
+  parentNomenclature: NodeStructureNomenclature,
+  collectionTypeInfo: Record<string, { nomenclature: NodeStructureNomenclature }>,
+  schemaIdIndex: Map<string, string>,
+  errors: string[],
+): Promise<void> {
+  const blocks = readListEmbedBlocksFromSchemaJson(fileJson)
+  const schemaIds = collectSchemaIdsFromListEmbedBlocks(blocks)
+
+  for (const schemaId of schemaIds) {
+    const childPath = schemaIdIndex.get(schemaId)
+    if (!childPath) {
+      const catalogRef = blocks
+        .flatMap((block) => block.internalStructures)
+        .find((ref) => ref.schemaId === schemaId)
+      const fallbackType = catalogRef?.name?.trim()
+      if (fallbackType) {
+        registerCollectionTypeInInfo(collectionTypeInfo, fallbackType, {
+          ...parentNomenclature,
+          collectionType: fallbackType,
+        })
+      } else {
+        errors.push(`listEmbed: schemaId "${schemaId}" sem ficheiro no pack`)
+      }
+      continue
+    }
+
+    let childJson: unknown
+    try {
+      childJson = JSON.parse(await fs.readFile(childPath, 'utf8')) as unknown
+    } catch (err) {
+      errors.push(
+        `listEmbed ${schemaId}: ${err instanceof Error ? err.message : String(err)}`,
+      )
+      continue
+    }
+
+    if (!isRecord(childJson)) {
+      errors.push(`listEmbed ${schemaId}: JSON inválido`)
+      continue
+    }
+
+    const childNom = parseNomenclatureFromStructureJson(childJson.nomenclature)
+    if (childNom) {
+      registerCollectionTypeInInfo(collectionTypeInfo, childNom.collectionType.trim(), childNom)
+      continue
+    }
+
+    const catalogRef = blocks
+      .flatMap((block) => block.internalStructures)
+      .find((ref) => ref.schemaId === schemaId)
+    const fallbackType = catalogRef?.name?.trim()
+    if (fallbackType) {
+      registerCollectionTypeInInfo(collectionTypeInfo, fallbackType, {
+        ...parentNomenclature,
+        collectionType: fallbackType,
+      })
+    } else {
+      errors.push(`listEmbed ${schemaId}: falta nomenclature no filho`)
+    }
   }
 }
 
@@ -255,45 +390,47 @@ export function vitePluginNodeStructuresWrite(projectRoot: string): Plugin {
                 const skipped: string[] = []
                 const errors: string[] = []
                 const collectionTypeInfo: Record<string, { nomenclature: NodeStructureNomenclature }> = {}
+                const schemaIdIndex = await buildPackSchemaIdIndex(targetDir)
+                const schemaFiles = await listPackJsonFilesRecursive(targetDir)
 
-                const rootEntries = await fs.readdir(targetDir, { withFileTypes: true })
-                const schemaFiles = rootEntries.filter((e) => e.isFile() && e.name.toLowerCase().endsWith('.json'))
-
-                for (const dirent of schemaFiles) {
-                  const filePath = path.join(targetDir, dirent.name)
+                for (const filePath of schemaFiles) {
+                  const fileLabel = path.relative(targetDir, filePath).replace(/\\/g, '/')
 
                   let fileJson: unknown
                   try {
                     fileJson = JSON.parse(await fs.readFile(filePath, 'utf8')) as unknown
                   } catch (err) {
-                    errors.push(`${dirent.name}: ${err instanceof Error ? err.message : String(err)}`)
+                    errors.push(`${fileLabel}: ${err instanceof Error ? err.message : String(err)}`)
                     continue
                   }
 
                   if (!isRecord(fileJson)) {
-                    errors.push(`${dirent.name}: raiz inválida`)
+                    errors.push(`${fileLabel}: raiz inválida`)
                     continue
                   }
 
                   const parsedNom = parseNomenclatureFromStructureJson(fileJson.nomenclature)
                   if (!parsedNom) {
-                    errors.push(`${dirent.name}: falta nomenclature.collectionType`)
                     continue
                   }
 
                   const collectionType = parsedNom.collectionType.trim()
 
-                  if (!collectionTypeInfo[collectionType]) {
-                    collectionTypeInfo[collectionType] = {
-                      nomenclature: parsedNom,
-                    }
-                  }
+                  registerCollectionTypeInInfo(collectionTypeInfo, collectionType, parsedNom)
+
+                  await registerListEmbedChildrenInInfo(
+                    fileJson,
+                    parsedNom,
+                    collectionTypeInfo,
+                    schemaIdIndex,
+                    errors,
+                  )
 
                   const subdirName = `${folder}_${safeCollectionTypeDirSegment(collectionType)}`
                   const subdirPath = path.resolve(targetDir, subdirName)
                   const subRel = path.relative(targetDir, subdirPath)
                   if (subRel.startsWith('..') || path.isAbsolute(subRel)) {
-                    errors.push(`${dirent.name}: subpasta inválida`)
+                    errors.push(`${fileLabel}: subpasta inválida`)
                     continue
                   }
 
@@ -344,6 +481,46 @@ export function vitePluginNodeStructuresWrite(projectRoot: string): Plugin {
                     await fs.writeFile(outFile, `${JSON.stringify(payload, null, 2)}\n`, 'utf8')
                     knownIds.add(payload.id)
                     created.push(`${subdirName}/${stem}.json`)
+                  }
+
+                  const listEmbedBlocks = readListEmbedBlocksFromSchemaJson(fileJson)
+                  for (const block of listEmbedBlocks) {
+                    const listEmbedPayload = buildNodeBaseListEmbedPayload(collectionType, block)
+                    if (!listEmbedPayload) {
+                      continue
+                    }
+
+                    const listEmbedStem = safeJsonStem(listEmbedPayload.id)
+                    if (!listEmbedStem) {
+                      skipped.push(listEmbedPayload.id)
+                      continue
+                    }
+
+                    const listEmbedOutFile = path.join(subdirPath, `${listEmbedStem}.json`)
+                    const listEmbedOutRel = path.relative(subdirPath, listEmbedOutFile)
+                    if (listEmbedOutRel.startsWith('..') || path.isAbsolute(listEmbedOutRel)) {
+                      skipped.push(listEmbedPayload.id)
+                      continue
+                    }
+
+                    if (knownIds.has(listEmbedPayload.id)) {
+                      skipped.push(listEmbedPayload.id)
+                      continue
+                    }
+
+                    if (await fileExists(listEmbedOutFile)) {
+                      skipped.push(listEmbedPayload.id)
+                      continue
+                    }
+
+                    await fs.mkdir(subdirPath, { recursive: true })
+                    await fs.writeFile(
+                      listEmbedOutFile,
+                      `${JSON.stringify(listEmbedPayload, null, 2)}\n`,
+                      'utf8',
+                    )
+                    knownIds.add(listEmbedPayload.id)
+                    created.push(`${subdirName}/${listEmbedStem}.json`)
                   }
                 }
 

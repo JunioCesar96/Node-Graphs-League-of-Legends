@@ -1,0 +1,6 @@
+{
+  "id": "VfxEmitterDefinitionData_texDiv",
+  "name": "texDiv",
+  "type": "vector2",
+  "defaultValue": "0,0"
+}

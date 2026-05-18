@@ -1,0 +1,78 @@
+{
+  "id": "vfx-alpha-erosion-definition-data",
+  "title": "VfxAlphaErosionDefinitionData",
+  "parameters": [
+    {
+      "id": "vfx-alpha-erosion-definition-data-erosion-feather-in",
+      "name": "erosionFeatherIn",
+      "type": "f32",
+      "defaultValue": "0.2"
+    },
+    {
+      "id": "vfx-alpha-erosion-definition-data-erosion-feather-out",
+      "name": "erosionFeatherOut",
+      "type": "f32",
+      "defaultValue": "0.2"
+    },
+    {
+      "id": "vfx-alpha-erosion-definition-data-erosion-map-name",
+      "name": "erosionMapName",
+      "type": "string",
+      "defaultValue": "ASSETS/Characters/Zac/Skins/base/Particles/Vladimir_Skin14_W_MagicCircle03.tex"
+    },
+    {
+      "id": "vfx-alpha-erosion-definition-data-erosion-slice-width",
+      "name": "erosionSliceWidth",
+      "type": "f32",
+      "defaultValue": "1"
+    },
+    {
+      "id": "vfx-alpha-erosion-definition-data-use-linger-erosion-drive-curve",
+      "name": "UseLingerErosionDriveCurve",
+      "type": "bool",
+      "defaultValue": "true"
+    }
+  ],
+  "listEmbed": [],
+  "internalStructures": [
+    {
+      "id": "vfx-alpha-erosion-definition-data-erosion-drive-curve",
+      "name": "erosionDriveCurve",
+      "schemaId": "value-float"
+    },
+    {
+      "id": "vfx-alpha-erosion-definition-data-erosion-map-channel-mixer",
+      "name": "erosionMapChannelMixer",
+      "schemaId": "value-color"
+    },
+    {
+      "id": "vfx-alpha-erosion-definition-data-linger-erosion-drive-curve",
+      "name": "LingerErosionDriveCurve",
+      "schemaId": "value-float"
+    }
+  ],
+  "nomenclature": {
+    "group": "#3 Internal Structures",
+    "collection": "#3 Pointer Node",
+    "collectionType": "VfxAlphaErosionDefinitionData",
+    "pathHierarchy": "entries > 0x7b3a4b5f > complexEmitterDefinitionData:2 > alphaErosionDefinition",
+    "pathHierarchySteps": [
+      {
+        "id": "entries",
+        "type": "#1 Root Entry"
+      },
+      {
+        "id": "0x7b3a4b5f",
+        "type": "#2 Root Entry (VfxSystemDefinitionData)"
+      },
+      {
+        "id": "complexEmitterDefinitionData:2",
+        "type": "#3 Collection Block"
+      },
+      {
+        "id": "alphaErosionDefinition",
+        "type": "#3 Pointer Node"
+      }
+    ]
+  }
+}

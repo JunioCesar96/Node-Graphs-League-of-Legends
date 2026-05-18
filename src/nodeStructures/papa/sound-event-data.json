@@ -1,0 +1,56 @@
+{
+  "id": "sound-event-data",
+  "title": "SoundEventData",
+  "parameters": [
+    {
+      "id": "sound-event-data-m-is-kill-event",
+      "name": "mIsKillEvent",
+      "type": "bool",
+      "defaultValue": "false"
+    },
+    {
+      "id": "sound-event-data-m-is-loop",
+      "name": "mIsLoop",
+      "type": "bool",
+      "defaultValue": "false"
+    },
+    {
+      "id": "sound-event-data-m-name",
+      "name": "mName",
+      "type": "integer",
+      "defaultValue": "0xee1ab011"
+    },
+    {
+      "id": "sound-event-data-m-sound-name",
+      "name": "mSoundName",
+      "type": "string",
+      "defaultValue": "Play_sfx_Zac_Respawn"
+    }
+  ],
+  "listEmbed": [],
+  "internalStructures": [],
+  "nomenclature": {
+    "group": "#3 Internal Structures",
+    "collection": "#3 Collection Block",
+    "collectionType": "SoundEventData",
+    "pathHierarchy": "entries > Characters/Zac/Animations/Skin0 > Respawn_Base > 0xee1ab011",
+    "pathHierarchySteps": [
+      {
+        "id": "entries",
+        "type": "#1 Root Entry"
+      },
+      {
+        "id": "Characters/Zac/Animations/Skin0",
+        "type": "#2 Root Entry (AnimationGraphData)"
+      },
+      {
+        "id": "Respawn_Base",
+        "type": "#3 Collection Block"
+      },
+      {
+        "id": "0xee1ab011",
+        "type": "#3 Collection Block"
+      }
+    ]
+  }
+}

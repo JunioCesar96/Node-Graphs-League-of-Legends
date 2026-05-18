@@ -1,0 +1,6 @@
+{
+  "id": "SkinMeshDataProperties_reflectionOpacityDirect",
+  "name": "reflectionOpacityDirect",
+  "type": "f32",
+  "defaultValue": "0"
+}

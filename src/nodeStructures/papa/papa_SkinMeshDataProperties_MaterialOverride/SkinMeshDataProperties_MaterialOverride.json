@@ -1,0 +1,50 @@
+{
+  "id": "skin-mesh-data-properties-material-override",
+  "title": "SkinMeshDataProperties_MaterialOverride",
+  "parameters": [
+    {
+      "id": "skin-mesh-data-properties-material-override-gloss-texture",
+      "name": "glossTexture",
+      "type": "string",
+      "defaultValue": "ASSETS/Characters/Zac/Skins/Base/Zac_base_puddle_TX_GM.tex"
+    },
+    {
+      "id": "skin-mesh-data-properties-material-override-submesh",
+      "name": "Submesh",
+      "type": "string",
+      "defaultValue": "Puddle"
+    },
+    {
+      "id": "skin-mesh-data-properties-material-override-texture",
+      "name": "texture",
+      "type": "string",
+      "defaultValue": "ASSETS/Characters/Zac/Skins/Base/Zac_base_puddle_TX_CM.tex"
+    }
+  ],
+  "listEmbed": [],
+  "internalStructures": [],
+  "nomenclature": {
+    "group": "#3 Internal Structures",
+    "collection": "#3 Collection Block",
+    "collectionType": "SkinMeshDataProperties_MaterialOverride",
+    "pathHierarchy": "entries > Characters/Zac/Skins/Skin0 > skinMeshProperties > materialOverride:0",
+    "pathHierarchySteps": [
+      {
+        "id": "entries",
+        "type": "#1 Root Entry"
+      },
+      {
+        "id": "Characters/Zac/Skins/Skin0",
+        "type": "#2 Root Entry (SkinCharacterDataProperties)"
+      },
+      {
+        "id": "skinMeshProperties",
+        "type": "#3 Embed Block"
+      },
+      {
+        "id": "materialOverride:0",
+        "type": "#3 Collection Block"
+      }
+    ]
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "id": "SkinCharacterDataProperties_skinClassification",
+  "name": "skinClassification",
+  "type": "u32",
+  "defaultValue": "0"
+}

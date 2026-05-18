@@ -1,0 +1,51 @@
+{
+  "id": "skin-audio-properties",
+  "title": "SkinAudioProperties",
+  "parameters": [
+    {
+      "id": "skin-audio-properties-tag-event-list",
+      "name": "tagEventList",
+      "type": "listString",
+      "defaultValue": "Zac"
+    }
+  ],
+  "listEmbed": [
+    {
+      "id": "skin-audio-properties-bank-units",
+      "title": "bankUnits",
+      "internalStructures": [
+        {
+          "id": "skin-audio-properties-bank-units-0",
+          "name": "BankUnit",
+          "schemaId": "bank-unit"
+        },
+        {
+          "id": "skin-audio-properties-bank-units-1",
+          "name": "BankUnit",
+          "schemaId": "bank-unit"
+        }
+      ]
+    }
+  ],
+  "internalStructures": [],
+  "nomenclature": {
+    "group": "#3 Internal Structures",
+    "collection": "#3 Embed Block",
+    "collectionType": "SkinAudioProperties",
+    "pathHierarchy": "entries > Characters/Zac/Skins/Skin0 > SkinAudioProperties",
+    "pathHierarchySteps": [
+      {
+        "id": "entries",
+        "type": "#1 Root Entry"
+      },
+      {
+        "id": "Characters/Zac/Skins/Skin0",
+        "type": "#2 Root Entry (SkinCharacterDataProperties)"
+      },
+      {
+        "id": "SkinAudioProperties",
+        "type": "#3 Embed Block"
+      }
+    ]
+  }
+}

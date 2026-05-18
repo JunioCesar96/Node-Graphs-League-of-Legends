@@ -1,0 +1,6 @@
+{
+  "id": "CensoredImage_image",
+  "name": "image",
+  "type": "string",
+  "defaultValue": ""
+}

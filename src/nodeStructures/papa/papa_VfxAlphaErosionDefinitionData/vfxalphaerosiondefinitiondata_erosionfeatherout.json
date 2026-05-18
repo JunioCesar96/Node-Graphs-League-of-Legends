@@ -1,0 +1,6 @@
+{
+  "id": "VfxAlphaErosionDefinitionData_erosionFeatherOut",
+  "name": "erosionFeatherOut",
+  "type": "f32",
+  "defaultValue": "0"
+}

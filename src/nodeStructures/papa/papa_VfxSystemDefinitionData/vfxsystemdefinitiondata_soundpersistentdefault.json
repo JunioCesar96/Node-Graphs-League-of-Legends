@@ -1,0 +1,6 @@
+{
+  "id": "VfxSystemDefinitionData_soundPersistentDefault",
+  "name": "soundPersistentDefault",
+  "type": "string",
+  "defaultValue": ""
+}

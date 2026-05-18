@@ -1,0 +1,6 @@
+{
+  "id": "SkinMeshDataProperties_reflectionMap",
+  "name": "reflectionMap",
+  "type": "string",
+  "defaultValue": ""
+}

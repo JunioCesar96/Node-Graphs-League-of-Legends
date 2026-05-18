@@ -1,0 +1,44 @@
+{
+  "id": "value-vector3",
+  "title": "ValueVector3",
+  "parameters": [
+    {
+      "id": "value-vector3-constant-value",
+      "name": "constantValue",
+      "type": "vector3",
+      "defaultValue": "0, -200, 0"
+    }
+  ],
+  "listEmbed": [],
+  "internalStructures": [
+    {
+      "id": "value-vector3-dynamics",
+      "name": "dynamics",
+      "schemaId": "vfx-animated-vector3f-variable-data"
+    }
+  ],
+  "nomenclature": {
+    "group": "#3 Internal Structures",
+    "collection": "#3 Embed Block",
+    "collectionType": "ValueVector3",
+    "pathHierarchy": "entries > Characters/Zac/Skins/Skin0/Particles/Zac_Base_Q_tar > complexEmitterDefinitionData:0 > birthVelocity",
+    "pathHierarchySteps": [
+      {
+        "id": "entries",
+        "type": "#1 Root Entry"
+      },
+      {
+        "id": "Characters/Zac/Skins/Skin0/Particles/Zac_Base_Q_tar",
+        "type": "#2 Root Entry (VfxSystemDefinitionData)"
+      },
+      {
+        "id": "complexEmitterDefinitionData:0",
+        "type": "#3 Collection Block"
+      },
+      {
+        "id": "birthVelocity",
+        "type": "#3 Embed Block"
+      }
+    ]
+  }
+}

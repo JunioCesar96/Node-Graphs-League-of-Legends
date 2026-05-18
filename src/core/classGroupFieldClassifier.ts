@@ -40,6 +40,12 @@ export function isStructuralListType(listTypeBracket: string): boolean {
   return /\b(embed|pointer|link)\b/i.test(inner)
 }
 
+/** `list[embed]` / `list2[embed]` → bloco LIST_EMBED no schema. */
+export function isEmbedListType(listTypeBracket: string): boolean {
+  const inner = listTypeBracket.replace(/^list2?\[/i, '').replace(/\]$/, '').trim()
+  return /\bembed\b/i.test(inner)
+}
+
 /** Lista de primitivos (list[f32], list[string]) → parâmetro simples no pai. */
 export function isPrimitiveListType(listTypeBracket: string): boolean {
   return /^list2?\[/i.test(listTypeBracket) && !isStructuralListType(listTypeBracket)

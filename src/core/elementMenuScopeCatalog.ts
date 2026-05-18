@@ -1,4 +1,8 @@
 import { slugifyStructureId } from '@/core/convertRitobinTextToNodeStructures'
+import {
+  filterOutListEmbedCatalogChildStructures,
+  listListEmbedCatalogPicksForElementMenu,
+} from '@/core/listEmbedElementMenu'
 import type { BuildElementMenuEntriesInput } from '@/core/elementMenuCatalogUtils'
 import {
   filterInternalStructuresByPathHierarchy,
@@ -142,21 +146,32 @@ export function buildElementMenuScopeCatalogSources(input: {
       })
     : []
 
-  const moduleStructures = unusedStructuresOnNode(input.node, moduleStructureCandidates)
+  const templateSchema = input.schemaRegistry[input.node.schema.id] ?? null
+
+  const moduleStructures = filterOutListEmbedCatalogChildStructures(
+    unusedStructuresOnNode(input.node, moduleStructureCandidates),
+    templateSchema,
+  )
 
   let baseStructures = input.baseCatalogStructures ?? []
   if (input.nodeKind === 'module' && !input.baseCatalogStructures) {
     const candidates = listInternalStructureCandidatesForBase(input.node.schema, input.schemaRegistry, {
       jsonRelativePathBySchemaId: input.jsonRelativePathBySchemaId,
     })
-    baseStructures = filterInternalStructuresByPathHierarchy(
-      input.node.schema,
-      unusedStructuresOnNode(input.node, candidates),
-      input.schemaRegistry,
-      input.jsonRelativePathBySchemaId,
+    baseStructures = filterOutListEmbedCatalogChildStructures(
+      filterInternalStructuresByPathHierarchy(
+        input.node.schema,
+        unusedStructuresOnNode(input.node, candidates),
+        input.schemaRegistry,
+        input.jsonRelativePathBySchemaId,
+      ),
+      templateSchema,
     )
   } else if (input.baseCatalogStructures) {
-    baseStructures = unusedStructuresOnNode(input.node, input.baseCatalogStructures)
+    baseStructures = filterOutListEmbedCatalogChildStructures(
+      unusedStructuresOnNode(input.node, input.baseCatalogStructures),
+      templateSchema,
+    )
   }
 
   const baseParameters = unusedParametersOnNode(input.node, input.baseCatalogParameters ?? [])
@@ -164,20 +179,27 @@ export function buildElementMenuScopeCatalogSources(input: {
   const presetForModule =
     input.nodeKind === 'module' ? input.node.schema.internalStructures : []
 
+  const listEmbedCatalog = listListEmbedCatalogPicksForElementMenu(input.node, templateSchema)
+  const hasListEmbedCatalog = listEmbedCatalog.length > 0
+
   return {
     module: {
       presetStructures: presetForModule,
       catalogStructures: moduleStructures,
       catalogParameters: moduleParameters,
+      listEmbedCatalog,
       includeCatalogStructures: moduleStructures.length > 0,
       includeCatalogParameters: moduleParameters.length > 0,
+      includeListEmbedCatalog: hasListEmbedCatalog,
     },
     base: {
       presetStructures: [],
       catalogStructures: baseStructures,
       catalogParameters: baseParameters,
+      listEmbedCatalog,
       includeCatalogStructures: baseStructures.length > 0,
       includeCatalogParameters: baseParameters.length > 0,
+      includeListEmbedCatalog: hasListEmbedCatalog,
     },
   }
 }
@@ -194,6 +216,7 @@ export function elementMenuScopeHasCatalog(
   return (
     slice.presetStructures.length > 0 ||
     slice.includeCatalogStructures ||
-    slice.includeCatalogParameters
+    slice.includeCatalogParameters ||
+    Boolean(slice.includeListEmbedCatalog)
   )
 }

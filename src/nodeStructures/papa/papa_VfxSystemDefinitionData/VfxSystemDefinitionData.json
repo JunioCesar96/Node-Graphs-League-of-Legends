@@ -1,0 +1,23 @@
+{
+  "internalStructures": [],
+  "listEmbed": [],
+  "id": "VfxSystemDefinitionData",
+  "title": "VfxSystemDefinitionData",
+  "nomenclature": {
+    "group": "#2 Entidades",
+    "collection": "#2 Root Entry (VfxSystemDefinitionData)",
+    "collectionType": "VfxSystemDefinitionData",
+    "pathHierarchy": "entries > Characters/Zac/Skins/Skin0/Particles/Zac_Base_Q_tar",
+    "pathHierarchySteps": [
+      {
+        "id": "entries",
+        "type": "#1 Root Entry"
+      },
+      {
+        "id": "Characters/Zac/Skins/Skin0/Particles/Zac_Base_Q_tar",
+        "type": "#2 Root Entry (VfxSystemDefinitionData)"
+      }
+    ]
+  },
+  "parameters": []
+}

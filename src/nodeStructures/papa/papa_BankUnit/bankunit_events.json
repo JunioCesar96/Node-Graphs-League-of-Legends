@@ -1,0 +1,6 @@
+{
+  "id": "BankUnit_Events",
+  "name": "Events",
+  "type": "liststring",
+  "defaultValue": ""
+}

@@ -1,0 +1,6 @@
+{
+  "id": "VfxShapeCylinder_height",
+  "name": "height",
+  "type": "f32",
+  "defaultValue": "0"
+}

@@ -1,0 +1,6 @@
+{
+  "id": "VfxShapeCylinder_radius",
+  "name": "radius",
+  "type": "f32",
+  "defaultValue": "0"
+}

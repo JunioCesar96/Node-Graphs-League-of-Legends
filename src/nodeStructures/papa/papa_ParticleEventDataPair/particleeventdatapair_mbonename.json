@@ -1,0 +1,6 @@
+{
+  "id": "ParticleEventDataPair_mBoneName",
+  "name": "mBoneName",
+  "type": "integer",
+  "defaultValue": "0"
+}

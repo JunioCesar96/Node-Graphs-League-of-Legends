@@ -1,0 +1,6 @@
+{
+  "id": "VfxEmitterDefinitionData_colorLookUpTypeY",
+  "name": "colorLookUpTypeY",
+  "type": "u8",
+  "defaultValue": "0"
+}

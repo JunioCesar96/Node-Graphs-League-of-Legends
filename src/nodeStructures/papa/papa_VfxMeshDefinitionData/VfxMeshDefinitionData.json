@@ -1,0 +1,66 @@
+{
+  "id": "vfx-mesh-definition-data",
+  "title": "VfxMeshDefinitionData",
+  "parameters": [
+    {
+      "id": "vfx-mesh-definition-data-m-animation-name",
+      "name": "mAnimationName",
+      "type": "string",
+      "defaultValue": "ASSETS/Characters/Zac/Skins/Base/Particles/Zac_Q_ArmYankLeft.anm"
+    },
+    {
+      "id": "vfx-mesh-definition-data-m-mesh-name",
+      "name": "mMeshName",
+      "type": "string",
+      "defaultValue": "ASSETS/Characters/Zac/Skins/Base/Particles/Zac_Q_Arm.skn"
+    },
+    {
+      "id": "vfx-mesh-definition-data-m-mesh-skeleton-name",
+      "name": "mMeshSkeletonName",
+      "type": "string",
+      "defaultValue": "ASSETS/Characters/Zac/Skins/Base/Particles/Zac_Q_Arm.skl"
+    },
+    {
+      "id": "vfx-mesh-definition-data-m-simple-mesh-name",
+      "name": "mSimpleMeshName",
+      "type": "string",
+      "defaultValue": "ASSETS/Characters/Zac/Skins/Base/Particles/Zac_Ult_Slam_Cyl.scb"
+    },
+    {
+      "id": "vfx-mesh-definition-data-m-submeshes-to-draw",
+      "name": "mSubmeshesToDraw",
+      "type": "listHash",
+      "defaultValue": "Base_mat"
+    }
+  ],
+  "listEmbed": [],
+  "internalStructures": [],
+  "nomenclature": {
+    "group": "#3 Internal Structures",
+    "collection": "#3 Embed Block",
+    "collectionType": "VfxMeshDefinitionData",
+    "pathHierarchy": "entries > Characters/Zac/Skins/Skin0/Particles/Zac_Base_Q_tar > complexEmitterDefinitionData:0 > primitive > mMesh",
+    "pathHierarchySteps": [
+      {
+        "id": "entries",
+        "type": "#1 Root Entry"
+      },
+      {
+        "id": "Characters/Zac/Skins/Skin0/Particles/Zac_Base_Q_tar",
+        "type": "#2 Root Entry (VfxSystemDefinitionData)"
+      },
+      {
+        "id": "complexEmitterDefinitionData:0",
+        "type": "#3 Collection Block"
+      },
+      {
+        "id": "primitive",
+        "type": "#3 Pointer Node"
+      },
+      {
+        "id": "mMesh",
+        "type": "#3 Embed Block"
+      }
+    ]
+  }
+}

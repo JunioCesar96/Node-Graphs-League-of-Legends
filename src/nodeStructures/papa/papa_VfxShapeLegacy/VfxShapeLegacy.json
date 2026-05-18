@@ -1,0 +1,56 @@
+{
+  "id": "vfx-shape-legacy",
+  "title": "VfxShapeLegacy",
+  "parameters": [
+    {
+      "id": "vfx-shape-legacy-emit-rotation-axes",
+      "name": "emitRotationAxes",
+      "type": "listVector3",
+      "defaultValue": "0, 1, 0"
+    }
+  ],
+  "listEmbed": [
+    {
+      "id": "vfx-shape-legacy-emit-rotation-angles",
+      "title": "emitRotationAngles",
+      "internalStructures": [
+        {
+          "id": "vfx-shape-legacy-emit-rotation-angles-0",
+          "name": "ValueFloat",
+          "schemaId": "value-float"
+        }
+      ]
+    }
+  ],
+  "internalStructures": [
+    {
+      "id": "vfx-shape-legacy-emit-offset",
+      "name": "emitOffset",
+      "schemaId": "value-vector3"
+    }
+  ],
+  "nomenclature": {
+    "group": "#3 Internal Structures",
+    "collection": "#3 Pointer Node",
+    "collectionType": "VfxShapeLegacy",
+    "pathHierarchy": "entries > Characters/Zac/Skins/Skin0/Particles/Zac_Base_E_LandSplash > complexEmitterDefinitionData:1 > SpawnShape",
+    "pathHierarchySteps": [
+      {
+        "id": "entries",
+        "type": "#1 Root Entry"
+      },
+      {
+        "id": "Characters/Zac/Skins/Skin0/Particles/Zac_Base_E_LandSplash",
+        "type": "#2 Root Entry (VfxSystemDefinitionData)"
+      },
+      {
+        "id": "complexEmitterDefinitionData:1",
+        "type": "#3 Collection Block"
+      },
+      {
+        "id": "SpawnShape",
+        "type": "#3 Pointer Node"
+      }
+    ]
+  }
+}

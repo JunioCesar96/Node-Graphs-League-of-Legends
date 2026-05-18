@@ -1,0 +1,6 @@
+{
+  "id": "SelectorPairData_mProbability",
+  "name": "mProbability",
+  "type": "f32",
+  "defaultValue": "0"
+}

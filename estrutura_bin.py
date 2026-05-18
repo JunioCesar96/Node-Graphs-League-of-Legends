@@ -5590,7 +5590,7 @@ entries: map[hash,embed] = {
                         mMeshSkeletonName: string = "ASSETS/Characters/Zac/Skins/Base/Particles/Zac_Base_R_Puddle.skl"
                         mAnimationName: string = "ASSETS/Characters/Zac/Skins/Base/Particles/Zac_Base_R_Puddle.anm"
                         mSubmeshesToDraw: list[hash] = {
-                            0xa8f0b7bd
+                            "Base_mat"
                         }
                     }
                 }

@@ -1,0 +1,51 @@
+{
+  "id": "parametric-clip-data",
+  "title": "ParametricClipData",
+  "parameters": [
+    {
+      "id": "parametric-clip-data-m-track-data-name",
+      "name": "mTrackDataName",
+      "type": "integer",
+      "defaultValue": "Default"
+    }
+  ],
+  "listEmbed": [
+    {
+      "id": "parametric-clip-data-m-parametric-pair-data-list",
+      "title": "mParametricPairDataList",
+      "internalStructures": [
+        {
+          "id": "parametric-clip-data-m-parametric-pair-data-list-0",
+          "name": "ParametricPairData",
+          "schemaId": "parametric-pair-data"
+        },
+        {
+          "id": "parametric-clip-data-m-parametric-pair-data-list-1",
+          "name": "ParametricPairData",
+          "schemaId": "parametric-pair-data"
+        }
+      ]
+    }
+  ],
+  "internalStructures": [],
+  "nomenclature": {
+    "group": "#3 Internal Structures",
+    "collection": "#3 Collection Block",
+    "collectionType": "ParametricClipData",
+    "pathHierarchy": "entries > Characters/Zac/Animations/Skin0 > Spell1",
+    "pathHierarchySteps": [
+      {
+        "id": "entries",
+        "type": "#1 Root Entry"
+      },
+      {
+        "id": "Characters/Zac/Animations/Skin0",
+        "type": "#2 Root Entry (AnimationGraphData)"
+      },
+      {
+        "id": "Spell1",
+        "type": "#3 Collection Block"
+      }
+    ]
+  }
+}

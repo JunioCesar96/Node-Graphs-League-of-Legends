@@ -1,0 +1,40 @@
+{
+  "id": "condition-bool-clip-data",
+  "title": "ConditionBoolClipData",
+  "parameters": [
+    {
+      "id": "condition-bool-clip-data-m-false-condition-clip-name",
+      "name": "mFalseConditionClipName",
+      "type": "integer",
+      "defaultValue": "Spell4_ToIdle"
+    },
+    {
+      "id": "condition-bool-clip-data-m-true-condition-clip-name",
+      "name": "mTrueConditionClipName",
+      "type": "integer",
+      "defaultValue": "Spell4_ToRun"
+    }
+  ],
+  "listEmbed": [],
+  "internalStructures": [],
+  "nomenclature": {
+    "group": "#3 Internal Structures",
+    "collection": "#3 Collection Block",
+    "collectionType": "ConditionBoolClipData",
+    "pathHierarchy": "entries > Characters/Zac/Animations/Skin0 > 0x11da97ed",
+    "pathHierarchySteps": [
+      {
+        "id": "entries",
+        "type": "#1 Root Entry"
+      },
+      {
+        "id": "Characters/Zac/Animations/Skin0",
+        "type": "#2 Root Entry (AnimationGraphData)"
+      },
+      {
+        "id": "0x11da97ed",
+        "type": "#3 Collection Block"
+      }
+    ]
+  }
+}

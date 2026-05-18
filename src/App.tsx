@@ -193,6 +193,9 @@ function App() {
     addDynamicParameter,
     removeCanvasParameter,
     removeCanvasInternalStructure,
+    appendListEmbedCatalogItem,
+    removeListEmbedSlot,
+    removeListEmbedBlock,
   } = useSceneHistory({ extendSchemaLookup })
 
   const { showConfirmByCatalogId } = useMessengerPopup()
@@ -1365,6 +1368,14 @@ function App() {
             removeCanvasParameter(canvasNodeId, item.id)
             return
           }
+          if (item.kind === 'listEmbedBlock') {
+            removeListEmbedBlock(canvasNodeId, item.id)
+            return
+          }
+          if (item.kind === 'listEmbedSlot') {
+            removeListEmbedSlot(canvasNodeId, item.id)
+            return
+          }
           removeCanvasInternalStructure(canvasNodeId, item.id)
         },
       })
@@ -1372,6 +1383,8 @@ function App() {
     [
       mergedBaseParameterCatalogBySchemaId,
       removeCanvasInternalStructure,
+      removeListEmbedSlot,
+      removeListEmbedBlock,
       removeCanvasParameter,
       scene,
       showConfirmByCatalogId,
@@ -1550,6 +1563,9 @@ function App() {
             hints={tooltipHints}
             onAppendCatalogInternalStructure={(canvasNodeId, structure) =>
               addDynamicInternalStructureSlot(canvasNodeId, structure)
+            }
+            onAppendListEmbedCatalogItem={(canvasNodeId, listEmbedId, structure) =>
+              appendListEmbedCatalogItem(canvasNodeId, listEmbedId, structure)
             }
             onCatalogParameterAppend={(canvasNodeId, definition) =>
               addDynamicParameter(canvasNodeId, definition)

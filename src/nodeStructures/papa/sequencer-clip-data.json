@@ -1,0 +1,40 @@
+{
+  "id": "sequencer-clip-data",
+  "title": "SequencerClipData",
+  "parameters": [
+    {
+      "id": "sequencer-clip-data-m-clip-name-list",
+      "name": "mClipNameList",
+      "type": "listHash",
+      "defaultValue": "0xdcc88589\n0xe75f72aa"
+    },
+    {
+      "id": "sequencer-clip-data-m-flags",
+      "name": "mFlags",
+      "type": "u32",
+      "defaultValue": "2"
+    }
+  ],
+  "listEmbed": [],
+  "internalStructures": [],
+  "nomenclature": {
+    "group": "#3 Internal Structures",
+    "collection": "#3 Collection Block",
+    "collectionType": "SequencerClipData",
+    "pathHierarchy": "entries > Characters/Zac/Animations/Skin0 > Idle1",
+    "pathHierarchySteps": [
+      {
+        "id": "entries",
+        "type": "#1 Root Entry"
+      },
+      {
+        "id": "Characters/Zac/Animations/Skin0",
+        "type": "#2 Root Entry (AnimationGraphData)"
+      },
+      {
+        "id": "Idle1",
+        "type": "#3 Collection Block"
+      }
+    ]
+  }
+}

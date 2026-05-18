@@ -1,0 +1,44 @@
+{
+  "id": "integrated-value-vector2",
+  "title": "IntegratedValueVector2",
+  "parameters": [
+    {
+      "id": "integrated-value-vector2-constant-value",
+      "name": "constantValue",
+      "type": "vector2",
+      "defaultValue": "-1.5, 0"
+    }
+  ],
+  "listEmbed": [],
+  "internalStructures": [
+    {
+      "id": "integrated-value-vector2-dynamics",
+      "name": "dynamics",
+      "schemaId": "vfx-animated-vector2f-variable-data"
+    }
+  ],
+  "nomenclature": {
+    "group": "#3 Internal Structures",
+    "collection": "#3 Embed Block",
+    "collectionType": "IntegratedValueVector2",
+    "pathHierarchy": "entries > 0x7b3a4b5f > complexEmitterDefinitionData:3 > particleUVScrollRate",
+    "pathHierarchySteps": [
+      {
+        "id": "entries",
+        "type": "#1 Root Entry"
+      },
+      {
+        "id": "0x7b3a4b5f",
+        "type": "#2 Root Entry (VfxSystemDefinitionData)"
+      },
+      {
+        "id": "complexEmitterDefinitionData:3",
+        "type": "#3 Collection Block"
+      },
+      {
+        "id": "particleUVScrollRate",
+        "type": "#3 Embed Block"
+      }
+    ]
+  }
+}

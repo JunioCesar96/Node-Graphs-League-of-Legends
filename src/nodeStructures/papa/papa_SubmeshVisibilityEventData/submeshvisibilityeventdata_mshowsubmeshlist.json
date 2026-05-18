@@ -1,0 +1,6 @@
+{
+  "id": "SubmeshVisibilityEventData_mShowSubmeshList",
+  "name": "mShowSubmeshList",
+  "type": "listhash",
+  "defaultValue": ""
+}

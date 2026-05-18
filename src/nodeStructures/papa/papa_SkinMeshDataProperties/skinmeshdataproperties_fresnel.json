@@ -1,0 +1,6 @@
+{
+  "id": "SkinMeshDataProperties_Fresnel",
+  "name": "Fresnel",
+  "type": "f32",
+  "defaultValue": "0"
+}

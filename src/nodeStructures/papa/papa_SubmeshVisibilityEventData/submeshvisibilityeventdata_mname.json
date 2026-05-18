@@ -1,0 +1,6 @@
+{
+  "id": "SubmeshVisibilityEventData_mName",
+  "name": "mName",
+  "type": "integer",
+  "defaultValue": "0"
+}

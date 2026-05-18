@@ -59,10 +59,24 @@ export type InternalStructureDefinition = {
   schemaId: string
 }
 
+/** Bloco `list[embed]` no ritual: título = nome do campo; catálogo = itens da lista. */
+export type ListEmbedDefinition = {
+  id: string
+  title: string
+  /** Id do campo no schema template (várias instâncias partilham o mesmo templateBlockId). */
+  templateBlockId?: string
+  /** Itens extraídos do ritual (`list[embed]`). */
+  internalStructures: InternalStructureDefinition[]
+  /** Porta de ligação desta instância (runtime; normalmente um único slot). */
+  slots?: InternalStructureDefinition[]
+}
+
 export type NodeSchemaDefinition = {
   id: string
   title: string
   parameters: NodeParameterDefinition[]
+  /** Listas estruturais `list[embed]` (entre parameters e internalStructures no card). */
+  listEmbed?: ListEmbedDefinition[]
   internalStructures: InternalStructureDefinition[]
   /** Opcional: parâmetros obrigatórios por defeito (copiados para novas instâncias). */
   required_parameter?: string[]

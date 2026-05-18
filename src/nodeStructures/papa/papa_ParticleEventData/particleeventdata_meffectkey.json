@@ -1,0 +1,6 @@
+{
+  "id": "ParticleEventData_mEffectKey",
+  "name": "mEffectKey",
+  "type": "integer",
+  "defaultValue": "0"
+}

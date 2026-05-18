@@ -1,0 +1,31 @@
+{
+  "internalStructures": [],
+  "listEmbed": [],
+  "id": "SubmeshVisibilityEventData",
+  "title": "SubmeshVisibilityEventData",
+  "nomenclature": {
+    "group": "#3 Internal Structures",
+    "collection": "#3 Collection Block",
+    "collectionType": "SubmeshVisibilityEventData",
+    "pathHierarchy": "entries > Characters/Zac/Animations/Skin0 > Spell3_Flying > 0x831fa58e",
+    "pathHierarchySteps": [
+      {
+        "id": "entries",
+        "type": "#1 Root Entry"
+      },
+      {
+        "id": "Characters/Zac/Animations/Skin0",
+        "type": "#2 Root Entry (AnimationGraphData)"
+      },
+      {
+        "id": "Spell3_Flying",
+        "type": "#3 Collection Block"
+      },
+      {
+        "id": "0x831fa58e",
+        "type": "#3 Collection Block"
+      }
+    ]
+  },
+  "parameters": []
+}

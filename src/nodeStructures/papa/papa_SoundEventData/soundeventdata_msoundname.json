@@ -1,0 +1,6 @@
+{
+  "id": "SoundEventData_mSoundName",
+  "name": "mSoundName",
+  "type": "string",
+  "defaultValue": ""
+}

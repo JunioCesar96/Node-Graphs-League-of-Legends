@@ -1,0 +1,6 @@
+{
+  "id": "PersistentVfxData_boneName",
+  "name": "boneName",
+  "type": "string",
+  "defaultValue": ""
+}

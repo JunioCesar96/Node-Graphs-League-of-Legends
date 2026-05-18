@@ -1,0 +1,6 @@
+{
+  "id": "VfxReflectionDefinitionData_reflectionMapTexture",
+  "name": "reflectionMapTexture",
+  "type": "string",
+  "defaultValue": ""
+}

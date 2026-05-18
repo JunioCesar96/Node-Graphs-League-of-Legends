@@ -319,7 +319,9 @@ function SelectedNodeInspectorBody({
         <ul className={styles.list}>
           {node.node.schema.internalStructures.map((structure) => (
             <li className={styles.listItem} key={structure.id}>
-              <span className={styles.name}>{structure.name}</span>
+              <span className={styles.name} title={structure.name}>
+                {structure.name}
+              </span>
               <span className={styles.type}>{structure.schemaId}</span>
             </li>
           ))}

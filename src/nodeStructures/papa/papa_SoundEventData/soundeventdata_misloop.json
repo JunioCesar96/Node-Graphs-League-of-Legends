@@ -1,0 +1,6 @@
+{
+  "id": "SoundEventData_mIsLoop",
+  "name": "mIsLoop",
+  "type": "bool",
+  "defaultValue": "false"
+}

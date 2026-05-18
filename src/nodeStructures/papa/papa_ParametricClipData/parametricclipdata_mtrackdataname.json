@@ -1,0 +1,6 @@
+{
+  "id": "ParametricClipData_mTrackDataName",
+  "name": "mTrackDataName",
+  "type": "integer",
+  "defaultValue": "0"
+}

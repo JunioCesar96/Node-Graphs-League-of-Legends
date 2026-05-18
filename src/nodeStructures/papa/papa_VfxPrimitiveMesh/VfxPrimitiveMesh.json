@@ -1,0 +1,37 @@
+{
+  "id": "vfx-primitive-mesh",
+  "title": "VfxPrimitiveMesh",
+  "parameters": [],
+  "listEmbed": [],
+  "internalStructures": [
+    {
+      "id": "vfx-primitive-mesh-m-mesh",
+      "name": "mMesh",
+      "schemaId": "vfx-mesh-definition-data"
+    }
+  ],
+  "nomenclature": {
+    "group": "#3 Internal Structures",
+    "collection": "#3 Pointer Node",
+    "collectionType": "VfxPrimitiveMesh",
+    "pathHierarchy": "entries > Characters/Zac/Skins/Skin0/Particles/Zac_Base_Q_tar > complexEmitterDefinitionData:0 > primitive",
+    "pathHierarchySteps": [
+      {
+        "id": "entries",
+        "type": "#1 Root Entry"
+      },
+      {
+        "id": "Characters/Zac/Skins/Skin0/Particles/Zac_Base_Q_tar",
+        "type": "#2 Root Entry (VfxSystemDefinitionData)"
+      },
+      {
+        "id": "complexEmitterDefinitionData:0",
+        "type": "#3 Collection Block"
+      },
+      {
+        "id": "primitive",
+        "type": "#3 Pointer Node"
+      }
+    ]
+  }
+}

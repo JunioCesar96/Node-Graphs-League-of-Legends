@@ -40,7 +40,9 @@ export function InternalStructureItem({
 }: InternalStructureItemProps) {
   return (
     <li className={styles.item}>
-      <span className={styles.name}>{structure.name}</span>
+      <span className={styles.name} title={structure.name}>
+        {structure.name}
+      </span>
       <Port
         active={active}
         direction="output"

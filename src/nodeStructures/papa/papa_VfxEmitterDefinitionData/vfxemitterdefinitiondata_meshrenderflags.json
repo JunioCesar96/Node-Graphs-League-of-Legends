@@ -1,0 +1,6 @@
+{
+  "id": "VfxEmitterDefinitionData_meshRenderFlags",
+  "name": "meshRenderFlags",
+  "type": "u8",
+  "defaultValue": "0"
+}

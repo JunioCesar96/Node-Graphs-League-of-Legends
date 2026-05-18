@@ -1,0 +1,6 @@
+{
+  "id": "SkinMeshDataProperties_MaterialOverride_Submesh",
+  "name": "Submesh",
+  "type": "string",
+  "defaultValue": ""
+}

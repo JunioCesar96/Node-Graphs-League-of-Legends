@@ -1,0 +1,6 @@
+{
+  "id": "VfxEmitterDefinitionData_directionVelocityScale",
+  "name": "directionVelocityScale",
+  "type": "f32",
+  "defaultValue": "0"
+}

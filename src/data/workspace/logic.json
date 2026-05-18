@@ -54,92 +54,59 @@
         }
       ]
     },
-    "emitter-01": {
-      "id": "emitter-01",
+    "SkinCharacterDataProperties-01": {
+      "id": "SkinCharacterDataProperties-01",
       "schema": {
-        "id": "emitter-shape",
-        "title": "EmitterShape",
-        "parameters": [
+        "id": "SkinCharacterDataProperties",
+        "title": "SkinCharacterDataProperties",
+        "parameters": [],
+        "internalStructures": [],
+        "nomenclature": {
+          "group": "#2 Entidades",
+          "collection": "#2 Root Entry (SkinCharacterDataProperties)",
+          "collectionType": "SkinCharacterDataProperties",
+          "pathHierarchy": "entries > Characters/Zac/Skins/Skin0",
+          "pathHierarchySteps": [
+            {
+              "id": "entries",
+              "type": "#1 Root Entry"
+            },
+            {
+              "id": "Characters/Zac/Skins/Skin0",
+              "type": "#2 Root Entry (SkinCharacterDataProperties)"
+            }
+          ]
+        },
+        "listEmbed": [
           {
-            "id": "shape",
-            "name": "shape",
-            "type": "string",
-            "defaultValue": "\"cone\""
-          },
-          {
-            "id": "radius",
-            "name": "radius",
-            "type": "float",
-            "defaultValue": "1.25"
-          },
-          {
-            "id": "offset",
-            "name": "offset",
-            "type": "vector3",
-            "defaultValue": "0, 0.5, 0"
+            "id": "SkinCharacterDataProperties_listEmbed_idleParticlesEffects",
+            "title": "idleParticlesEffects",
+            "internalStructures": [
+              {
+                "id": "SkinCharacterDataProperties_listEmbed_idleParticlesEffects-catalog-0",
+                "name": "SkinCharacterDataProperties_CharacterIdleEffect",
+                "schemaId": "skin-character-data-properties-character-idle-effect"
+              },
+              {
+                "id": "dyn-lec-1e1f8f2b-e",
+                "name": "SkinCharacterDataProperties_CharacterIdleEffect",
+                "schemaId": "skin-character-data-properties-character-idle-effect"
+              }
+            ],
+            "slots": [
+              {
+                "id": "SkinCharacterDataProperties_listEmbed_idleParticlesEffects__slot__0",
+                "name": "SkinCharacterDataProperties_CharacterIdleEffect",
+                "schemaId": "skin-character-data-properties-character-idle-effect"
+              }
+            ]
           }
-        ],
-        "internalStructures": []
+        ]
       },
-      "values": [
-        {
-          "parameterId": "shape",
-          "value": "\"cone\""
-        },
-        {
-          "parameterId": "radius",
-          "value": "1.25"
-        },
-        {
-          "parameterId": "offset",
-          "value": "0, 0.5, 0"
-        }
-      ]
+      "values": []
     },
-    "emitter-alt-01": {
-      "id": "emitter-alt-01",
-      "schema": {
-        "id": "emitter-shape",
-        "title": "EmitterShape",
-        "parameters": [
-          {
-            "id": "shape",
-            "name": "shape",
-            "type": "string",
-            "defaultValue": "\"cone\""
-          },
-          {
-            "id": "radius",
-            "name": "radius",
-            "type": "float",
-            "defaultValue": "1.25"
-          },
-          {
-            "id": "offset",
-            "name": "offset",
-            "type": "vector3",
-            "defaultValue": "0, 0.5, 0"
-          }
-        ],
-        "internalStructures": []
-      },
-      "values": [
-        {
-          "parameterId": "shape",
-          "value": "\"sphere\""
-        },
-        {
-          "parameterId": "radius",
-          "value": "2.4"
-        },
-        {
-          "parameterId": "offset",
-          "value": "0, -0.25, 0"
-        }
-      ]
-    },
-    "force-01": {
-      "id": "force-01",
+    "world-force-01": {
+      "id": "world-force-01",
       "schema": {
         "id": "world-force",
         "title": "WorldForce",
@@ -176,35 +143,157 @@
         }
       ]
     },
-    "falloff-01": {
-      "id": "falloff-01",
+    "SkinCharacterDataProperties-02": {
+      "id": "SkinCharacterDataProperties-02",
       "schema": {
-        "id": "falloff-curve",
-        "title": "FalloffCurve",
+        "id": "SkinCharacterDataProperties",
+        "title": "SkinCharacterDataProperties",
+        "parameters": [],
+        "internalStructures": [],
+        "nomenclature": {
+          "group": "#2 Entidades",
+          "collection": "#2 Root Entry (SkinCharacterDataProperties)",
+          "collectionType": "SkinCharacterDataProperties",
+          "pathHierarchy": "entries > Characters/Zac/Skins/Skin0",
+          "pathHierarchySteps": [
+            {
+              "id": "entries",
+              "type": "#1 Root Entry"
+            },
+            {
+              "id": "Characters/Zac/Skins/Skin0",
+              "type": "#2 Root Entry (SkinCharacterDataProperties)"
+            }
+          ]
+        },
+        "listEmbed": [],
+        "linked_parameter_values": []
+      },
+      "values": []
+    },
+    "skin-character-data-properties-character-idle-effect-03": {
+      "id": "skin-character-data-properties-character-idle-effect-03",
+      "schema": {
+        "id": "skin-character-data-properties-character-idle-effect",
+        "title": "SkinCharacterDataProperties_CharacterIdleEffect",
         "parameters": [
           {
-            "id": "mode",
-            "name": "mode",
-            "type": "keyword",
-            "defaultValue": "smoothstep"
-          },
-          {
-            "id": "strength",
-            "name": "strength",
-            "type": "double",
-            "defaultValue": "0.845"
+            "id": "skin-character-data-properties-character-idle-effect-effect-name",
+            "name": "effectName",
+            "type": "string",
+            "defaultValue": "DATA/Particles/Malphite_Glacial_Idle.troy"
           }
         ],
-        "internalStructures": []
+        "internalStructures": [],
+        "nomenclature": {
+          "group": "#3 Internal Structures",
+          "collection": "#3 Collection Block",
+          "collectionType": "SkinCharacterDataProperties_CharacterIdleEffect",
+          "pathHierarchy": "entries > Characters/Zac/Skins/Skin0 > idleParticlesEffects:0",
+          "pathHierarchySteps": [
+            {
+              "id": "entries",
+              "type": "#1 Root Entry"
+            },
+            {
+              "id": "Characters/Zac/Skins/Skin0",
+              "type": "#2 Root Entry (SkinCharacterDataProperties)"
+            },
+            {
+              "id": "idleParticlesEffects:0",
+              "type": "#3 Collection Block"
+            }
+          ]
+        }
       },
       "values": [
         {
-          "parameterId": "mode",
-          "value": "smoothstep"
-        },
+          "parameterId": "skin-character-data-properties-character-idle-effect-effect-name",
+          "value": "DATA/Particles/Malphite_Glacial_Idle.troy"
+        }
+      ]
+    },
+    "skin-character-data-properties-character-idle-effect-02": {
+      "id": "skin-character-data-properties-character-idle-effect-02",
+      "schema": {
+        "id": "skin-character-data-properties-character-idle-effect",
+        "title": "SkinCharacterDataProperties_CharacterIdleEffect",
+        "parameters": [
+          {
+            "id": "skin-character-data-properties-character-idle-effect-effect-name",
+            "name": "effectName",
+            "type": "string",
+            "defaultValue": "DATA/Particles/Malphite_Glacial_Idle.troy"
+          }
+        ],
+        "internalStructures": [],
+        "nomenclature": {
+          "group": "#3 Internal Structures",
+          "collection": "#3 Collection Block",
+          "collectionType": "SkinCharacterDataProperties_CharacterIdleEffect",
+          "pathHierarchy": "entries > Characters/Zac/Skins/Skin0 > idleParticlesEffects:0",
+          "pathHierarchySteps": [
+            {
+              "id": "entries",
+              "type": "#1 Root Entry"
+            },
+            {
+              "id": "Characters/Zac/Skins/Skin0",
+              "type": "#2 Root Entry (SkinCharacterDataProperties)"
+            },
+            {
+              "id": "idleParticlesEffects:0",
+              "type": "#3 Collection Block"
+            }
+          ]
+        }
+      },
+      "values": [
         {
-          "parameterId": "strength",
-          "value": "0.845"
+          "parameterId": "skin-character-data-properties-character-idle-effect-effect-name",
+          "value": "DATA/Particles/Malphite_Glacial_Idle.troy"
+        }
+      ]
+    },
+    "skin-character-data-properties-character-idle-effect-04": {
+      "id": "skin-character-data-properties-character-idle-effect-04",
+      "schema": {
+        "id": "skin-character-data-properties-character-idle-effect",
+        "title": "SkinCharacterDataProperties_CharacterIdleEffect",
+        "parameters": [
+          {
+            "id": "skin-character-data-properties-character-idle-effect-effect-name",
+            "name": "effectName",
+            "type": "string",
+            "defaultValue": "DATA/Particles/Malphite_Glacial_Idle.troy"
+          }
+        ],
+        "internalStructures": [],
+        "nomenclature": {
+          "group": "#3 Internal Structures",
+          "collection": "#3 Collection Block",
+          "collectionType": "SkinCharacterDataProperties_CharacterIdleEffect",
+          "pathHierarchy": "entries > Characters/Zac/Skins/Skin0 > idleParticlesEffects:0",
+          "pathHierarchySteps": [
+            {
+              "id": "entries",
+              "type": "#1 Root Entry"
+            },
+            {
+              "id": "Characters/Zac/Skins/Skin0",
+              "type": "#2 Root Entry (SkinCharacterDataProperties)"
+            },
+            {
+              "id": "idleParticlesEffects:0",
+              "type": "#3 Collection Block"
+            }
+          ]
+        }
+      },
+      "values": [
+        {
+          "parameterId": "skin-character-data-properties-character-idle-effect-effect-name",
+          "value": "DATA/Particles/Malphite_Glacial_Idle.troy"
         }
       ]
     }

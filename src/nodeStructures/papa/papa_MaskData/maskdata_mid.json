@@ -1,0 +1,6 @@
+{
+  "id": "MaskData_Mid",
+  "name": "Mid",
+  "type": "u32",
+  "defaultValue": "0"
+}

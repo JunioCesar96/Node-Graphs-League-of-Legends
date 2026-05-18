@@ -40,6 +40,22 @@ describe('listNodeElements', () => {
     expect(count).toBeGreaterThanOrEqual(1)
   })
 
+  it('conta conexões para listEmbedSlot', () => {
+    const connection = staticCanvasScene.connections[0]
+    if (!connection) {
+      throw new Error('demo sem conexões')
+    }
+
+    const count = countElementDependencies(
+      staticCanvasScene,
+      connection.fromNodeId,
+      connection.fromInternalStructureId,
+      'listEmbedSlot',
+    )
+
+    expect(count).toBeGreaterThanOrEqual(1)
+  })
+
   it('conta vínculos parameter_value_links para parâmetro', () => {
     const emitter = staticCanvasScene.nodes.find((n) => n.id === 'emitter-01')
     if (!emitter) {

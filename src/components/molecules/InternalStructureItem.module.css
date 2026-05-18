@@ -2,6 +2,8 @@
   position: relative;
   display: flex;
   align-items: center;
+  width: 100%;
+  max-width: 100%;
   min-height: 42px;
   cursor: default;
   padding: var(--space-3) var(--space-5) var(--space-3) var(--space-3);
@@ -19,7 +21,9 @@
 }
 
 .name {
+  flex: 1;
   min-width: 0;
+  max-width: var(--node-structure-label-max-width);
   overflow: hidden;
   color: var(--color-text-secondary);
   font-size: 0.84rem;

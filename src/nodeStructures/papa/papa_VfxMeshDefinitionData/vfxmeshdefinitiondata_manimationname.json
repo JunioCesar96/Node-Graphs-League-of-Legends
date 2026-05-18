@@ -1,0 +1,6 @@
+{
+  "id": "VfxMeshDefinitionData_mAnimationName",
+  "name": "mAnimationName",
+  "type": "string",
+  "defaultValue": ""
+}

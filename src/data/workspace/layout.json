@@ -5,32 +5,44 @@
   "nodes": {
     "particle-root-01": {
       "position": {
-        "x": 72,
-        "y": 190
+        "x": -1070,
+        "y": -370
       }
     },
-    "emitter-01": {
+    "SkinCharacterDataProperties-01": {
       "position": {
-        "x": 600,
-        "y": 72
+        "x": -448,
+        "y": -216
       }
     },
-    "emitter-alt-01": {
+    "world-force-01": {
       "position": {
-        "x": 1010,
-        "y": 92
+        "x": -611,
+        "y": 253
       }
     },
-    "force-01": {
+    "SkinCharacterDataProperties-02": {
       "position": {
-        "x": 600,
-        "y": 390
+        "x": 769,
+        "y": -8
       }
     },
-    "falloff-01": {
+    "skin-character-data-properties-character-idle-effect-03": {
       "position": {
-        "x": 910,
-        "y": 474
+        "x": -146,
+        "y": 471
+      }
+    },
+    "skin-character-data-properties-character-idle-effect-02": {
+      "position": {
+        "x": 1198,
+        "y": -39
+      }
+    },
+    "skin-character-data-properties-character-idle-effect-04": {
+      "position": {
+        "x": 1424,
+        "y": 444
       }
     }
   }

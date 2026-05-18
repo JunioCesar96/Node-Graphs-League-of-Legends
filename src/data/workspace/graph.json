@@ -2,22 +2,10 @@
   "version": 1,
   "connections": [
     {
-      "id": "root-to-emitter",
-      "fromNodeId": "particle-root-01",
-      "fromInternalStructureId": "emitter",
-      "toNodeId": "emitter-01"
-    },
-    {
-      "id": "root-to-force",
+      "id": "particle-root-01:force->world-force-01",
       "fromNodeId": "particle-root-01",
       "fromInternalStructureId": "force",
-      "toNodeId": "force-01"
-    },
-    {
-      "id": "force-to-falloff",
-      "fromNodeId": "force-01",
-      "fromInternalStructureId": "falloff",
-      "toNodeId": "falloff-01"
+      "toNodeId": "world-force-01"
     }
   ]
 }

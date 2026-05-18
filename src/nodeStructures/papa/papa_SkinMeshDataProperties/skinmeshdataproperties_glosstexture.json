@@ -1,0 +1,6 @@
+{
+  "id": "SkinMeshDataProperties_glossTexture",
+  "name": "glossTexture",
+  "type": "string",
+  "defaultValue": ""
+}

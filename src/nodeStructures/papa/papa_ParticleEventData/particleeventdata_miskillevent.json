@@ -1,0 +1,6 @@
+{
+  "id": "ParticleEventData_mIsKillEvent",
+  "name": "mIsKillEvent",
+  "type": "bool",
+  "defaultValue": "false"
+}

@@ -1,0 +1,6 @@
+{
+  "id": "VfxEmitterFiltering_censorPolicy",
+  "name": "censorPolicy",
+  "type": "u8",
+  "defaultValue": "0"
+}

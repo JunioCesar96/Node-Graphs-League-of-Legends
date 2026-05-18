@@ -47,6 +47,9 @@
    */
   --node-header-min-block-size: calc(var(--space-4) * 2 + max(20px, calc(0.95rem * 1.2)));
 
+  /** Rótulo de Internal_Structure / slot LIST_EMBED no card (área antes da porta). */
+  --node-structure-label-max-width: 266px;
+
   /** Linha compacta na paleta ≈ cabeçalho do node + gap + uma linha de tags (estrutura / tipos). */
   --palette-add-compact-min-height: calc(var(--node-header-min-block-size) + var(--space-2) + 1.375rem);
 

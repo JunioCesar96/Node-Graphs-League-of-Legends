@@ -1,0 +1,44 @@
+{
+  "id": "value-vector2",
+  "title": "ValueVector2",
+  "parameters": [
+    {
+      "id": "value-vector2-constant-value",
+      "name": "constantValue",
+      "type": "vector2",
+      "defaultValue": "0, 1"
+    }
+  ],
+  "listEmbed": [],
+  "internalStructures": [
+    {
+      "id": "value-vector2-dynamics",
+      "name": "dynamics",
+      "schemaId": "vfx-animated-vector2f-variable-data"
+    }
+  ],
+  "nomenclature": {
+    "group": "#3 Internal Structures",
+    "collection": "#3 Embed Block",
+    "collectionType": "ValueVector2",
+    "pathHierarchy": "entries > Characters/Zac/Skins/Skin0/Particles/Zac_Base_Q_tar > complexEmitterDefinitionData:0 > birthUvScrollRate",
+    "pathHierarchySteps": [
+      {
+        "id": "entries",
+        "type": "#1 Root Entry"
+      },
+      {
+        "id": "Characters/Zac/Skins/Skin0/Particles/Zac_Base_Q_tar",
+        "type": "#2 Root Entry (VfxSystemDefinitionData)"
+      },
+      {
+        "id": "complexEmitterDefinitionData:0",
+        "type": "#3 Collection Block"
+      },
+      {
+        "id": "birthUvScrollRate",
+        "type": "#3 Embed Block"
+      }
+    ]
+  }
+}

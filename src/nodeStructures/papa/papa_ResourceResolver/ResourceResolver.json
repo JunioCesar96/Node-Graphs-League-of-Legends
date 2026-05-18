@@ -1,0 +1,23 @@
+{
+  "internalStructures": [],
+  "listEmbed": [],
+  "id": "ResourceResolver",
+  "title": "ResourceResolver",
+  "nomenclature": {
+    "group": "#2 Entidades",
+    "collection": "#2 Root Entry (ResourceResolver)",
+    "collectionType": "ResourceResolver",
+    "pathHierarchy": "entries > Characters/Zac/Skins/Skin0/Resources",
+    "pathHierarchySteps": [
+      {
+        "id": "entries",
+        "type": "#1 Root Entry"
+      },
+      {
+        "id": "Characters/Zac/Skins/Skin0/Resources",
+        "type": "#2 Root Entry (ResourceResolver)"
+      }
+    ]
+  },
+  "parameters": []
+}

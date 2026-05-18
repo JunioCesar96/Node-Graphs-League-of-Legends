@@ -1,4 +1,4 @@
-import type { NodeDataType, NodeStructureNomenclature } from './nodeSchema'
+import type { ListEmbedDefinition, NodeDataType, NodeStructureNomenclature } from './nodeSchema'
 
 import { fx_pathHierarchy } from './pathHierarchy'
 
@@ -88,11 +88,51 @@ export function nodeBaseParameterId(collectionType: string, paramName: string): 
   return `${collectionType}_${paramName}`
 }
 
+/** Id composto: `collectionType_listEmbed_listEmbedTitle` (preserva capitalização). */
+export function nodeBaseListEmbedId(collectionType: string, listEmbedTitle: string): string {
+  return `${collectionType}_listEmbed_${listEmbedTitle}`
+}
+
 export type NodeBaseParameterPayload = {
   id: string
   name: string
   type: string
   defaultValue: string
+}
+
+export type NodeBaseListEmbedPayload = ListEmbedDefinition
+
+export function buildNodeBaseListEmbedPayload(
+  collectionType: string,
+  block: ListEmbedBlockRaw,
+): NodeBaseListEmbedPayload | null {
+  const title = block.title.trim()
+  if (!title) {
+    return null
+  }
+
+  const id = nodeBaseListEmbedId(collectionType, title)
+  const seenSchemaIds = new Set<string>()
+  const internalStructures: ListEmbedDefinition['internalStructures'] = []
+
+  for (const ref of block.internalStructures) {
+    if (seenSchemaIds.has(ref.schemaId)) {
+      continue
+    }
+    seenSchemaIds.add(ref.schemaId)
+    const catalogName = ref.name?.trim() || ref.schemaId
+    internalStructures.push({
+      id: `${id}-catalog-${String(internalStructures.length)}`,
+      name: catalogName,
+      schemaId: ref.schemaId,
+    })
+  }
+
+  return {
+    id,
+    title,
+    internalStructures,
+  }
 }
 
 export function buildNodeBaseParameterPayload(
@@ -118,9 +158,113 @@ export function buildNodeBaseParameterPayload(
   }
 }
 
+export type ListEmbedCatalogRefRaw = {
+  schemaId: string
+  name?: string
+}
+
+export type ListEmbedBlockRaw = {
+  id: string
+  title: string
+  internalStructures: ListEmbedCatalogRefRaw[]
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function isListEmbedBlockShape(value: unknown): value is ListEmbedBlockRaw {
+  if (!isRecord(value)) {
+    return false
+  }
+  if (typeof value.id !== 'string' || typeof value.title !== 'string') {
+    return false
+  }
+  if (!Array.isArray(value.internalStructures)) {
+    return false
+  }
+  return true
+}
+
+function parseListEmbedCatalogRefs(internalStructures: unknown[]): ListEmbedCatalogRefRaw[] {
+  const refs: ListEmbedCatalogRefRaw[] = []
+  for (const item of internalStructures) {
+    if (!isRecord(item)) {
+      continue
+    }
+    const schemaId = item.schemaId
+    if (typeof schemaId !== 'string' || schemaId.trim() === '') {
+      continue
+    }
+    const name = typeof item.name === 'string' && item.name.trim() !== '' ? item.name.trim() : undefined
+    refs.push({ schemaId: schemaId.trim(), ...(name ? { name } : {}) })
+  }
+  return refs
+}
+
+function parseListEmbedBlock(value: unknown): ListEmbedBlockRaw | null {
+  if (!isListEmbedBlockShape(value)) {
+    return null
+  }
+  return {
+    id: value.id.trim(),
+    title: value.title.trim(),
+    internalStructures: parseListEmbedCatalogRefs(value.internalStructures),
+  }
+}
+
+/**
+ * Lê blocos LIST_EMBED do JSON de instância.
+ * Aceita `listEmbed` oficial ou blocos com a mesma forma noutra chave top-level (export corrompido).
+ */
+export function readListEmbedBlocksFromSchemaJson(raw: Record<string, unknown>): ListEmbedBlockRaw[] {
+  const fromOfficial: ListEmbedBlockRaw[] = []
+  if (Array.isArray(raw.listEmbed)) {
+    for (const item of raw.listEmbed) {
+      const block = parseListEmbedBlock(item)
+      if (block) {
+        fromOfficial.push(block)
+      }
+    }
+    if (fromOfficial.length > 0) {
+      return fromOfficial
+    }
+  }
+
+  const fallback: ListEmbedBlockRaw[] = []
+  for (const value of Object.values(raw)) {
+    if (!Array.isArray(value)) {
+      continue
+    }
+    for (const item of value) {
+      const block = parseListEmbedBlock(item)
+      if (block) {
+        fallback.push(block)
+      }
+    }
+  }
+  return fallback
+}
+
+/** `schemaId` únicos referenciados no catálogo LIST_EMBED. */
+export function collectSchemaIdsFromListEmbedBlocks(blocks: readonly ListEmbedBlockRaw[]): string[] {
+  const ids = new Set<string>()
+  for (const block of blocks) {
+    for (const ref of block.internalStructures) {
+      ids.add(ref.schemaId)
+    }
+  }
+  return [...ids]
+}
+
+export function collectSchemaIdsFromListEmbedJson(raw: Record<string, unknown>): string[] {
+  return collectSchemaIdsFromListEmbedBlocks(readListEmbedBlocksFromSchemaJson(raw))
+}
+
 /** Corpo JSON mínimo do nó base por `collectionType` (node_base.md). */
 export type NodeBaseSchemaBodyJson = {
   internalStructures: []
+  listEmbed: []
   id: string
   title: string
   nomenclature: NodeStructureNomenclature
@@ -151,6 +295,7 @@ export function buildNodeBaseSchemaBody(
 ): NodeBaseSchemaBodyJson {
   return {
     internalStructures: [],
+    listEmbed: [],
     id: collectionType,
     title: collectionType,
     nomenclature: cloneNomenclatureForNodeBase(nomenclature),

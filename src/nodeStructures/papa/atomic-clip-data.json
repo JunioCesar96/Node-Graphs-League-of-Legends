@@ -1,0 +1,58 @@
+{
+  "id": "atomic-clip-data",
+  "title": "AtomicClipData",
+  "parameters": [
+    {
+      "id": "atomic-clip-data-m-flags",
+      "name": "mFlags",
+      "type": "u32",
+      "defaultValue": "1"
+    },
+    {
+      "id": "atomic-clip-data-m-mask-data-name",
+      "name": "mMaskDataName",
+      "type": "integer",
+      "defaultValue": "0x5ad57b83"
+    },
+    {
+      "id": "atomic-clip-data-m-tick-duration",
+      "name": "mTickDuration",
+      "type": "f32",
+      "defaultValue": "0.03333334"
+    },
+    {
+      "id": "atomic-clip-data-m-track-data-name",
+      "name": "mTrackDataName",
+      "type": "integer",
+      "defaultValue": "Default"
+    }
+  ],
+  "listEmbed": [],
+  "internalStructures": [
+    {
+      "id": "atomic-clip-data-m-animation-resource-data",
+      "name": "mAnimationResourceData",
+      "schemaId": "animation-resource-data"
+    }
+  ],
+  "nomenclature": {
+    "group": "#3 Internal Structures",
+    "collection": "#3 Collection Block",
+    "collectionType": "AtomicClipData",
+    "pathHierarchy": "entries > Characters/Zac/Animations/Skin0 > Death_Passive",
+    "pathHierarchySteps": [
+      {
+        "id": "entries",
+        "type": "#1 Root Entry"
+      },
+      {
+        "id": "Characters/Zac/Animations/Skin0",
+        "type": "#2 Root Entry (AnimationGraphData)"
+      },
+      {
+        "id": "Death_Passive",
+        "type": "#3 Collection Block"
+      }
+    ]
+  }
+}

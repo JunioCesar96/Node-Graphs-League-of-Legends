@@ -73,6 +73,7 @@ export function convertRitobinStructureTextToNodeSchemas(source: string): Conver
                 text.length > 800 ? `${text.slice(0, 797).replace(/\n/g, '\\n')}…` : text.replace(/\n/g, '\\n'),
             },
           ],
+          listEmbed: [],
           internalStructures: [],
         },
       ],

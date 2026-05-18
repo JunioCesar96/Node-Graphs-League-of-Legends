@@ -1,0 +1,6 @@
+{
+  "id": "VfxEmitterDefinitionData_isGroundLayer",
+  "name": "isGroundLayer",
+  "type": "bool",
+  "defaultValue": "false"
+}

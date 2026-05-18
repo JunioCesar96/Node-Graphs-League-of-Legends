@@ -775,8 +775,9 @@ export function CodeDock({
                   </select>
                 </label>
                 <p className={styles.dialogHint}>
-                  Cria <code>temp/parameters_list.json</code> e um JSON por parâmetro dentro de subpastas{' '}
-                  <code>{'{pack}_{collectionType}'}</code> (apenas com <code>npm run dev</code>).
+                  Cria <code>temp/parameters_list.json</code> e, em subpastas <code>{'{pack}_{collectionType}'}</code>,
+                  um JSON por parâmetro (<code>{'{tipo}_{nome}'}</code>) e por LIST_EMBED (
+                  <code>{'{tipo}_listEmbed_{campo}'}</code>) — só com <code>npm run dev</code>.
                 </p>
               </>
             )}
