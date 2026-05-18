@@ -9,8 +9,11 @@ import {
   nomenclatureGroupNumberFromLabel,
   nodeSchemaFromStructureJson,
 } from './nodeStructureJson'
-import { NESTABLE_STRUCTURE_COLLECTIONS } from './pathHierarchyInternalStructures'
-import { VFX_JADE_SYSTEM_ROOT_COLLECTION } from './vfxJadeNomenclature'
+import {
+  internalStructureDisplayNameFromChildSchema,
+  isChildStructureByPathHierarchy,
+  isNodeStructurePackSubfolderPath,
+} from './pathHierarchyInternalStructures'
 import {
   linked_parameter_values_apply_to_instance,
   translateDiskLinkedPairsToCanvas,
@@ -328,8 +331,6 @@ function buildRegistry(): {
   const schemaBaseParameterCatalogBySchemaId: Record<string, NodeParameterDefinition[]> = {}
   const schemaBaseInternalStructureCatalogBySchemaId: Record<string, InternalStructureDefinition[]> = {}
 
-  const nestableUnderVfxRoot = new Set(NESTABLE_STRUCTURE_COLLECTIONS.map((c) => c.trim()))
-
   for (const schemaId of Object.keys(registry)) {
     const modulePath = pathBySchemaId[schemaId]
     if (!modulePath) {
@@ -374,8 +375,7 @@ function buildRegistry(): {
 
     const pack = packFolderFromModulePath(modulePath)
     const schema = registry[schemaId]
-    const myGroupN = nomenclatureGroupNumberFromLabel(schema.nomenclature?.group)
-    if (myGroupN === null) {
+    if (!schema.nomenclature?.collection?.trim()) {
       schemaBaseInternalStructureCatalogBySchemaId[schemaId] = []
       continue
     }
@@ -389,30 +389,20 @@ function buildRegistry(): {
       if (!otherPath) {
         continue
       }
-      const otherSeg = pathSegmentsUnderNodeStructures(otherPath)
-      if (otherSeg.length !== 3) {
+      const otherRel = jsonRelativePathBySchemaId[otherId] ?? ''
+      if (!isNodeStructurePackSubfolderPath(otherRel)) {
         continue
       }
       if (packFolderFromModulePath(otherPath) !== pack) {
         continue
       }
-      const otherG = nomenclatureGroupNumberFromLabel(otherSchema.nomenclature?.group)
-      const myColl = schema.nomenclature?.collection?.trim() ?? ''
-      const otherColl = otherSchema.nomenclature?.collection?.trim() ?? ''
-
-      const sameGroupPeers = otherG === myGroupN
-      const childStructuresUnderVfxRoot =
-        myColl === VFX_JADE_SYSTEM_ROOT_COLLECTION &&
-        otherG === 3 &&
-        nestableUnderVfxRoot.has(otherColl)
-
-      if (!sameGroupPeers && !childStructuresUnderVfxRoot) {
+      if (!isChildStructureByPathHierarchy(schema, otherSchema)) {
         continue
       }
 
       candidates.push({
         id: `catalog-is-${otherId}`,
-        name: otherSchema.title,
+        name: internalStructureDisplayNameFromChildSchema(otherSchema),
         schemaId: otherId,
       })
     }

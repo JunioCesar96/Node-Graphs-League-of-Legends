@@ -28,6 +28,21 @@
   color: var(--syntax-integer);
 }
 
+.u32,
+.i8,
+.u8,
+.i16,
+.u16,
+.i32,
+.i64,
+.u64 {
+  color: var(--syntax-integer);
+}
+
+.f32 {
+  color: var(--syntax-float);
+}
+
 .float {
   color: var(--syntax-float);
 }
@@ -46,4 +61,36 @@
 
 .vector4 {
   color: var(--syntax-vector4);
+}
+
+.listF32 {
+  color: var(--syntax-float);
+}
+
+.listString {
+  color: var(--syntax-string);
+}
+
+.listHash {
+  color: var(--syntax-integer);
+}
+
+.listVector2 {
+  color: var(--syntax-vector2);
+}
+
+.listVector3 {
+  color: var(--syntax-vector3);
+}
+
+.listVector4 {
+  color: var(--syntax-vector4);
+}
+
+.rgba {
+  color: var(--syntax-vector4);
+}
+
+.bool {
+  color: var(--syntax-keyword);
 }

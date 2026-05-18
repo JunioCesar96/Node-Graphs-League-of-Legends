@@ -9,11 +9,28 @@ const NODE_DATA_TYPES: ReadonlySet<string> = new Set<NodeDataType>([
   'property',
   'symbol',
   'integer',
+  'i8',
+  'u8',
+  'i16',
+  'u16',
+  'i32',
+  'u32',
+  'i64',
+  'u64',
+  'f32',
   'float',
   'double',
   'vector2',
   'vector3',
   'vector4',
+  'listF32',
+  'listString',
+  'listHash',
+  'listVector2',
+  'listVector3',
+  'listVector4',
+  'rgba',
+  'bool',
 ])
 
 /** Valor default para ficheiros «node base» (spec parametros_nodes.md), por `type` normalizado. */
@@ -25,10 +42,28 @@ export function defaultValueForNodeBaseType(typeLower: string): string {
       return '0,0,0'
     case 'vector4':
       return '0,0,0,0'
+    case 'listf32':
+    case 'liststring':
+    case 'listhash':
+    case 'listvector2':
+    case 'listvector3':
+    case 'listvector4':
+      return ''
+    case 'rgba':
+      return '1, 1, 1, 1'
     case 'float':
     case 'double':
       return '0'
     case 'integer':
+    case 'i8':
+    case 'u8':
+    case 'i16':
+    case 'u16':
+    case 'i32':
+    case 'u32':
+    case 'i64':
+    case 'u64':
+    case 'f32':
       return '0'
     case 'bool':
     case 'boolean':

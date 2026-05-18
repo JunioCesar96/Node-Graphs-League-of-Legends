@@ -9,3 +9,8 @@ export function fx_pathHierarchy(stack: readonly NomenclaturePathSegment[]): Nom
 export function segmentsToPathHierarchyString(segments: readonly NomenclaturePathSegment[]): string {
   return segments.map((s) => s.type.trim()).join(' > ')
 }
+
+/** Class Group: trilho só com `id` dos segmentos da pilha (`especificacao_recursividade_infinita.md`). */
+export function segmentsToPathHierarchyIdString(segments: readonly NomenclaturePathSegment[]): string {
+  return segments.map((s) => s.id.trim()).filter((id) => id.length > 0).join(' > ')
+}

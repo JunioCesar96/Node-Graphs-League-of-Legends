@@ -59,11 +59,22 @@ export function AddNodePalette({
   const [paletteScrollIntensity, setPaletteScrollIntensity] = useState(0)
   const [isPaletteScrollActive, setIsPaletteScrollActive] = useState(false)
 
+  const [structureSubfolderMenuOpen, setStructureSubfolderMenuOpen] = useState(false)
+  const [structureSubfolderMenuQuery, setStructureSubfolderMenuQuery] = useState('')
+  const [subfolderScrollDirection, setSubfolderScrollDirection] = useState<PaletteScrollDirection>('idle')
+  const [subfolderScrollIntensity, setSubfolderScrollIntensity] = useState(0)
+  const [isSubfolderScrollActive, setIsSubfolderScrollActive] = useState(false)
+
   const paletteInputRef = useRef<HTMLInputElement | null>(null)
+  const structureSubfolderMenuRef = useRef<HTMLDivElement | null>(null)
+  const structureSubfolderInputRef = useRef<HTMLInputElement | null>(null)
+  const structureSubfolderListRef = useRef<HTMLDivElement | null>(null)
   const paletteResultsRef = useRef<HTMLDivElement | null>(null)
   const paletteHoveredOptionIndexRef = useRef<number | null>(null)
   const paletteScrollFrameRef = useRef<number | null>(null)
   const paletteScrollVelocityRef = useRef(0)
+  const subfolderScrollFrameRef = useRef<number | null>(null)
+  const subfolderScrollVelocityRef = useRef(0)
 
   const [expandCapsule, setExpandCapsule] = useState<{
     id: string
@@ -114,13 +125,78 @@ export function AddNodePalette({
 
   useEffect(() => {
     setPaletteStructureSubfolder(null)
+    setStructureSubfolderMenuOpen(false)
+    setStructureSubfolderMenuQuery('')
   }, [palettePackFolder])
 
   useEffect(() => {
     if (!showStructureSubfolderTagsRow) {
       setPaletteStructureSubfolder(null)
+      setStructureSubfolderMenuOpen(false)
+      setStructureSubfolderMenuQuery('')
     }
   }, [showStructureSubfolderTagsRow])
+
+  useEffect(() => {
+    if (!structureSubfolderMenuOpen) {
+      return
+    }
+
+    const onPointerDownCapture = (event: PointerEvent) => {
+      const el = structureSubfolderMenuRef.current
+      const target = event.target
+      if (el && target instanceof Node && !el.contains(target)) {
+        setStructureSubfolderMenuOpen(false)
+        setStructureSubfolderMenuQuery('')
+      }
+    }
+
+    document.addEventListener('pointerdown', onPointerDownCapture, true)
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDownCapture, true)
+    }
+  }, [structureSubfolderMenuOpen])
+
+  useEffect(() => {
+    if (!structureSubfolderMenuOpen) {
+      if (subfolderScrollFrameRef.current !== null) {
+        window.cancelAnimationFrame(subfolderScrollFrameRef.current)
+        subfolderScrollFrameRef.current = null
+      }
+      subfolderScrollVelocityRef.current = 0
+      return
+    }
+
+    structureSubfolderInputRef.current?.focus()
+
+    const scrollSubfolderList = () => {
+      if (structureSubfolderListRef.current && subfolderScrollVelocityRef.current !== 0) {
+        structureSubfolderListRef.current.scrollTop += subfolderScrollVelocityRef.current
+      }
+      subfolderScrollFrameRef.current = window.requestAnimationFrame(scrollSubfolderList)
+    }
+
+    subfolderScrollFrameRef.current = window.requestAnimationFrame(scrollSubfolderList)
+
+    return () => {
+      if (subfolderScrollFrameRef.current !== null) {
+        window.cancelAnimationFrame(subfolderScrollFrameRef.current)
+      }
+      subfolderScrollFrameRef.current = null
+      subfolderScrollVelocityRef.current = 0
+    }
+  }, [structureSubfolderMenuOpen])
+
+  const menuFilteredSubfolderTags = useMemo(() => {
+    const q = structureSubfolderMenuQuery.trim().toLowerCase()
+    if (!q) {
+      return paletteStructureSubfolderTags
+    }
+    return paletteStructureSubfolderTags.filter((sub) => {
+      const label = structureSubfolderTagLabel(sub).toLowerCase()
+      return label.includes(q) || sub.toLowerCase().includes(q)
+    })
+  }, [paletteStructureSubfolderTags, structureSubfolderMenuQuery])
 
   const filteredSchemas = sortSchemasByOrganization(
     schemas
@@ -244,6 +320,12 @@ export function AddNodePalette({
 
   const handlePaletteKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
     if (event.key === 'Escape') {
+      if (structureSubfolderMenuOpen) {
+        event.preventDefault()
+        setStructureSubfolderMenuOpen(false)
+        setStructureSubfolderMenuQuery('')
+        return
+      }
       event.preventDefault()
       onClose()
       return
@@ -331,6 +413,59 @@ export function AddNodePalette({
     setIsPaletteScrollActive(false)
     setPaletteScrollDirection('idle')
     setPaletteScrollIntensity(0)
+    event.stopPropagation()
+  }
+
+  const updateSubfolderScrollIntent = (event: PointerEvent<HTMLButtonElement>) => {
+    const controlBounds = event.currentTarget.getBoundingClientRect()
+    const centerY = controlBounds.top + controlBounds.height / 2
+    const distanceFromCenter = event.clientY - centerY
+    const absoluteDistance = Math.abs(distanceFromCenter)
+
+    if (absoluteDistance < SCROLL_CONTROL_DEAD_ZONE) {
+      subfolderScrollVelocityRef.current = 0
+      setSubfolderScrollDirection('idle')
+      setSubfolderScrollIntensity(0)
+      return
+    }
+
+    const direction = distanceFromCenter > 0 ? 'down' : 'up'
+    const intensity = Math.min(1, (absoluteDistance - SCROLL_CONTROL_DEAD_ZONE) / 90)
+
+    subfolderScrollVelocityRef.current = (direction === 'down' ? 1 : -1) * Math.max(2, intensity * MAX_SCROLL_SPEED)
+    setSubfolderScrollDirection(direction)
+    setSubfolderScrollIntensity(intensity)
+  }
+
+  const startSubfolderScroll = (event: PointerEvent<HTMLButtonElement>) => {
+    if (event.button !== 0) {
+      return
+    }
+
+    setIsSubfolderScrollActive(true)
+    updateSubfolderScrollIntent(event)
+    event.currentTarget.setPointerCapture(event.pointerId)
+    event.stopPropagation()
+  }
+
+  const moveSubfolderScroll = (event: PointerEvent<HTMLButtonElement>) => {
+    if (!isSubfolderScrollActive) {
+      return
+    }
+
+    updateSubfolderScrollIntent(event)
+    event.stopPropagation()
+  }
+
+  const stopSubfolderScroll = (event: PointerEvent<HTMLButtonElement>) => {
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId)
+    }
+
+    subfolderScrollVelocityRef.current = 0
+    setIsSubfolderScrollActive(false)
+    setSubfolderScrollDirection('idle')
+    setSubfolderScrollIntensity(0)
     event.stopPropagation()
   }
 
@@ -466,34 +601,146 @@ export function AddNodePalette({
               </div>
             ) : null}
             {showStructureSubfolderTagsRow ? (
-              <div className={styles.tags} aria-label="Filtrar por subpasta do pack">
+              <div className={styles.subfolderMenuWrap} ref={structureSubfolderMenuRef}>
                 <button
-                  aria-pressed={paletteStructureSubfolder === null}
+                  aria-expanded={structureSubfolderMenuOpen}
+                  aria-haspopup="dialog"
+                  className={styles.subfolderMenuTrigger}
                   type="button"
                   onClick={() => {
-                    setPaletteStructureSubfolder(null)
-                    setHighlightedSchemaIndex(0)
-                    setPaletteHoveredOptionIndex(null)
-                    setPaletteExpandOverride('default')
+                    setStructureSubfolderMenuOpen((open) => {
+                      const next = !open
+                      if (next) {
+                        setStructureSubfolderMenuQuery('')
+                      }
+                      return next
+                    })
                   }}
                 >
-                  Todos
+                  <span className={styles.subfolderMenuTriggerLabel}>Subpasta</span>
+                  <span className={styles.subfolderMenuTriggerValue}>
+                    {paletteStructureSubfolder === null
+                      ? 'Todas'
+                      : structureSubfolderTagLabel(paletteStructureSubfolder)}
+                  </span>
+                  <span aria-hidden className={styles.subfolderMenuTriggerChevron}>
+                    ▾
+                  </span>
                 </button>
-                {paletteStructureSubfolderTags.map((sub) => (
-                  <button
-                    aria-pressed={paletteStructureSubfolder === sub}
-                    key={sub === '' ? '__root__' : sub}
-                    type="button"
-                    onClick={() => {
-                      setPaletteStructureSubfolder(sub)
-                      setHighlightedSchemaIndex(0)
-                      setPaletteHoveredOptionIndex(null)
-                      setPaletteExpandOverride('default')
+                {structureSubfolderMenuOpen ? (
+                  <div
+                    aria-label="Filtrar por subpasta do pack"
+                    className={styles.subfolderPopover}
+                    role="dialog"
+                    onPointerDown={(event) => event.stopPropagation()}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Escape') {
+                        event.preventDefault()
+                        event.stopPropagation()
+                        setStructureSubfolderMenuOpen(false)
+                        setStructureSubfolderMenuQuery('')
+                        paletteInputRef.current?.focus()
+                      }
                     }}
                   >
-                    {structureSubfolderTagLabel(sub)}
-                  </button>
-                ))}
+                    <input
+                      ref={structureSubfolderInputRef}
+                      aria-label="Pesquisar subpasta"
+                      autoComplete="off"
+                      className={styles.subfolderPopoverSearch}
+                      onChange={(event) => {
+                        setStructureSubfolderMenuQuery(event.target.value)
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Escape') {
+                          event.preventDefault()
+                          event.stopPropagation()
+                          setStructureSubfolderMenuOpen(false)
+                          setStructureSubfolderMenuQuery('')
+                          paletteInputRef.current?.focus()
+                        }
+                      }}
+                      placeholder="Pesquisar subpasta…"
+                      type="search"
+                      value={structureSubfolderMenuQuery}
+                    />
+                    <div className={styles.subfolderPopoverBody}>
+                      <div
+                        ref={structureSubfolderListRef}
+                        className={styles.subfolderPopoverList}
+                        role="listbox"
+                      >
+                        <button
+                          aria-selected={paletteStructureSubfolder === null}
+                          className={styles.subfolderPopoverOption}
+                          role="option"
+                          type="button"
+                          onClick={() => {
+                            setPaletteStructureSubfolder(null)
+                            setHighlightedSchemaIndex(0)
+                            setPaletteHoveredOptionIndex(null)
+                            setPaletteExpandOverride('default')
+                            setStructureSubfolderMenuOpen(false)
+                            setStructureSubfolderMenuQuery('')
+                          }}
+                        >
+                          Todas as subpastas
+                        </button>
+                        {menuFilteredSubfolderTags.map((sub) => (
+                          <button
+                            aria-selected={paletteStructureSubfolder === sub}
+                            className={styles.subfolderPopoverOption}
+                            key={sub === '' ? '__root__' : sub}
+                            role="option"
+                            type="button"
+                            onClick={() => {
+                              setPaletteStructureSubfolder(sub)
+                              setHighlightedSchemaIndex(0)
+                              setPaletteHoveredOptionIndex(null)
+                              setPaletteExpandOverride('default')
+                              setStructureSubfolderMenuOpen(false)
+                              setStructureSubfolderMenuQuery('')
+                            }}
+                          >
+                            {structureSubfolderTagLabel(sub)}
+                          </button>
+                        ))}
+                        {menuFilteredSubfolderTags.length === 0 ? (
+                          <div className={styles.subfolderPopoverEmpty}>Nenhuma subpasta corresponde ao filtro.</div>
+                        ) : null}
+                      </div>
+                      <button
+                        aria-label="Rolar lista de subpastas"
+                        className={[
+                          styles.subfolderScrollControl,
+                          isSubfolderScrollActive ? styles.scrollControlActive : '',
+                          subfolderScrollDirection === 'up' ? styles.scrollControlUp : '',
+                          subfolderScrollDirection === 'down' ? styles.scrollControlDown : '',
+                        ]
+                          .filter(Boolean)
+                          .join(' ')}
+                        onPointerCancel={stopSubfolderScroll}
+                        onPointerDown={startSubfolderScroll}
+                        onPointerMove={moveSubfolderScroll}
+                        onPointerUp={stopSubfolderScroll}
+                        style={
+                          {
+                            '--scroll-duration': `${Math.max(180, 720 - subfolderScrollIntensity * 520)}ms`,
+                            '--scroll-glow': `${8 + subfolderScrollIntensity * 18}px`,
+                            '--scroll-intensity': subfolderScrollIntensity.toString(),
+                            '--scroll-shift': `${2 + subfolderScrollIntensity * 5}px`,
+                            '--scroll-shift-negative': `${-(2 + subfolderScrollIntensity * 5)}px`,
+                          } as CSSProperties & Record<`--${string}`, string>
+                        }
+                        type="button"
+                      >
+                        <span aria-hidden className={styles.scrollArrowUp} />
+                        <span aria-hidden className={styles.scrollCenter} />
+                        <span aria-hidden className={styles.scrollArrowDown} />
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
               </div>
             ) : null}
           </div>

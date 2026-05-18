@@ -5,6 +5,7 @@ import {
   convertRitualTextJadeFxEditor,
   convertRitualTextToNodeSchemas,
 } from '@/core/convertRitualTextToNodeStructures'
+import { filterInternalStructuresByPathHierarchy } from '@/core/pathHierarchyInternalStructures'
 
 describe('convertRitualTextToNodeSchemas (VFX Jade)', () => {
   it('prioriza Particle Editor Jade quando há VfxSystemDefinitionData', () => {
@@ -102,5 +103,58 @@ count: i32 = 2
     }
     expect(out.schemas.length).toBeGreaterThanOrEqual(1)
     expect(out.schemas.some((s) => /particle/i.test(s.id) || /particle/i.test(s.title))).toBe(true)
+    const flag = out.schemas.find((s) => s.title === 'ParticleFlag')
+    expect(flag?.nomenclature?.pathHierarchy).toBe('ParticleFlag')
+    expect(flag?.nomenclature?.collection).toContain('ParticleFlag')
+  })
+
+  it('nomeclatura + filtro Elemento: #2 Root Entry (SkinCharacterDataProperties) → só #3 Embed Block', () => {
+    const text = `
+entries: map[hash,embed] = {
+  "Characters/Zac/Skins/Skin0" = SkinCharacterDataProperties {
+    SkinAudioProperties: embed = SkinAudioProperties {
+      TagEventList: list[string] = {
+        "Zac"
+      }
+    }
+  }
+}
+`.trim()
+
+    const out = convertRitualTextClassGroup(text)
+    expect(out.ok).toBe(true)
+    if (!out.ok) {
+      return
+    }
+
+    const skin = out.schemas.find((s) => s.title === 'SkinCharacterDataProperties')
+    const audio = out.schemas.find((s) => s.title === 'SkinAudioProperties')
+
+    expect(skin?.nomenclature?.group).toBe('#2 Entidades')
+    expect(skin?.nomenclature?.pathHierarchy).toBe('entries > Characters/Zac/Skins/Skin0')
+
+    const registry = Object.fromEntries(out.schemas.map((s) => [s.id, s]))
+    const filtered = filterInternalStructuresByPathHierarchy(skin!, skin!.internalStructures, registry)
+
+    expect(filtered.some((f) => f.schemaId === audio!.id)).toBe(true)
+    expect(audio?.nomenclature?.collection).toBe('#3 Embed Block')
+  })
+})
+
+describe('convertRitualTextToNodeSchemas (genérico + Class Group)', () => {
+  it('sem VFX, aplica nomeclatura Class Group ao ritobin genérico', () => {
+    const text = `
+ParticleFlag {
+  count: i32 = 2
+}
+`.trim()
+
+    const out = convertRitualTextToNodeSchemas(text)
+    expect(out.ok).toBe(true)
+    if (!out.ok) {
+      return
+    }
+    const flag = out.schemas.find((s) => s.title === 'ParticleFlag')
+    expect(flag?.nomenclature?.group).toBe('#2 Entidades')
   })
 })

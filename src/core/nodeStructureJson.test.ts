@@ -122,6 +122,40 @@ describe('parseNomenclatureFromStructureJson', () => {
   })
 })
 
+describe('nodeSchemaFromStructureJson com tipo rgba', () => {
+  it('aceita parâmetro rgba', () => {
+    const schema = nodeSchemaFromStructureJson({
+      id: 'tint-node',
+      title: 'Tint',
+      parameters: [{ id: 't1', name: 'tintRGBA', type: 'rgba', defaultValue: '1, 0.5, 0, 1' }],
+      internalStructures: [],
+    })
+    expect(schema?.parameters[0]?.type).toBe('rgba')
+  })
+})
+
+describe('nodeSchemaFromStructureJson com tipos primitivos', () => {
+  it('aceita parâmetros u32, i32 e f32 sem rejeitar o schema', () => {
+    const schema = nodeSchemaFromStructureJson({
+      id: 'main',
+      title: 'main',
+      parameters: [
+        { id: 'p-u32', name: 'version', type: 'u32', defaultValue: '3' },
+        { id: 'p-i32', name: 'flags', type: 'i32', defaultValue: '-1' },
+        { id: 'p-f32', name: 'rate', type: 'f32', defaultValue: '1.5' },
+      ],
+      internalStructures: [],
+      nomenclature: {
+        group: '#0 Entidades',
+        collection: '#0 Root main',
+        collectionType: 'main',
+      },
+    })
+    expect(schema).not.toBeNull()
+    expect(schema!.parameters.map((p) => p.type)).toEqual(['u32', 'i32', 'f32'])
+  })
+})
+
 describe('nodeSchemaFromStructureJson com nomenclatura vazia', () => {
   it('mantém nomenclatura quando só collectionType está preenchido', () => {
     const raw = {

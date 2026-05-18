@@ -1,0 +1,55 @@
+.wrap {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+}
+
+.preview {
+  position: relative;
+  flex-shrink: 0;
+  width: 1.25rem;
+  height: 1.25rem;
+  padding: 0;
+  border: 1px solid var(--color-border-soft);
+  border-radius: 4px;
+  cursor: pointer;
+  overflow: hidden;
+  background:
+    linear-gradient(rgb(255 255 255 / 8%) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(255 255 255 / 8%) 1px, transparent 1px),
+    linear-gradient(160deg, rgb(120 150 190 / 35%), rgb(50 60 80 / 40%));
+  background-size: 4px 4px, 4px 4px, 100% 100%;
+}
+
+.previewDot {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  background: var(--syntax-vector2);
+  border: 1px solid #fff;
+  border-radius: 999px;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 35%);
+}
+
+.preview:focus-visible {
+  outline: 2px solid var(--port-child);
+  outline-offset: 1px;
+}
+
+.input {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+.input:focus {
+  outline: none;
+}

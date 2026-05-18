@@ -1,0 +1,1003 @@
+/**
+ * Conversor Class Group com pilha de escopo e profundidade ilimitada.
+ * Parâmetros simples → parameters[]; estruturais → internalStructures + schemas filhos.
+ */
+
+import { classifyFieldLine } from '@/core/binNomenclatureAnalyzer'
+import {
+  FIELD_SCALAR_BRACED_REGEX,
+  FIELD_SCALAR_REGEX,
+  INLINE_CHILD_OPEN_REGEX,
+  LIST_EMBED_OPEN_REGEX,
+  MAP_ENTRY_HEAD_REGEX,
+  STRUCT_ONLY_LINE,
+  classifyRitualLine,
+  isPrimitiveListType,
+  isStructuralListType,
+} from '@/core/classGroupFieldClassifier'
+import { formatRgbaString, parseRgbaString } from '@/core/rgbaColor'
+import { normalizeBoolString } from '@/core/boolValue'
+import { formatVector2String, parseVector2String } from '@/core/vector2Value'
+import {
+  isListF32RitType,
+  normalizeListF32RitualBody,
+  normalizeListF32String,
+} from '@/core/listF32Value'
+import {
+  isListHashRitType,
+  normalizeListHashRitualBody,
+  normalizeListHashString,
+} from '@/core/listHashValue'
+import {
+  isListStringRitType,
+  normalizeListStringRitualBody,
+  normalizeListStringString,
+} from '@/core/listStringValue'
+import {
+  isListVec2RitType,
+  normalizeListVec2RitualBody,
+  normalizeListVector2String,
+} from '@/core/listVector2Value'
+import {
+  isListVec3RitType,
+  normalizeListVec3RitualBody,
+  normalizeListVector3String,
+} from '@/core/listVector3Value'
+import {
+  isListVec4RitType,
+  normalizeListVec4RitualBody,
+  normalizeListVector4String,
+} from '@/core/listVector4Value'
+import { formatVector3String, parseVector3String } from '@/core/vector3Value'
+import type { NodeDataType, NodeSchemaDefinition, NomenclaturePathSegment } from '@/core/nodeSchema'
+import { slugifyStructureId } from '@/core/convertRitobinTextToNodeStructures'
+
+export type MutableClassGroupSchema = Omit<NodeSchemaDefinition, 'parameters' | 'internalStructures'> & {
+  parameters: NodeSchemaDefinition['parameters']
+  internalStructures: NodeSchemaDefinition['internalStructures']
+}
+
+type ScopeKind = 'entries' | 'entity' | 'internal' | 'listItem'
+
+type ScopeFrame = {
+  segmentId: string
+  typeName: string
+  schemaId: string
+  kind: ScopeKind
+  openingLine: string
+}
+
+const OPTION_BLOCK_OPEN_REGEX =
+  /^\s*([A-Za-z_]\w*)\s*:\s*(option\[[^\]]+\])\s*=\s*\{\s*$/
+
+export type ClassGroupStackParseResult = {
+  registry: Map<string, MutableClassGroupSchema>
+  rootSchemaIds: Set<string>
+  classGroupPathBySchemaId: Map<string, NomenclaturePathSegment[]>
+  warnings: string[]
+}
+
+function findClosingBrace(source: string, openIdx: number): number {
+  let depth = 0
+  let inString = false
+  let escaped = false
+
+  for (let i = openIdx; i < source.length; i += 1) {
+    const c = source[i]
+
+    if (inString) {
+      if (!escaped && c === '\\') {
+        escaped = true
+        continue
+      }
+      if (!escaped && c === '"') {
+        inString = false
+      }
+      escaped = false
+      continue
+    }
+
+    if (c === '"') {
+      inString = true
+      continue
+    }
+    if (c === '{') {
+      depth += 1
+    } else if (c === '}') {
+      depth -= 1
+      if (depth === 0) {
+        return i
+      }
+    }
+  }
+
+  return -1
+}
+
+function isBoolLikeRitType(ritType: string): boolean {
+  return /\b(bool|flag)\b/i.test(ritType.trim())
+}
+
+function normalizeBoolScalarValue(rawValue: string): string | null {
+  const value = rawValue.trim().toLowerCase()
+  if (value === 'true' || value === 'false') {
+    return normalizeBoolString(value)
+  }
+  if (value === '1' || value === '0') {
+    return normalizeBoolString(value === '1' ? 'true' : 'false')
+  }
+  return null
+}
+
+function normalizePrimitiveListBody(listType: string, inner: string): string {
+  if (isListF32RitType(listType)) {
+    return normalizeListF32RitualBody(inner)
+  }
+  if (isListStringRitType(listType)) {
+    return normalizeListStringRitualBody(inner)
+  }
+  if (isListHashRitType(listType)) {
+    return normalizeListHashRitualBody(inner)
+  }
+  if (isListVec2RitType(listType)) {
+    return normalizeListVec2RitualBody(inner)
+  }
+  if (isListVec3RitType(listType)) {
+    return normalizeListVec3RitualBody(inner)
+  }
+  if (isListVec4RitType(listType)) {
+    return normalizeListVec4RitualBody(inner)
+  }
+  return normalizeBlockBodyAsScalarValue(inner)
+}
+
+function resolveParameterType(ritType: string, scalarValue: string): NodeDataType {
+  if (isListF32RitType(ritType)) {
+    return 'listF32'
+  }
+  if (isListStringRitType(ritType)) {
+    return 'listString'
+  }
+  if (isListHashRitType(ritType)) {
+    return 'listHash'
+  }
+  if (isListVec2RitType(ritType)) {
+    return 'listVector2'
+  }
+  if (isListVec3RitType(ritType)) {
+    return 'listVector3'
+  }
+  if (isListVec4RitType(ritType)) {
+    return 'listVector4'
+  }
+  if (/\b(embed|pointer|link|option|map)\b/i.test(ritType)) {
+    return 'string'
+  }
+  if (/\blist\b/i.test(ritType)) {
+    return 'string'
+  }
+  if (isBoolLikeRitType(ritType) && normalizeBoolScalarValue(scalarValue) !== null) {
+    return 'bool'
+  }
+  return mapPrimitiveType(ritType)
+}
+
+function mapPrimitiveType(raw: string): NodeDataType {
+  const r = raw.trim().toLowerCase()
+
+  if (r.includes('string')) {
+    return 'string'
+  }
+  if (/\bi8\b/.test(r)) {
+    return 'i8'
+  }
+  if (/\bu8\b/.test(r)) {
+    return 'u8'
+  }
+  if (/\bi16\b/.test(r)) {
+    return 'i16'
+  }
+  if (/\bu16\b/.test(r)) {
+    return 'u16'
+  }
+  if (/\bi32\b/.test(r)) {
+    return 'i32'
+  }
+  if (/\bu32\b/.test(r)) {
+    return 'u32'
+  }
+  if (/\bi64\b/.test(r)) {
+    return 'i64'
+  }
+  if (/\bu64\b/.test(r)) {
+    return 'u64'
+  }
+  if (/\bf32\b/.test(r)) {
+    return 'f32'
+  }
+  if (/\bbool\b/.test(r)) {
+    return 'bool'
+  }
+  if (/\bflag\b/.test(r)) {
+    return 'integer'
+  }
+  if (/\bhash\b/i.test(raw) || /\bs\d+\b/.test(r)) {
+    return 'integer'
+  }
+  if (/\bf64\b/.test(r) || r.includes('float') || r.includes('double')) {
+    return 'float'
+  }
+  if (/\brgba\b/.test(r)) {
+    return 'rgba'
+  }
+  if (/\bvec2\b/.test(r)) {
+    return 'vector2'
+  }
+  if (r.includes('vec3') || /\brgb\b/.test(r)) {
+    return 'vector3'
+  }
+  if (r.includes('vec4')) {
+    return 'vector4'
+  }
+  if (r.includes('symbol') || r.includes('keyword')) {
+    return 'keyword'
+  }
+  return 'string'
+}
+
+function emptyMutable(title: string, idFallback: string): MutableClassGroupSchema {
+  return {
+    id: idFallback || 'struct-unknown',
+    title,
+    parameters: [],
+    internalStructures: [],
+  }
+}
+
+function findEntriesMapValueBraces(src: string): { openBrace: number; closeBrace: number } | null {
+  const lines = src.split('\n')
+  let lineStart = 0
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]!
+    const lineEnd = lineStart + line.length
+
+    if (/entries:\s*map\[/i.test(line)) {
+      let openBrace = -1
+      const eq = line.indexOf('=')
+      if (eq >= 0) {
+        const b = line.indexOf('{', eq)
+        if (b >= 0) {
+          openBrace = lineStart + b
+        }
+      }
+      if (openBrace < 0) {
+        let off = lineEnd + 1
+        for (let j = i + 1; j < Math.min(i + 8, lines.length); j++) {
+          const l2 = lines[j]!
+          const b = l2.indexOf('{')
+          if (b >= 0) {
+            openBrace = off + b
+            break
+          }
+          off += l2.length + 1
+        }
+      }
+      if (openBrace >= 0) {
+        const closeBrace = findClosingBrace(src, openBrace)
+        if (closeBrace > openBrace) {
+          return { openBrace, closeBrace }
+        }
+      }
+      return null
+    }
+    lineStart = lineEnd + 1
+  }
+  return null
+}
+
+function stepTypeForFrame(frame: ScopeFrame, stack: readonly ScopeFrame[]): string {
+  if (frame.kind === 'entries') {
+    return '#1 Root Entry'
+  }
+
+  const afterEntries = stack.filter((f) => f.kind !== 'entries')
+  const depth = afterEntries.findIndex((f) => f === frame)
+
+  if (depth === 0) {
+    return `#2 Root Entry (${frame.typeName})`
+  }
+
+  const cls = classifyFieldLine(frame.openingLine)
+  if (cls) {
+    return cls.collection
+  }
+
+  return '#3 Collection Block'
+}
+
+type ParseCtx = {
+  registry: Map<string, MutableClassGroupSchema>
+  rootSchemaIds: Set<string>
+  classGroupPathBySchemaId: Map<string, NomenclaturePathSegment[]>
+  warnings: string[]
+  scopeStack: ScopeFrame[]
+}
+
+function ensureSchema(ctx: ParseCtx, typeName: string): MutableClassGroupSchema {
+  const id = slugifyStructureId(typeName)
+  const key = id || slugifyStructureId(`type-${String(ctx.registry.size)}`)
+  let s = ctx.registry.get(key)
+  if (!s) {
+    s = emptyMutable(typeName, key)
+    ctx.registry.set(key, s)
+  }
+  return s
+}
+
+function pathSegmentsFromStack(stack: readonly ScopeFrame[]): NomenclaturePathSegment[] {
+  return stack.map((f) => ({
+    id: f.segmentId,
+    type: stepTypeForFrame(f, stack),
+  }))
+}
+
+function recordSchemaPath(ctx: ParseCtx, schemaId: string): void {
+  const steps = pathSegmentsFromStack(ctx.scopeStack)
+  if (!ctx.classGroupPathBySchemaId.has(schemaId)) {
+    ctx.classGroupPathBySchemaId.set(
+      schemaId,
+      steps.map((s) => ({ id: s.id, type: s.type })),
+    )
+  }
+}
+
+function schemaAtStackTop(ctx: ParseCtx): MutableClassGroupSchema | null {
+  for (let i = ctx.scopeStack.length - 1; i >= 0; i--) {
+    const frame = ctx.scopeStack[i]!
+    if (frame.kind === 'entries') {
+      continue
+    }
+    const s = ctx.registry.get(frame.schemaId)
+    if (s) {
+      return s
+    }
+  }
+  return null
+}
+
+function pushScope(
+  ctx: ParseCtx,
+  frame: Omit<ScopeFrame, 'schemaId'> & { schemaId?: string },
+  childSchema: MutableClassGroupSchema,
+): void {
+  const full: ScopeFrame = {
+    segmentId: frame.segmentId,
+    typeName: frame.typeName,
+    schemaId: childSchema.id,
+    kind: frame.kind,
+    openingLine: frame.openingLine,
+  }
+  ctx.scopeStack.push(full)
+  recordSchemaPath(ctx, childSchema.id)
+}
+
+function popScope(ctx: ParseCtx): void {
+  if (ctx.scopeStack.length > 0) {
+    ctx.scopeStack.pop()
+  }
+}
+
+function pushInternalStructure(
+  parentSchema: MutableClassGroupSchema,
+  parentType: string,
+  fieldName: string,
+  childSchemaId: string,
+  linkIdSuffix?: string,
+): void {
+  const suffix = linkIdSuffix ?? fieldName
+  parentSchema.internalStructures.push({
+    id: slugifyStructureId(`${parentType}-${suffix}`).replace(/^-+/, '') || fieldName.toLowerCase(),
+    name: fieldName,
+    schemaId: childSchemaId,
+  })
+}
+
+function normalizeScalarDefaultValue(ritType: string, rawValue: string): string | null {
+  let value = rawValue.trim()
+
+  const braced = /^\{\s*([^}]*)\}\s*$/.exec(value)
+  if (braced) {
+    const inner = braced[1]!.trim()
+    const typeLower = ritType.trim().toLowerCase()
+    if (/\bvec2\b/.test(typeLower)) {
+      const parts = inner.split(',').map((part) => part.trim()).filter(Boolean)
+      if (parts.length >= 2) {
+        return formatVector2String(parseVector2String(parts.join(', ')))
+      }
+    }
+    if (/\bvec3\b/.test(typeLower)) {
+      const parts = inner.split(',').map((part) => part.trim()).filter(Boolean)
+      if (parts.length >= 3) {
+        return formatVector3String(parseVector3String(parts.join(', ')))
+      }
+    }
+    if (/\b(rgba|vec4|rgb)\b/.test(typeLower)) {
+      const parts = inner.split(',').map((part) => part.trim()).filter(Boolean)
+      if (parts.length >= 3) {
+        return formatRgbaString(parseRgbaString(parts.join(', ')))
+      }
+    }
+    return inner.replace(/\s+/g, ' ')
+  }
+
+  if (isBoolLikeRitType(ritType)) {
+    const boolValue = normalizeBoolScalarValue(value)
+    if (boolValue !== null) {
+      return boolValue
+    }
+  }
+
+  if (isListF32RitType(ritType)) {
+    return normalizeListF32String(value)
+  }
+
+  if (isListStringRitType(ritType)) {
+    return normalizeListStringString(value)
+  }
+
+  if (isListHashRitType(ritType)) {
+    return normalizeListHashString(value)
+  }
+
+  if (isListVec2RitType(ritType)) {
+    if (/\{/.test(value)) {
+      return normalizeListVector2String(value)
+    }
+    return value
+  }
+
+  if (isListVec3RitType(ritType)) {
+    if (/\{/.test(value)) {
+      return normalizeListVector3String(value)
+    }
+    return value
+  }
+
+  if (isListVec4RitType(ritType)) {
+    if (/\{/.test(value)) {
+      return normalizeListVector4String(value)
+    }
+    return value
+  }
+
+  if (/\{/.test(value)) {
+    return null
+  }
+
+  return value
+}
+
+function pushScalarParameter(
+  ctx: ParseCtx,
+  parentType: string,
+  parentSchema: MutableClassGroupSchema,
+  fieldName: string,
+  ritType: string,
+  rawValue: string,
+): void {
+  const normalized = normalizeScalarDefaultValue(ritType, rawValue)
+  if (normalized === null) {
+    return
+  }
+  let value = normalized
+
+  if (/\bembed\b/i.test(ritType) || /\bpointer\b/i.test(ritType)) {
+    return
+  }
+
+  if (value.startsWith('"') && value.endsWith('"')) {
+    try {
+      value = JSON.parse(value) as string
+    } catch {
+      value = value.slice(1, -1)
+    }
+  }
+
+  value = value.length > 480 ? `${value.slice(0, 477)}…` : value
+
+  const pid = slugifyStructureId(`${parentType}_${fieldName}`).replace(/^-+/, '') || fieldName.toLowerCase()
+
+  parentSchema.parameters.push({
+    id: pid,
+    name: fieldName,
+    type: resolveParameterType(ritType, value),
+    defaultValue: value,
+  })
+}
+
+function normalizeBlockBodyAsScalarValue(inner: string): string {
+  const lines = inner
+    .split('\n')
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0 && !l.startsWith('#'))
+  return lines.join(' ').slice(0, 480)
+}
+
+function parseStructuralListBody(
+  ctx: ParseCtx,
+  parentType: string,
+  fieldName: string,
+  listInner: string,
+  parentSchema: MutableClassGroupSchema,
+): void {
+  const listLines = listInner.replace(/\t/g, '  ').split('\n')
+  let li = 0
+  let itemIdx = 0
+
+  while (li < listLines.length) {
+    const lineRaw = listLines[li]!.trimEnd()
+    const t = lineRaw.trim()
+    li += 1
+
+    if (t === '' || t.startsWith('#')) {
+      continue
+    }
+
+    const inlinePtr = INLINE_CHILD_OPEN_REGEX.exec(lineRaw)
+    if (inlinePtr?.[1] && inlinePtr[3]) {
+      const childField = inlinePtr[1]!
+      const childName = inlinePtr[3]!
+      const concatFromHere = listLines.slice(li - 1).join('\n')
+      const openRel = concatFromHere.indexOf('{')
+      const closeAbs = openRel >= 0 ? findClosingBrace(concatFromHere, openRel) : -1
+
+      let innerSlice = ''
+      if (closeAbs <= openRel) {
+        ctx.warnings.push(`${parentType}.${fieldName}[${String(itemIdx)}].${childField}: não fechado`)
+      } else {
+        innerSlice = concatFromHere.slice(openRel + 1, closeAbs)
+        const consumedHead = concatFromHere.slice(0, closeAbs + 1)
+        li += consumedHead.split('\n').length - 1
+      }
+
+      const childSchema = ensureSchema(ctx, childName)
+      const segId = `${fieldName}:${String(itemIdx)}:${childField}`
+
+      pushInternalStructure(parentSchema, parentType, childField, childSchema.id, segId)
+
+      pushScope(
+        ctx,
+        {
+          segmentId: segId,
+          typeName: childName,
+          kind: 'listItem',
+          openingLine: lineRaw,
+        },
+        childSchema,
+      )
+
+      if (innerSlice.trim().length > 0) {
+        parseBlockBody(ctx, childName, innerSlice)
+      }
+
+      popScope(ctx)
+      itemIdx += 1
+      continue
+    }
+
+    const head = STRUCT_ONLY_LINE.exec(t)
+    if (!head?.[1]) {
+      continue
+    }
+
+    const childName = head[1]!
+    const concatFromHere = listLines.slice(li - 1).join('\n')
+    const openRel = concatFromHere.indexOf('{')
+    const closeAbs = openRel >= 0 ? findClosingBrace(concatFromHere, openRel) : -1
+
+    let innerSlice = ''
+    if (closeAbs <= openRel) {
+      ctx.warnings.push(`${parentType}.${fieldName}[${String(itemIdx)}]: '${childName}' não fechado`)
+    } else {
+      innerSlice = concatFromHere.slice(openRel + 1, closeAbs)
+      const consumedHead = concatFromHere.slice(0, closeAbs + 1)
+      li += consumedHead.split('\n').length - 1
+    }
+
+    const childSchema = ensureSchema(ctx, childName)
+    const segId = `${fieldName}:${String(itemIdx)}`
+    const listItemFieldName = itemIdx === 0 ? fieldName : `${fieldName}:${String(itemIdx)}`
+
+    pushInternalStructure(parentSchema, parentType, listItemFieldName, childSchema.id, segId)
+
+    pushScope(
+      ctx,
+      {
+        segmentId: segId,
+        typeName: childName,
+        kind: 'listItem',
+        openingLine: lineRaw,
+      },
+      childSchema,
+    )
+
+    if (innerSlice.trim().length > 0) {
+      parseBlockBody(ctx, childName, innerSlice)
+    }
+
+    popScope(ctx)
+    itemIdx += 1
+  }
+}
+
+function parseBlockBody(ctx: ParseCtx, parentType: string, body: string): void {
+  const bodyLines = body.replace(/\t/g, '  ').split('\n')
+  let idx = 0
+
+  while (idx < bodyLines.length) {
+    const lineRaw = bodyLines[idx]!.trimEnd()
+    const t = lineRaw.trim()
+    idx += 1
+
+    if (t === '' || t.startsWith('#')) {
+      continue
+    }
+
+    const classified = classifyRitualLine(lineRaw)
+
+    if (classified.kind === 'metadata' || classified.kind === 'unknown') {
+      continue
+    }
+
+    const mapEntry = MAP_ENTRY_HEAD_REGEX.exec(lineRaw)
+    const mapKey = mapEntry?.[1] ?? mapEntry?.[2]
+    if (mapKey && mapEntry?.[3]) {
+      const typeName = mapEntry[3]!
+      const concatFromHere = bodyLines.slice(idx - 1).join('\n')
+      const openRel = concatFromHere.indexOf('{')
+      const closeAbs = openRel >= 0 ? findClosingBrace(concatFromHere, openRel) : -1
+
+      if (closeAbs <= openRel) {
+        ctx.warnings.push(`Entrada mapa "${mapKey}": bloco '${typeName}' não fechado`)
+        continue
+      }
+
+      const innerSlice = concatFromHere.slice(openRel + 1, closeAbs)
+      const consumedHead = concatFromHere.slice(0, closeAbs + 1)
+      idx += consumedHead.split('\n').length - 1
+
+      const entitySchema = ensureSchema(ctx, typeName)
+      ctx.rootSchemaIds.add(entitySchema.id)
+
+      pushScope(
+        ctx,
+        {
+          segmentId: mapKey,
+          typeName,
+          kind: 'entity',
+          openingLine: lineRaw,
+        },
+        entitySchema,
+      )
+
+      parseBlockBody(ctx, typeName, innerSlice)
+      popScope(ctx)
+      continue
+    }
+
+    const parentSchema = schemaAtStackTop(ctx)
+    if (!parentSchema) {
+      continue
+    }
+
+    const listHead = LIST_EMBED_OPEN_REGEX.exec(lineRaw)
+    if (listHead?.[1] && listHead[2]) {
+      const fieldName = listHead[1]!
+      const listType = listHead[2]!
+      const concatFromHere = bodyLines.slice(idx - 1).join('\n')
+      const openRel = concatFromHere.indexOf('{')
+      const closeAbs = openRel >= 0 ? findClosingBrace(concatFromHere, openRel) : -1
+
+      if (closeAbs <= openRel) {
+        ctx.warnings.push(`${parentType}.${fieldName}: lista não fechada`)
+        continue
+      }
+
+      const listInner = concatFromHere.slice(openRel + 1, closeAbs)
+      const consumedHead = concatFromHere.slice(0, closeAbs + 1)
+      idx += consumedHead.split('\n').length - 1
+
+      if (isStructuralListType(listType)) {
+        parseStructuralListBody(ctx, parentType, fieldName, listInner, parentSchema)
+      } else if (isPrimitiveListType(listType)) {
+        const listValue = normalizePrimitiveListBody(listType, listInner)
+        pushScalarParameter(ctx, parentType, parentSchema, fieldName, listType, listValue)
+      }
+      continue
+    }
+
+    const optionHead = OPTION_BLOCK_OPEN_REGEX.exec(lineRaw)
+    if (optionHead?.[1] && optionHead[2]) {
+      const fieldName = optionHead[1]!
+      const ritType = optionHead[2]!
+      const concatFromHere = bodyLines.slice(idx - 1).join('\n')
+      const openRel = concatFromHere.indexOf('{')
+      const closeAbs = openRel >= 0 ? findClosingBrace(concatFromHere, openRel) : -1
+
+      if (closeAbs > openRel) {
+        const innerSlice = concatFromHere.slice(openRel + 1, closeAbs)
+        const consumedHead = concatFromHere.slice(0, closeAbs + 1)
+        idx += consumedHead.split('\n').length - 1
+        pushScalarParameter(ctx, parentType, parentSchema, fieldName, ritType, normalizeBlockBodyAsScalarValue(innerSlice))
+      }
+      continue
+    }
+
+    const embed = INLINE_CHILD_OPEN_REGEX.exec(lineRaw)
+    if (embed?.[2] && embed[3]) {
+      const fieldName = embed[1]!
+      const childName = embed[3]!
+      const concatFromHere = bodyLines.slice(idx - 1).join('\n')
+      const openRel = concatFromHere.indexOf('{')
+      const closeAbs = openRel >= 0 ? findClosingBrace(concatFromHere, openRel) : -1
+
+      let innerSlice = ''
+      if (closeAbs <= openRel) {
+        ctx.warnings.push(`${parentType}.${fieldName}: bloco '${childName}' não fechado`)
+      } else {
+        innerSlice = concatFromHere.slice(openRel + 1, closeAbs)
+        const consumedHead = concatFromHere.slice(0, closeAbs + 1)
+        idx += consumedHead.split('\n').length - 1
+      }
+
+      const childSchema = ensureSchema(ctx, childName)
+
+      pushInternalStructure(parentSchema, parentType, fieldName, childSchema.id)
+
+      pushScope(
+        ctx,
+        {
+          segmentId: fieldName,
+          typeName: childName,
+          kind: 'internal',
+          openingLine: lineRaw,
+        },
+        childSchema,
+      )
+
+      if (innerSlice.trim().length > 0) {
+        parseBlockBody(ctx, childName, innerSlice)
+      }
+
+      popScope(ctx)
+      continue
+    }
+
+    const structOnlyHead = STRUCT_ONLY_LINE.exec(t)
+    if (structOnlyHead?.[1] && classified.kind === 'structural') {
+      const childName = structOnlyHead[1]!
+      const concatFromHere = bodyLines.slice(idx - 1).join('\n')
+      const openRel = concatFromHere.indexOf('{')
+      const closeAbs = openRel >= 0 ? findClosingBrace(concatFromHere, openRel) : -1
+
+      if (closeAbs > openRel) {
+        const innerSlice = concatFromHere.slice(openRel + 1, closeAbs)
+        const consumedHead = concatFromHere.slice(0, closeAbs + 1)
+        idx += consumedHead.split('\n').length - 1
+
+        const anonField = `anon-${parentType.toLowerCase()}`
+        const childSchema = ensureSchema(ctx, childName)
+
+        pushInternalStructure(parentSchema, parentType, anonField, childSchema.id, `${anonField}-${childName}`)
+
+        pushScope(
+          ctx,
+          {
+            segmentId: anonField,
+            typeName: childName,
+            kind: 'internal',
+            openingLine: lineRaw,
+          },
+          childSchema,
+        )
+
+        if (innerSlice.trim().length > 0) {
+          parseBlockBody(ctx, childName, innerSlice)
+        }
+
+        popScope(ctx)
+      }
+      continue
+    }
+
+    if (classified.kind === 'simple' && classified.fieldName && classified.ritType !== undefined) {
+      pushScalarParameter(
+        ctx,
+        parentType,
+        parentSchema,
+        classified.fieldName,
+        classified.ritType,
+        classified.rawValue ?? '',
+      )
+      continue
+    }
+
+    if (FIELD_SCALAR_BRACED_REGEX.test(lineRaw)) {
+      const m = FIELD_SCALAR_BRACED_REGEX.exec(lineRaw)
+      if (m && classifyRitualLine(lineRaw).kind === 'simple') {
+        pushScalarParameter(
+          ctx,
+          parentType,
+          parentSchema,
+          m[1]!,
+          m[2]!.trim(),
+          `{ ${String(m[3]).trim()} }`,
+        )
+      }
+    } else if (FIELD_SCALAR_REGEX.test(lineRaw) && !lineRaw.includes('{')) {
+      const m = FIELD_SCALAR_REGEX.exec(lineRaw)
+      if (m && classifyRitualLine(lineRaw).kind === 'simple') {
+        pushScalarParameter(ctx, parentType, parentSchema, m[1]!, m[2]!.trim(), String(m[3]))
+      }
+    }
+  }
+}
+
+function dedupeSchemas(ctx: ParseCtx): void {
+  for (const schema of ctx.registry.values()) {
+    const seenFields = new Set<string>()
+    schema.parameters = schema.parameters.filter((p) => {
+      if (seenFields.has(p.name)) {
+        ctx.warnings.push(`${schema.title}: campo duplicado "${p.name}" ignorado`)
+        return false
+      }
+      seenFields.add(p.name)
+      return true
+    })
+
+    const seenEnt = new Set<string>()
+    schema.internalStructures = schema.internalStructures.filter((e) => {
+      const k = `${e.id}:${e.schemaId}`
+      if (seenEnt.has(k)) {
+        return false
+      }
+      seenEnt.add(k)
+      return true
+    })
+  }
+}
+
+function collectReachableSchemaIds(ctx: ParseCtx): Set<string> {
+  const out = new Set<string>(ctx.rootSchemaIds)
+  const queue = [...ctx.rootSchemaIds]
+
+  while (queue.length > 0) {
+    const id = queue.shift()!
+    const schema = ctx.registry.get(id)
+    if (!schema) {
+      continue
+    }
+    for (const ref of schema.internalStructures) {
+      if (!out.has(ref.schemaId)) {
+        out.add(ref.schemaId)
+        queue.push(ref.schemaId)
+      }
+    }
+  }
+
+  return out
+}
+
+function parseStandaloneRoot(ctx: ParseCtx, text: string): void {
+  const lines = text.split('\n')
+  let offset = 0
+
+  for (const ln of lines) {
+    const trimmedFull = ln.trim()
+    const head = STRUCT_ONLY_LINE.exec(trimmedFull)
+
+    if (head?.[1]) {
+      const typeName = head[1]!
+      const braceAt = offset + ln.indexOf('{')
+      const close = findClosingBrace(text, braceAt)
+
+      if (close > braceAt) {
+        const body = text.slice(braceAt + 1, close)
+        const entitySchema = ensureSchema(ctx, typeName)
+        ctx.rootSchemaIds.add(entitySchema.id)
+
+        pushScope(
+          ctx,
+          {
+            segmentId: typeName,
+            typeName,
+            kind: 'entity',
+            openingLine: trimmedFull,
+          },
+          entitySchema,
+        )
+
+        parseBlockBody(ctx, typeName, body)
+        popScope(ctx)
+      }
+    }
+
+    offset += ln.length + 1
+  }
+}
+
+export function parseClassGroupRitualWithStack(source: string): ClassGroupStackParseResult {
+  const text = source.replace(/\r\n/g, '\n').trim()
+
+  const ctx: ParseCtx = {
+    registry: new Map(),
+    rootSchemaIds: new Set(),
+    classGroupPathBySchemaId: new Map(),
+    warnings: [],
+    scopeStack: [],
+  }
+
+  const entriesBraces = findEntriesMapValueBraces(text)
+
+  if (entriesBraces) {
+    const mapBody = text.slice(entriesBraces.openBrace + 1, entriesBraces.closeBrace)
+
+    ctx.scopeStack.push({
+      segmentId: 'entries',
+      typeName: 'entries',
+      schemaId: '',
+      kind: 'entries',
+      openingLine: 'entries: map',
+    })
+
+    parseBlockBody(ctx, 'entries', mapBody)
+    popScope(ctx)
+  } else {
+    parseStandaloneRoot(ctx, text)
+  }
+
+  dedupeSchemas(ctx)
+
+  return {
+    registry: ctx.registry,
+    rootSchemaIds: ctx.rootSchemaIds,
+    classGroupPathBySchemaId: ctx.classGroupPathBySchemaId,
+    warnings: ctx.warnings,
+  }
+}
+
+export function schemasFromClassGroupStackParse(
+  parse: ClassGroupStackParseResult,
+): NodeSchemaDefinition[] {
+  const reachable = collectReachableSchemaIds({
+    registry: parse.registry,
+    rootSchemaIds: parse.rootSchemaIds,
+    classGroupPathBySchemaId: parse.classGroupPathBySchemaId,
+    warnings: [],
+    scopeStack: [],
+  })
+
+  if (reachable.size === 0 && parse.registry.size > 0) {
+    for (const id of parse.registry.keys()) {
+      reachable.add(id)
+    }
+  }
+
+  const list: NodeSchemaDefinition[] = []
+
+  for (const id of reachable) {
+    const sch = parse.registry.get(id)
+    if (!sch) {
+      continue
+    }
+    list.push(
+      structuredClone({
+        ...sch,
+        parameters: [...sch.parameters].sort((a, bb) => a.name.localeCompare(bb.name)),
+        internalStructures: [...sch.internalStructures],
+      }),
+    )
+  }
+
+  return list
+}

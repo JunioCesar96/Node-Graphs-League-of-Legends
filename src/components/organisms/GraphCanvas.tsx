@@ -14,7 +14,12 @@ import {
 } from '@/core/collectionTypeLinking'
 import type { NodeElementListItem } from '@/core/listNodeElements'
 import type { InternalStructureDefinition, NodeParameterDefinition, NodeSchemaDefinition } from '@/core/nodeSchema'
-import { filterInternalStructuresByPathHierarchy } from '@/core/pathHierarchyInternalStructures'
+import {
+  filterInternalStructuresByPathHierarchy,
+  listInternalStructureCandidatesForBase,
+} from '@/core/pathHierarchyInternalStructures'
+import { isParameterPickerOpen } from '@/core/parameterPickerModal'
+import { schemaJsonRelativePathBySchemaId } from '@/core/nodeStructureRegistry'
 import { schemaRegistry } from '@/core/nodeStructureRegistry'
 
 import styles from './GraphCanvas.module.css'
@@ -982,6 +987,10 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
   }, [openPalette])
 
   const handleViewportPointerDown = (event: PointerEvent<HTMLDivElement>) => {
+    if (isParameterPickerOpen()) {
+      return
+    }
+
     const target = event.target as HTMLElement
 
     if (
@@ -1052,6 +1061,10 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
   }
 
   const handleViewportPointerMove = (event: PointerEvent<HTMLDivElement>) => {
+    if (isParameterPickerOpen()) {
+      return
+    }
+
     const shouldAdvanceDraftLink =
       !nodeDragGesture.current &&
       pendingLink &&
@@ -1335,6 +1348,10 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     }
 
     const handleWheelPan = (event: WheelEvent) => {
+      if (isParameterPickerOpen()) {
+        return
+      }
+
       if (isEditableTarget(event.target)) {
         return
       }
@@ -1707,19 +1724,23 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
                 canAcceptLink={isCompatibleTarget}
                 catalogInternalStructures={(() => {
                   const sid = canvasNode.node.schema.id
+                  const parentSchema = canvasNode.node.schema
                   const kind = schemaNodeKindBySchemaId?.[sid] ?? 'module'
-                  if (kind !== 'base') {
-                    return undefined
-                  }
-                  const list = schemaBaseInternalStructureCatalogBySchemaId?.[sid] ?? []
+                  const list =
+                    kind === 'base'
+                      ? (schemaBaseInternalStructureCatalogBySchemaId?.[sid] ?? [])
+                      : listInternalStructureCandidatesForBase(parentSchema, schemaRegistry, {
+                          jsonRelativePathBySchemaId: schemaJsonRelativePathBySchemaId,
+                        })
                   const used = new Set(
                     canvasNode.node.schema.internalStructures.map((structure) => structure.schemaId),
                   )
                   const fresh = list.filter((structure) => !used.has(structure.schemaId))
                   return filterInternalStructuresByPathHierarchy(
-                    canvasNode.node.schema.nomenclature?.pathHierarchySteps,
+                    parentSchema,
                     fresh,
                     schemaRegistry,
+                    schemaJsonRelativePathBySchemaId,
                   )
                 })()}
                 catalogParameters={(() => {

@@ -26,5 +26,10 @@
       }
     ]
   },
-  "parameters": []
+  "parameters": [],
+  "required_parameter": [
+    "Emitter_emitterName"
+  ],
+  "hashString": "",
+  "hashStringParameterId": "Emitter_emitterName"
 }

@@ -106,6 +106,187 @@
   border-color: var(--port-child);
 }
 
+.subfolderMenuWrap {
+  position: relative;
+  align-self: flex-start;
+  flex-shrink: 0;
+}
+
+.subfolderMenuTrigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 28px;
+  padding: 0 0.7rem 0 var(--space-3);
+  color: var(--color-text-muted);
+  font-family: var(--font-data);
+  font-size: 0.68rem;
+  background: rgb(255 255 255 / 4%);
+  border: 1px solid var(--color-border-soft);
+  border-radius: 999px;
+}
+
+.subfolderMenuTrigger:hover,
+.subfolderMenuTrigger[aria-expanded='true'] {
+  color: var(--color-text-primary);
+  background: rgb(255 193 7 / 12%);
+  border-color: var(--port-child);
+}
+
+.subfolderMenuTriggerLabel {
+  flex-shrink: 0;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.subfolderMenuTriggerValue {
+  overflow: hidden;
+  max-width: 12rem;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.subfolderMenuTriggerChevron {
+  flex-shrink: 0;
+  margin-left: 0.15rem;
+  font-size: 0.65rem;
+  opacity: 0.85;
+}
+
+.subfolderPopover {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: min(360px, calc(100vw - 3rem));
+  padding: var(--space-3);
+  background: linear-gradient(180deg, rgb(42 42 44 / 98%), rgb(22 22 24 / 99%));
+  border: 1px solid var(--color-border-strong);
+  border-radius: 16px;
+  box-shadow:
+    0 18px 52px rgb(0 0 0 / 48%),
+    inset 0 1px 0 rgb(255 255 255 / 6%);
+}
+
+.subfolderPopoverSearch {
+  flex-shrink: 0;
+  width: 100%;
+  padding: 0.65rem 0.85rem;
+  color: var(--color-text-primary);
+  font: 600 0.88rem var(--font-body);
+  background: rgb(0 0 0 / 24%);
+  border: 1px solid var(--color-border-soft);
+  border-radius: 12px;
+}
+
+.subfolderPopoverSearch:focus {
+  border-color: var(--port-child);
+  outline: none;
+  box-shadow: 0 0 0 3px rgb(255 193 7 / 12%);
+}
+
+.subfolderPopoverBody {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  gap: var(--space-2);
+  min-height: 0;
+}
+
+.subfolderPopoverList {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  min-height: min(240px, 36dvh);
+  max-height: min(280px, 40dvh);
+  padding: 2px 1px;
+  margin: 0;
+  overflow-x: clip;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.subfolderPopoverList::-webkit-scrollbar {
+  display: none;
+}
+
+.subfolderPopoverOption {
+  width: 100%;
+  padding: 0.55rem 0.75rem;
+  color: var(--color-text-muted);
+  font-family: var(--font-data);
+  font-size: 0.74rem;
+  text-align: left;
+  background: rgb(255 255 255 / 4%);
+  border: 1px solid transparent;
+  border-radius: 10px;
+}
+
+.subfolderPopoverOption:hover {
+  color: var(--color-text-primary);
+  background: rgb(255 255 255 / 7%);
+  border-color: var(--color-border-soft);
+}
+
+.subfolderPopoverOption[aria-selected='true'] {
+  color: var(--color-text-primary);
+  background: rgb(255 193 7 / 14%);
+  border-color: var(--port-child);
+}
+
+.subfolderPopoverEmpty {
+  padding: var(--space-3);
+  color: var(--color-text-muted);
+  font-family: var(--font-data);
+  font-size: 0.72rem;
+  line-height: 1.35;
+  text-align: center;
+  background: rgb(255 255 255 / 3%);
+  border: 1px dashed var(--color-border-soft);
+  border-radius: 10px;
+}
+
+.subfolderScrollControl {
+  --scroll-duration: 720ms;
+  --scroll-glow: 8px;
+  --scroll-intensity: 0;
+  --scroll-shift: 2px;
+  --scroll-shift-negative: -2px;
+
+  position: relative;
+  top: 0;
+  right: 0;
+  flex-shrink: 0;
+  display: grid;
+  grid-template-rows: 20px 34px 20px;
+  place-items: center;
+  width: 40px;
+  height: 78px;
+  padding: 0;
+  color: var(--color-text-muted);
+  background: transparent;
+  border: 0;
+  transition: color 160ms ease;
+  touch-action: none;
+}
+
+.subfolderScrollControl .scrollCenter {
+  width: 34px;
+  height: 34px;
+}
+
+.subfolderScrollControl .scrollArrowUp,
+.subfolderScrollControl .scrollArrowDown {
+  width: 28px;
+  height: 18px;
+}
+
 .results {
   --palette-rows: 1;
   --palette-expand-slots: 0;

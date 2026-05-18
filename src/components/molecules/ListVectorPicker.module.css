@@ -1,0 +1,177 @@
+.picker {
+  --list-accent: var(--syntax-vector4);
+  --list-accent-line: color-mix(in srgb, var(--list-accent) 88%, white);
+  --list-input-bg: rgb(255 255 255 / 4%);
+
+  display: grid;
+  gap: var(--space-3);
+  width: min(420px, 94vw);
+  max-height: min(72vh, 520px);
+  padding: var(--space-3);
+  font-family: var(--font-ui);
+  background: rgb(18 20 24 / 98%);
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-leaf);
+  box-shadow: 0 12px 40px var(--color-shadow);
+}
+
+.vec2 {
+  --list-accent: var(--syntax-vector2);
+}
+
+.vec3 {
+  --list-accent: var(--syntax-vector3);
+}
+
+.vec4 {
+  --list-accent: var(--syntax-vector4);
+}
+
+.title {
+  color: var(--color-text-primary);
+  font-family: var(--font-data);
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.listScroll {
+  display: grid;
+  gap: var(--space-2);
+  max-height: 220px;
+  padding-right: var(--space-1);
+  overflow: auto;
+}
+
+.itemRow {
+  display: grid;
+  gap: var(--space-1);
+  justify-items: center;
+}
+
+.itemButton {
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  color: var(--color-text-primary);
+  font-family: var(--font-data);
+  font-size: 0.78rem;
+  text-align: center;
+  background: var(--list-input-bg);
+  border: 1px solid rgb(255 255 255 / 72%);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.itemButton:hover {
+  border-color: var(--list-accent-line);
+}
+
+.itemButtonSelected {
+  border-color: var(--list-accent-line);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--list-accent) 35%, transparent);
+}
+
+.itemButton:focus-visible {
+  outline: 2px solid var(--list-accent);
+  outline-offset: 1px;
+}
+
+.itemIndex {
+  color: var(--color-text-muted);
+  font-family: var(--font-data);
+  font-size: 0.68rem;
+}
+
+.vecMenuWrap {
+  position: relative;
+  width: 100%;
+}
+
+.vecTrigger {
+  width: 100%;
+  padding: var(--space-2);
+  color: var(--color-text-secondary);
+  font-family: var(--font-data);
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  background: rgb(255 255 255 / 6%);
+  border: 1px solid var(--color-border-soft);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.vecTrigger:hover {
+  color: var(--color-text-primary);
+  border-color: var(--list-accent-line);
+}
+
+.vecTriggerOpen {
+  color: var(--color-text-primary);
+  border-color: var(--list-accent-line);
+  background: color-mix(in srgb, var(--list-accent) 12%, transparent);
+}
+
+.vecTrigger:focus-visible {
+  outline: 2px solid var(--list-accent);
+  outline-offset: 1px;
+}
+
+.vecSubmenu {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 6px);
+  left: 0;
+  z-index: 2;
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-1);
+  background: rgb(18 20 24 / 98%);
+  border: 1px solid rgb(255 255 255 / 72%);
+  border-radius: var(--radius-control);
+  box-shadow: 0 8px 28px var(--color-shadow);
+}
+
+.vecSubmenuItem {
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  color: var(--color-text-primary);
+  font-family: var(--font-data);
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  text-align: center;
+  text-transform: uppercase;
+  background: var(--list-input-bg);
+  border: 1px solid transparent;
+  border-radius: calc(var(--radius-control) - 2px);
+  cursor: pointer;
+}
+
+.vecSubmenuItem:hover:not(:disabled) {
+  border-color: var(--list-accent-line);
+  background: color-mix(in srgb, var(--list-accent) 10%, transparent);
+}
+
+.vecSubmenuItem:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.vecSubmenuItem:focus-visible {
+  outline: 2px solid var(--list-accent);
+  outline-offset: -1px;
+}
+
+.editorSlot {
+  min-height: 0;
+  max-height: 360px;
+  overflow: auto;
+}
+
+.emptyHint {
+  color: var(--color-text-muted);
+  font-family: var(--font-data);
+  font-size: 0.72rem;
+  text-align: center;
+}

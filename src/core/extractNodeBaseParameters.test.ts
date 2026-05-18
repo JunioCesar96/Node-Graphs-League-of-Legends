@@ -17,6 +17,9 @@ describe('defaultValueForNodeBaseType', () => {
     expect(defaultValueForNodeBaseType('float')).toBe('0')
     expect(defaultValueForNodeBaseType('double')).toBe('0')
     expect(defaultValueForNodeBaseType('integer')).toBe('0')
+    expect(defaultValueForNodeBaseType('u32')).toBe('0')
+    expect(defaultValueForNodeBaseType('i8')).toBe('0')
+    expect(defaultValueForNodeBaseType('f32')).toBe('0')
     expect(defaultValueForNodeBaseType('string')).toBe('')
     expect(defaultValueForNodeBaseType('keyword')).toBe('')
     expect(defaultValueForNodeBaseType('bool')).toBe('false')
@@ -106,6 +109,6 @@ describe('isKnownStructureParameterType', () => {
   it('reconhece tipos do nodeSchema', () => {
     expect(isKnownStructureParameterType('vector3')).toBe(true)
     expect(isKnownStructureParameterType('string')).toBe(true)
-    expect(isKnownStructureParameterType('bool')).toBe(false)
+    expect(isKnownStructureParameterType('bool')).toBe(true)
   })
 })

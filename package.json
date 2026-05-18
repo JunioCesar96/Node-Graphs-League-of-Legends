@@ -10,6 +10,8 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
+    "reconvert:class": "npx vite-node scripts/reconvert-class-pack.ts class",
+    "reconvert:ccg": "npx vite-node scripts/reconvert-class-pack.ts ccg",
     "jade-bridge:dev": "node scripts/jade/mock-bridge-server.mjs",
     "ritobin-bridge:dev": "node scripts/ritobin/invoke-server.mjs",
     "jade-export:bintree:build": "cd ../Jade-League-Bin-Editor/src-tauri && cargo build --release --bin jade-export-bintree-json",

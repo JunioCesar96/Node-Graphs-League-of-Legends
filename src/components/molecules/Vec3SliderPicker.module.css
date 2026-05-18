@@ -1,0 +1,72 @@
+.picker {
+  --axis-accent: var(--syntax-vector3);
+  --axis-accent-line: color-mix(in srgb, var(--axis-accent) 88%, white);
+  --axis-input-bg: rgb(255 255 255 / 4%);
+
+  display: grid;
+  gap: var(--space-3);
+  width: min(300px, 92vw);
+  padding: var(--space-3);
+  font-family: var(--font-ui);
+  background: rgb(18 20 24 / 98%);
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-leaf);
+  box-shadow: 0 12px 40px var(--color-shadow);
+}
+
+.rangeHeader {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.rangeTitle {
+  color: var(--color-text-primary);
+  font-family: var(--font-data);
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.rangeFields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+}
+
+.rangeField {
+  display: grid;
+  gap: var(--space-1);
+  justify-items: center;
+}
+
+.rangeInput {
+  width: 100%;
+  padding: var(--space-2) var(--space-2);
+  color: var(--color-text-primary);
+  font-family: var(--font-data);
+  font-size: 0.82rem;
+  text-align: center;
+  background: var(--axis-input-bg);
+  border: 1px solid rgb(255 255 255 / 72%);
+  border-radius: 4px;
+}
+
+.rangeInput:focus {
+  outline: 2px solid var(--axis-accent);
+  outline-offset: 1px;
+}
+
+.rangeLabel {
+  color: var(--color-text-muted);
+  font-family: var(--font-data);
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  text-transform: lowercase;
+}
+
+.slidersRow {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-3);
+  align-items: end;
+}

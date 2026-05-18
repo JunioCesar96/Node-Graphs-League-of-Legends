@@ -1,9 +1,30 @@
 import type { ConvertRitobinToStructuresResult } from '@/core/convertRitobinTextToNodeStructures'
 import { convertRitobinStructureTextToNodeSchemas } from '@/core/convertRitobinTextToNodeStructures'
+import { applyClassGroupNomenclatureFromSchemaPaths } from '@/core/binNomenclatureAnalyzer'
 import { convertParsedVfxToNodeSchemas } from '@/core/convertVfxToNodeStructures'
 import { normalizeLineEndings, parseVfxContent } from '@/core/jadeVfxParse'
 
 export type { ConvertRitobinToStructuresResult }
+
+function withClassGroupNomenclature(
+  base: ConvertRitobinToStructuresResult,
+): ConvertRitobinToStructuresResult {
+  if (base.ok === false) {
+    return base
+  }
+  const pathById = base.classGroupPathBySchemaId
+  if (!pathById || Object.keys(pathById).length === 0) {
+    return base
+  }
+  const { schemas, warnings } = applyClassGroupNomenclatureFromSchemaPaths(base.schemas, pathById)
+  return {
+    ok: true,
+    schemas,
+    warnings: [...base.warnings, ...warnings],
+    classGroupPathBySchemaId: pathById,
+    rootSchemaIds: base.rootSchemaIds,
+  }
+}
 
 /**
  * Preferencialmente VFX (como o Particle Editor do Jade); senão conversão genérica ritual → structs.
@@ -22,7 +43,7 @@ export function convertRitualTextToNodeSchemas(source: string): ConvertRitobinTo
     }
   }
 
-  return convertRitobinStructureTextToNodeSchemas(source)
+  return withClassGroupNomenclature(convertRitobinStructureTextToNodeSchemas(source))
 }
 
 /** Só VFX Particle Editor Jade (`… = VfxSystemDefinitionData {`); erro se não for esse formato. */
@@ -47,5 +68,5 @@ export function convertRitualTextJadeFxEditor(source: string): ConvertRitobinToS
 
 /** Structs/classes rituais (blocos «TipoName {»); mesmo motor que structs genéricas, sem ramo VFX. */
 export function convertRitualTextClassGroup(source: string): ConvertRitobinToStructuresResult {
-  return convertRitobinStructureTextToNodeSchemas(normalizeLineEndings(source))
+  return withClassGroupNomenclature(convertRitobinStructureTextToNodeSchemas(normalizeLineEndings(source)))
 }

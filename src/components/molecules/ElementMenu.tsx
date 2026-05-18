@@ -1,16 +1,32 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { Button } from '@/components/atoms/Button'
+import { useCustomListScrollControl } from '@/hooks/useCustomListScrollControl'
 import type { InternalStructureDefinition, NodeInstance, NodeParameterDefinition } from '@/core/nodeSchema'
 import {
+  type ElementMenuEntry,
   type ElementMenuOrganizationMode,
   ELEMENT_MENU_ALL_TYPE_TAG_ID,
   buildAutomaticTypeTags,
   buildElementMenuEntries,
+  catalogStructureAppendName,
   filterAndSortElementMenuEntries,
+  filterElementMenuEntriesByCatalogScope,
 } from '@/core/elementMenuCatalogUtils'
+import { ElementMenuAddPanel } from '@/components/molecules/ElementMenuAddPanel'
 import { listRemovableNodeElements } from '@/core/listNodeElements'
-import { schemaRegistry } from '@/core/nodeStructureRegistry'
+import {
+  buildElementMenuScopeCatalogSources,
+  defaultElementMenuCatalogScope,
+  elementMenuScopeHasCatalog,
+  type ElementMenuCatalogScope,
+} from '@/core/elementMenuScopeCatalog'
+import {
+  schemaJsonRelativePathBySchemaId,
+  schemaNodeKindBySchemaId,
+  schemaPackFolderBySchemaId,
+  schemaRegistry,
+} from '@/core/nodeStructureRegistry'
 
 import { ELEMENT_REMOVAL_PICKER_ROOT_ATTR } from '@/components/molecules/ElementRemovalPicker'
 
@@ -23,6 +39,7 @@ type ElementMenuProps = {
   disabledTitle?: string
   hasCatalogParameters: boolean
   hasCatalogStructures: boolean
+  nodeKind?: 'module' | 'base'
   node: NodeInstance
   onAppendCatalogInternalStructure?: (structure: InternalStructureDefinition) => void
   onAppendCatalogParameter?: (parameter: NodeParameterDefinition) => void
@@ -35,6 +52,7 @@ type ElementMenuProps = {
 type MenuPanel = 'root' | 'add'
 
 const DEFAULT_ORGANIZATION: ElementMenuOrganizationMode = 'az'
+const TYPE_FILTER_VISIBLE_ROWS = 5
 
 export function ElementMenu({
   catalogInternalStructures,
@@ -43,6 +61,7 @@ export function ElementMenu({
   disabledTitle,
   hasCatalogParameters,
   hasCatalogStructures,
+  nodeKind = 'base',
   node,
   onAppendCatalogInternalStructure,
   onAppendCatalogParameter,
@@ -52,52 +71,134 @@ export function ElementMenu({
   showPicker,
 }: ElementMenuProps) {
   const elementSelectorRef = useRef<HTMLDetailsElement>(null)
+  const elementPickerMenuWrapRef = useRef<HTMLDivElement | null>(null)
+  const elementPickerSearchInputRef = useRef<HTMLInputElement | null>(null)
+
   const [isOpen, setIsOpen] = useState(false)
   const [panel, setPanel] = useState<MenuPanel>('root')
   const [elementQuery, setElementQuery] = useState('')
   const [elementOrganization, setElementOrganization] =
     useState<ElementMenuOrganizationMode>(DEFAULT_ORGANIZATION)
   const [activeTypeTagId, setActiveTypeTagId] = useState<string | null>(ELEMENT_MENU_ALL_TYPE_TAG_ID)
+  const [elementPickerMenuOpen, setElementPickerMenuOpen] = useState(false)
+  const [catalogScope, setCatalogScope] = useState<ElementMenuCatalogScope>(() =>
+    defaultElementMenuCatalogScope(nodeKind),
+  )
 
   const removables = listRemovableNodeElements(node, parameterStubCatalog)
   const canRemove = removables.length > 0 && Boolean(onRemoveElement)
 
-  const catalogEntries = useMemo(
+  const scopeCatalogSources = useMemo(
     () =>
-      buildElementMenuEntries({
-        presetStructures: node.schema.internalStructures,
-        catalogStructures: catalogInternalStructures,
-        catalogParameters: catalogParameters,
-        includeCatalogStructures: hasCatalogStructures,
-        includeCatalogParameters: hasCatalogParameters,
+      buildElementMenuScopeCatalogSources({
+        node,
+        nodeKind,
         schemaRegistry,
+        schemaNodeKindBySchemaId,
+        jsonRelativePathBySchemaId: schemaJsonRelativePathBySchemaId,
+        packFolderBySchemaId: schemaPackFolderBySchemaId,
+        baseCatalogStructures: catalogInternalStructures,
+        baseCatalogParameters: catalogParameters,
       }),
-    [
-      catalogInternalStructures,
-      catalogParameters,
-      hasCatalogParameters,
-      hasCatalogStructures,
-      node.schema.internalStructures,
-    ],
+    [catalogInternalStructures, catalogParameters, node, nodeKind],
   )
 
-  const automaticTypeTags = useMemo(() => buildAutomaticTypeTags(catalogEntries), [catalogEntries])
+  const catalogEntries = useMemo(() => {
+    const moduleSlice = buildElementMenuEntries({
+      ...scopeCatalogSources.module,
+      schemaRegistry,
+      catalogScope: 'module',
+    })
+    const baseSlice = buildElementMenuEntries({
+      ...scopeCatalogSources.base,
+      schemaRegistry,
+      catalogScope: 'base',
+    })
+    return [...moduleSlice, ...baseSlice]
+  }, [scopeCatalogSources])
+
+  const scopedCatalogEntries = useMemo(
+    () => filterElementMenuEntriesByCatalogScope(catalogEntries, catalogScope),
+    [catalogEntries, catalogScope],
+  )
+
+  const automaticTypeTags = useMemo(
+    () => buildAutomaticTypeTags(scopedCatalogEntries),
+    [scopedCatalogEntries],
+  )
+
+  const typeFilterScrollActive =
+    elementPickerMenuOpen && automaticTypeTags.length > TYPE_FILTER_VISIBLE_ROWS
+  const {
+    listRef: elementTypeListRef,
+    isScrollActive: isElementTypeScrollActive,
+    scrollDirection: elementTypeScrollDirection,
+    startScroll: startElementTypeScroll,
+    moveScroll: moveElementTypeScroll,
+    stopScroll: stopElementTypeScroll,
+    scrollControlStyle: elementTypeScrollControlStyle,
+  } = useCustomListScrollControl(typeFilterScrollActive)
+
+  const showElementTypeScrollControl = automaticTypeTags.length > TYPE_FILTER_VISIBLE_ROWS
 
   const visibleEntries = useMemo(
     () =>
       filterAndSortElementMenuEntries(
-        catalogEntries,
+        scopedCatalogEntries,
         elementQuery,
         elementOrganization,
         activeTypeTagId,
+        catalogScope,
       ),
-    [activeTypeTagId, catalogEntries, elementOrganization, elementQuery],
+    [activeTypeTagId, catalogScope, elementOrganization, elementQuery, scopedCatalogEntries],
   )
 
-  const resetAddPanelState = () => {
+  const elementPickerSummaryLabel = useMemo(() => {
+    const n = visibleEntries.length
+    if (n === 0) {
+      return 'Nenhum'
+    }
+    if (n === scopedCatalogEntries.length) {
+      return `${String(n)} dispon\u00edveis`
+    }
+    return `${String(n)} de ${String(scopedCatalogEntries.length)}`
+  }, [scopedCatalogEntries.length, visibleEntries.length])
+
+  const resolveCatalogScopeWithCatalog = (
+    preferred: ElementMenuCatalogScope,
+  ): ElementMenuCatalogScope => {
+    if (elementMenuScopeHasCatalog(preferred, scopeCatalogSources)) {
+      return preferred
+    }
+    if (preferred === 'module' && elementMenuScopeHasCatalog('base', scopeCatalogSources)) {
+      return 'base'
+    }
+    if (preferred === 'base' && elementMenuScopeHasCatalog('module', scopeCatalogSources)) {
+      return 'module'
+    }
+    return preferred
+  }
+
+  const refreshAddPanelFilters = (scope: ElementMenuCatalogScope) => {
     setElementQuery('')
     setElementOrganization(DEFAULT_ORGANIZATION)
     setActiveTypeTagId(ELEMENT_MENU_ALL_TYPE_TAG_ID)
+    setElementPickerMenuOpen(false)
+    setCatalogScope(scope)
+  }
+
+  const resetAddPanelState = () => {
+    refreshAddPanelFilters(defaultElementMenuCatalogScope(nodeKind))
+  }
+
+  const openAddPanel = () => {
+    const scope = resolveCatalogScopeWithCatalog(defaultElementMenuCatalogScope(nodeKind))
+    refreshAddPanelFilters(scope)
+    setPanel('add')
+  }
+
+  const handleCatalogScopeChange = (scope: ElementMenuCatalogScope) => {
+    refreshAddPanelFilters(resolveCatalogScopeWithCatalog(scope))
   }
 
   useEffect(() => {
@@ -120,11 +221,17 @@ export function ElementMenu({
       }
     }
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setIsOpen(false)
-        setPanel('root')
-        resetAddPanelState()
+      if (event.key !== 'Escape') {
+        return
       }
+      if (elementPickerMenuOpen) {
+        event.stopPropagation()
+        setElementPickerMenuOpen(false)
+        return
+      }
+      setIsOpen(false)
+      setPanel('root')
+      resetAddPanelState()
     }
 
     document.addEventListener('mousedown', closeOnOutsideClick)
@@ -133,7 +240,28 @@ export function ElementMenu({
       document.removeEventListener('mousedown', closeOnOutsideClick)
       document.removeEventListener('keydown', closeOnEscape)
     }
-  }, [isOpen])
+  }, [elementPickerMenuOpen, isOpen])
+
+  useEffect(() => {
+    if (elementPickerMenuOpen) {
+      elementPickerSearchInputRef.current?.focus()
+    }
+  }, [elementPickerMenuOpen])
+
+  useEffect(() => {
+    if (!elementPickerMenuOpen) {
+      return
+    }
+    const onPointerDownCapture = (event: globalThis.PointerEvent) => {
+      const el = elementPickerMenuWrapRef.current
+      const target = event.target
+      if (el && target instanceof globalThis.Node && !el.contains(target)) {
+        setElementPickerMenuOpen(false)
+      }
+    }
+    document.addEventListener('pointerdown', onPointerDownCapture, true)
+    return () => document.removeEventListener('pointerdown', onPointerDownCapture, true)
+  }, [elementPickerMenuOpen])
 
   if (disabled) {
     return (
@@ -145,7 +273,10 @@ export function ElementMenu({
 
   if (!showPicker) {
     return (
-      <Button disabled title="Não há parâmetros nem Internal_Structures disponíveis para acrescentar.">
+      <Button
+        disabled
+        title={'N\u00e3o h\u00e1 par\u00e2metros nem Internal_Structures dispon\u00edveis para acrescentar.'}
+      >
         Element
       </Button>
     )
@@ -157,11 +288,14 @@ export function ElementMenu({
     resetAddPanelState()
   }
 
-  const handlePickEntry = (entry: (typeof visibleEntries)[number]) => {
+  const handlePickEntry = (entry: ElementMenuEntry) => {
     if (entry.onPick === 'create-element' && entry.structure) {
       onCreateElement?.(entry.structure)
     } else if (entry.onPick === 'append-structure' && entry.structure) {
-      onAppendCatalogInternalStructure?.(entry.structure)
+      onAppendCatalogInternalStructure?.({
+        ...entry.structure,
+        name: catalogStructureAppendName(entry, schemaRegistry),
+      })
     } else if (entry.onPick === 'append-parameter' && entry.parameter) {
       onAppendCatalogParameter?.(entry.parameter)
     }
@@ -189,11 +323,7 @@ export function ElementMenu({
       <div className={styles.elementMenu}>
         {panel === 'root' ? (
           <>
-            <button
-              className={styles.toolRow}
-              onClick={() => setPanel('add')}
-              type="button"
-            >
+            <button className={styles.toolRow} onClick={openAddPanel} type="button">
               <span>+ Element</span>
               <small>adicionar</small>
             </button>
@@ -206,8 +336,8 @@ export function ElementMenu({
               }}
               title={
                 canRemove
-                  ? 'Remover parâmetro ou Internal_Structure deste nó'
-                  : 'Não há elementos para remover neste nó'
+                  ? 'Remover par\u00e2metro ou Internal_Structure deste n\u00f3'
+                  : 'N\u00e3o h\u00e1 elementos para remover neste n\u00f3'
               }
               type="button"
             >
@@ -216,84 +346,37 @@ export function ElementMenu({
             </button>
           </>
         ) : (
-          <div className={styles.addPanel}>
-            <button
-              className={styles.backRow}
-              onClick={() => {
-                setPanel('root')
-                resetAddPanelState()
-              }}
-              type="button"
-            >
-              ← Element
-            </button>
-
-            <input
-              aria-label="Pesquisar elementos do catálogo"
-              autoComplete="off"
-              className={styles.searchInput}
-              onChange={(event) => setElementQuery(event.target.value)}
-              placeholder="Pesquisar elemento…"
-              type="search"
-              value={elementQuery}
-            />
-
-            <div aria-label="Modos de organização" className={styles.tags}>
-              <button
-                aria-pressed={elementOrganization === 'az'}
-                onClick={() => setElementOrganization('az')}
-                type="button"
-              >
-                A-Z
-              </button>
-              <button
-                aria-pressed={elementOrganization === 'tipo'}
-                onClick={() => setElementOrganization('tipo')}
-                type="button"
-              >
-                Tipo
-              </button>
-              <button
-                aria-pressed={elementOrganization === 'parameter-type'}
-                onClick={() => setElementOrganization('parameter-type')}
-                type="button"
-              >
-                Tipo de Parâmetro
-              </button>
-            </div>
-
-            {automaticTypeTags.length > 0 ? (
-              <div aria-label="Filtrar por tipo detectado" className={styles.typeTags}>
-                {automaticTypeTags.map((tag) => (
-                  <button
-                    aria-pressed={
-                      tag.id === ELEMENT_MENU_ALL_TYPE_TAG_ID
-                        ? activeTypeTagId === ELEMENT_MENU_ALL_TYPE_TAG_ID || activeTypeTagId === null
-                        : activeTypeTagId === tag.id
-                    }
-                    key={tag.id}
-                    onClick={() => setActiveTypeTagId(tag.id)}
-                    type="button"
-                  >
-                    {tag.label}
-                  </button>
-                ))}
-              </div>
-            ) : null}
-
-            <div className={styles.results}>
-              {visibleEntries.length > 0 ? (
-                visibleEntries.map((entry) => (
-                  <button key={entry.id} onClick={() => handlePickEntry(entry)} type="button">
-                    <span>{entry.label}</span>
-                    <small>{entry.meta}</small>
-                  </button>
-                ))
-              ) : (
-                <p className={styles.emptyState}>Nenhum elemento encontrado</p>
-              )}
-            </div>
-          </div>
+          <ElementMenuAddPanel
+            activeTypeTagId={activeTypeTagId}
+            automaticTypeTags={automaticTypeTags}
+            catalogScope={catalogScope}
+            elementOrganization={elementOrganization}
+            elementPickerMenuOpen={elementPickerMenuOpen}
+            elementPickerMenuWrapRef={elementPickerMenuWrapRef}
+            elementPickerSearchInputRef={elementPickerSearchInputRef}
+            elementPickerSummaryLabel={elementPickerSummaryLabel}
+            elementQuery={elementQuery}
+            elementTypeListRef={elementTypeListRef}
+            elementTypeScrollControlStyle={elementTypeScrollControlStyle}
+            elementTypeScrollDirection={elementTypeScrollDirection}
+            isElementTypeScrollActive={isElementTypeScrollActive}
+            onBack={() => {
+              setPanel('root')
+              resetAddPanelState()
+            }}
+            onCatalogScopeChange={handleCatalogScopeChange}
+            onPickEntry={handlePickEntry}
+            scopeCatalogSources={scopeCatalogSources}
+            onSetActiveTypeTagId={setActiveTypeTagId}
+            onSetElementOrganization={setElementOrganization}
+            onSetElementPickerMenuOpen={setElementPickerMenuOpen}
+            onSetElementQuery={setElementQuery}
+            showElementTypeScrollControl={showElementTypeScrollControl}
+            startElementTypeScroll={startElementTypeScroll}
+            moveElementTypeScroll={moveElementTypeScroll}
+            stopElementTypeScroll={stopElementTypeScroll}
+            visibleEntries={visibleEntries}
+          />
         )}
       </div>
     </details>

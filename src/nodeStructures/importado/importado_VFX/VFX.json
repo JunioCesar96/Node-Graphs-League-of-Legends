@@ -20,7 +20,8 @@
   },
   "parameters": [],
   "required_parameter": [
-    "VFX_systemPath"
+    "VFX_systemPath",
+    "VFX_particleName"
   ],
   "linked_parameter_values": [
     [

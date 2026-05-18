@@ -185,11 +185,11 @@ export function NodeCard({
   const presetStructureCount = node.schema.internalStructures.length
   const isModule = nodeKind === 'module'
   const hasCatalogStructures = Boolean(
-    !isModule && catalogInternalStructures?.length && onAppendCatalogInternalStructure,
+    catalogInternalStructures?.length && onAppendCatalogInternalStructure,
   )
-  const hasCatalogParameters = Boolean(!isModule && catalogParameters?.length && onAppendCatalogParameter)
+  const hasCatalogParameters = Boolean(catalogParameters?.length && onAppendCatalogParameter)
   const showElementPicker =
-    !isModule && (presetStructureCount > 0 || hasCatalogStructures || hasCatalogParameters)
+    presetStructureCount > 0 || hasCatalogStructures || hasCatalogParameters || isModule
 
   const removables = listRemovableNodeElements(node, parameterStubCatalog)
 
@@ -273,11 +273,11 @@ export function NodeCard({
         <ElementMenu
           catalogInternalStructures={catalogInternalStructures}
           catalogParameters={catalogParameters}
-          disabled={isModule}
-          disabledTitle="Nó módulo: catálogo dinâmico (Element) será activado numa fase futura."
+          disabled={false}
           hasCatalogParameters={Boolean(hasCatalogParameters)}
           hasCatalogStructures={Boolean(hasCatalogStructures)}
           node={node}
+          nodeKind={nodeKind}
           onAppendCatalogInternalStructure={onAppendCatalogInternalStructure}
           onAppendCatalogParameter={onAppendCatalogParameter}
           onCreateElement={onCreateElement}

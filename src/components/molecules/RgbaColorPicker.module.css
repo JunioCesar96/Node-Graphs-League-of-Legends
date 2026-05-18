@@ -1,0 +1,213 @@
+.picker {
+  display: grid;
+  gap: var(--space-3);
+  width: min(280px, 92vw);
+  padding: var(--space-3);
+  background: rgb(18 20 24 / 96%);
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-leaf);
+  box-shadow: 0 12px 40px rgb(0 0 0 / 45%);
+}
+
+.topRow {
+  display: grid;
+  grid-template-columns: 1fr 18px;
+  gap: var(--space-2);
+  align-items: stretch;
+}
+
+.svPanel {
+  position: relative;
+  min-height: 140px;
+  overflow: hidden;
+  border: 1px solid var(--color-border-soft);
+  border-radius: 8px;
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.svBase {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to right, #fff, var(--sv-hue, #f00));
+}
+
+.svShade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, #000, transparent);
+}
+
+.svCursor {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border: 2px solid #fff;
+  border-radius: 999px;
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 35%);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.valueSlider {
+  position: relative;
+  width: 18px;
+  border: 1px solid var(--color-border-soft);
+  border-radius: 8px;
+  background: linear-gradient(to bottom, #fff, #000);
+  cursor: ns-resize;
+  touch-action: none;
+}
+
+.valueThumb {
+  position: absolute;
+  left: 50%;
+  width: 14px;
+  height: 6px;
+  background: rgb(255 255 255 / 92%);
+  border: 1px solid rgb(0 0 0 / 35%);
+  border-radius: 3px;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.midRow {
+  display: grid;
+  grid-template-columns: 52px 1fr;
+  gap: var(--space-3);
+  align-items: center;
+}
+
+.previewCol {
+  display: grid;
+  gap: var(--space-2);
+  justify-items: center;
+}
+
+.preview {
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--color-border-soft);
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 8%);
+}
+
+.eyedropper {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  color: var(--color-text-muted);
+  background: transparent;
+  border: 1px solid var(--color-border-soft);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.eyedropper:hover:not(:disabled) {
+  color: var(--color-text-primary);
+  border-color: var(--port-child);
+}
+
+.eyedropper:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.slidersCol {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.hueSlider,
+.alphaSlider {
+  position: relative;
+  height: 14px;
+  border: 1px solid var(--color-border-soft);
+  border-radius: 999px;
+  cursor: ew-resize;
+  touch-action: none;
+}
+
+.hueSlider {
+  background: linear-gradient(
+    to right,
+    #f00 0%,
+    #ff0 17%,
+    #0f0 33%,
+    #0ff 50%,
+    #00f 67%,
+    #f0f 83%,
+    #f00 100%
+  );
+}
+
+.alphaSlider {
+  overflow: hidden;
+}
+
+.alphaChecker {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(45deg, #555 25%, transparent 25%),
+    linear-gradient(-45deg, #555 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #555 75%),
+    linear-gradient(-45deg, transparent 75%, #555 75%);
+  background-position:
+    0 0,
+    0 6px,
+    6px -6px,
+    -6px 0;
+  background-size: 12px 12px;
+}
+
+.alphaFill {
+  position: absolute;
+  inset: 0;
+}
+
+.sliderThumb {
+  position: absolute;
+  top: 50%;
+  width: 14px;
+  height: 14px;
+  border: 2px solid #fff;
+  border-radius: 999px;
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 35%);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.channels {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-2);
+}
+
+.channel {
+  display: grid;
+  gap: 4px;
+  justify-items: center;
+}
+
+.channel input {
+  width: 100%;
+  min-width: 0;
+  padding: 4px 6px;
+  color: var(--color-text-primary);
+  font-family: var(--font-data);
+  font-size: 0.72rem;
+  text-align: center;
+  background: rgb(255 255 255 / 4%);
+  border: 1px solid var(--color-border-soft);
+  border-radius: 6px;
+}
+
+.channel span {
+  color: var(--color-text-muted);
+  font-family: var(--font-data);
+  font-size: 0.62rem;
+  letter-spacing: 0.06em;
+}

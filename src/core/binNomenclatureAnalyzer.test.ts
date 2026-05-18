@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   analyzeRitualTextBinNomecratura,
+  applyClassGroupNomenclatureFromSchemaPaths,
   applyNomenclatureFromBinRitualText,
   mapCollectionNomenclatureToGroup,
 } from '@/core/binNomenclatureAnalyzer'
@@ -107,6 +108,30 @@ emitterName: string = "spark"
     expect(out.appliedCount).toBe(0)
     expect(out.warnings.some((w) => /VfxSystemDefinitionData/i.test(w) || /VFX/i.test(w))).toBe(true)
     expect(out.schemas[0]!.nomenclature).toBeUndefined()
+  })
+})
+
+describe('applyClassGroupNomenclatureFromSchemaPaths', () => {
+  it('preenche collection/pathHierarchy a partir das pilhas do conversor', () => {
+    const schemas = [
+      {
+        id: 'skin-character-data-properties',
+        title: 'SkinCharacterDataProperties',
+        parameters: [],
+        internalStructures: [],
+      },
+    ]
+    const pathById = {
+      'skin-character-data-properties': [
+        { id: 'entries', type: '#1 Root Entry' },
+        { id: 'K', type: '#2 Root Entry (SkinCharacterDataProperties)' },
+      ] as const,
+    }
+    const { schemas: next, appliedCount } = applyClassGroupNomenclatureFromSchemaPaths(schemas, pathById)
+    expect(appliedCount).toBe(1)
+    expect(next[0]!.nomenclature?.group).toBe('#2 Entidades')
+    expect(next[0]!.nomenclature?.pathHierarchy).toBe('entries > K')
+    expect(next[0]!.nomenclature?.pathHierarchySteps?.length).toBe(2)
   })
 })
 

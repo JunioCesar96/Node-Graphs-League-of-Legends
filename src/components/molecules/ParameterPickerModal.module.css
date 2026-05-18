@@ -1,0 +1,21 @@
+.layer {
+  position: fixed;
+  inset: 0;
+  z-index: 10035;
+  pointer-events: auto;
+}
+
+.backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgb(0 0 0 / 36%);
+  backdrop-filter: blur(2px);
+  cursor: default;
+  touch-action: none;
+}
+
+.popoverShell {
+  position: fixed;
+  z-index: 1;
+  pointer-events: auto;
+}

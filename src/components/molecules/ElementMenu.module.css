@@ -91,11 +91,87 @@
   font-weight: 600;
 }
 
+.catalogScopeTags {
+  display: flex;
+  gap: var(--space-2);
+  padding: 0 var(--space-1) var(--space-1);
+}
+
+.catalogScopeTags button {
+  flex: 1 1 0;
+  height: 26px;
+  padding: 0 var(--space-2);
+  color: var(--color-text-muted);
+  font-family: var(--font-data);
+  font-size: 0.64rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: lowercase;
+  background: rgb(255 255 255 / 4%);
+  border: 1px solid var(--color-border-soft);
+  border-radius: 999px;
+}
+
+.catalogScopeTags button:hover:not(:disabled) {
+  color: var(--color-text-primary);
+  background: rgb(255 255 255 / 7%);
+}
+
+.catalogScopeTags button[aria-pressed='true'] {
+  color: var(--color-text-primary);
+  background: rgb(255 193 7 / 14%);
+  border-color: var(--port-child);
+}
+
+.catalogScopeTags button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
 .addPanel {
   display: grid;
   gap: var(--space-1);
   padding-top: var(--space-1);
   border-top: 1px solid var(--color-border-soft);
+}
+
+.elementAddPanelCatalog {
+  display: grid;
+  gap: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--color-border-soft);
+}
+
+.elementAddPanelCatalogHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.elementAddPanelCatalogLabel {
+  color: var(--color-text-muted);
+  font-family: var(--font-data);
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.elementAddPanelCatalog .catalogScopeTags {
+  flex-shrink: 0;
+}
+
+.elementAddPanelCatalogBody {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: min(280px, 42dvh);
+  padding: 2px 1px;
+  overflow-x: clip;
+  overflow-y: auto;
+  scrollbar-width: thin;
 }
 
 .backRow {
@@ -143,28 +219,401 @@
   border-color: var(--port-child);
 }
 
-.typeTags {
+.typeTagMenuWrap {
+  position: relative;
+}
+
+.elementMenu button.typeTagMenuTrigger {
   display: flex;
-  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+  justify-content: flex-start;
+  width: 100%;
+  min-height: 30px;
+  padding: var(--space-2) var(--space-3);
+  color: var(--color-text-muted);
+  font-family: var(--font-data);
+  font-size: 0.66rem;
+  text-align: left;
+  cursor: pointer;
+  background: rgb(120 180 255 / 8%);
+  border: 1px solid rgb(120 180 255 / 22%);
+  border-radius: var(--radius-control);
+}
+
+.elementMenu button.typeTagMenuTrigger:hover,
+.elementMenu button.typeTagMenuTrigger[aria-expanded='true'] {
+  color: var(--color-text-primary);
+  background: rgb(120 180 255 / 16%);
+  border-color: rgb(120 180 255 / 40%);
+}
+
+.elementMenu button.elementPickerMenuTrigger {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  justify-content: flex-start;
+  width: 100%;
+  min-height: 30px;
+  padding: var(--space-2) var(--space-3);
+  color: var(--color-text-muted);
+  font-family: var(--font-data);
+  font-size: 0.66rem;
+  text-align: left;
+  cursor: pointer;
+  background: rgb(255 193 7 / 8%);
+  border: 1px solid rgb(255 193 7 / 22%);
+  border-radius: var(--radius-control);
+}
+
+.elementMenu button.elementPickerMenuTrigger:hover,
+.elementMenu button.elementPickerMenuTrigger[aria-expanded='true'] {
+  color: var(--color-text-primary);
+  background: rgb(255 193 7 / 16%);
+  border-color: rgb(255 193 7 / 40%);
+}
+
+.elementMenu button.elementPickerOption {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: flex-start;
+  justify-content: flex-start;
+  width: 100%;
+  min-height: auto;
+  padding: 0.5rem 0.65rem;
+  color: var(--color-text-muted);
+  font-family: var(--font-data);
+  font-size: 0.72rem;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  background: rgb(255 255 255 / 4%);
+  border: 1px solid transparent;
+  border-radius: 8px;
+}
+
+.elementMenu button.elementPickerOption:hover {
+  color: var(--color-text-primary);
+  background: rgb(255 255 255 / 7%);
+  border-color: var(--color-border-soft);
+}
+
+.elementPickerOptionLabel {
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
+
+.elementPickerOptionMeta {
+  color: var(--color-text-muted);
+  font-size: 0.64rem;
+  line-height: 1.25;
+}
+
+.elementPopoverTypeFilter {
+  display: grid;
   gap: var(--space-2);
 }
 
-.typeTags button {
-  height: 24px;
-  padding: 0 var(--space-3);
+.elementPopoverTypeFilterLabel {
   color: var(--color-text-muted);
   font-family: var(--font-data);
   font-size: 0.62rem;
-  background: rgb(120 180 255 / 8%);
-  border: 1px solid rgb(120 180 255 / 22%);
-  border-radius: 999px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
-.typeTags button:hover,
-.typeTags button[aria-pressed='true'] {
+.elementPopoverTypeFilterBody {
+  display: flex;
+  align-items: stretch;
+  gap: var(--space-2);
+  min-height: 0;
+}
+
+.elementPopoverTypeList {
+  --element-type-row-height: 34px;
+  --element-type-row-gap: 4px;
+
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: var(--element-type-row-gap);
+  min-width: 0;
+  max-height: calc(
+    var(--element-type-row-height) * 5 + var(--element-type-row-gap) * 4
+  );
+  padding: 2px 1px;
+  overflow-x: clip;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.elementPopoverTypeList::-webkit-scrollbar {
+  display: none;
+}
+
+.elementMenu button.elementPopoverTypeOption {
+  flex-shrink: 0;
+  justify-content: flex-start;
+  width: 100%;
+  min-height: var(--element-type-row-height);
+  padding: 0.5rem 0.65rem;
+  color: var(--color-text-muted);
+  font-family: var(--font-data);
+  font-size: 0.72rem;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  background: rgb(255 255 255 / 4%);
+  border: 1px solid transparent;
+  border-radius: 8px;
+}
+
+.elementMenu button.elementPopoverTypeOption:hover {
   color: var(--color-text-primary);
-  background: rgb(120 180 255 / 18%);
+  background: rgb(255 255 255 / 7%);
+  border-color: var(--color-border-soft);
+}
+
+.elementMenu button.elementPopoverTypeOption[aria-selected='true'] {
+  color: var(--color-text-primary);
+  background: rgb(120 180 255 / 22%);
   border-color: rgb(120 180 255 / 45%);
+}
+
+.typeTagMenuTriggerLabel {
+  flex-shrink: 0;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+.typeTagMenuTriggerValue {
+  overflow: hidden;
+  flex: 1 1 auto;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.typeTagMenuTriggerChevron {
+  flex-shrink: 0;
+  font-size: 0.62rem;
+  opacity: 0.85;
+}
+
+.typeTagPopover {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: min(340px, calc(100vw - 2rem));
+  padding: var(--space-3);
+  background: linear-gradient(180deg, rgb(40 48 58 / 98%), rgb(22 26 32 / 99%));
+  border: 1px solid var(--color-border-strong);
+  border-radius: 14px;
+  box-shadow: 0 16px 48px rgb(0 0 0 / 45%);
+}
+
+.typeTagPopoverSearch {
+  width: 100%;
+  padding: 0.55rem 0.75rem;
+  color: var(--color-text-primary);
+  font: 600 0.82rem var(--font-body);
+  background: rgb(0 0 0 / 28%);
+  border: 1px solid var(--color-border-soft);
+  border-radius: 10px;
+}
+
+.typeTagPopoverSearch:focus {
+  border-color: rgb(120 180 255 / 55%);
+  outline: none;
+  box-shadow: 0 0 0 3px rgb(120 180 255 / 12%);
+}
+
+.typeTagPopoverBody {
+  display: flex;
+  align-items: stretch;
+  gap: var(--space-2);
+}
+
+.typeTagPopoverList {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  min-height: min(200px, 32dvh);
+  max-height: min(260px, 38dvh);
+  padding: 2px 1px;
+  overflow-x: clip;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.typeTagPopoverList::-webkit-scrollbar {
+  display: none;
+}
+
+.elementMenu button.typeTagPopoverOption {
+  justify-content: flex-start;
+  width: 100%;
+  min-height: auto;
+  padding: 0.5rem 0.65rem;
+  color: var(--color-text-muted);
+  font-family: var(--font-data);
+  font-size: 0.72rem;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  background: rgb(255 255 255 / 4%);
+  border: 1px solid transparent;
+  border-radius: 8px;
+}
+
+.elementMenu button.typeTagPopoverOption:hover {
+  color: var(--color-text-primary);
+  background: rgb(255 255 255 / 7%);
+  border-color: var(--color-border-soft);
+}
+
+.elementMenu button.typeTagPopoverOption[aria-selected='true'] {
+  color: var(--color-text-primary);
+  background: rgb(120 180 255 / 22%);
+  border-color: rgb(120 180 255 / 45%);
+}
+
+.typeTagPopoverEmpty {
+  padding: var(--space-3);
+  color: var(--color-text-muted);
+  font-family: var(--font-data);
+  font-size: 0.69rem;
+  line-height: 1.35;
+  text-align: center;
+  border: 1px dashed var(--color-border-soft);
+  border-radius: 8px;
+}
+
+.elementMenu button.typeTagScrollControl {
+  --scroll-duration: 720ms;
+  --scroll-glow: 8px;
+  --scroll-intensity: 0;
+  --scroll-shift: 2px;
+  --scroll-shift-negative: -2px;
+
+  position: relative;
+  flex-shrink: 0;
+  display: grid;
+  grid-template-rows: 20px 34px 20px;
+  place-items: center;
+  width: 40px;
+  height: 78px;
+  padding: 0;
+  color: var(--color-text-muted);
+  background: transparent;
+  border: 0;
+  transition: color 160ms ease;
+  touch-action: none;
+}
+
+.elementMenu button.typeTagScrollControl:hover,
+.elementMenu button.typeTagScrollControl.scrollControlActive {
+  color: var(--port-child);
+}
+
+.scrollCenter {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  background:
+    radial-gradient(circle at 50% 50%, rgb(255 255 255 / 10%), transparent 28%),
+    rgb(20 22 26 / 94%);
+  border: 1px solid var(--color-border-strong);
+  border-radius: 999px;
+  box-shadow:
+    0 18px 42px rgb(0 0 0 / 38%),
+    inset 0 1px 0 rgb(255 255 255 / 8%);
+}
+
+.scrollCenter::after {
+  width: 7px;
+  height: 7px;
+  content: '';
+  background: currentcolor;
+  border-radius: 999px;
+  opacity: 0.56;
+}
+
+.scrollArrowUp,
+.scrollArrowDown {
+  width: 28px;
+  height: 18px;
+  background: currentcolor;
+  opacity: 0.82;
+  transition:
+    background 140ms ease,
+    filter 140ms ease,
+    opacity 140ms ease,
+    transform 140ms ease;
+}
+
+.scrollArrowUp {
+  clip-path: polygon(50% 0, 100% 68%, 88% 100%, 50% 64%, 12% 100%, 0 68%);
+}
+
+.scrollArrowDown {
+  clip-path: polygon(12% 0, 50% 36%, 88% 0, 100% 32%, 50% 100%, 0 32%);
+}
+
+.elementMenu button.typeTagScrollControl.scrollControlDown .scrollArrowUp,
+.elementMenu button.typeTagScrollControl.scrollControlUp .scrollArrowDown {
+  opacity: 0;
+  transform: scale(0.72);
+}
+
+.elementMenu button.typeTagScrollControl.scrollControlDown .scrollArrowDown {
+  background: linear-gradient(180deg, #75d7ff 0%, #198cff 100%);
+  filter: drop-shadow(0 0 var(--scroll-glow) rgb(40 168 255 / 78%));
+  animation: elementMenuScrollArrowDownBounce var(--scroll-duration) ease-in-out infinite;
+}
+
+.elementMenu button.typeTagScrollControl.scrollControlUp .scrollArrowUp {
+  background: linear-gradient(0deg, #75d7ff 0%, #198cff 100%);
+  filter: drop-shadow(0 0 var(--scroll-glow) rgb(40 168 255 / 78%));
+  animation: elementMenuScrollArrowUpBounce var(--scroll-duration) ease-in-out infinite;
+}
+
+/** Marcadores de estado (className no JSX). */
+.scrollControlActive,
+.scrollControlUp,
+.scrollControlDown {
+  contain: layout;
+}
+
+@keyframes elementMenuScrollArrowDownBounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  45% {
+    transform: translateY(var(--scroll-shift));
+  }
+}
+
+@keyframes elementMenuScrollArrowUpBounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  45% {
+    transform: translateY(var(--scroll-shift-negative));
+  }
 }
 
 .results {

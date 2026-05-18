@@ -17,6 +17,13 @@ type ElementRemovalPickerProps = {
   open: boolean
   selectedKey: string | null
   titleDomId?: string
+  /** Título do diálogo (predefinido: «Remover elemento»). */
+  dialogTitle?: string
+  /** Subtítulo; `nodeTitle` continua disponível no texto predefinido. */
+  dialogSubtitle?: string
+  /** Oculta a etiqueta «Parâmetro» / «Internal_Structure» à direita. */
+  hideKindLabel?: boolean
+  confirmLabel?: string
 }
 
 function kindLabel(kind: NodeElementListItem['kind']): string {
@@ -36,6 +43,10 @@ export function ElementRemovalPicker({
   open,
   selectedKey,
   titleDomId = 'element-removal-title',
+  dialogTitle = 'Remover elemento',
+  dialogSubtitle,
+  hideKindLabel = false,
+  confirmLabel = 'Confirmar',
 }: ElementRemovalPickerProps) {
   const selected =
     selectedKey !== null ? elements.find((element) => itemKey(element) === selectedKey) ?? null : null
@@ -86,10 +97,14 @@ export function ElementRemovalPicker({
         }}
       >
         <h2 className={styles.title} id={titleDomId}>
-          Remover elemento
+          {dialogTitle}
         </h2>
         <p className={styles.subtitle}>
-          Escolha qual elemento de <strong>{nodeTitle}</strong> deseja excluir.
+          {dialogSubtitle ?? (
+            <>
+              Escolha qual elemento de <strong>{nodeTitle}</strong> deseja excluir.
+            </>
+          )}
         </p>
 
         <ul className={styles.list}>
@@ -113,7 +128,9 @@ export function ElementRemovalPicker({
                     <span className={styles.pickName}>{element.name}</span>
                     {element.meta ? <span className={styles.pickValue}>{element.meta}</span> : null}
                   </span>
-                  <span className={styles.pickRowMeta}>{kindLabel(element.kind)}</span>
+                  {hideKindLabel ? null : (
+                    <span className={styles.pickRowMeta}>{kindLabel(element.kind)}</span>
+                  )}
                 </button>
               </li>
             )
@@ -130,7 +147,7 @@ export function ElementRemovalPicker({
             onClick={handleConfirm}
             type="button"
           >
-            Confirmar
+            {confirmLabel}
           </button>
         </div>
       </div>

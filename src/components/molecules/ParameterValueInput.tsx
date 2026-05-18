@@ -1,10 +1,24 @@
 import { useEffect, useRef, useState } from 'react'
 import type { KeyboardEvent } from 'react'
 
+import { ParameterBoolInput } from '@/components/molecules/ParameterBoolInput'
+import { ParameterRgbaInput } from '@/components/molecules/ParameterRgbaInput'
+import { ParameterVector2Input } from '@/components/molecules/ParameterVector2Input'
+import { ParameterVector3Input } from '@/components/molecules/ParameterVector3Input'
+import { ParameterListF32Input } from '@/components/molecules/ParameterListF32Input'
+import { ParameterListHashInput } from '@/components/molecules/ParameterListHashInput'
+import { ParameterListStringInput } from '@/components/molecules/ParameterListStringInput'
+import { ParameterListVector2Input } from '@/components/molecules/ParameterListVector2Input'
+import { ParameterListVector3Input } from '@/components/molecules/ParameterListVector3Input'
+import { ParameterListVector4Input } from '@/components/molecules/ParameterListVector4Input'
+import { ParameterVector4Input } from '@/components/molecules/ParameterVector4Input'
 import {
   getParameterInputHint,
   getParameterInputRejectionMessage,
   isValidPartialParameterValue,
+  normalizeParameterValueForCommit,
+  usesDecimalInputMode,
+  usesNumericInputMode,
 } from '@/core/parameterValueInput'
 import type { NodeDataType } from '@/core/nodeSchema'
 
@@ -49,18 +63,157 @@ export function ParameterValueInput({
     }, 2600)
   }
 
-  const applyValue = (next: string) => {
-    setLocal(next)
-    onCommit(next)
+  const applyValue = (next: string, commit = true) => {
+    const normalized = normalizeParameterValueForCommit(dataType, next)
+    setLocal(normalized)
+    if (commit) {
+      onCommit(normalized)
+    }
+  }
+
+  if (dataType === 'bool') {
+    return (
+      <ParameterBoolInput
+        ariaLabel={ariaLabel}
+        className={className}
+        onCommit={onCommit}
+        onFocusChange={onFocusChange}
+        value={value}
+      />
+    )
+  }
+
+  if (dataType === 'rgba') {
+    return (
+      <ParameterRgbaInput
+        ariaLabel={ariaLabel}
+        className={className}
+        onCommit={onCommit}
+        onFocusChange={onFocusChange}
+        value={value}
+      />
+    )
+  }
+
+  if (dataType === 'listF32') {
+    return (
+      <ParameterListF32Input
+        ariaLabel={ariaLabel}
+        className={className}
+        onCommit={onCommit}
+        onFocusChange={onFocusChange}
+        value={value}
+      />
+    )
+  }
+
+  if (dataType === 'listString') {
+    return (
+      <ParameterListStringInput
+        ariaLabel={ariaLabel}
+        className={className}
+        onCommit={onCommit}
+        onFocusChange={onFocusChange}
+        value={value}
+      />
+    )
+  }
+
+  if (dataType === 'listHash') {
+    return (
+      <ParameterListHashInput
+        ariaLabel={ariaLabel}
+        className={className}
+        onCommit={onCommit}
+        onFocusChange={onFocusChange}
+        value={value}
+      />
+    )
+  }
+
+  if (dataType === 'vector2') {
+    return (
+      <ParameterVector2Input
+        ariaLabel={ariaLabel}
+        className={className}
+        onCommit={onCommit}
+        onFocusChange={onFocusChange}
+        value={value}
+      />
+    )
+  }
+
+  if (dataType === 'vector3') {
+    return (
+      <ParameterVector3Input
+        ariaLabel={ariaLabel}
+        className={className}
+        onCommit={onCommit}
+        onFocusChange={onFocusChange}
+        value={value}
+      />
+    )
+  }
+
+  if (dataType === 'vector4') {
+    return (
+      <ParameterVector4Input
+        ariaLabel={ariaLabel}
+        className={className}
+        onCommit={onCommit}
+        onFocusChange={onFocusChange}
+        value={value}
+      />
+    )
+  }
+
+  if (dataType === 'listVector2') {
+    return (
+      <ParameterListVector2Input
+        ariaLabel={ariaLabel}
+        className={className}
+        onCommit={onCommit}
+        onFocusChange={onFocusChange}
+        value={value}
+      />
+    )
+  }
+
+  if (dataType === 'listVector3') {
+    return (
+      <ParameterListVector3Input
+        ariaLabel={ariaLabel}
+        className={className}
+        onCommit={onCommit}
+        onFocusChange={onFocusChange}
+        value={value}
+      />
+    )
+  }
+
+  if (dataType === 'listVector4') {
+    return (
+      <ParameterListVector4Input
+        ariaLabel={ariaLabel}
+        className={className}
+        onCommit={onCommit}
+        onFocusChange={onFocusChange}
+        value={value}
+      />
+    )
   }
 
   return (
     <input
       aria-label={ariaLabel}
       className={className}
+      data-parameter-type={dataType}
+      inputMode={
+        usesDecimalInputMode(dataType) ? 'decimal' : usesNumericInputMode(dataType) ? 'numeric' : undefined
+      }
       onBlur={() => {
         onFocusChange?.(false)
-        onCommit(local)
+        applyValue(local)
       }}
       onFocus={() => onFocusChange?.(true)}
       onChange={(event) => {

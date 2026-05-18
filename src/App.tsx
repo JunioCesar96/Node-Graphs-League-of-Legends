@@ -346,7 +346,13 @@ function App() {
   }
 
   const persistConvertedStructurePack = useCallback(
-    async (folder: string, schemas: NodeSchemaDefinition[], warnings: string[], modeBanner: string) => {
+    async (
+      folder: string,
+      schemas: NodeSchemaDefinition[],
+      warnings: string[],
+      modeBanner: string,
+      rootSchemaIds?: string[],
+    ) => {
       setDynamicStructurePacks((previous) => {
         const next = previous.filter((pack) => pack.folder !== folder)
         next.push({ folder, schemas })
@@ -359,7 +365,11 @@ function App() {
       if (import.meta.env.DEV) {
         try {
           const res = await fetch('/api/node-structures-write', {
-            body: JSON.stringify({ folder, schemas }),
+            body: JSON.stringify({
+              folder,
+              schemas,
+              rootSchemaIds,
+            }),
             headers: { 'Content-Type': 'application/json' },
             method: 'POST',
           })
@@ -447,7 +457,13 @@ function App() {
         return
       }
 
-      await persistConvertedStructurePack(folder, converted.schemas, converted.warnings, modeBanner)
+      await persistConvertedStructurePack(
+        folder,
+        converted.schemas,
+        converted.warnings,
+        modeBanner,
+        converted.rootSchemaIds,
+      )
     },
     [codeText, persistConvertedStructurePack],
   )

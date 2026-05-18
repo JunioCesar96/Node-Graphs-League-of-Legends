@@ -1,0 +1,173 @@
+/**
+ * Classificação de linhas ritual Class Group: parâmetro simples vs estrutural.
+ * Alinhado a `feature_md/prompet/refaturacao.md`.
+ */
+
+export type RitualFieldKind = 'metadata' | 'simple' | 'structural' | 'mapEntry' | 'unknown'
+
+export type ParsedRitualField = {
+  kind: RitualFieldKind
+  fieldName?: string
+  ritType?: string
+  rawValue?: string
+  mapKey?: string
+  typeName?: string
+  listType?: string
+  childTypeName?: string
+}
+
+const STRUCT_ONLY_LINE = /^#?([A-Za-z_]\w*)\s*\{\s*(?:\/\/[^\n]*)?\s*$/
+const FIELD_SCALAR_REGEX =
+  /^\s*([A-Za-z_]\w*)\s*:\s*([^=\n]*?)=\s*((?!\{)[^\n]*)$/
+
+/** `FresnelColor: rgba = { 20, 77, 26, 255 }` — valor entre chavetas na mesma linha. */
+const FIELD_SCALAR_BRACED_REGEX =
+  /^\s*([A-Za-z_]\w*)\s*:\s*([^=\n]*?)=\s*\{([^}]*)\}\s*$/
+const INLINE_CHILD_OPEN_REGEX =
+  /^\s*([A-Za-z_]\w*)\s*:\s*\b(embed|pointer|link)\s*=\s*([A-Za-z_]\w*)\s*\{\s*$/
+const LIST_STRUCTURAL_OPEN_REGEX =
+  /^\s*([A-Za-z_]\w*)\s*:\s*(list2?\[[^\]]+\]|list\[[^\]]+\])\s*=\s*\{\s*$/
+/** Chave string `"path"` ou hash `0x1c1ea8de` em `entries: map[hash,embed]`. */
+const MAP_ENTRY_HEAD_REGEX = /^\s*(?:"([^"]+)"|(0x[0-9a-fA-F]+))\s*=\s*(\w+)\s*\{\s*$/
+const METADATA_LINE_REGEX = /^\s*(type|version|linked)\s*:/i
+
+const PRIMITIVE_TYPE_REGEX =
+  /\b(u8|u16|u32|u64|s8|s16|s32|s64|f32|f64|bool|string|hash|flag|symbol|keyword|vec[234]|rgb|rgba)\b/i
+
+/** Lista com pointer/embed/link no elemento → filhos são nodes. */
+export function isStructuralListType(listTypeBracket: string): boolean {
+  const inner = listTypeBracket.replace(/^list2?\[/i, '').replace(/\]$/, '').trim()
+  return /\b(embed|pointer|link)\b/i.test(inner)
+}
+
+/** Lista de primitivos (list[f32], list[string]) → parâmetro simples no pai. */
+export function isPrimitiveListType(listTypeBracket: string): boolean {
+  return /^list2?\[/i.test(listTypeBracket) && !isStructuralListType(listTypeBracket)
+}
+
+export function isPrimitiveRitType(ritType: string): boolean {
+  const t = ritType.trim()
+  if (!t) {
+    return false
+  }
+  if (/\b(embed|pointer|link|map)\b/i.test(t)) {
+    return false
+  }
+  if (/^list2?\[/i.test(t)) {
+    return isPrimitiveListType(t)
+  }
+  if (/^option\[/i.test(t)) {
+    return true
+  }
+  return PRIMITIVE_TYPE_REGEX.test(t)
+}
+
+export function classifyRitualLine(lineRaw: string): ParsedRitualField {
+  const t = lineRaw.trim()
+
+  if (t === '' || t.startsWith('#')) {
+    return { kind: 'unknown' }
+  }
+
+  if (METADATA_LINE_REGEX.test(t)) {
+    return { kind: 'metadata' }
+  }
+
+  const mapEntry = MAP_ENTRY_HEAD_REGEX.exec(lineRaw)
+  const mapKey = mapEntry?.[1] ?? mapEntry?.[2]
+  if (mapKey && mapEntry?.[3]) {
+    return {
+      kind: 'mapEntry',
+      mapKey,
+      typeName: mapEntry[3],
+    }
+  }
+
+  if (LIST_STRUCTURAL_OPEN_REGEX.test(lineRaw)) {
+    const m = LIST_STRUCTURAL_OPEN_REGEX.exec(lineRaw)
+    if (m?.[1] && m[2]) {
+      const listType = m[2]
+      if (isStructuralListType(listType)) {
+        return {
+          kind: 'structural',
+          fieldName: m[1],
+          listType,
+          ritType: listType,
+        }
+      }
+      return {
+        kind: 'simple',
+        fieldName: m[1],
+        listType,
+        ritType: listType,
+      }
+    }
+  }
+
+  const embed = INLINE_CHILD_OPEN_REGEX.exec(lineRaw)
+  if (embed?.[1] && embed[3]) {
+    return {
+      kind: 'structural',
+      fieldName: embed[1],
+      ritType: embed[2],
+      childTypeName: embed[3],
+    }
+  }
+
+  if (STRUCT_ONLY_LINE.test(t) && lineRaw.includes('{')) {
+    const head = STRUCT_ONLY_LINE.exec(t)
+    if (head?.[1]) {
+      return {
+        kind: 'structural',
+        childTypeName: head[1],
+      }
+    }
+  }
+
+  const bracedScalar = FIELD_SCALAR_BRACED_REGEX.exec(lineRaw)
+  if (bracedScalar?.[1] && bracedScalar[2]) {
+    const ritType = bracedScalar[2].trim()
+    const rawValue = `{ ${String(bracedScalar[3]).trim()} }`
+    if (isPrimitiveRitType(ritType)) {
+      return {
+        kind: 'simple',
+        fieldName: bracedScalar[1],
+        ritType,
+        rawValue,
+      }
+    }
+    if (/\b(embed|pointer|link)\b/i.test(ritType)) {
+      return { kind: 'structural', fieldName: bracedScalar[1], ritType }
+    }
+  }
+
+  if (FIELD_SCALAR_REGEX.test(lineRaw) && !lineRaw.includes('{')) {
+    const m = FIELD_SCALAR_REGEX.exec(lineRaw)
+    if (m?.[1] && m[2]) {
+      const ritType = m[2].trim()
+      const rawValue = String(m[3]).trim()
+      if (isPrimitiveRitType(ritType)) {
+        return {
+          kind: 'simple',
+          fieldName: m[1],
+          ritType,
+          rawValue,
+        }
+      }
+      if (/\b(embed|pointer|link)\b/i.test(ritType)) {
+        return { kind: 'structural', fieldName: m[1], ritType }
+      }
+    }
+  }
+
+  return { kind: 'unknown' }
+}
+
+export {
+  STRUCT_ONLY_LINE,
+  FIELD_SCALAR_REGEX,
+  FIELD_SCALAR_BRACED_REGEX,
+  INLINE_CHILD_OPEN_REGEX,
+  LIST_STRUCTURAL_OPEN_REGEX as LIST_EMBED_OPEN_REGEX,
+  MAP_ENTRY_HEAD_REGEX,
+}

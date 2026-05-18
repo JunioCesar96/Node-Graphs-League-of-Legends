@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest'
 import {
   buildAutomaticTypeTags,
   buildElementMenuEntries,
+  catalogStructureAppendName,
+  catalogStructureMenuLabel,
   ELEMENT_MENU_ALL_TYPE_TAG_ID,
   filterAndSortElementMenuEntries,
   filterElementMenuEntriesByTypeTag,
@@ -10,6 +12,7 @@ import {
   matchesElementMenuQuery,
   sortElementMenuEntries,
 } from './elementMenuCatalogUtils'
+import type { ElementMenuCatalogScope } from './elementMenuScopeCatalog'
 
 describe('elementMenuCatalogUtils', () => {
   const entries = buildElementMenuEntries({
@@ -21,6 +24,22 @@ describe('elementMenuCatalogUtils', () => {
     ],
     includeCatalogStructures: true,
     includeCatalogParameters: true,
+  })
+
+  it('catalogStructureMenuLabel usa title do schema em vez do pathHierarchy', () => {
+    expect(
+      catalogStructureMenuLabel(
+        { id: 'cat', name: 'Idle1', schemaId: 'SequencerClipData' },
+        {
+          SequencerClipData: {
+            id: 'SequencerClipData',
+            title: 'SequencerClipData',
+            parameters: [],
+            internalStructures: [],
+          },
+        },
+      ),
+    ).toBe('SequencerClipData')
   })
 
   it('matchesElementMenuQuery filtra por nome e schemaId', () => {
@@ -88,5 +107,138 @@ describe('elementMenuCatalogUtils', () => {
 
     expect(onlyFloat.every((entry) => entry.typeTag === 'float')).toBe(true)
     expect(onlyFloat).toHaveLength(1)
+  })
+
+  it('Todos oculta rotulo pathHierarchy; tipo especifico mostra base e path', () => {
+    const sequencerRegistry = {
+      SequencerClipData: {
+        id: 'SequencerClipData',
+        title: 'SequencerClipData',
+        parameters: [],
+        internalStructures: [],
+        nomenclature: {
+          group: '#3 Internal Structures',
+          collection: '#3 Collection Block',
+          collectionType: 'SequencerClipData',
+          pathHierarchySteps: [
+            { id: 'entries', type: '#1 Root Entry' },
+            { id: 'Characters/Zac/Animations/Skin0', type: '#2 Root Entry (AnimationGraphData)' },
+            { id: 'Idle1', type: '#3 Collection Block' },
+          ],
+        },
+      },
+    }
+    const dualEntries = buildElementMenuEntries({
+      presetStructures: [],
+      catalogStructures: [{ id: 'cat-is', name: 'Idle1', schemaId: 'SequencerClipData' }],
+      includeCatalogStructures: true,
+      includeCatalogParameters: false,
+      schemaRegistry: sequencerRegistry,
+    })
+
+    const allVisible = filterElementMenuEntriesByTypeTag(dualEntries, ELEMENT_MENU_ALL_TYPE_TAG_ID)
+    expect(allVisible.map((e) => e.label)).toEqual(['SequencerClipData'])
+
+    const byType = filterElementMenuEntriesByTypeTag(dualEntries, 'type:SequencerClipData')
+    expect(byType.map((e) => e.label).sort()).toEqual(['Idle1', 'SequencerClipData'])
+
+    const pathEntry = byType.find((e) => e.catalogLabelMode === 'path-hierarchy')!
+    expect(catalogStructureAppendName(pathEntry, sequencerRegistry)).toBe('Idle1')
+    const baseEntry = byType.find((e) => e.catalogLabelMode === 'base')!
+    expect(catalogStructureAppendName(baseEntry, sequencerRegistry)).toBe('SequencerClipData')
+  })
+
+  it('module scope com Todos mostra rotulo pathHierarchySteps.id como filtro por tipo', () => {
+    const sequencerRegistry = {
+      SequencerClipData: {
+        id: 'SequencerClipData',
+        title: 'SequencerClipData',
+        parameters: [],
+        internalStructures: [],
+        nomenclature: {
+          group: '#3 Internal Structures',
+          collection: '#3 Collection Block',
+          collectionType: 'SequencerClipData',
+          pathHierarchySteps: [
+            { id: 'entries', type: '#1 Root Entry' },
+            { id: 'Characters/Zac/Animations/Skin0', type: '#2 Root Entry (AnimationGraphData)' },
+            { id: 'Idle1', type: '#3 Collection Block' },
+          ],
+        },
+      },
+    }
+    const moduleScoped = buildElementMenuEntries({
+      presetStructures: [],
+      catalogStructures: [{ id: 'cat-is', name: 'Idle1', schemaId: 'SequencerClipData' }],
+      includeCatalogStructures: true,
+      includeCatalogParameters: false,
+      schemaRegistry: sequencerRegistry,
+      catalogScope: 'module',
+    })
+    const moduleAll = filterElementMenuEntriesByTypeTag(
+      moduleScoped,
+      ELEMENT_MENU_ALL_TYPE_TAG_ID,
+      'module',
+    )
+    expect(moduleAll.map((e) => e.label)).toEqual(['Idle1'])
+
+    const baseScoped = buildElementMenuEntries({
+      presetStructures: [],
+      catalogStructures: [{ id: 'cat-is', name: 'Idle1', schemaId: 'SequencerClipData' }],
+      includeCatalogStructures: true,
+      includeCatalogParameters: false,
+      schemaRegistry: sequencerRegistry,
+      catalogScope: 'base',
+    })
+    const baseAll = filterElementMenuEntriesByTypeTag(
+      baseScoped,
+      ELEMENT_MENU_ALL_TYPE_TAG_ID,
+      'base',
+    )
+    expect(baseAll.map((e) => e.label)).toEqual(['SequencerClipData'])
+  })
+
+  it('filterAndSortElementMenuEntries repassa catalogScope ao filtro de tipo', () => {
+    const idleEffectRegistry = {
+      'skin-character-data-properties-character-idle-effect': {
+        id: 'skin-character-data-properties-character-idle-effect',
+        title: 'SkinCharacterDataProperties_CharacterIdleEffect',
+        parameters: [],
+        internalStructures: [],
+        nomenclature: {
+          group: '#3 Internal Structures',
+          collection: '#3 Collection Block',
+          collectionType: 'SkinCharacterDataProperties_CharacterIdleEffect',
+          pathHierarchySteps: [
+            { id: 'entries', type: '#1 Root Entry' },
+            { id: 'Characters/Zac/Skins/Skin0', type: '#2 Root Entry (SkinCharacterDataProperties)' },
+            { id: 'idleParticlesEffects:0', type: '#3 Collection Block' },
+          ],
+        },
+      },
+    }
+    const entries = buildElementMenuEntries({
+      presetStructures: [],
+      catalogStructures: [
+        {
+          id: 'cat',
+          name: 'idleParticlesEffects:0',
+          schemaId: 'skin-character-data-properties-character-idle-effect',
+        },
+      ],
+      includeCatalogStructures: true,
+      includeCatalogParameters: false,
+      schemaRegistry: idleEffectRegistry,
+      catalogScope: 'module',
+    })
+
+    const sorted = filterAndSortElementMenuEntries(
+      entries,
+      '',
+      'az',
+      ELEMENT_MENU_ALL_TYPE_TAG_ID,
+      'module' satisfies ElementMenuCatalogScope,
+    )
+    expect(sorted.map((e) => e.label)).toEqual(['idleParticlesEffects:0'])
   })
 })

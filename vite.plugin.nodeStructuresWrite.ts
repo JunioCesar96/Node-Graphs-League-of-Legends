@@ -1100,6 +1100,15 @@ export function vitePluginNodeStructuresWrite(projectRoot: string): Plugin {
 
               const folder = safePackFolder(String(parsed.folder ?? ''))
               const schemasRaw = parsed.schemas
+              const rootSchemaIdsRaw = parsed.rootSchemaIds
+              const rootSchemaIdSet = new Set<string>()
+              if (Array.isArray(rootSchemaIdsRaw)) {
+                for (const entry of rootSchemaIdsRaw) {
+                  if (typeof entry === 'string' && entry.trim().length > 0) {
+                    rootSchemaIdSet.add(entry.trim())
+                  }
+                }
+              }
 
               if (!folder || !Array.isArray(schemasRaw)) {
                 res.statusCode = 400
@@ -1143,8 +1152,26 @@ export function vitePluginNodeStructuresWrite(projectRoot: string): Plugin {
                   continue
                 }
 
-                const fileName = `${stem}.json`
-                const filePath = path.resolve(targetDir, fileName)
+                const titleRaw = typeof item.title === 'string' ? item.title.trim() : ''
+                const typeDirSegment = safeCollectionTypeDirSegment(titleRaw || stem)
+                const isRootEntity =
+                  rootSchemaIdSet.size === 0 ? true : rootSchemaIdSet.has(String(item.id).trim())
+
+                let filePath: string
+                let writtenLabel: string
+
+                if (isRootEntity) {
+                  const fileName = `${stem}.json`
+                  filePath = path.resolve(targetDir, fileName)
+                  writtenLabel = fileName
+                } else {
+                  const subDirName = `${folder}_${typeDirSegment}`
+                  const subDir = path.resolve(targetDir, subDirName)
+                  const fileName = `${typeDirSegment}.json`
+                  filePath = path.resolve(subDir, fileName)
+                  writtenLabel = `${subDirName}/${fileName}`
+                  await fs.mkdir(subDir, { recursive: true })
+                }
 
                 const relInside = path.relative(targetDir, filePath)
                 if (relInside.startsWith('..') || path.isAbsolute(relInside)) {
@@ -1153,7 +1180,7 @@ export function vitePluginNodeStructuresWrite(projectRoot: string): Plugin {
                 }
 
                 await fs.writeFile(filePath, `${JSON.stringify(item, null, 2)}\n`, 'utf8')
-                written.push(fileName)
+                written.push(writtenLabel)
               }
 
               res.statusCode = 200

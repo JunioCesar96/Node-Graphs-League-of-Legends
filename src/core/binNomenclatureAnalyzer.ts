@@ -3,10 +3,10 @@
  * e aplicação de `group` / `collection` aos `NodeSchemaDefinition` (fluxo VFX Jade).
  */
 
-import type { NodeSchemaDefinition } from '@/core/nodeSchema'
+import type { NodeSchemaDefinition, NomenclaturePathSegment } from '@/core/nodeSchema'
 import type { ParsedVfxData } from '@/core/jadeVfxParse'
 import { countBrackets, findBlockEnd, normalizeLineEndings, parseVfxContent } from '@/core/jadeVfxParse'
-import { segmentsToPathHierarchyString } from '@/core/pathHierarchy'
+import { segmentsToPathHierarchyIdString, segmentsToPathHierarchyString } from '@/core/pathHierarchy'
 import {
   buildVfxJadePathHierarchySteps,
   extractTitleCategoryPrefix,
@@ -96,7 +96,7 @@ function pushTag(
   })
 }
 
-function classifyFieldLine(line: string): { collection: string; group: string } | null {
+export function classifyFieldLine(line: string): { collection: string; group: string } | null {
   const t = line.trim()
   if (t.length === 0 || t.startsWith('//')) {
     return null
@@ -262,6 +262,54 @@ export type ApplyBinNomenclaturaResult = {
   schemas: NodeSchemaDefinition[]
   appliedCount: number
   warnings: string[]
+}
+
+/**
+ * Aplica `nomenclature` (pathHierarchy, collection, group) aos schemas gerados pelo conversor Class Group,
+ * usando pilhas `pathHierarchySteps` produzidas em `convertRitobinStructureTextToNodeSchemas`.
+ */
+export function applyClassGroupNomenclatureFromSchemaPaths(
+  schemas: NodeSchemaDefinition[],
+  pathById: Readonly<Record<string, readonly NomenclaturePathSegment[]>>,
+): ApplyBinNomenclaturaResult {
+  const warnings: string[] = []
+  let applied = 0
+  const next: NodeSchemaDefinition[] = schemas.map((s) => ({
+    ...s,
+    nomenclature: s.nomenclature ? { ...s.nomenclature } : undefined,
+  }))
+
+  for (let si = 0; si < next.length; si++) {
+    const s = next[si]!
+    const steps = pathById[s.id]
+    if (!steps?.length) {
+      continue
+    }
+
+    const collection = steps[steps.length - 1]!.type.trim()
+    const nom = s.nomenclature
+    const collectionType = nom?.collectionType?.trim()
+      ? nom.collectionType.trim()
+      : extractTitleCategoryPrefix(s.title)
+
+    next[si] = {
+      ...s,
+      nomenclature: {
+        group: mapCollectionNomenclatureToGroup(collection),
+        collection,
+        collectionType,
+        pathHierarchy: segmentsToPathHierarchyIdString(steps),
+        pathHierarchySteps: steps.map((p) => ({ id: p.id, type: p.type })),
+      },
+    }
+    applied += 1
+  }
+
+  if (applied > 0) {
+    warnings.unshift(`Nomeclatura Class Group (nomecratura.md): ${String(applied)} schema(s) actualizados.`)
+  }
+
+  return { schemas: next, appliedCount: applied, warnings }
 }
 
 /**

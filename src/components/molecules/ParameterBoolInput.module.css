@@ -1,0 +1,87 @@
+.wrap {
+  position: relative;
+  display: flex;
+  min-width: 0;
+}
+
+.trigger {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+.trigger:focus-visible {
+  outline: 2px solid var(--port-child);
+  outline-offset: 1px;
+  border-radius: 2px;
+}
+
+.layer {
+  position: fixed;
+  inset: 0;
+  z-index: 10035;
+  pointer-events: auto;
+}
+
+.backdrop {
+  position: absolute;
+  inset: 0;
+  touch-action: none;
+  cursor: default;
+  background: rgb(0 0 0 / 14%);
+}
+
+.menu {
+  position: fixed;
+  z-index: 1;
+  pointer-events: auto;
+  min-width: 7rem;
+  padding: var(--space-1);
+  background: rgb(18 20 24 / 98%);
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-control);
+  box-shadow: 0 8px 28px var(--color-shadow);
+}
+
+.option {
+  display: block;
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  color: var(--color-text-primary);
+  font-family: var(--font-data);
+  font-size: 0.78rem;
+  text-align: left;
+  background: transparent;
+  border: none;
+  border-radius: calc(var(--radius-control) - 2px);
+  cursor: pointer;
+}
+
+.option:hover {
+  background: rgb(255 255 255 / 6%);
+}
+
+.option:focus-visible {
+  outline: 2px solid var(--syntax-keyword);
+  outline-offset: -1px;
+}
+
+.optionSelected {
+  color: var(--syntax-keyword);
+  background: color-mix(in srgb, var(--syntax-keyword) 14%, transparent);
+}
+
+.optionFalse {
+  color: var(--color-text-secondary);
+}
+
+.optionFalse.optionSelected {
+  color: var(--color-text-muted);
+  background: rgb(255 255 255 / 8%);
+}

@@ -1,0 +1,42 @@
+{
+  "id": "main",
+  "title": "main",
+  "parameters": [
+    {
+      "id": "main-type",
+      "name": "type",
+      "type": "string",
+      "defaultValue": "PROP"
+    },
+    {
+      "id": "main-version",
+      "name": "version",
+      "type": "u32",
+      "defaultValue": "3"
+    }
+  ],
+  "internalStructures": [
+    {
+      "id": "main-linked",
+      "name": "linked",
+      "schemaId": "linked"
+    },
+    {
+      "id": "main-entries",
+      "name": "entries",
+      "schemaId": "entries"
+    }    
+  ],
+  "nomenclature": {
+    "group": "#0 Entidades",
+    "collection": "#0 Root main",
+    "collectionType": "main",
+    "pathHierarchy": "main",
+    "pathHierarchySteps": [
+      {
+        "id": "main",
+        "type": "#0 Root main"
+      }
+    ]
+  }
+}
