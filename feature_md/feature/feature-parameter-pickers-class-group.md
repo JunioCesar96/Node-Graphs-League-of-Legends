@@ -9,7 +9,7 @@ Arquivo salvo em: `feature_md/feature/feature-parameter-pickers-class-group.md`
 | Nome da Branch | `feature/parameter-pickers-class-group` |
 | Nome das Features | Parameter Pickers (bool, vec, rgba), List Pickers (f32, string, hash, vec2/3/4), Class Group Converter (listas primitivas + chaves map `0x…`) |
 | Versão atual | `1.4.0` |
-| Hash do Commit | _preenchido após o commit desta branch_ |
+| Hash do Commit | `8a0f6cbc9b4f6a1e0bc7e8c4c303d7bf31f580e7` |
 
 Base: `feature/element-menu-search` (`8cacd5c`).
 
