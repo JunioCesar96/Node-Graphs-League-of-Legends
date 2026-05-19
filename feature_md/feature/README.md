@@ -1,17 +1,17 @@
-# Documentação de Implementação — LIST2_EMBED e LIST2_POINTER (Class Group)
+# Documentação de Implementação — Map hash/u64, inteiros com sinal e tipos ritual desconhecidos
 
-Arquivo salvo em: `feature_md/feature/feature-list2-embed-pointer-class-group.md`
+Arquivo salvo em: `feature_md/feature/feature-class-group-map-hash-u64-primitives.md`
 
 ## 1. Cabeçalho
 
 | Campo | Valor |
 | --- | --- |
-| Nome da Branch | `feature/list2-embed-pointer-class-group` |
-| Nome das Features | LIST2_EMBED e LIST2_POINTER no schema e conversor Class Group; secções no card; slots por instância; menus e histórico de cena |
+| Nome da Branch | `feature/class-group-map-hash-u64-primitives` |
+| Nome das Features | `map[hash,pointer]` / `map[hash,embed]` (UI estruturada partilhada); `map[u64,pointer]`; inteiros `i8`–`i64` no ritual; tipos ritual não identificados → `string` |
 | Versão atual | `1.4.0` |
-| Hash do Commit | `83fa0da` |
+| Hash do Commit | `9bafd66` |
 
-Base: `feature/pointer-class-group` (POINTER + LIST_POINTER).
+Base: `feature/list2-embed-pointer-class-group` (LIST2_EMBED / LIST2_POINTER).
 
 ## 2. Definição e Resumo de Tags
 
@@ -30,22 +30,20 @@ Tags presentes nesta implementação:
 
 ```mermaid
 graph TD
-  A[Ritual list2 embed ou list2 pointer] --> B[classGroupFieldClassifier]
-  B --> C{list vs list2}
-  C -->|list embed| D[parseStructuralListBody]
-  C -->|list2 embed| E[parseList2EmbedBody]
-  C -->|list pointer| F[parseStructuralListBody pointer]
-  C -->|list2 pointer| G[parseList2PointerBody]
-  D --> H[ListEmbedDefinition slots N]
-  E --> I[List2EmbedDefinition instances]
-  I --> J[EmbedDefinition por item Struct]
-  J --> K[max 1 slot por instancia]
-  G --> L[List2PointerDefinition instances]
-  L --> M[PointerDefinition por item Struct]
-  N[Card do no] --> O[LIST2_EMBED / LIST2_POINTER]
-  O --> P[List2EmbedItem / List2PointerItem]
-  P --> Q[EmbedItem / PointerItem por instancia]
-  Q --> R[Portas canvas __slot__]
+  A[Ritual Class Group] --> B[classGroupFieldClassifier]
+  B --> C{Tipo da linha}
+  C -->|primitivo i8..i64 u8..hash| D[simple]
+  C -->|tipo desconhecido| E[simple → string]
+  C -->|map hash pointer/embed| F[parseMapHashStructureBody]
+  C -->|map u64 pointer| G[parseMapU64PointerBody]
+  F --> H[mapHashPointer / mapHashEmbed]
+  G --> I[mapU64Pointer]
+  H --> J[MapHashStructureBlock UI]
+  I --> J
+  J --> K[slots virtuais + portas canvas]
+  D --> L[resolveParameterType]
+  L --> M[i8 i16 i32 i64 u8 f32 ...]
+  E --> N[type string]
 ```
 
 ## 4. Fluxograma de Acionamento de Funções
@@ -53,89 +51,67 @@ graph TD
 ```mermaid
 sequenceDiagram
   actor U as Usuario
-  participant NC as NodeCard
-  participant L2M as list2EmbedElementMenu
-  participant USH as useSceneHistory
-  participant GC as GraphCanvas
+  participant CV as convertRitualTextClassGroup
   participant P as classGroupRitualStackParser
+  participant PI as ParameterItem
+  participant MB as MapHashStructureBlock
+  participant GC as GraphCanvas
 
-  P->>P: isEmbedList2Type listType
-  P->>P: parseList2EmbedBody
-  P->>P: pushList2EmbedInstance + pushEmbedInitialSlot
+  U->>CV: Colar ritual estrutura_bin.py
+  CV->>P: parseClassGroupRitualWithStack
+  P->>P: MAP_U64_POINTER_BLOCK_OPEN_REGEX
+  P->>P: parseMapU64PointerBody chave decimal
+  P->>P: pushScalarParameter mapU64Pointer
+  P-->>CV: schemas com Pass i16 mapU64Pointer
 
-  U->>NC: Clica + em LIST2_EMBED BankUnits
-  NC->>USH: appendList2EmbedCatalogItem(blockId, structure)
-  USH->>L2M: appendList2EmbedInstanceToBlock
-  L2M-->>USH: list2Embed.instances++
-
-  U->>NC: Clica − em instancia
-  NC->>USH: removeList2EmbedInstance(blockId, instanceId)
-  USH->>L2M: removeList2EmbedInstanceFromSchema
-
-  U->>GC: Liga porta de slot da instancia
-  GC->>GC: findList2EmbedByInstanceSlotId
-  GC->>GC: nodesShareCollectionTypeForOutputSlot
+  U->>PI: Edita mBlendDataTable
+  PI->>MB: MapU64PointerBlock normalizeU64Key
+  U->>GC: Liga porta slot __map_u64__
+  GC->>GC: findMapU64PointerEntryBySlotId
 ```
 
 ## 5. Tabela de Funções e Componentes
 
 | Status | Nome | Feature | Descrição Técnica | Parâmetros / Retorno |
 | --- | --- | --- | --- | --- |
-| [NOVO] | `List2EmbedDefinition` / `list2Embed?` | Schema | Bloco `list2[embed]`; catálogo + `instances: EmbedDefinition[]`. | `nodeSchema.ts` |
-| [NOVO] | `List2PointerDefinition` / `list2Pointer?` | Schema | Bloco `list2[pointer]`; catálogo + `instances: PointerDefinition[]`. | `nodeSchema.ts` |
-| [NOVO] | `isEmbedList2Type` / `isPointerList2Type` | Classificador | Separa `list2[…]` de `list[…]` (regex estrita). | `listTypeBracket: string` → `boolean` |
-| [NOVO] | `parseList2EmbedBody` / `parseList2PointerBody` | Parser | Uma instância embed/pointer por `Struct { }` na lista. | `ParseCtx`, `fieldName`, `listInner` |
-| [NOVO] | `list2EmbedSlots.ts` | Core slots | Hidrata slots das instâncias; resolve slot por `instanceId`. | `applyList2EmbedInstancesToSchema` |
-| [NOVO] | `list2PointerSlots.ts` | Core slots | Idem para pointer. | `findList2PointerByInstanceSlotId` |
-| [NOVO] | `list2EmbedElementMenu.ts` | Menus | Append/remove instância; ids de slots do bloco. | `appendList2EmbedCatalogItemToSchema` |
-| [NOVO] | `list2PointerElementMenu.ts` | Menus | Idem pointer. | `appendList2PointerCatalogItemToSchema` |
-| [NOVO] | `List2EmbedItem.tsx` | UI card | Título do campo + lista de `EmbedItem` (instâncias). | `list2Embed`, handlers |
-| [NOVO] | `List2PointerItem.tsx` | UI card | Título do campo + lista de `PointerItem`. | `list2Pointer`, handlers |
-| [ATUALIZADO] | `isEmbedListType` / `isPointerListType` | Classificador | Apenas `list[…]`, sem `list2?`. | — |
-| [ATUALIZADO] | `classGroupRitualStackParser.ts` | Parser | Ramo list2; `collectReachableSchemaIds` percorre instâncias. | `list2Embed[]`, `list2Pointer[]` |
-| [ATUALIZADO] | `extractNodeBaseParameters.ts` | Node base | IDs `_list2Embed_`, `_list2Pointer_`; stubs e corpo JSON. | `nodeBaseList2EmbedId` |
-| [ATUALIZADO] | `nodeStructureJson.ts` | JSON | Parse e stub shapes estritos list2. | `list2EmbedDefinitionFromJsonStub` |
-| [ATUALIZADO] | `nodeStructureRegistry.ts` | Registry | Merge stubs list2; catálogos exportados. | `schemaBaseList2EmbedCatalogBySchemaId` |
-| [ATUALIZADO] | `canvasScene.ts` | Hidratação | `applyList2EmbedInstancesToSchema` na cena. | `hydrateScene` |
-| [ATUALIZADO] | `collectionTypeLinking.ts` | Ligações | Validação de tipo em slots de instâncias list2. | `findList2EmbedByInstanceSlotId` |
-| [ATUALIZADO] | `listEmbedSlots.ts` | Slots | `findOutputSlotInNode` inclui instâncias list2. | `slotId` |
-| [ATUALIZADO] | `NodeCard.tsx` | UI | Secções LIST2_EMBED / LIST2_POINTER antes de IS. | `onAppendList2EmbedCatalogItem` |
-| [ATUALIZADO] | `GraphCanvas.tsx` | Canvas | Altura das secções list2. | `getList2EmbedSectionHeight` |
-| [ATUALIZADO] | `useSceneHistory.ts` | Histórico | Append/remove instâncias list2. | `appendList2EmbedCatalogItem` |
-| [ATUALIZADO] | `vite.plugin.nodeStructuresWrite.ts` | API dev | Escrita stubs `*_list2Embed_*`, `*_list2Pointer_*`. | plugin Vite |
-| [ATUALIZADO] | `prompet_elements.md` | Docs | Nove famílias; ordem do card; stubs list2. | — |
+| [NOVO] | `mapHashStructureValue.ts` | Map hash estruturado | Valor serializado `chave\tschemaId\ttypeName` por linha; catálogo de tipos das entradas. | `parseMapHashStructureString` → `MapHashStructureEntry[]` |
+| [NOVO] | `mapHashPointerValue.ts` / `mapHashEmbedValue.ts` | Map hash | Wrappers finos sobre `mapHashStructureValue` com rit types distintos. | `resolveMapHashPointerParameterType` → `mapHashPointer` |
+| [NOVO] | `mapU64PointerValue.ts` | Map u64 | Chaves decimais u64; mesmo formato de valor que hash structure. | `normalizeU64Key`, `resolveMapU64PointerParameterType` |
+| [NOVO] | `mapHashPointerSlots.ts` / `mapU64PointerSlots.ts` | Canvas | Slots `__map__` e `__map_u64__`; altura de linha e offset de porta. | `mapHashPointerSlotId`, `getMapU64PointerStructurePortYOffset` |
+| [NOVO] | `MapHashStructureBlock.tsx` | UI mapa | Bloco `−`/`+` mapa e por entrada; picker de estrutura; `normalizeKey` configurável. | `parameterKind`, `normalizeKey`, `slotIdForKey` |
+| [NOVO] | `MapHashPointerBlock` / `MapHashEmbedBlock` / `MapU64PointerBlock` | UI | Wrappers do bloco partilhado por tipo de parâmetro. | props do bloco + parser/format |
+| [NOVO] | `ParameterMapHashPointerInput` / `ParameterMapU64PointerInput` | Inspector | Input dedicado com commit normalizado. | `value`, `onCommit` |
+| [ATUALIZADO] | `classGroupFieldClassifier.ts` | Primitivos | `PRIMITIVE_TYPE_REGEX` inclui `i8` `i16` `i32` `i64`; tipos desconhecidos → `simple`. | `classifyRitualLine` → `ParsedRitualField` |
+| [ATUALIZADO] | `classGroupRitualStackParser.ts` | Parser | Blocos `map[u64,pointer]`; `parseMapHashStructureBody` genérico; `resolveParameterType` + `mapU64Pointer`. | `parseClassGroupRitualWithStack` |
+| [ATUALIZADO] | `nodeSchema.ts` | Tipo | `NodeDataType` + `mapU64Pointer`. | union type |
+| [ATUALIZADO] | `GraphCanvas.tsx` | Ligações | Altura de parâmetro, portas e `collectionType` para slots u64. | `getMapHashStructurePortY` estendido |
+| [ATUALIZADO] | `collectionTypeLinking.ts` / `listEmbedSlots.ts` | Ligações | Resolução de slot map u64 no grafo. | `findMapU64PointerEntryBySlotId` |
+| [ATUALIZADO] | `parameterValueInput.ts` | Inspector | Hints e normalização para `mapU64Pointer`. | `normalizeParameterValueForCommit` |
+| [ATUALIZADO] | `ParameterItem.tsx` | UI card | Layout expandido para `mapU64Pointer`. | `parameter.type` |
+| [ATUALIZADO] | `prompet_elements.md` | Docs | Tabela de Parameters actualizada. | — |
 
 ## 6. Descrição Detalhada de Funcionamento
 
-Esta branch separa semanticamente **`list2[embed]`** e **`list2[pointer]`** de **`list[embed]`** e **`list[pointer]`**, que antes eram tratados pelo mesmo classificador (`list2?` opcional) e convertidos para LIST_EMBED / LIST_POINTER com vários slots num único bloco.
+### Mapas estruturados (`map[hash,pointer]` e `map[hash,embed]`)
 
-### Distinção ritual → schema
+Os dois tipos partilham **`MapHashStructureBlock`**: cada entrada tem chave (hash `0x…` ou string), tipo interno escolhido do catálogo derivado das entradas do ritual, e porta de saída no canvas (`__map__` ou `__map_embed__`). O parser percorre o corpo do mapa com `MAP_HASH_STRUCTURE_ENTRY_HEAD_REGEX`, cria schemas filhos e serializa o valor do parâmetro em linhas `chave\tschemaId\ttypeName`.
 
-| Sintaxe ritual | Secção no card | Modelo |
-| --- | --- | --- |
-| `list[embed]` | LIST_EMBED | 1 bloco, catálogo + N slots |
-| `list2[embed]` | LIST2_EMBED | 1 bloco, catálogo + N **instâncias** (cada uma estilo EMBED, máx. 1 slot) |
-| `list[pointer]` | LIST_POINTER | 1 bloco, catálogo + N slots |
-| `list2[pointer]` | LIST2_POINTER | 1 bloco, catálogo + N instâncias estilo POINTER |
+### `map[u64,pointer]`
 
-Exemplo: `BankUnits: list2[embed] = { BankUnit {…} BankUnit {…} }` produz `list2Embed[]` com duas instâncias `EmbedDefinition`, **não** `listEmbed[]` com dois slots no mesmo bloco.
+Usado em `estrutura_bin.py` (ex.: `mBlendDataTable`) com chaves numéricas grandes (`574043308619688281`). O parser usa `MAP_U64_STRUCTURE_ENTRY_HEAD_REGEX` (`\d+ = Tipo {`). O tipo de parâmetro é **`mapU64Pointer`**; chaves são normalizadas só com dígitos (`normalizeU64Key`). A UI reutiliza o bloco estruturado com rótulo «u64» e infixo de slot `__map_u64__`.
 
-### Ordem no card
+### Inteiros com sinal (`i8`, `i16`, `i32`, `i64`)
 
-Parameters → EMBED → POINTER → LIST_EMBED → LIST_POINTER → **LIST2_EMBED** → **LIST2_POINTER** → Internal_Structures.
+Incluídos em `PRIMITIVE_TYPE_REGEX` para o classificador ritual reconhecer linhas como `Pass: i16 = 5`. `resolveParameterType` / `mapPrimitiveType` mapeiam para os tipos limitados já suportados no inspector (`parameterBoundedTypes`).
 
-### Parser
+### Tipos ritual não identificados
 
-`parseList2EmbedBody` e `parseList2PointerBody` iteram itens `Struct { }` na lista, acrescentam tipos ao catálogo (`internalStructures`) e criam `instances[]` com `pushEmbedInitialSlot` / `pushPointerInitialSlot`. `collectReachableSchemaIds` percorre catálogo e slots das instâncias para incluir schemas filhos (ex.: `BankUnit`) no output convertido.
+Se o tipo do campo não for primitivo nem estrutural (`embed`/`pointer`/`link`/`map`), o classificador devolve **`simple`** e `resolveParameterType` atribui **`string`**, evitando descartar campos no parser.
 
-### UI e runtime
+### Tratamento de erros
 
-`List2EmbedItem` mostra o título do campo e renderiza cada instância como `EmbedItem`. Botões **+** / **−** no bloco acrescentam ou removem a última instância (via catálogo); **−** por instância remove essa entrada. Slots usam o mesmo prefixo `__slot__` que EMBED (`embedSlotId` por `instanceId`).
-
-### Stubs e migração
-
-Stubs no disco: `{collectionType}_list2Embed_{title}.json` e `{collectionType}_list2Pointer_{title}.json`, com `instances: []` no template. Packs já convertidos com `list2` dentro de LIST_EMBED (ex.: romel `BankUnits`) devem ser **reconvertidos** a partir do ritual; não há migração automática fiável por título.
+Entradas de mapa não fechadas geram `warnings` no parser. Chaves u64 inválidas no commit UI são sanitizadas para dígitos (vazio → `0`). Tipos desconhecidos não bloqueiam a conversão Class Group.
 
 ### Testes
 
-214 testes Vitest, incluindo classifier (`list2[embed]` vs `list[embed]`), parser (`BankUnits` → `list2Embed`), conversão ritobin e `buildNodeBaseSchemaBody` com `list2Embed` / `list2Pointer` vazios.
+`classGroupFieldClassifier.test.ts`, `classGroupRitualStackParser.test.ts` (`i16`, `map[u64,pointer]`), `mapU64PointerValue.test.ts`, `mapHashPointerValue.test.ts` — suite Vitest (268+ testes).

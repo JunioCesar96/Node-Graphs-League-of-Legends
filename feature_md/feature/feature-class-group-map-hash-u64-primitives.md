@@ -9,7 +9,7 @@ Arquivo salvo em: `feature_md/feature/feature-class-group-map-hash-u64-primitive
 | Nome da Branch | `feature/class-group-map-hash-u64-primitives` |
 | Nome das Features | `map[hash,pointer]` / `map[hash,embed]` (UI estruturada partilhada); `map[u64,pointer]`; inteiros `i8`–`i64` no ritual; tipos ritual não identificados → `string` |
 | Versão atual | `1.4.0` |
-| Hash do Commit | `PENDENTE` |
+| Hash do Commit | `9bafd66` |
 
 Base: `feature/list2-embed-pointer-class-group` (LIST2_EMBED / LIST2_POINTER).
 
