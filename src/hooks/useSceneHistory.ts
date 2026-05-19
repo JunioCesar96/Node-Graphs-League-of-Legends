@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
-import type { CanvasConnection, CanvasPosition, CanvasScene, ConnectionRouting } from '@/core/canvasScene'
+import type { CanvasConnection, CanvasPosition, CanvasScene } from '@/core/canvasScene'
+import { nextConnectionRouting } from '@/core/canvasScene'
 import { hydrateScene, schemaJsonRelativePathBySchemaId, staticCanvasScene } from '@/core/canvasScene'
 import { loadStoredScene, SCENE_STORAGE_KEY } from '@/core/sceneStorage'
 import { workspaceService } from '@/services/workspaceService'
@@ -591,10 +592,7 @@ export function useSceneHistory(options?: {
             return connection
           }
 
-          const nextRouting: ConnectionRouting =
-            connection.routing === 'rigid' ? 'flex' : 'rigid'
-
-          return { ...connection, routing: nextRouting }
+          return { ...connection, routing: nextConnectionRouting(connection.routing) }
         }),
       }))
     },
@@ -1560,6 +1558,22 @@ export function useSceneHistory(options?: {
     [updateScene],
   )
 
+  const removeConnectionsFromOutputSlot = useCallback(
+    (nodeId: string, structureId: string) => {
+      updateScene((currentScene) => ({
+        ...currentScene,
+        connections: currentScene.connections.filter(
+          (connection) =>
+            !(
+              connection.fromNodeId === nodeId &&
+              connection.fromInternalStructureId === structureId
+            ),
+        ),
+      }))
+    },
+    [updateScene],
+  )
+
   const removePointerSlot = useCallback(
     (nodeId: string, slotId: string) => {
       updateScene((currentScene) => {
@@ -1962,6 +1976,7 @@ export function useSceneHistory(options?: {
     moveNode,
     connectNodes,
     removeConnection,
+    removeConnectionsFromOutputSlot,
     relinkInternalStructureSlot,
     createChildNode,
     createRootNode,

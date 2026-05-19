@@ -187,7 +187,10 @@ function parseConnection(raw: unknown): CanvasConnection | null {
     return null
   }
 
-  const routing = raw.routing === 'flex' || raw.routing === 'rigid' ? raw.routing : undefined
+  const routing =
+    raw.routing === 'flex' || raw.routing === 'rigid' || raw.routing === 'wireless'
+      ? raw.routing
+      : undefined
   const fromInternalStructureIdRaw =
     typeof raw.fromInternalStructureId === 'string'
       ? raw.fromInternalStructureId

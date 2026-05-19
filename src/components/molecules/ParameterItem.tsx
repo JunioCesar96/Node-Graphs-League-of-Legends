@@ -6,6 +6,11 @@ import { ParameterMapHashEmbedInput } from '@/components/molecules/ParameterMapH
 import { ParameterMapHashPointerInput } from '@/components/molecules/ParameterMapHashPointerInput'
 import { ParameterMapU64PointerInput } from '@/components/molecules/ParameterMapU64PointerInput'
 import { ParameterValueInput } from '@/components/molecules/ParameterValueInput'
+import type {
+  WirelessPortHandlers,
+  WirelessPortLink,
+  WirelessPortPulseTarget,
+} from '@/core/connectionDisplay'
 import type { InternalStructureDefinition, NodeParameterDefinition } from '@/core/nodeSchema'
 
 import styles from './ParameterItem.module.css'
@@ -41,6 +46,9 @@ type ParameterItemProps = {
     event: ReactPointerEvent<HTMLButtonElement>,
   ) => void
   onMapHashStructureSlotRemoved?: (slotId: string) => void
+  wirelessOutputLinks?: ReadonlyMap<string, WirelessPortLink>
+  wirelessPortHandlers?: WirelessPortHandlers
+  wirelessPortPulse?: WirelessPortPulseTarget
   parameter: NodeParameterDefinition
   parameterNameReorderHandlers?: ParameterNameReorderHandlers
   registerParameterRowRef?: Ref<HTMLLIElement>
@@ -59,6 +67,9 @@ export function ParameterItem({
   onOutputWirePointerMove,
   onOutputWirePointerUp,
   onMapHashStructureSlotRemoved,
+  wirelessOutputLinks,
+  wirelessPortHandlers,
+  wirelessPortPulse,
   parameter,
   parameterNameReorderHandlers,
   registerParameterRowRef,
@@ -87,6 +98,9 @@ export function ParameterItem({
         onOutputWirePointerDown={onOutputWirePointerDown}
         onOutputWirePointerMove={onOutputWirePointerMove}
         onOutputWirePointerUp={onOutputWirePointerUp}
+        wirelessOutputLinks={wirelessOutputLinks}
+        wirelessPortHandlers={wirelessPortHandlers}
+        wirelessPortPulse={wirelessPortPulse}
         parameterId={parameter.id}
         value={value}
       />
@@ -104,6 +118,9 @@ export function ParameterItem({
         onOutputWirePointerDown={onOutputWirePointerDown}
         onOutputWirePointerMove={onOutputWirePointerMove}
         onOutputWirePointerUp={onOutputWirePointerUp}
+        wirelessOutputLinks={wirelessOutputLinks}
+        wirelessPortHandlers={wirelessPortHandlers}
+        wirelessPortPulse={wirelessPortPulse}
         parameterId={parameter.id}
         value={value}
       />
@@ -121,6 +138,9 @@ export function ParameterItem({
         onOutputWirePointerDown={onOutputWirePointerDown}
         onOutputWirePointerMove={onOutputWirePointerMove}
         onOutputWirePointerUp={onOutputWirePointerUp}
+        wirelessOutputLinks={wirelessOutputLinks}
+        wirelessPortHandlers={wirelessPortHandlers}
+        wirelessPortPulse={wirelessPortPulse}
         parameterId={parameter.id}
         value={value}
       />

@@ -1,6 +1,6 @@
 import type { MouseEvent as ReactMouseEvent, PointerEventHandler } from 'react'
 
-import { Port } from '@/components/atoms/Port'
+import { Port, type WirelessPortLinkProps } from '@/components/atoms/Port'
 
 import styles from './NodeHeader.module.css'
 
@@ -13,6 +13,7 @@ type NodeHeaderProps = {
   onStartDrag?: PointerEventHandler<HTMLElement>
   selected?: boolean
   title: string
+  wirelessLink?: WirelessPortLinkProps
 }
 
 export function NodeHeader({
@@ -24,6 +25,7 @@ export function NodeHeader({
   onStartDrag,
   selected = false,
   title,
+  wirelessLink,
 }: NodeHeaderProps) {
   return (
     <header
@@ -47,7 +49,8 @@ export function NodeHeader({
         graphNodeId={canvasNodeId}
         graphPortKind="input"
         label={`Connect to ${title}`}
-        onClick={onInputPortClick}
+        onClick={wirelessLink ? undefined : onInputPortClick}
+        wirelessLink={wirelessLink}
       />
       <h2 className={styles.title}>{title}</h2>
       <span className={styles.actions}>

@@ -6,6 +6,11 @@ import { AddNodePalette } from '@/components/organisms/AddNodePalette'
 import { NodeCard } from '@/components/organisms/NodeCard'
 import type { CanvasConnection, CanvasNode, CanvasPosition, CanvasScene } from '@/core/canvasScene'
 import {
+  buildWirelessDisplayByNode,
+  type WirelessPortPulseTarget,
+  type WirelessPeerHoverPayload,
+} from '@/core/connectionDisplay'
+import {
   findConnectionTargetForSlot,
   getNodesByCollectionType,
   nodesShareCollectionTypeForOutputSlot,
@@ -1113,6 +1118,8 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     null,
   )
   const [glueNodeId, setGlueNodeId] = useState<string | null>(null)
+  const [wirelessHighlightNodeId, setWirelessHighlightNodeId] = useState<string | null>(null)
+  const [wirelessPortPulse, setWirelessPortPulse] = useState<WirelessPortPulseTarget | null>(null)
   const glueTargetId =
     selectedNodeIds.length > 0
       ? selectedNodeIds.includes(selectedNodeId)
@@ -1150,8 +1157,29 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     scene.nodes,
   ])
 
+  const wirelessDisplayByNode = useMemo(
+    () => buildWirelessDisplayByNode(scene.connections, scene.nodes),
+    [scene.connections, scene.nodes],
+  )
+
+  const handleWirelessPeerHoverStart = useCallback((payload: WirelessPeerHoverPayload) => {
+    setWirelessHighlightNodeId(payload.peerNodeId)
+    setWirelessPortPulse({
+      connectionId: payload.pulseOnPeer.connectionId,
+      nodeId: payload.peerNodeId,
+      portKind: payload.pulseOnPeer.portKind,
+      outputSlotId: payload.pulseOnPeer.outputSlotId,
+    })
+  }, [])
+
+  const handleWirelessPeerHoverEnd = useCallback(() => {
+    setWirelessHighlightNodeId(null)
+    setWirelessPortPulse(null)
+  }, [])
+
   const connectionPaths = useMemo(() => {
     return scene.connections
+      .filter((connection) => connection.routing !== 'wireless')
       .map((connection) => resolveConnectionPath(connection, scene.nodes, scene.connections, portAnchors))
       .filter((path): path is ConnectionPath => path !== null)
   }, [portAnchors, scene.connections, scene.nodes])
@@ -2287,8 +2315,9 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
             child output
           </span>
           <span className={styles.legendItem}>
-            <span aria-hidden className={styles.legendWireIcon} /> fio · clique cicla estilo · Ctrl+clique remove ·
-            tecla A: seleccionar todos ou limpar · clique na grade limpa
+            <span aria-hidden className={styles.legendWireIcon} /> fio curvo · ortogonal · sem fio (corrente nos
+            ports) · clique no fio ou na corrente cicla estilo · Ctrl+clique remove · tecla A: seleccionar todos ou
+            limpar · clique na grade limpa
           </span>
         </div>
 
@@ -2509,9 +2538,11 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
             pendingLink !== null &&
             pendingLink.fromNodeId !== canvasNode.id &&
             !isCompatibleTarget
+          const wirelessHighlighted = wirelessHighlightNodeId === canvasNode.id
           const classes = [
             styles.node,
             isSelected ? styles.nodeSelected : '',
+            wirelessHighlighted ? styles.nodeWirelessLinked : '',
             isCompatibleTarget ? styles.nodeCompatibleTarget : '',
             isIncompatibleDuringLink ? styles.nodeIncompatibleTarget : '',
           ]
@@ -2682,6 +2713,14 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
                   onRemoveConnectionsFromOutputSlot
                     ? (slotId) => onRemoveConnectionsFromOutputSlot(canvasNode.id, slotId)
                     : undefined
+                }
+                onCycleConnectionRouting={onCycleConnectionRouting}
+                onRemoveConnection={onRemoveConnection}
+                onWirelessPeerHoverStart={handleWirelessPeerHoverStart}
+                onWirelessPeerHoverEnd={handleWirelessPeerHoverEnd}
+                wirelessDisplay={wirelessDisplayByNode.get(canvasNode.id)}
+                wirelessPortPulse={
+                  wirelessPortPulse?.nodeId === canvasNode.id ? wirelessPortPulse : undefined
                 }
                 parameterHints={hints}
                 selected={isSelected}

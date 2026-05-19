@@ -111,6 +111,10 @@
   transform: translateY(-2px);
 }
 
+.nodeWirelessLinked {
+  outline-color: var(--syntax-property);
+}
+
 .nodeCompatibleTarget {
   outline-color: var(--port-parent);
 }

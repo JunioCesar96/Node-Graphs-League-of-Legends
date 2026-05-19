@@ -53,3 +53,60 @@
   outline: 2px solid currentcolor;
   outline-offset: 6px;
 }
+
+.wireless {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  color: var(--syntax-property);
+  background: var(--color-node-surface);
+  border-color: var(--syntax-property);
+  box-shadow:
+    0 0 0 1px rgb(156 220 254 / 28%),
+    0 0 12px rgb(156 220 254 / 22%);
+}
+
+.wireless.input {
+  top: -9px;
+}
+
+.wireless.output {
+  right: -9px;
+}
+
+.wireless:hover,
+.wireless:focus-visible {
+  color: var(--syntax-property);
+  box-shadow:
+    0 0 0 1px rgb(156 220 254 / 42%),
+    0 0 18px rgb(156 220 254 / 36%);
+}
+
+.chainIcon {
+  width: 14px;
+  height: 14px;
+}
+
+.wirelessPulse {
+  animation: wireless-port-pulse 0.85s ease-in-out infinite;
+}
+
+@keyframes wireless-port-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    box-shadow:
+      0 0 0 1px rgb(156 220 254 / 28%),
+      0 0 12px rgb(156 220 254 / 22%);
+  }
+
+  50% {
+    opacity: 0.45;
+    box-shadow:
+      0 0 0 2px rgb(156 220 254 / 72%),
+      0 0 22px rgb(156 220 254 / 58%);
+  }
+}

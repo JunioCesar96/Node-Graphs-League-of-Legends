@@ -1,6 +1,13 @@
 import type { PointerEvent as ReactPointerEvent } from 'react'
 
 import { Port } from '@/components/atoms/Port'
+import {
+  isWirelessPortPulsing,
+  toWirelessPortLinkProps,
+  type WirelessPortHandlers,
+  type WirelessPortLink,
+  type WirelessPortPulseTarget,
+} from '@/core/connectionDisplay'
 import type { PointerDefinition, InternalStructureDefinition } from '@/core/nodeSchema'
 
 import styles from './PointerItem.module.css'
@@ -31,6 +38,9 @@ type PointerItemProps = {
     slot: InternalStructureDefinition,
     event: ReactPointerEvent<HTMLButtonElement>,
   ) => void
+  wirelessOutputLinks?: ReadonlyMap<string, WirelessPortLink>
+  wirelessPortHandlers?: WirelessPortHandlers
+  wirelessPortPulse?: WirelessPortPulseTarget
 }
 
 export function PointerItem({
@@ -47,6 +57,9 @@ export function PointerItem({
   onOutputWirePointerDown,
   onOutputWirePointerMove,
   onOutputWirePointerUp,
+  wirelessOutputLinks,
+  wirelessPortHandlers,
+  wirelessPortPulse,
 }: PointerItemProps) {
   const isEmpty = slots.length === 0
 
@@ -111,6 +124,16 @@ export function PointerItem({
                 onWirePointerUp={
                   onOutputWirePointerUp ? (event) => onOutputWirePointerUp(slot, event) : undefined
                 }
+                wirelessLink={toWirelessPortLinkProps(
+                  wirelessOutputLinks?.get(slot.id),
+                  wirelessPortHandlers,
+                  isWirelessPortPulsing(
+                    wirelessPortPulse,
+                    wirelessOutputLinks?.get(slot.id)?.connectionId ?? '',
+                    'output',
+                    slot.id,
+                  ),
+                )}
               />
             </li>
           ))}

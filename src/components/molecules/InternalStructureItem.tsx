@@ -1,6 +1,6 @@
 import type { PointerEvent as ReactPointerEvent } from 'react'
 
-import { Port } from '@/components/atoms/Port'
+import { Port, type WirelessPortLinkProps } from '@/components/atoms/Port'
 import type { InternalStructureDefinition } from '@/core/nodeSchema'
 
 import styles from './InternalStructureItem.module.css'
@@ -26,6 +26,7 @@ type InternalStructureItemProps = {
     structure: InternalStructureDefinition,
     event: ReactPointerEvent<HTMLButtonElement>,
   ) => void
+  wirelessLink?: WirelessPortLinkProps
 }
 
 export function InternalStructureItem({
@@ -37,6 +38,7 @@ export function InternalStructureItem({
   onOutputWirePointerDown,
   onOutputWirePointerMove,
   onOutputWirePointerUp,
+  wirelessLink,
 }: InternalStructureItemProps) {
   return (
     <li className={styles.item}>
@@ -59,6 +61,7 @@ export function InternalStructureItem({
         onWirePointerDown={onOutputWirePointerDown ? (event) => onOutputWirePointerDown(structure, event) : undefined}
         onWirePointerMove={onOutputWirePointerMove ? (event) => onOutputWirePointerMove(structure, event) : undefined}
         onWirePointerUp={onOutputWirePointerUp ? (event) => onOutputWirePointerUp(structure, event) : undefined}
+        wirelessLink={wirelessLink}
       />
     </li>
   )

@@ -36,6 +36,9 @@ type MapHashPointerBlockProps = {
     slot: InternalStructureDefinition,
     event: ReactPointerEvent<HTMLButtonElement>,
   ) => void
+  onCycleConnectionRouting?: (connectionId: string) => void
+  onRemoveConnection?: (connectionId: string) => void
+  wirelessOutputLinks?: ReadonlyMap<string, import('@/core/connectionDisplay').WirelessPortLink>
 }
 
 export function MapHashPointerBlock(props: MapHashPointerBlockProps) {

@@ -1,6 +1,13 @@
 import type { PointerEvent as ReactPointerEvent } from 'react'
 
 import { Port } from '@/components/atoms/Port'
+import {
+  isWirelessPortPulsing,
+  toWirelessPortLinkProps,
+  type WirelessPortHandlers,
+  type WirelessPortLink,
+  type WirelessPortPulseTarget,
+} from '@/core/connectionDisplay'
 import type { EmbedDefinition, InternalStructureDefinition } from '@/core/nodeSchema'
 
 import styles from './EmbedItem.module.css'
@@ -31,6 +38,9 @@ type EmbedItemProps = {
     slot: InternalStructureDefinition,
     event: ReactPointerEvent<HTMLButtonElement>,
   ) => void
+  wirelessOutputLinks?: ReadonlyMap<string, WirelessPortLink>
+  wirelessPortHandlers?: WirelessPortHandlers
+  wirelessPortPulse?: WirelessPortPulseTarget
 }
 
 export function EmbedItem({
@@ -47,6 +57,9 @@ export function EmbedItem({
   onOutputWirePointerDown,
   onOutputWirePointerMove,
   onOutputWirePointerUp,
+  wirelessOutputLinks,
+  wirelessPortHandlers,
+  wirelessPortPulse,
 }: EmbedItemProps) {
   const isEmpty = slots.length === 0
 
@@ -111,6 +124,16 @@ export function EmbedItem({
                 onWirePointerUp={
                   onOutputWirePointerUp ? (event) => onOutputWirePointerUp(slot, event) : undefined
                 }
+                wirelessLink={toWirelessPortLinkProps(
+                  wirelessOutputLinks?.get(slot.id),
+                  wirelessPortHandlers,
+                  isWirelessPortPulsing(
+                    wirelessPortPulse,
+                    wirelessOutputLinks?.get(slot.id)?.connectionId ?? '',
+                    'output',
+                    slot.id,
+                  ),
+                )}
               />
             </li>
           ))}

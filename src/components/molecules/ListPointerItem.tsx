@@ -3,6 +3,13 @@ import type { PointerEvent as ReactPointerEvent } from 'react'
 
 
 import { Port } from '@/components/atoms/Port'
+import {
+  isWirelessPortPulsing,
+  toWirelessPortLinkProps,
+  type WirelessPortHandlers,
+  type WirelessPortLink,
+  type WirelessPortPulseTarget,
+} from '@/core/connectionDisplay'
 
 import type { InternalStructureDefinition, ListPointerDefinition } from '@/core/nodeSchema'
 
@@ -64,6 +71,12 @@ type ListPointerItemProps = {
 
   ) => void
 
+  wirelessOutputLinks?: ReadonlyMap<string, WirelessPortLink>
+
+  wirelessPortHandlers?: WirelessPortHandlers
+
+  wirelessPortPulse?: WirelessPortPulseTarget
+
 }
 
 
@@ -95,6 +108,12 @@ export function ListPointerItem({
   onOutputWirePointerMove,
 
   onOutputWirePointerUp,
+
+  wirelessOutputLinks,
+
+  wirelessPortHandlers,
+
+  wirelessPortPulse,
 
 }: ListPointerItemProps) {
 
@@ -223,6 +242,21 @@ export function ListPointerItem({
                   onOutputWirePointerUp ? (event) => onOutputWirePointerUp(slot, event) : undefined
 
                 }
+
+                wirelessLink={toWirelessPortLinkProps(
+
+                  wirelessOutputLinks?.get(slot.id),
+
+                  wirelessPortHandlers,
+
+                  isWirelessPortPulsing(
+                    wirelessPortPulse,
+                    wirelessOutputLinks?.get(slot.id)?.connectionId ?? '',
+                    'output',
+                    slot.id,
+                  ),
+
+                )}
 
               />
 

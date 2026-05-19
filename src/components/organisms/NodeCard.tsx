@@ -19,6 +19,13 @@ import { PointerItem } from '@/components/molecules/PointerItem'
 import { NodeHeader } from '@/components/molecules/NodeHeader'
 import { ParameterItem } from '@/components/molecules/ParameterItem'
 import type { CanvasConnection } from '@/core/canvasScene'
+import {
+  isWirelessPortPulsing,
+  toWirelessPortLinkProps,
+  type WirelessNodeDisplay,
+  type WirelessPortHandlers,
+  type WirelessPortPulseTarget,
+} from '@/core/connectionDisplay'
 import { populatedSlotsForEmbed } from '@/core/embedSlots'
 import { populatedSlotsForListEmbed } from '@/core/listEmbedSlots'
 import { populatedSlotsForListPointer } from '@/core/listPointerSlots'
@@ -133,6 +140,12 @@ type NodeCardProps = {
   onUpdateParameter?: (parameterId: string, value: string) => void
   /** Remove ligações de saída de um slot virtual map[hash,pointer]. */
   onMapHashStructureSlotRemoved?: (slotId: string) => void
+  onCycleConnectionRouting?: (connectionId: string) => void
+  onRemoveConnection?: (connectionId: string) => void
+  onWirelessPeerHoverStart?: (peerNodeId: string) => void
+  onWirelessPeerHoverEnd?: () => void
+  wirelessDisplay?: WirelessNodeDisplay
+  wirelessPortPulse?: WirelessPortPulseTarget
   /** Reordena parâmetros no card durante o arrasto pelo nome (índice 1-based). */
   onReorderNodeParameter?: (parameterId: string, oneBasedIndex: number) => void
   parameterHints?: Record<string, string>
@@ -181,6 +194,12 @@ export function NodeCard({
   onStartDrag,
   onUpdateParameter,
   onMapHashStructureSlotRemoved,
+  onCycleConnectionRouting,
+  onRemoveConnection,
+  onWirelessPeerHoverStart,
+  onWirelessPeerHoverEnd,
+  wirelessDisplay,
+  wirelessPortPulse,
   onReorderNodeParameter,
   parameterHints,
   parameterStubCatalog,
@@ -554,6 +573,27 @@ export function NodeCard({
     connections,
   })
 
+  const wirelessPortHandlers = useMemo((): WirelessPortHandlers => ({
+    onCycleRouting: onCycleConnectionRouting,
+    onRemoveConnection,
+    onWirelessPeerHoverStart,
+    onWirelessPeerHoverEnd,
+  }), [
+    onCycleConnectionRouting,
+    onRemoveConnection,
+    onWirelessPeerHoverStart,
+    onWirelessPeerHoverEnd,
+  ])
+
+  const wirelessInputLink = toWirelessPortLinkProps(
+    wirelessDisplay?.input,
+    wirelessPortHandlers,
+    wirelessDisplay?.input
+      ? isWirelessPortPulsing(wirelessPortPulse, wirelessDisplay.input.connectionId, 'input')
+      : false,
+  )
+  const wirelessOutputLinks = wirelessDisplay?.outputs
+
   const showElementPicker =
     presetStructureCount > 0 ||
     hasCatalogStructures ||
@@ -576,6 +616,7 @@ export function NodeCard({
         onStartDrag={onStartDrag}
         selected={selected}
         title={node.schema.title}
+        wirelessLink={wirelessInputLink}
       />
       <div className={styles.body}>
         <section className={styles.section} aria-labelledby={`${sectionId}-parameters`}>
@@ -613,6 +654,9 @@ export function NodeCard({
                   onOutputWirePointerMove={onOutputWirePointerMove}
                   onOutputWirePointerUp={onOutputWirePointerUp}
                   onMapHashStructureSlotRemoved={onMapHashStructureSlotRemoved}
+                  wirelessOutputLinks={wirelessOutputLinks}
+                  wirelessPortHandlers={wirelessPortHandlers}
+                  wirelessPortPulse={wirelessPortPulse}
                   parameter={parameter}
                   parameterNameReorderHandlers={nameReorderHandlers}
                   registerParameterRowRef={(rowElement) => registerParameterRowRef(parameter.id, rowElement)}
@@ -646,6 +690,9 @@ export function NodeCard({
                 onOutputWirePointerDown={onOutputWirePointerDown}
                 onOutputWirePointerMove={onOutputWirePointerMove}
                 onOutputWirePointerUp={onOutputWirePointerUp}
+                wirelessOutputLinks={wirelessOutputLinks}
+                wirelessPortHandlers={wirelessPortHandlers}
+                wirelessPortPulse={wirelessPortPulse}
                 slots={populatedSlotsForEmbed(embed)}
               />
             ))}
@@ -674,6 +721,9 @@ export function NodeCard({
                 onOutputWirePointerDown={onOutputWirePointerDown}
                 onOutputWirePointerMove={onOutputWirePointerMove}
                 onOutputWirePointerUp={onOutputWirePointerUp}
+                wirelessOutputLinks={wirelessOutputLinks}
+                wirelessPortHandlers={wirelessPortHandlers}
+                wirelessPortPulse={wirelessPortPulse}
                 pointer={pointer}
                 slots={populatedSlotsForPointer(pointer)}
               />
@@ -704,6 +754,9 @@ export function NodeCard({
                 onOutputWirePointerDown={onOutputWirePointerDown}
                 onOutputWirePointerMove={onOutputWirePointerMove}
                 onOutputWirePointerUp={onOutputWirePointerUp}
+                wirelessOutputLinks={wirelessOutputLinks}
+                wirelessPortHandlers={wirelessPortHandlers}
+                wirelessPortPulse={wirelessPortPulse}
                 slots={populatedSlotsForListEmbed(listEmbed)}
               />
             ))}
@@ -733,6 +786,9 @@ export function NodeCard({
                 onOutputWirePointerDown={onOutputWirePointerDown}
                 onOutputWirePointerMove={onOutputWirePointerMove}
                 onOutputWirePointerUp={onOutputWirePointerUp}
+                wirelessOutputLinks={wirelessOutputLinks}
+                wirelessPortHandlers={wirelessPortHandlers}
+                wirelessPortPulse={wirelessPortPulse}
                 slots={populatedSlotsForListPointer(listPointer)}
               />
             ))}
@@ -773,6 +829,9 @@ export function NodeCard({
                   onOutputWirePointerDown={onOutputWirePointerDown}
                   onOutputWirePointerMove={onOutputWirePointerMove}
                   onOutputWirePointerUp={onOutputWirePointerUp}
+                  wirelessOutputLinks={wirelessOutputLinks}
+                  wirelessPortHandlers={wirelessPortHandlers}
+                  wirelessPortPulse={wirelessPortPulse}
                 />
               ))}
             </ul>
@@ -813,6 +872,9 @@ export function NodeCard({
                   onOutputWirePointerDown={onOutputWirePointerDown}
                   onOutputWirePointerMove={onOutputWirePointerMove}
                   onOutputWirePointerUp={onOutputWirePointerUp}
+                  wirelessOutputLinks={wirelessOutputLinks}
+                  wirelessPortHandlers={wirelessPortHandlers}
+                  wirelessPortPulse={wirelessPortPulse}
                 />
               ))}
             </ul>
@@ -835,6 +897,16 @@ export function NodeCard({
                 onOutputWirePointerDown={onOutputWirePointerDown}
                 onOutputWirePointerMove={onOutputWirePointerMove}
                 onOutputWirePointerUp={onOutputWirePointerUp}
+                wirelessLink={toWirelessPortLinkProps(
+                  wirelessOutputLinks?.get(structure.id),
+                  wirelessPortHandlers,
+                  isWirelessPortPulsing(
+                    wirelessPortPulse,
+                    wirelessOutputLinks?.get(structure.id)?.connectionId ?? '',
+                    'output',
+                    structure.id,
+                  ),
+                )}
               />
             ))}
           </ul>

@@ -72,7 +72,17 @@ export type CanvasNode = {
   position: CanvasPosition
 }
 
-export type ConnectionRouting = 'flex' | 'rigid'
+export type ConnectionRouting = 'flex' | 'rigid' | 'wireless'
+
+export function nextConnectionRouting(current?: ConnectionRouting): ConnectionRouting {
+  if (current === 'rigid') {
+    return 'wireless'
+  }
+  if (current === 'wireless') {
+    return 'flex'
+  }
+  return 'rigid'
+}
 
 export type CanvasConnection = {
   id: string

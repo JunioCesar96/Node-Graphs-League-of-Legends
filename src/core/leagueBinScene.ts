@@ -214,7 +214,10 @@ export function parseSceneDocument(data: unknown): CanvasScene | null {
       return null
     }
 
-    const routing = c.routing === 'flex' || c.routing === 'rigid' ? c.routing : undefined
+    const routing =
+      c.routing === 'flex' || c.routing === 'rigid' || c.routing === 'wireless'
+        ? c.routing
+        : undefined
 
     const fromInternalStructureIdRaw =
       typeof c.fromInternalStructureId === 'string'

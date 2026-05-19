@@ -2,6 +2,13 @@ import type { PointerEvent as ReactPointerEvent } from 'react'
 import { useCallback, useMemo, useState } from 'react'
 
 import { Port } from '@/components/atoms/Port'
+import {
+  isWirelessPortPulsing,
+  toWirelessPortLinkProps,
+  type WirelessPortHandlers,
+  type WirelessPortLink,
+  type WirelessPortPulseTarget,
+} from '@/core/connectionDisplay'
 import { ElementRemovalPicker } from '@/components/molecules/ElementRemovalPicker'
 import {
   MapHashStructurePicker,
@@ -59,6 +66,9 @@ type MapHashStructureBlockProps = MapHashStructureBlockConfig & {
     slot: InternalStructureDefinition,
     event: ReactPointerEvent<HTMLButtonElement>,
   ) => void
+  wirelessOutputLinks?: ReadonlyMap<string, WirelessPortLink>
+  wirelessPortHandlers?: WirelessPortHandlers
+  wirelessPortPulse?: WirelessPortPulseTarget
 }
 
 function slotForEntry(
@@ -103,6 +113,9 @@ export function MapHashStructureBlock({
   onOutputWirePointerDown,
   onOutputWirePointerMove,
   onOutputWirePointerUp,
+  wirelessOutputLinks,
+  wirelessPortHandlers,
+  wirelessPortPulse,
 }: MapHashStructureBlockProps) {
   const entries = useMemo(() => parseEntries(value), [parseEntries, value])
   const [structurePickerTarget, setStructurePickerTarget] = useState<StructurePickerTarget | null>(null)
@@ -295,6 +308,16 @@ export function MapHashStructureBlock({
                       onWirePointerUp={
                         onOutputWirePointerUp ? (event) => onOutputWirePointerUp(slot, event) : undefined
                       }
+                      wirelessLink={toWirelessPortLinkProps(
+                        wirelessOutputLinks?.get(slot.id),
+                        wirelessPortHandlers,
+                        isWirelessPortPulsing(
+                          wirelessPortPulse,
+                          wirelessOutputLinks?.get(slot.id)?.connectionId ?? '',
+                          'output',
+                          slot.id,
+                        ),
+                      )}
                     />
                   </div>
                 ) : null}

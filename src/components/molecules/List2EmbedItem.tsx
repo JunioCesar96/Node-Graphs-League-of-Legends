@@ -32,6 +32,9 @@ type List2EmbedItemProps = {
     slot: InternalStructureDefinition,
     event: ReactPointerEvent<HTMLButtonElement>,
   ) => void
+  wirelessOutputLinks?: ReadonlyMap<string, import('@/core/connectionDisplay').WirelessPortLink>
+  wirelessPortHandlers?: import('@/core/connectionDisplay').WirelessPortHandlers
+  wirelessPortPulse?: import('@/core/connectionDisplay').WirelessPortPulseTarget
 }
 
 export function List2EmbedItem({
@@ -48,6 +51,9 @@ export function List2EmbedItem({
   onOutputWirePointerDown,
   onOutputWirePointerMove,
   onOutputWirePointerUp,
+  wirelessOutputLinks,
+  wirelessPortHandlers,
+  wirelessPortPulse,
 }: List2EmbedItemProps) {
   const isEmpty = list2Embed.instances.length === 0
 
@@ -99,6 +105,9 @@ export function List2EmbedItem({
               onOutputWirePointerDown={onOutputWirePointerDown}
               onOutputWirePointerMove={onOutputWirePointerMove}
               onOutputWirePointerUp={onOutputWirePointerUp}
+              wirelessOutputLinks={wirelessOutputLinks}
+              wirelessPortHandlers={wirelessPortHandlers}
+              wirelessPortPulse={wirelessPortPulse}
               slots={populatedSlotsForList2EmbedInstance(instance)}
             />
           ))}

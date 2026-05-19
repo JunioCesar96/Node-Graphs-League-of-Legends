@@ -32,6 +32,9 @@ type List2PointerItemProps = {
     slot: InternalStructureDefinition,
     event: ReactPointerEvent<HTMLButtonElement>,
   ) => void
+  wirelessOutputLinks?: ReadonlyMap<string, import('@/core/connectionDisplay').WirelessPortLink>
+  wirelessPortHandlers?: import('@/core/connectionDisplay').WirelessPortHandlers
+  wirelessPortPulse?: import('@/core/connectionDisplay').WirelessPortPulseTarget
 }
 
 export function List2PointerItem({
@@ -48,6 +51,9 @@ export function List2PointerItem({
   onOutputWirePointerDown,
   onOutputWirePointerMove,
   onOutputWirePointerUp,
+  wirelessOutputLinks,
+  wirelessPortHandlers,
+  wirelessPortPulse,
 }: List2PointerItemProps) {
   const isEmpty = list2Pointer.instances.length === 0
 
@@ -98,6 +104,9 @@ export function List2PointerItem({
               onOutputWirePointerDown={onOutputWirePointerDown}
               onOutputWirePointerMove={onOutputWirePointerMove}
               onOutputWirePointerUp={onOutputWirePointerUp}
+              wirelessOutputLinks={wirelessOutputLinks}
+              wirelessPortHandlers={wirelessPortHandlers}
+              wirelessPortPulse={wirelessPortPulse}
               pointer={instance}
               slots={populatedSlotsForList2PointerInstance(instance)}
             />

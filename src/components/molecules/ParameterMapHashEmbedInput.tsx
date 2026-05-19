@@ -1,6 +1,11 @@
 import type { PointerEvent as ReactPointerEvent } from 'react'
 
 import { MapHashEmbedBlock } from '@/components/molecules/MapHashEmbedBlock'
+import type {
+  WirelessPortHandlers,
+  WirelessPortLink,
+  WirelessPortPulseTarget,
+} from '@/core/connectionDisplay'
 import type { InternalStructureDefinition } from '@/core/nodeSchema'
 import { normalizeMapHashEmbedString } from '@/core/mapHashEmbedValue'
 
@@ -31,6 +36,9 @@ type ParameterMapHashEmbedInputProps = {
     slot: InternalStructureDefinition,
     event: ReactPointerEvent<HTMLButtonElement>,
   ) => void
+  wirelessOutputLinks?: ReadonlyMap<string, WirelessPortLink>
+  wirelessPortHandlers?: WirelessPortHandlers
+  wirelessPortPulse?: WirelessPortPulseTarget
 }
 
 export function ParameterMapHashEmbedInput({
@@ -48,6 +56,9 @@ export function ParameterMapHashEmbedInput({
   onOutputWirePointerDown,
   onOutputWirePointerMove,
   onOutputWirePointerUp,
+  wirelessOutputLinks,
+  wirelessPortHandlers,
+  wirelessPortPulse,
 }: ParameterMapHashEmbedInputProps) {
   return (
     <div className={className} data-parameter-type="mapHashEmbed">
@@ -63,6 +74,9 @@ export function ParameterMapHashEmbedInput({
         onOutputWirePointerDown={onOutputWirePointerDown}
         onOutputWirePointerMove={onOutputWirePointerMove}
         onOutputWirePointerUp={onOutputWirePointerUp}
+        wirelessOutputLinks={wirelessOutputLinks}
+        wirelessPortHandlers={wirelessPortHandlers}
+        wirelessPortPulse={wirelessPortPulse}
         parameterId={parameterId}
         value={value}
       />
