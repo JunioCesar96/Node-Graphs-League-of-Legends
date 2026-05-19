@@ -2,6 +2,8 @@
 
 Arquivo salvo em: `feature_md/feature/feature-wireless-connection.md`
 
+![Tool Screenshot](./src/assets/connectionDisplay.png)
+
 ## 1. Cabeçalho
 
 | Campo | Valor |
