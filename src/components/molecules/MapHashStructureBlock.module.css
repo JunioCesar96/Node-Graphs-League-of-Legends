@@ -1,0 +1,154 @@
+.block {
+  display: grid;
+  gap: var(--space-2);
+  width: 100%;
+  min-width: 0;
+}
+
+.blockHeader {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  justify-content: space-between;
+  min-height: 42px;
+  padding: var(--space-2) var(--space-3);
+  background: rgb(255 255 255 / 4%);
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-control);
+}
+
+.blockTitle {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  color: var(--color-text-primary);
+  font-size: 0.88rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mapActions,
+.hashStructureActions {
+  display: flex;
+  flex-shrink: 0;
+  gap: var(--space-1);
+}
+
+.entries {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.entryGroup {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  background: rgb(255 255 255 / 3%);
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-control);
+}
+
+.hashRow {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  min-height: 40px;
+}
+
+.hashField {
+  display: flex;
+  flex: 1;
+  gap: var(--space-1);
+  align-items: center;
+  min-width: 0;
+  max-width: 200px;
+  padding: var(--space-1) var(--space-2);
+  background: rgb(0 0 0 / 25%);
+  border-radius: var(--radius-control);
+}
+
+.hashBracket {
+  flex-shrink: 0;
+  color: var(--syntax-hash, #e6c84a);
+  font-family: var(--font-data);
+  font-size: 0.82rem;
+}
+
+.hashInput {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  color: var(--color-text-primary);
+  font-family: var(--font-data);
+  font-size: 0.82rem;
+  background: transparent;
+  border: none;
+  outline: none;
+}
+
+.addButton,
+.removeButton {
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  color: var(--color-text-secondary);
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  background: transparent;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-control);
+}
+
+.addButton:hover:not(:disabled) {
+  color: var(--color-text-primary);
+  background: rgb(255 255 255 / 4%);
+  border-color: var(--port-child);
+}
+
+.removeButton:hover:not(:disabled) {
+  color: var(--color-text-primary);
+  background: rgb(255 80 80 / 8%);
+  border-color: rgb(255 120 120 / 45%);
+}
+
+.addButton:disabled,
+.removeButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.structureSlot {
+  position: relative;
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  min-height: 36px;
+  max-width: 266px;
+  padding: var(--space-2) var(--space-3);
+  background: rgb(255 255 255 / 2%);
+  border: 1px solid var(--color-border-soft);
+  border-radius: 2px;
+}
+
+.structureName {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--color-text-secondary);
+  font-size: 0.84rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.emptyHint {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+}

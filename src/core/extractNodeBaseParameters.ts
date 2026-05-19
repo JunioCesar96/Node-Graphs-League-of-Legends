@@ -32,14 +32,24 @@ const NODE_DATA_TYPES: ReadonlySet<string> = new Set<NodeDataType>([
   'vector2',
   'vector3',
   'vector4',
+  'mtx44',
+  'link',
   'listF32',
   'listString',
   'listHash',
   'listVector2',
   'listVector3',
   'listVector4',
+  'optionF32',
+  'optionString',
+  'optionVector3',
+  'mapHashLink',
+  'mapHashPointer',
+  'mapHashEmbed',
+  'mapU64Pointer',
   'rgba',
   'bool',
+  'flag',
 ])
 
 /** Valor default para ficheiros «node base» (spec parametros_nodes.md), por `type` normalizado. */
@@ -51,12 +61,27 @@ export function defaultValueForNodeBaseType(typeLower: string): string {
       return '0,0,0'
     case 'vector4':
       return '0,0,0,0'
+    case 'mtx44':
+      return '1, 0, 0, 0 0, 1, 0, 0 0, 0, 1, 0 0, 0, 0, 1'
+    case 'link':
+      return ''
     case 'listf32':
     case 'liststring':
     case 'listhash':
     case 'listvector2':
     case 'listvector3':
     case 'listvector4':
+      return ''
+    case 'optionf32':
+      return '0'
+    case 'optionstring':
+      return ''
+    case 'optionvector3':
+      return '0, 0, 0'
+    case 'maphashlink':
+    case 'maphashpointer':
+    case 'maphashembed':
+    case 'mapu64pointer':
       return ''
     case 'rgba':
       return '1, 1, 1, 1'
@@ -76,6 +101,7 @@ export function defaultValueForNodeBaseType(typeLower: string): string {
       return '0'
     case 'bool':
     case 'boolean':
+    case 'flag':
       return 'false'
     case 'string':
       return ''

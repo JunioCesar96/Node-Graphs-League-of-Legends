@@ -1,9 +1,12 @@
-import type { PointerEventHandler, Ref } from 'react'
+import type { PointerEventHandler, PointerEvent as ReactPointerEvent, Ref } from 'react'
 import { useState } from 'react'
 
 import { SyntaxType } from '@/components/atoms/SyntaxType'
+import { ParameterMapHashEmbedInput } from '@/components/molecules/ParameterMapHashEmbedInput'
+import { ParameterMapHashPointerInput } from '@/components/molecules/ParameterMapHashPointerInput'
+import { ParameterMapU64PointerInput } from '@/components/molecules/ParameterMapU64PointerInput'
 import { ParameterValueInput } from '@/components/molecules/ParameterValueInput'
-import type { NodeParameterDefinition } from '@/core/nodeSchema'
+import type { InternalStructureDefinition, NodeParameterDefinition } from '@/core/nodeSchema'
 
 import styles from './ParameterItem.module.css'
 
@@ -15,9 +18,29 @@ type ParameterNameReorderHandlers = {
 }
 
 type ParameterItemProps = {
+  activeOutputInternalStructureId?: string
+  canvasNodeId?: string
   hint?: string
   isParameterReorderDragSource?: boolean
   onCommitValue?: (value: string) => void
+  onOutputWireKeyboard?: (structure: InternalStructureDefinition) => void
+  onOutputWirePointerCancel?: (
+    structure: InternalStructureDefinition,
+    event: ReactPointerEvent<HTMLButtonElement>,
+  ) => void
+  onOutputWirePointerDown?: (
+    structure: InternalStructureDefinition,
+    event: ReactPointerEvent<HTMLButtonElement>,
+  ) => void
+  onOutputWirePointerMove?: (
+    structure: InternalStructureDefinition,
+    event: ReactPointerEvent<HTMLButtonElement>,
+  ) => void
+  onOutputWirePointerUp?: (
+    structure: InternalStructureDefinition,
+    event: ReactPointerEvent<HTMLButtonElement>,
+  ) => void
+  onMapHashStructureSlotRemoved?: (slotId: string) => void
   parameter: NodeParameterDefinition
   parameterNameReorderHandlers?: ParameterNameReorderHandlers
   registerParameterRowRef?: Ref<HTMLLIElement>
@@ -25,31 +48,98 @@ type ParameterItemProps = {
 }
 
 export function ParameterItem({
+  activeOutputInternalStructureId,
+  canvasNodeId,
   hint,
   isParameterReorderDragSource = false,
   onCommitValue,
+  onOutputWireKeyboard,
+  onOutputWirePointerCancel,
+  onOutputWirePointerDown,
+  onOutputWirePointerMove,
+  onOutputWirePointerUp,
+  onMapHashStructureSlotRemoved,
   parameter,
   parameterNameReorderHandlers,
   registerParameterRowRef,
   value,
 }: ParameterItemProps) {
   const [inputFocused, setInputFocused] = useState(false)
-  const expandedLayout = Boolean(onCommitValue && inputFocused)
+  const isMapHashPointer = parameter.type === 'mapHashPointer'
+  const isMapHashEmbed = parameter.type === 'mapHashEmbed'
+  const isMapU64Pointer = parameter.type === 'mapU64Pointer'
+  const isMapStructure =
+    isMapHashPointer || isMapHashEmbed || isMapU64Pointer
+  const expandedLayout = isMapStructure || Boolean(onCommitValue && inputFocused)
 
-  const valueInner = onCommitValue ? (
-    <ParameterValueInput
-      ariaLabel={`${parameter.name} value`}
-      className={styles.valueInput}
-      onCommit={onCommitValue}
-      onFocusChange={setInputFocused}
-      type={parameter.type}
-      value={value}
-    />
+  const valueInner =
+    isMapHashPointer && onCommitValue && canvasNodeId ? (
+      <ParameterMapHashPointerInput
+        activeSlotId={activeOutputInternalStructureId}
+        canvasNodeId={canvasNodeId}
+        className={styles.valueInput}
+        defaultValue={parameter.defaultValue}
+        onCommit={onCommitValue}
+        onStructureSlotRemoved={onMapHashStructureSlotRemoved}
+        parameterTitle={parameter.name}
+        onOutputWireKeyboard={onOutputWireKeyboard}
+        onOutputWirePointerCancel={onOutputWirePointerCancel}
+        onOutputWirePointerDown={onOutputWirePointerDown}
+        onOutputWirePointerMove={onOutputWirePointerMove}
+        onOutputWirePointerUp={onOutputWirePointerUp}
+        parameterId={parameter.id}
+        value={value}
+      />
+    ) : isMapU64Pointer && onCommitValue && canvasNodeId ? (
+      <ParameterMapU64PointerInput
+        activeSlotId={activeOutputInternalStructureId}
+        canvasNodeId={canvasNodeId}
+        className={styles.valueInput}
+        defaultValue={parameter.defaultValue}
+        onCommit={onCommitValue}
+        onStructureSlotRemoved={onMapHashStructureSlotRemoved}
+        parameterTitle={parameter.name}
+        onOutputWireKeyboard={onOutputWireKeyboard}
+        onOutputWirePointerCancel={onOutputWirePointerCancel}
+        onOutputWirePointerDown={onOutputWirePointerDown}
+        onOutputWirePointerMove={onOutputWirePointerMove}
+        onOutputWirePointerUp={onOutputWirePointerUp}
+        parameterId={parameter.id}
+        value={value}
+      />
+    ) : isMapHashEmbed && onCommitValue && canvasNodeId ? (
+      <ParameterMapHashEmbedInput
+        activeSlotId={activeOutputInternalStructureId}
+        canvasNodeId={canvasNodeId}
+        className={styles.valueInput}
+        defaultValue={parameter.defaultValue}
+        onCommit={onCommitValue}
+        onStructureSlotRemoved={onMapHashStructureSlotRemoved}
+        parameterTitle={parameter.name}
+        onOutputWireKeyboard={onOutputWireKeyboard}
+        onOutputWirePointerCancel={onOutputWirePointerCancel}
+        onOutputWirePointerDown={onOutputWirePointerDown}
+        onOutputWirePointerMove={onOutputWirePointerMove}
+        onOutputWirePointerUp={onOutputWirePointerUp}
+        parameterId={parameter.id}
+        value={value}
+      />
+    ) : onCommitValue ? (
+      <ParameterValueInput
+        ariaLabel={`${parameter.name} value`}
+        className={styles.valueInput}
+        onCommit={onCommitValue}
+        onFocusChange={setInputFocused}
+        type={parameter.type}
+        value={value}
+      />
+    ) : (
+      value
+    )
+
+  const valueShell = isMapStructure ? (
+    <div className={styles.mapHashStructureValue}>{valueInner}</div>
   ) : (
-    value
-  )
-
-  const valueShell = (
     <span className={styles.value}>
       <span className={styles.bracket}>{'{'}</span>
       {valueInner}
@@ -75,7 +165,7 @@ export function ParameterItem({
           .join(' ')}
         {...(parameterNameReorderHandlers ?? {})}
       >
-        {parameter.name}
+        {isMapStructure ? null : parameter.name}
       </span>
     </div>
   )
@@ -85,6 +175,13 @@ export function ParameterItem({
       className={[
         styles.item,
         expandedLayout ? styles.itemExpanded : styles.itemCompact,
+        isMapHashPointer
+          ? styles.itemMapHashPointer
+          : isMapHashEmbed
+            ? styles.itemMapHashEmbed
+            : isMapU64Pointer
+              ? styles.itemMapU64Pointer
+              : '',
         isParameterReorderDragSource ? styles.itemParamDragSource : '',
       ]
         .filter(Boolean)
@@ -98,7 +195,22 @@ export function ParameterItem({
             <SyntaxType className={styles.typeLabel} type={parameter.type} />
           </div>
         </div>
-        <div className={styles.cellValue}>{valueShell}</div>
+        <div
+          className={[
+            styles.cellValue,
+            isMapHashPointer
+              ? styles.cellValueMapHashPointer
+              : isMapHashEmbed
+                ? styles.cellValueMapHashEmbed
+                : isMapU64Pointer
+                  ? styles.cellValueMapU64Pointer
+                  : '',
+          ]
+            .filter(Boolean)
+            .join(' ')}
+        >
+          {valueShell}
+        </div>
       </div>
     </li>
   )

@@ -29,6 +29,18 @@ import {
 } from '@/core/listPointerSlots'
 import { isEmbedSlotId } from '@/core/embedSlots'
 import {
+  findMapHashEmbedEntryBySlotId,
+  isMapHashEmbedSlotId,
+} from '@/core/mapHashEmbedSlots'
+import {
+  findMapHashPointerEntryBySlotId,
+  isMapHashPointerSlotId,
+} from '@/core/mapHashPointerSlots'
+import {
+  findMapU64PointerEntryBySlotId,
+  isMapU64PointerSlotId,
+} from '@/core/mapU64PointerSlots'
+import {
   catalogSchemaIdsForPointer,
   findPointerBySlotId,
   slotMatchesPointerCatalog,
@@ -129,6 +141,84 @@ export function nodesShareCollectionTypeForOutputSlot(
     }
 
     return allowedTypes.includes(targetType)
+  }
+
+  if (isMapHashPointerSlotId(slot.id)) {
+    const valuesByParameterId: Record<string, string> = {}
+    for (const param of fromNode.node.schema.parameters) {
+      if (param.type !== 'mapHashPointer') {
+        continue
+      }
+      const stored =
+        fromNode.node.values.find((entry) => entry.parameterId === param.id)?.value ??
+        param.defaultValue
+      valuesByParameterId[param.id] = stored
+    }
+    const hit = findMapHashPointerEntryBySlotId(fromNode.node.schema, slot.id, valuesByParameterId)
+    if (hit) {
+      const targetType = getCollectionTypeForCanvasNode(targetNode)
+      if (!targetType) {
+        return hit.entry.schemaId === targetNode.node.schema.id
+      }
+      const allowedType = resolveCollectionTypeForSlot(hit.entry.schemaId, registry)
+      if (!allowedType) {
+        return hit.entry.schemaId === targetNode.node.schema.id
+      }
+      return allowedType === targetType
+    }
+    return false
+  }
+
+  if (isMapHashEmbedSlotId(slot.id)) {
+    const valuesByParameterId: Record<string, string> = {}
+    for (const param of fromNode.node.schema.parameters) {
+      if (param.type !== 'mapHashEmbed') {
+        continue
+      }
+      const stored =
+        fromNode.node.values.find((entry) => entry.parameterId === param.id)?.value ??
+        param.defaultValue
+      valuesByParameterId[param.id] = stored
+    }
+    const hit = findMapHashEmbedEntryBySlotId(fromNode.node.schema, slot.id, valuesByParameterId)
+    if (hit) {
+      const targetType = getCollectionTypeForCanvasNode(targetNode)
+      if (!targetType) {
+        return hit.entry.schemaId === targetNode.node.schema.id
+      }
+      const allowedType = resolveCollectionTypeForSlot(hit.entry.schemaId, registry)
+      if (!allowedType) {
+        return hit.entry.schemaId === targetNode.node.schema.id
+      }
+      return allowedType === targetType
+    }
+    return false
+  }
+
+  if (isMapU64PointerSlotId(slot.id)) {
+    const valuesByParameterId: Record<string, string> = {}
+    for (const param of fromNode.node.schema.parameters) {
+      if (param.type !== 'mapU64Pointer') {
+        continue
+      }
+      const stored =
+        fromNode.node.values.find((entry) => entry.parameterId === param.id)?.value ??
+        param.defaultValue
+      valuesByParameterId[param.id] = stored
+    }
+    const hit = findMapU64PointerEntryBySlotId(fromNode.node.schema, slot.id, valuesByParameterId)
+    if (hit) {
+      const targetType = getCollectionTypeForCanvasNode(targetNode)
+      if (!targetType) {
+        return hit.entry.schemaId === targetNode.node.schema.id
+      }
+      const allowedType = resolveCollectionTypeForSlot(hit.entry.schemaId, registry)
+      if (!allowedType) {
+        return hit.entry.schemaId === targetNode.node.schema.id
+      }
+      return allowedType === targetType
+    }
+    return false
   }
 
   const pointerBySlot = findPointerBySlotId(fromNode.node.schema, slot.id)

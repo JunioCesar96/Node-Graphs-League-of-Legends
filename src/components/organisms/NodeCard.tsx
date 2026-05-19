@@ -131,6 +131,8 @@ type NodeCardProps = {
   onStartDrag?: PointerEventHandler<HTMLElement>
   /** Grava o valor de um parâmetro deste nó (card editável). */
   onUpdateParameter?: (parameterId: string, value: string) => void
+  /** Remove ligações de saída de um slot virtual map[hash,pointer]. */
+  onMapHashStructureSlotRemoved?: (slotId: string) => void
   /** Reordena parâmetros no card durante o arrasto pelo nome (índice 1-based). */
   onReorderNodeParameter?: (parameterId: string, oneBasedIndex: number) => void
   parameterHints?: Record<string, string>
@@ -178,6 +180,7 @@ export function NodeCard({
   onSelect,
   onStartDrag,
   onUpdateParameter,
+  onMapHashStructureSlotRemoved,
   onReorderNodeParameter,
   parameterHints,
   parameterStubCatalog,
@@ -594,6 +597,8 @@ export function NodeCard({
 
               return (
                 <ParameterItem
+                  activeOutputInternalStructureId={activeOutputInternalStructureId}
+                  canvasNodeId={canvasNodeId}
                   hint={parameterHints?.[parameter.name]}
                   isParameterReorderDragSource={dragParameterId === parameter.id}
                   key={parameter.id}
@@ -602,6 +607,12 @@ export function NodeCard({
                       ? (nextValue) => onUpdateParameter(parameter.id, nextValue)
                       : undefined
                   }
+                  onOutputWireKeyboard={onOutputWireKeyboard}
+                  onOutputWirePointerCancel={onOutputWirePointerCancel}
+                  onOutputWirePointerDown={onOutputWirePointerDown}
+                  onOutputWirePointerMove={onOutputWirePointerMove}
+                  onOutputWirePointerUp={onOutputWirePointerUp}
+                  onMapHashStructureSlotRemoved={onMapHashStructureSlotRemoved}
                   parameter={parameter}
                   parameterNameReorderHandlers={nameReorderHandlers}
                   registerParameterRowRef={(rowElement) => registerParameterRowRef(parameter.id, rowElement)}

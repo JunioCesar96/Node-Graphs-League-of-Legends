@@ -42,4 +42,18 @@ describe('classGroupFieldClassifier', () => {
       classifyRitualLine('        ComplexEmitterDefinitionData: list[pointer] = {').kind,
     ).toBe('structural')
   })
+
+  it('i16 é primitivo ritual identificado', () => {
+    const parsed = classifyRitualLine('    Pass: i16 = 5')
+    expect(parsed.kind).toBe('simple')
+    expect(parsed.ritType).toBe('i16')
+  })
+
+  it('tipo ritual não identificado vira parâmetro simples', () => {
+    const parsed = classifyRitualLine('    mCustomField: VfxEmitterEnum = SomeValue')
+    expect(parsed.kind).toBe('simple')
+    expect(parsed.fieldName).toBe('mCustomField')
+    expect(parsed.ritType).toBe('VfxEmitterEnum')
+    expect(parsed.rawValue).toBe('SomeValue')
+  })
 })

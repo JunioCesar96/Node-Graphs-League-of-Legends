@@ -63,6 +63,14 @@
   color: var(--syntax-vector4);
 }
 
+.mtx44 {
+  color: var(--syntax-mtx44);
+}
+
+.link {
+  color: var(--syntax-link);
+}
+
 .listF32 {
   color: var(--syntax-float);
 }
@@ -87,10 +95,49 @@
   color: var(--syntax-vector4);
 }
 
+.optionF32 {
+  color: var(--syntax-float);
+  font-style: italic;
+}
+
+.optionString {
+  color: var(--syntax-string);
+  font-style: italic;
+}
+
+.optionVector3 {
+  color: var(--syntax-vector3);
+  font-style: italic;
+}
+
+.mapHashLink {
+  color: var(--syntax-link);
+  font-style: italic;
+}
+
+.mapHashPointer {
+  color: var(--syntax-pointer, var(--syntax-link));
+  font-style: italic;
+}
+
+.mapHashEmbed {
+  color: var(--syntax-embed, var(--syntax-link));
+  font-style: italic;
+}
+
+.mapU64Pointer {
+  color: var(--syntax-pointer, var(--syntax-link));
+  font-style: italic;
+}
+
 .rgba {
   color: var(--syntax-vector4);
 }
 
 .bool {
+  color: var(--syntax-keyword);
+}
+
+.flag {
   color: var(--syntax-keyword);
 }

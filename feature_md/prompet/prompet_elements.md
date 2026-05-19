@@ -4,7 +4,7 @@ Atualmente um nó (`NodeSchemaDefinition` / instância no canvas) organiza-se em
 
 | Secção | Origem no ritual / schema | O que é |
 |--------|---------------------------|---------|
-| **Parameters** | Campos escalares (`string`, `f32`, `rgba`, etc.) | Parâmetros editáveis com valor |
+| **Parameters** | Campos escalares (`string`, `f32`, `i8`/`i16`/`i32`/`i64`, `rgba`, `option[T]`, `map[hash,link]`, `map[hash,pointer]`, `map[hash,embed]`, `map[u64,pointer]`, etc.) | Parâmetros editáveis com valor; inteiros com sinal (`i8`…`i64`) usam clamp por tipo; `option[f32]` → `optionF32`, `option[string]` → `optionString`, `option[vec3]` → `optionVector3` (lista de no máximo 1 valor no ritual `{ … }`); `map[hash,link]` → `mapHashLink` (pares hash → valor; valores com `/` usam picker link); **`map[hash,pointer]` → `mapHashPointer`**, **`map[hash,embed]` → `mapHashEmbed`** e **`map[u64,pointer]` → `mapU64Pointer`** são tipos distintos com UI estruturada (bloco inline: `−`/`+` no cabeçalho; `−`/`+` na chave hash ou u64 para estrutura interna, máx. 1; porta na linha do tipo; catálogo derivado das entradas) |
 | **EMBED** | `Campo: embed = Tipo { … }` | Bloco com **no máximo 1** slot (estrutura interna ligável) |
 | **POINTER** | `Campo: pointer = Tipo { … }` | Bloco com **no máximo 1** slot (como EMBED; distinto de `link`) |
 | **LIST_EMBED** | `Campo: list[embed] = { … }` | Bloco de lista com **vários** slots |
@@ -16,6 +16,8 @@ Atualmente um nó (`NodeSchemaDefinition` / instância no canvas) organiza-se em
 Definido em `nodeSchema.ts` e renderizado em `NodeCard.tsx`.
 
 **Nota:** `link = Tipo { }` permanece em **Internal_Structures**; `pointer = Tipo { }` vai para **POINTER**.
+
+**Corpo vazio numa linha:** o ritual pode fechar na mesma linha — `embed|pointer|link = Tipo {}` ou item de lista `Tipo {}`. O parser cria o bloco estrutural, o schema filho (mesmo sem parâmetros) e o slot inicial quando aplicável.
 
 ---
 

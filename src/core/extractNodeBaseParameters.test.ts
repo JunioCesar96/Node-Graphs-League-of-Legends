@@ -23,6 +23,8 @@ describe('defaultValueForNodeBaseType', () => {
     expect(defaultValueForNodeBaseType('vector3')).toBe('0,0,0')
     expect(defaultValueForNodeBaseType('vector2')).toBe('0,0')
     expect(defaultValueForNodeBaseType('vector4')).toBe('0,0,0,0')
+    expect(defaultValueForNodeBaseType('mtx44')).toBe('1, 0, 0, 0 0, 1, 0, 0 0, 0, 1, 0 0, 0, 0, 1')
+    expect(defaultValueForNodeBaseType('link')).toBe('')
     expect(defaultValueForNodeBaseType('float')).toBe('0')
     expect(defaultValueForNodeBaseType('double')).toBe('0')
     expect(defaultValueForNodeBaseType('integer')).toBe('0')
@@ -33,6 +35,7 @@ describe('defaultValueForNodeBaseType', () => {
     expect(defaultValueForNodeBaseType('keyword')).toBe('')
     expect(defaultValueForNodeBaseType('bool')).toBe('false')
     expect(defaultValueForNodeBaseType('boolean')).toBe('false')
+    expect(defaultValueForNodeBaseType('flag')).toBe('false')
   })
 })
 
@@ -215,6 +218,9 @@ describe('isKnownStructureParameterType', () => {
     expect(isKnownStructureParameterType('vector3')).toBe(true)
     expect(isKnownStructureParameterType('string')).toBe(true)
     expect(isKnownStructureParameterType('bool')).toBe(true)
+    expect(isKnownStructureParameterType('mtx44')).toBe(true)
+    expect(isKnownStructureParameterType('link')).toBe(true)
+    expect(isKnownStructureParameterType('flag')).toBe(true)
   })
 })
 

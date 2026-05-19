@@ -61,7 +61,46 @@ entries: map[hash,embed] = {
     expect(mesh!.parameters.some((p) => p.name === 'ReflectionFresnel')).toBe(true)
   })
 
-  it('bool e flag true/false viram parâmetros type bool', () => {
+  it('link escalar vira parâmetro type link com caminho preservado', () => {
+    const text = `
+entries: map[hash,embed] = {
+  "Characters/Zac/Skins/Skin0" = SkinCharacterDataProperties {
+    mContextualActionData: link = "Characters/Zac/CAC/Zac_Base"
+  }
+}
+`.trim()
+
+    const parsed = parseClassGroupRitualWithStack(text)
+    const skin = parsed.registry.get('skin-character-data-properties')
+    expect(skin).toBeDefined()
+    const param = skin!.parameters.find((p) => p.name === 'mContextualActionData')
+    expect(param?.type).toBe('link')
+    expect(param?.defaultValue).toBe('Characters/Zac/CAC/Zac_Base')
+  })
+
+  it('mtx44 Transform vira parâmetro type mtx44 com translação preservada', () => {
+    const text = `
+entries: map[hash,embed] = {
+  0xa2fa6a01 = VfxSystemDefinitionData {
+    Transform: mtx44 = {
+      1, 0, 0, 0
+      0, 1, 0, 0
+      0, 0, 1, 0
+      0, 15.5, -42.1, 1
+    }
+  }
+}
+`.trim()
+
+    const parsed = parseClassGroupRitualWithStack(text)
+    const vfx = parsed.registry.get('vfx-system-definition-data')
+    expect(vfx).toBeDefined()
+    const transform = vfx!.parameters.find((p) => p.name === 'Transform')
+    expect(transform?.type).toBe('mtx44')
+    expect(transform?.defaultValue).toBe('1, 0, 0, 0 0, 1, 0, 0 0, 0, 1, 0 0, 15.5, -42.1, 1')
+  })
+
+  it('bool e flag true/false viram parâmetros com tipos bool e flag', () => {
     const text = `
 entries: map[hash,embed] = {
   "Characters/Zac/Skins/Skin0" = SkinCharacterDataProperties {
@@ -94,7 +133,7 @@ entries: map[hash,embed] = {
     expect(voiceOver?.defaultValue).toBe('true')
     expect(enabled?.type).toBe('bool')
     expect(enabled?.defaultValue).toBe('false')
-    expect(singleParticle?.type).toBe('bool')
+    expect(singleParticle?.type).toBe('flag')
     expect(singleParticle?.defaultValue).toBe('true')
   })
 
@@ -348,6 +387,68 @@ entries: map[hash,embed] = {
     expect(tags?.defaultValue).toBe('Zac\nOther')
     expect(emitter!.internalStructures.length).toBe(0)
   })
+
+  it('option[f32], option[string] e option[vec3] viram optionF32, optionString e optionVector3', () => {
+    const text = `
+entries: map[hash,embed] = {
+  "K" = SkinCharacterDataProperties {
+    IconCircle: option[string] = {
+      "ASSETS/icon.tex"
+    }
+  }
+  "M" = SkinMeshDataProperties {
+    OverrideBoundingBox: option[vec3] = {
+      { 115, 260, 115 }
+    }
+  }
+  "V" = VfxEmitterDefinitionData {
+    Lifetime: option[f32] = {
+      1
+    }
+  }
+}
+`.trim()
+
+    const parsed = parseClassGroupRitualWithStack(text)
+    const skin = parsed.registry.get('skin-character-data-properties')
+    const mesh = parsed.registry.get('skin-mesh-data-properties')
+    const vfx = parsed.registry.get('vfx-emitter-definition-data')
+
+    const icon = skin!.parameters.find((p) => p.name === 'IconCircle')
+    expect(icon?.type).toBe('optionString')
+    expect(icon?.defaultValue).toBe('ASSETS/icon.tex')
+
+    const bbox = mesh!.parameters.find((p) => p.name === 'OverrideBoundingBox')
+    expect(bbox?.type).toBe('optionVector3')
+    expect(bbox?.defaultValue).toBe('115, 260, 115')
+
+    const lifetime = vfx!.parameters.find((p) => p.name === 'Lifetime')
+    expect(lifetime?.type).toBe('optionF32')
+    expect(lifetime?.defaultValue).toBe('1')
+  })
+
+  it('map[hash,link] vira mapHashLink com pares chave-valor tab', () => {
+    const text = `
+entries: map[hash,embed] = {
+  "R" = ResourceResolver {
+    ResourceMap: map[hash,link] = {
+      "Zac_E_Moving" = "Characters/Zac/Skins/Skin0/Particles/Zac_Base_E_Moving"
+      "Zac_E_tar" = "Zac_E_tar"
+      0x1c1ea8de = 0x1c1ea8de
+    }
+  }
+}
+`.trim()
+
+    const parsed = parseClassGroupRitualWithStack(text)
+    const resolver = parsed.registry.get('resource-resolver')
+    const resourceMap = resolver!.parameters.find((p) => p.name === 'ResourceMap')
+    expect(resourceMap?.type).toBe('mapHashLink')
+    expect(resourceMap?.defaultValue).toContain('Zac_E_Moving\tCharacters/Zac')
+    expect(resourceMap?.defaultValue).toContain('Zac_E_tar\tZac_E_tar')
+    expect(resourceMap?.defaultValue).toContain('0x1c1ea8de\t0x1c1ea8de')
+    expect((resourceMap?.defaultValue?.length ?? 0) > 100).toBe(true)
+  })
 })
 
 describe('convertRitobinStructureTextToNodeSchemas (stack)', () => {
@@ -462,5 +563,173 @@ entries: map[hash,embed] = {
       true,
     )
     expect(block!.internalStructures[0]!.schemaId).toBe('skin-mesh-data-properties-material-override')
+  })
+
+  it('pointer vazio na mesma linha (Tipo {}) cria bloco POINTER, slot e schema filho', () => {
+    const text = `
+entries: map[hash,embed] = {
+  "Characters/Zac/Animations/Skin0" = AnimationGraphData {
+    mClipDataMap: map[hash,embed] = {
+      "Spell3_Back" = ParametricClipData {
+        mTrackDataName: hash = "Default"
+        Updater: pointer = IsMovingParametricUpdater {}
+        mParametricPairDataList: list[embed] = {
+          ParametricPairData {
+            mClipName: hash = "x"
+          }
+        }
+      }
+    }
+  }
+}
+`.trim()
+
+    const parsed = parseClassGroupRitualWithStack(text)
+    const clip = parsed.registry.get('parametric-clip-data')
+    expect(clip).toBeDefined()
+    expect(clip!.internalStructures.some((x) => x.name === 'Updater')).toBe(false)
+
+    const updater = clip!.pointer.find((b) => b.title === 'Updater')
+    expect(updater).toBeDefined()
+    expect(updater!.id).toBe('ParametricClipData_pointer_Updater')
+    expect(updater!.internalStructures).toHaveLength(1)
+    expect(updater!.internalStructures[0]!.name).toBe('IsMovingParametricUpdater')
+    expect(updater!.internalStructures[0]!.schemaId).toBe('is-moving-parametric-updater')
+    expect(updater!.slots).toHaveLength(1)
+    expect(updater!.slots![0]!.schemaId).toBe('is-moving-parametric-updater')
+
+    const child = parsed.registry.get('is-moving-parametric-updater')
+    expect(child).toBeDefined()
+    expect(child!.title).toBe('IsMovingParametricUpdater')
+    expect(child!.parameters).toHaveLength(0)
+
+    const schemas = schemasFromClassGroupStackParse(parsed)
+    expect(schemas.some((s) => s.id === 'is-moving-parametric-updater')).toBe(true)
+  })
+
+  it('map[hash,pointer] vira mapHashPointer com entradas hash → schema filho', () => {
+    const text = `
+entries: map[hash,embed] = {
+  "Characters/Zac/Animations/Skin0" = AnimationGraphData {
+    mClipDataMap: map[hash,embed] = {
+      "Spell3_BackRun" = AtomicClipData {
+        mTrackDataName: hash = "Default"
+        mEventDataMap: map[hash,pointer] = {
+          0xb638e658 = SubmeshVisibilityEventData {
+            mEndFrame: f32 = 13
+            mShowSubmeshList: list[hash] = {
+              "Puddle"
+            }
+          }
+        }
+      }
+    }
+  }
+}
+`.trim()
+
+    const parsed = parseClassGroupRitualWithStack(text)
+    const clip = parsed.registry.get('atomic-clip-data')
+    expect(clip).toBeDefined()
+
+    const eventMap = clip!.parameters.find((p) => p.name === 'mEventDataMap')
+    expect(eventMap?.type).toBe('mapHashPointer')
+    const entries = eventMap?.defaultValue.split('\n') ?? []
+    expect(entries.length).toBeGreaterThanOrEqual(1)
+    expect(entries[0]).toContain('0xb638e658')
+    expect(entries[0]).toContain('submesh-visibility-event-data')
+
+    const child = parsed.registry.get('submesh-visibility-event-data')
+    expect(child).toBeDefined()
+    expect(child!.parameters.some((p) => p.name === 'mEndFrame')).toBe(true)
+
+    const schemas = schemasFromClassGroupStackParse(parsed)
+    expect(schemas.some((s) => s.id === 'submesh-visibility-event-data')).toBe(true)
+  })
+
+  it('map[hash,embed] vira mapHashEmbed com entradas hash → schema filho', () => {
+    const text = `
+entries: map[hash,embed] = {
+  "Characters/Zac/Animations/Skin0" = AnimationGraphData {
+    mClipDataMap: map[hash,embed] = {
+      "Spell3_BackRun" = AtomicClipData {
+        mTrackDataName: hash = "Default"
+      }
+    }
+  }
+}
+`.trim()
+
+    const parsed = parseClassGroupRitualWithStack(text)
+    const anim = parsed.registry.get('animation-graph-data')
+    expect(anim).toBeDefined()
+
+    const clipMap = anim!.parameters.find((p) => p.name === 'mClipDataMap')
+    expect(clipMap?.type).toBe('mapHashEmbed')
+    const entries = clipMap?.defaultValue.split('\n') ?? []
+    expect(entries.length).toBeGreaterThanOrEqual(1)
+    expect(entries[0]).toContain('Spell3_BackRun')
+    expect(entries[0]).toContain('atomic-clip-data')
+
+    const clip = parsed.registry.get('atomic-clip-data')
+    expect(clip).toBeDefined()
+  })
+
+  it('i16 vira parâmetro i16', () => {
+    const text = `
+BlendData {
+  Pass: i16 = 5
+}
+`.trim()
+
+    const parsed = parseClassGroupRitualWithStack(text)
+    const schema = parsed.registry.get('blend-data')
+    expect(schema).toBeDefined()
+    const pass = schema!.parameters.find((p) => p.name === 'Pass')
+    expect(pass?.type).toBe('i16')
+    expect(pass?.defaultValue).toBe('5')
+  })
+
+  it('map[u64,pointer] vira mapU64Pointer com chave decimal', () => {
+    const text = `
+BlendData {
+  mBlendDataTable: map[u64,pointer] = {
+    574043308619688281 = TimeBlendData {
+      mTime: f32 = 0
+    }
+  }
+}
+`.trim()
+
+    const parsed = parseClassGroupRitualWithStack(text)
+    const schema = parsed.registry.get('blend-data')
+    expect(schema).toBeDefined()
+    const mapParam = schema!.parameters.find((p) => p.name === 'mBlendDataTable')
+    expect(mapParam?.type).toBe('mapU64Pointer')
+    const entries = mapParam?.defaultValue.split('\n') ?? []
+    expect(entries.length).toBeGreaterThanOrEqual(1)
+    expect(entries[0]).toContain('574043308619688281')
+    expect(entries[0]).toContain('time-blend-data')
+    expect(parsed.registry.get('time-blend-data')).toBeDefined()
+  })
+
+  it('tipo ritual não identificado vira parâmetro string', () => {
+    const text = `
+TestType {
+  mKnown: u32 = 1
+  mUnknown: VfxEmitterEnum = SomeValue
+}
+`.trim()
+
+    const parsed = parseClassGroupRitualWithStack(text)
+    const schema = parsed.registry.get('test-type')
+    expect(schema).toBeDefined()
+
+    const known = schema!.parameters.find((p) => p.name === 'mKnown')
+    expect(known?.type).toBe('u32')
+
+    const unknown = schema!.parameters.find((p) => p.name === 'mUnknown')
+    expect(unknown?.type).toBe('string')
+    expect(unknown?.defaultValue).toBe('SomeValue')
   })
 })

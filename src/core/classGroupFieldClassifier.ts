@@ -16,7 +16,7 @@ export type ParsedRitualField = {
   childTypeName?: string
 }
 
-const STRUCT_ONLY_LINE = /^#?([A-Za-z_]\w*)\s*\{\s*(?:\/\/[^\n]*)?\s*$/
+const STRUCT_ONLY_LINE = /^#?([A-Za-z_]\w*)\s*\{\s*(?:\})?\s*(?:\/\/[^\n]*)?\s*$/
 const FIELD_SCALAR_REGEX =
   /^\s*([A-Za-z_]\w*)\s*:\s*([^=\n]*?)=\s*((?!\{)[^\n]*)$/
 
@@ -24,15 +24,15 @@ const FIELD_SCALAR_REGEX =
 const FIELD_SCALAR_BRACED_REGEX =
   /^\s*([A-Za-z_]\w*)\s*:\s*([^=\n]*?)=\s*\{([^}]*)\}\s*$/
 const INLINE_EMBED_OPEN_REGEX =
-  /^\s*([A-Za-z_]\w*)\s*:\s*\bembed\s*=\s*([A-Za-z_]\w*)\s*\{\s*$/
+  /^\s*([A-Za-z_]\w*)\s*:\s*\bembed\s*=\s*([A-Za-z_]\w*)\s*\{\s*(?:\})?\s*$/
 const INLINE_POINTER_OPEN_REGEX =
-  /^\s*([A-Za-z_]\w*)\s*:\s*\bpointer\s*=\s*([A-Za-z_]\w*)\s*\{\s*$/
+  /^\s*([A-Za-z_]\w*)\s*:\s*\bpointer\s*=\s*([A-Za-z_]\w*)\s*\{\s*(?:\})?\s*$/
 const INLINE_LINK_OPEN_REGEX =
-  /^\s*([A-Za-z_]\w*)\s*:\s*\blink\s*=\s*([A-Za-z_]\w*)\s*\{\s*$/
+  /^\s*([A-Za-z_]\w*)\s*:\s*\blink\s*=\s*([A-Za-z_]\w*)\s*\{\s*(?:\})?\s*$/
 const INLINE_POINTER_LINK_OPEN_REGEX =
-  /^\s*([A-Za-z_]\w*)\s*:\s*\b(pointer|link)\s*=\s*([A-Za-z_]\w*)\s*\{\s*$/
+  /^\s*([A-Za-z_]\w*)\s*:\s*\b(pointer|link)\s*=\s*([A-Za-z_]\w*)\s*\{\s*(?:\})?\s*$/
 const INLINE_CHILD_OPEN_REGEX =
-  /^\s*([A-Za-z_]\w*)\s*:\s*\b(embed|pointer|link)\s*=\s*([A-Za-z_]\w*)\s*\{\s*$/
+  /^\s*([A-Za-z_]\w*)\s*:\s*\b(embed|pointer|link)\s*=\s*([A-Za-z_]\w*)\s*\{\s*(?:\})?\s*$/
 const LIST_STRUCTURAL_OPEN_REGEX =
   /^\s*([A-Za-z_]\w*)\s*:\s*(list2?\[[^\]]+\]|list\[[^\]]+\])\s*=\s*\{\s*$/
 /** Chave string `"path"` ou hash `0x1c1ea8de` em `entries: map[hash,embed]`. */
@@ -40,7 +40,7 @@ const MAP_ENTRY_HEAD_REGEX = /^\s*(?:"([^"]+)"|(0x[0-9a-fA-F]+))\s*=\s*(\w+)\s*\
 const METADATA_LINE_REGEX = /^\s*(type|version|linked)\s*:/i
 
 const PRIMITIVE_TYPE_REGEX =
-  /\b(u8|u16|u32|u64|s8|s16|s32|s64|f32|f64|bool|string|hash|flag|symbol|keyword|vec[234]|rgb|rgba)\b/i
+  /\b(u8|u16|u32|u64|i8|i16|i32|i64|s8|s16|s32|s64|f32|f64|bool|string|hash|flag|symbol|keyword|vec[234]|rgb|rgba|mtx44|link)\b/i
 
 /** Lista estrutural genérica (ex. `list[link]`) → filhos em Internal_Structures. */
 export function isStructuralListType(listTypeBracket: string): boolean {
@@ -102,6 +102,9 @@ export function isPrimitiveRitType(ritType: string): boolean {
   if (!t) {
     return false
   }
+  if (/^link$/i.test(t)) {
+    return true
+  }
   if (/\b(embed|pointer|link|map)\b/i.test(t)) {
     return false
   }
@@ -109,6 +112,9 @@ export function isPrimitiveRitType(ritType: string): boolean {
     return isPrimitiveListType(t)
   }
   if (/^option\[/i.test(t)) {
+    return true
+  }
+  if (/^map\[hash,link\]/i.test(t)) {
     return true
   }
   return PRIMITIVE_TYPE_REGEX.test(t)
@@ -217,6 +223,12 @@ export function classifyRitualLine(lineRaw: string): ParsedRitualField {
     if (/\b(embed|pointer|link)\b/i.test(ritType)) {
       return { kind: 'structural', fieldName: bracedScalar[1], ritType }
     }
+    return {
+      kind: 'simple',
+      fieldName: bracedScalar[1],
+      ritType,
+      rawValue,
+    }
   }
 
   if (FIELD_SCALAR_REGEX.test(lineRaw) && !lineRaw.includes('{')) {
@@ -234,6 +246,12 @@ export function classifyRitualLine(lineRaw: string): ParsedRitualField {
       }
       if (/\b(embed|pointer|link)\b/i.test(ritType)) {
         return { kind: 'structural', fieldName: m[1], ritType }
+      }
+      return {
+        kind: 'simple',
+        fieldName: m[1],
+        ritType,
+        rawValue,
       }
     }
   }

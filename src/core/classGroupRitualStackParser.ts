@@ -21,6 +21,7 @@ import {
   isPointerList2Type,
   isPointerListType,
   isPrimitiveListType,
+  isPrimitiveRitType,
   isStructuralListType,
 } from '@/core/classGroupFieldClassifier'
 import {
@@ -41,6 +42,41 @@ import {
   normalizeListF32RitualBody,
   normalizeListF32String,
 } from '@/core/listF32Value'
+import {
+  isOptionF32RitType,
+  isOptionStringRitType,
+  isOptionVec3RitType,
+  normalizeOptionF32String,
+  normalizeOptionStringString,
+  normalizeOptionVector3String,
+  resolveOptionParameterType,
+} from '@/core/optionValue'
+import {
+  isMapHashLinkRitType,
+  normalizeMapHashLinkRitualBody,
+  normalizeMapHashLinkString,
+  resolveMapHashLinkParameterType,
+} from '@/core/mapHashLinkValue'
+import {
+  formatMapHashEmbedString,
+  isMapHashEmbedRitType,
+  parseMapHashEmbedString,
+  resolveMapHashEmbedParameterType,
+} from '@/core/mapHashEmbedValue'
+import {
+  formatMapHashPointerString,
+  isMapHashPointerRitType,
+  parseMapHashPointerString,
+  type MapHashPointerEntry,
+  resolveMapHashPointerParameterType,
+} from '@/core/mapHashPointerValue'
+import {
+  formatMapU64PointerString,
+  isMapU64PointerRitType,
+  parseMapU64PointerString,
+  resolveMapU64PointerParameterType,
+  type MapU64PointerEntry,
+} from '@/core/mapU64PointerValue'
 import {
   isListHashRitType,
   normalizeListHashRitualBody,
@@ -115,6 +151,27 @@ type ScopeFrame = {
 
 const OPTION_BLOCK_OPEN_REGEX =
   /^\s*([A-Za-z_]\w*)\s*:\s*(option\[[^\]]+\])\s*=\s*\{\s*$/
+
+const MAP_HASH_LINK_BLOCK_OPEN_REGEX =
+  /^\s*([A-Za-z_]\w*)\s*:\s*(map\[hash,link\])\s*=\s*\{\s*$/i
+
+const MAP_HASH_POINTER_BLOCK_OPEN_REGEX =
+  /^\s*([A-Za-z_]\w*)\s*:\s*(map\[hash,pointer\])\s*=\s*\{\s*$/i
+
+const MAP_HASH_EMBED_BLOCK_OPEN_REGEX =
+  /^\s*([A-Za-z_]\w*)\s*:\s*(map\[hash,embed\])\s*=\s*\{\s*$/i
+
+const MAP_U64_POINTER_BLOCK_OPEN_REGEX =
+  /^\s*([A-Za-z_]\w*)\s*:\s*(map\[u64,pointer\])\s*=\s*\{\s*$/i
+
+const MAP_HASH_STRUCTURE_ENTRY_HEAD_REGEX =
+  /^\s*(?:"([^"]+)"|(0x[0-9a-fA-F]+))\s*=\s*([A-Za-z_]\w*)\s*\{/
+
+const MAP_U64_STRUCTURE_ENTRY_HEAD_REGEX = /^\s*(\d+)\s*=\s*([A-Za-z_]\w*)\s*\{/
+
+/** `Transform: mtx44 = {` — bloco primitivo multilinha (16 floats, rgba, etc.). */
+const PRIMITIVE_BLOCK_OPEN_REGEX =
+  /^\s*([A-Za-z_]\w*)\s*:\s*([^=\n]+?)\s*=\s*\{\s*$/
 
 export type ClassGroupStackParseResult = {
   registry: Map<string, MutableClassGroupSchema>
@@ -216,14 +273,40 @@ function resolveParameterType(ritType: string, scalarValue: string): NodeDataTyp
   if (isListVec4RitType(ritType)) {
     return 'listVector4'
   }
-  if (/\b(embed|pointer|link|option|map)\b/i.test(ritType)) {
+  const optionType = resolveOptionParameterType(ritType)
+  if (optionType) {
+    return optionType
+  }
+  const mapHashLinkType = resolveMapHashLinkParameterType(ritType)
+  if (mapHashLinkType) {
+    return mapHashLinkType
+  }
+  const mapHashPointerType = resolveMapHashPointerParameterType(ritType)
+  if (mapHashPointerType) {
+    return mapHashPointerType
+  }
+  const mapHashEmbedType = resolveMapHashEmbedParameterType(ritType)
+  if (mapHashEmbedType) {
+    return mapHashEmbedType
+  }
+  const mapU64PointerType = resolveMapU64PointerParameterType(ritType)
+  if (mapU64PointerType) {
+    return mapU64PointerType
+  }
+  if (/\b(embed|pointer|map)\b/i.test(ritType)) {
     return 'string'
   }
   if (/\blist\b/i.test(ritType)) {
     return 'string'
   }
   if (isBoolLikeRitType(ritType) && normalizeBoolScalarValue(scalarValue) !== null) {
+    if (/\bflag\b/i.test(ritType)) {
+      return 'flag'
+    }
     return 'bool'
+  }
+  if (!isPrimitiveRitType(ritType)) {
+    return 'string'
   }
   return mapPrimitiveType(ritType)
 }
@@ -265,7 +348,7 @@ function mapPrimitiveType(raw: string): NodeDataType {
     return 'bool'
   }
   if (/\bflag\b/.test(r)) {
-    return 'integer'
+    return 'flag'
   }
   if (/\bhash\b/i.test(raw) || /\bs\d+\b/.test(r)) {
     return 'integer'
@@ -284,6 +367,12 @@ function mapPrimitiveType(raw: string): NodeDataType {
   }
   if (r.includes('vec4')) {
     return 'vector4'
+  }
+  if (/\bmtx44\b/.test(r)) {
+    return 'mtx44'
+  }
+  if (/\blink\b/.test(r)) {
+    return 'link'
   }
   if (r.includes('symbol') || r.includes('keyword')) {
     return 'keyword'
@@ -1014,6 +1103,22 @@ function normalizeScalarDefaultValue(ritType: string, rawValue: string): string 
     return value
   }
 
+  if (isOptionF32RitType(ritType)) {
+    return normalizeOptionF32String(value)
+  }
+
+  if (isOptionStringRitType(ritType)) {
+    return normalizeOptionStringString(value)
+  }
+
+  if (isOptionVec3RitType(ritType)) {
+    return normalizeOptionVector3String(value)
+  }
+
+  if (isMapHashLinkRitType(ritType)) {
+    return normalizeMapHashLinkString(value)
+  }
+
   if (/\{/.test(value)) {
     return null
   }
@@ -1035,7 +1140,12 @@ function pushScalarParameter(
   }
   let value = normalized
 
-  if (/\bembed\b/i.test(ritType) || /\bpointer\b/i.test(ritType)) {
+  if (
+    (/\bembed\b/i.test(ritType) || /\bpointer\b/i.test(ritType)) &&
+    !isMapHashPointerRitType(ritType) &&
+    !isMapHashEmbedRitType(ritType) &&
+    !isMapU64PointerRitType(ritType)
+  ) {
     return
   }
 
@@ -1047,7 +1157,14 @@ function pushScalarParameter(
     }
   }
 
-  value = value.length > 480 ? `${value.slice(0, 477)}…` : value
+  if (
+    !isMapHashLinkRitType(ritType) &&
+    !isMapHashPointerRitType(ritType) &&
+    !isMapHashEmbedRitType(ritType) &&
+    !isMapU64PointerRitType(ritType)
+  ) {
+    value = value.length > 480 ? `${value.slice(0, 477)}…` : value
+  }
 
   const pid = nodeBaseParameterId(parentType, fieldName)
 
@@ -1065,6 +1182,147 @@ function normalizeBlockBodyAsScalarValue(inner: string): string {
     .map((l) => l.trim())
     .filter((l) => l.length > 0 && !l.startsWith('#'))
   return lines.join(' ').slice(0, 480)
+}
+
+function parseMapHashStructureBody(
+  ctx: ParseCtx,
+  parentType: string,
+  parentSchema: MutableClassGroupSchema,
+  fieldName: string,
+  inner: string,
+  ritType: 'map[hash,pointer]' | 'map[hash,embed]' | 'map[u64,pointer]',
+  formatSerialized: (entries: readonly MapHashPointerEntry[] | readonly MapU64PointerEntry[]) => string,
+  entryHeadRegex: RegExp,
+  mapKeyFromMatch: (match: RegExpExecArray) => string | undefined,
+  typeNameFromMatch: (match: RegExpExecArray) => string | undefined,
+): void {
+  const bodyLines = inner.replace(/\t/g, '  ').split('\n')
+  const entries: MapHashPointerEntry[] = []
+  let idx = 0
+
+  while (idx < bodyLines.length) {
+    const lineRaw = bodyLines[idx]!.trimEnd()
+    const t = lineRaw.trim()
+    idx += 1
+
+    if (t === '' || t.startsWith('#')) {
+      continue
+    }
+
+    const entryMatch = entryHeadRegex.exec(lineRaw)
+    if (!entryMatch) {
+      continue
+    }
+
+    const mapKey = mapKeyFromMatch(entryMatch)
+    const typeName = typeNameFromMatch(entryMatch)
+    if (!mapKey || !typeName) {
+      continue
+    }
+
+    const concatFromHere = bodyLines.slice(idx - 1).join('\n')
+    const openRel = concatFromHere.indexOf('{')
+    const closeAbs = openRel >= 0 ? findClosingBrace(concatFromHere, openRel) : -1
+
+    if (closeAbs <= openRel) {
+      ctx.warnings.push(`${parentType}.${fieldName}: entrada "${mapKey}" não fechada`)
+      continue
+    }
+
+    const innerSlice = concatFromHere.slice(openRel + 1, closeAbs)
+    const consumedHead = concatFromHere.slice(0, closeAbs + 1)
+    idx += consumedHead.split('\n').length - 1
+
+    const childSchema = ensureSchema(ctx, typeName)
+
+    pushScope(
+      ctx,
+      {
+        segmentId: `${fieldName}:${mapKey}`,
+        typeName,
+        kind: 'internal',
+        openingLine: lineRaw,
+      },
+      childSchema,
+    )
+
+    if (innerSlice.trim().length > 0) {
+      parseBlockBody(ctx, typeName, innerSlice)
+    }
+
+    popScope(ctx)
+
+    entries.push({
+      key: mapKey,
+      schemaId: childSchema.id,
+      typeName,
+    })
+  }
+
+  pushScalarParameter(ctx, parentType, parentSchema, fieldName, ritType, formatSerialized(entries))
+}
+
+function parseMapHashPointerBody(
+  ctx: ParseCtx,
+  parentType: string,
+  parentSchema: MutableClassGroupSchema,
+  fieldName: string,
+  inner: string,
+): void {
+  parseMapHashStructureBody(
+    ctx,
+    parentType,
+    parentSchema,
+    fieldName,
+    inner,
+    'map[hash,pointer]',
+    formatMapHashPointerString,
+    MAP_HASH_STRUCTURE_ENTRY_HEAD_REGEX,
+    (match) => match[1] ?? match[2],
+    (match) => match[3],
+  )
+}
+
+function parseMapHashEmbedBody(
+  ctx: ParseCtx,
+  parentType: string,
+  parentSchema: MutableClassGroupSchema,
+  fieldName: string,
+  inner: string,
+): void {
+  parseMapHashStructureBody(
+    ctx,
+    parentType,
+    parentSchema,
+    fieldName,
+    inner,
+    'map[hash,embed]',
+    formatMapHashEmbedString,
+    MAP_HASH_STRUCTURE_ENTRY_HEAD_REGEX,
+    (match) => match[1] ?? match[2],
+    (match) => match[3],
+  )
+}
+
+function parseMapU64PointerBody(
+  ctx: ParseCtx,
+  parentType: string,
+  parentSchema: MutableClassGroupSchema,
+  fieldName: string,
+  inner: string,
+): void {
+  parseMapHashStructureBody(
+    ctx,
+    parentType,
+    parentSchema,
+    fieldName,
+    inner,
+    'map[u64,pointer]',
+    formatMapU64PointerString,
+    MAP_U64_STRUCTURE_ENTRY_HEAD_REGEX,
+    (match) => match[1],
+    (match) => match[2],
+  )
 }
 
 function parseStructuralListBody(
@@ -1204,6 +1462,158 @@ function parseBlockBody(ctx: ParseCtx, parentType: string, body: string): void {
       continue
     }
 
+    const primitiveBlockEarly = PRIMITIVE_BLOCK_OPEN_REGEX.exec(lineRaw)
+    if (primitiveBlockEarly?.[1] && primitiveBlockEarly[2]) {
+      const fieldName = primitiveBlockEarly[1]!
+      const ritType = primitiveBlockEarly[2]!.trim()
+      const isIdentifiedPrimitiveBlock =
+        isPrimitiveRitType(ritType) &&
+        !/^option\[/i.test(ritType) &&
+        !/^map\[hash,link\]/i.test(ritType) &&
+        !/^list2?\[/i.test(ritType)
+      const isUnidentifiedScalarBlock =
+        !isIdentifiedPrimitiveBlock &&
+        !/\b(embed|pointer|link)\b/i.test(ritType) &&
+        !/^map\[/i.test(ritType) &&
+        !/^list2?\[/i.test(ritType) &&
+        !/^option\[/i.test(ritType)
+
+      if (isIdentifiedPrimitiveBlock || isUnidentifiedScalarBlock) {
+        const parentSchemaEarly = schemaAtStackTop(ctx)
+        if (parentSchemaEarly) {
+          const concatFromHere = bodyLines.slice(idx - 1).join('\n')
+          const openRel = concatFromHere.indexOf('{')
+          const closeAbs = openRel >= 0 ? findClosingBrace(concatFromHere, openRel) : -1
+
+          if (closeAbs > openRel) {
+            const innerSlice = concatFromHere.slice(openRel + 1, closeAbs)
+            const consumedHead = concatFromHere.slice(0, closeAbs + 1)
+            idx += consumedHead.split('\n').length - 1
+            pushScalarParameter(
+              ctx,
+              parentType,
+              parentSchemaEarly,
+              fieldName,
+              ritType,
+              normalizeBlockBodyAsScalarValue(innerSlice),
+            )
+          }
+        }
+        continue
+      }
+    }
+
+    const optionHeadEarly = OPTION_BLOCK_OPEN_REGEX.exec(lineRaw)
+    if (optionHeadEarly?.[1] && optionHeadEarly[2]) {
+      const parentSchemaOption = schemaAtStackTop(ctx)
+      if (parentSchemaOption) {
+        const fieldName = optionHeadEarly[1]!
+        const ritType = optionHeadEarly[2]!
+        const concatFromHere = bodyLines.slice(idx - 1).join('\n')
+        const openRel = concatFromHere.indexOf('{')
+        const closeAbs = openRel >= 0 ? findClosingBrace(concatFromHere, openRel) : -1
+
+        if (closeAbs > openRel) {
+          const innerSlice = concatFromHere.slice(openRel + 1, closeAbs)
+          const consumedHead = concatFromHere.slice(0, closeAbs + 1)
+          idx += consumedHead.split('\n').length - 1
+          pushScalarParameter(
+            ctx,
+            parentType,
+            parentSchemaOption,
+            fieldName,
+            ritType,
+            normalizeBlockBodyAsScalarValue(innerSlice),
+          )
+        }
+        continue
+      }
+    }
+
+    const mapHashLinkHeadEarly = MAP_HASH_LINK_BLOCK_OPEN_REGEX.exec(lineRaw)
+    if (mapHashLinkHeadEarly?.[1] && mapHashLinkHeadEarly[2]) {
+      const parentSchemaMap = schemaAtStackTop(ctx)
+      if (parentSchemaMap) {
+        const fieldName = mapHashLinkHeadEarly[1]!
+        const ritType = mapHashLinkHeadEarly[2]!
+        const concatFromHere = bodyLines.slice(idx - 1).join('\n')
+        const openRel = concatFromHere.indexOf('{')
+        const closeAbs = openRel >= 0 ? findClosingBrace(concatFromHere, openRel) : -1
+
+        if (closeAbs > openRel) {
+          const innerSlice = concatFromHere.slice(openRel + 1, closeAbs)
+          const consumedHead = concatFromHere.slice(0, closeAbs + 1)
+          idx += consumedHead.split('\n').length - 1
+          pushScalarParameter(
+            ctx,
+            parentType,
+            parentSchemaMap,
+            fieldName,
+            ritType,
+            normalizeMapHashLinkRitualBody(innerSlice),
+          )
+        }
+        continue
+      }
+    }
+
+    const mapHashPointerHeadEarly = MAP_HASH_POINTER_BLOCK_OPEN_REGEX.exec(lineRaw)
+    if (mapHashPointerHeadEarly?.[1] && mapHashPointerHeadEarly[2]) {
+      const parentSchemaMapPtr = schemaAtStackTop(ctx)
+      if (parentSchemaMapPtr) {
+        const fieldName = mapHashPointerHeadEarly[1]!
+        const concatFromHere = bodyLines.slice(idx - 1).join('\n')
+        const openRel = concatFromHere.indexOf('{')
+        const closeAbs = openRel >= 0 ? findClosingBrace(concatFromHere, openRel) : -1
+
+        if (closeAbs > openRel) {
+          const innerSlice = concatFromHere.slice(openRel + 1, closeAbs)
+          const consumedHead = concatFromHere.slice(0, closeAbs + 1)
+          idx += consumedHead.split('\n').length - 1
+          parseMapHashPointerBody(ctx, parentType, parentSchemaMapPtr, fieldName, innerSlice)
+        }
+        continue
+      }
+    }
+
+    const mapHashEmbedHeadEarly = MAP_HASH_EMBED_BLOCK_OPEN_REGEX.exec(lineRaw)
+    if (mapHashEmbedHeadEarly?.[1] && mapHashEmbedHeadEarly[2]) {
+      const parentSchemaMapEmbed = schemaAtStackTop(ctx)
+      if (parentSchemaMapEmbed) {
+        const fieldName = mapHashEmbedHeadEarly[1]!
+        const concatFromHere = bodyLines.slice(idx - 1).join('\n')
+        const openRel = concatFromHere.indexOf('{')
+        const closeAbs = openRel >= 0 ? findClosingBrace(concatFromHere, openRel) : -1
+
+        if (closeAbs > openRel) {
+          const innerSlice = concatFromHere.slice(openRel + 1, closeAbs)
+          const consumedHead = concatFromHere.slice(0, closeAbs + 1)
+          idx += consumedHead.split('\n').length - 1
+          parseMapHashEmbedBody(ctx, parentType, parentSchemaMapEmbed, fieldName, innerSlice)
+        }
+        continue
+      }
+    }
+
+    const mapU64PointerHeadEarly = MAP_U64_POINTER_BLOCK_OPEN_REGEX.exec(lineRaw)
+    if (mapU64PointerHeadEarly?.[1] && mapU64PointerHeadEarly[2]) {
+      const parentSchemaMapU64 = schemaAtStackTop(ctx)
+      if (parentSchemaMapU64) {
+        const fieldName = mapU64PointerHeadEarly[1]!
+        const concatFromHere = bodyLines.slice(idx - 1).join('\n')
+        const openRel = concatFromHere.indexOf('{')
+        const closeAbs = openRel >= 0 ? findClosingBrace(concatFromHere, openRel) : -1
+
+        if (closeAbs > openRel) {
+          const innerSlice = concatFromHere.slice(openRel + 1, closeAbs)
+          const consumedHead = concatFromHere.slice(0, closeAbs + 1)
+          idx += consumedHead.split('\n').length - 1
+          parseMapU64PointerBody(ctx, parentType, parentSchemaMapU64, fieldName, innerSlice)
+        }
+        continue
+      }
+    }
+
     const classified = classifyRitualLine(lineRaw)
 
     if (classified.kind === 'metadata' || classified.kind === 'unknown') {
@@ -1281,23 +1691,6 @@ function parseBlockBody(ctx: ParseCtx, parentType: string, body: string): void {
       } else if (isPrimitiveListType(listType)) {
         const listValue = normalizePrimitiveListBody(listType, listInner)
         pushScalarParameter(ctx, parentType, parentSchema, fieldName, listType, listValue)
-      }
-      continue
-    }
-
-    const optionHead = OPTION_BLOCK_OPEN_REGEX.exec(lineRaw)
-    if (optionHead?.[1] && optionHead[2]) {
-      const fieldName = optionHead[1]!
-      const ritType = optionHead[2]!
-      const concatFromHere = bodyLines.slice(idx - 1).join('\n')
-      const openRel = concatFromHere.indexOf('{')
-      const closeAbs = openRel >= 0 ? findClosingBrace(concatFromHere, openRel) : -1
-
-      if (closeAbs > openRel) {
-        const innerSlice = concatFromHere.slice(openRel + 1, closeAbs)
-        const consumedHead = concatFromHere.slice(0, closeAbs + 1)
-        idx += consumedHead.split('\n').length - 1
-        pushScalarParameter(ctx, parentType, parentSchema, fieldName, ritType, normalizeBlockBodyAsScalarValue(innerSlice))
       }
       continue
     }
@@ -1649,6 +2042,37 @@ function collectReachableSchemaIds(ctx: ParseCtx): Set<string> {
           if (!out.has(ref.schemaId)) {
             out.add(ref.schemaId)
             queue.push(ref.schemaId)
+          }
+        }
+      }
+    }
+    for (const param of schema.parameters) {
+      if (param.type === 'mapHashPointer') {
+        for (const entry of parseMapHashPointerString(param.defaultValue)) {
+          const childId = entry.schemaId.trim()
+          if (childId && !out.has(childId)) {
+            out.add(childId)
+            queue.push(childId)
+          }
+        }
+        continue
+      }
+      if (param.type === 'mapHashEmbed') {
+        for (const entry of parseMapHashEmbedString(param.defaultValue)) {
+          const childId = entry.schemaId.trim()
+          if (childId && !out.has(childId)) {
+            out.add(childId)
+            queue.push(childId)
+          }
+        }
+        continue
+      }
+      if (param.type === 'mapU64Pointer') {
+        for (const entry of parseMapU64PointerString(param.defaultValue)) {
+          const childId = entry.schemaId.trim()
+          if (childId && !out.has(childId)) {
+            out.add(childId)
+            queue.push(childId)
           }
         }
       }

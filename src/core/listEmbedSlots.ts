@@ -14,6 +14,18 @@ import {
   findList2PointerByInstanceSlotId,
   populatedSlotsForList2PointerInstance,
 } from '@/core/list2PointerSlots'
+import {
+  isMapHashEmbedSlotId,
+  mapHashEmbedSlotsForParameter,
+} from '@/core/mapHashEmbedSlots'
+import {
+  isMapHashPointerSlotId,
+  mapHashPointerSlotsForParameter,
+} from '@/core/mapHashPointerSlots'
+import {
+  isMapU64PointerSlotId,
+  mapU64PointerSlotsForParameter,
+} from '@/core/mapU64PointerSlots'
 import { populatedSlotsForPointer } from '@/core/pointerSlots'
 
 export const LIST_EMBED_SLOT_ID_PREFIX = '__slot__'
@@ -374,6 +386,51 @@ export function findOutputSlotInNode(
   if (list2PointerHit) {
     const slots = populatedSlotsForList2PointerInstance(list2PointerHit.instance)
     return slots[list2PointerHit.slotIndex] ?? null
+  }
+
+  if (isMapHashPointerSlotId(slotId)) {
+    for (const param of node.node.schema.parameters) {
+      if (param.type !== 'mapHashPointer') {
+        continue
+      }
+      const stored =
+        node.node.values.find((entry) => entry.parameterId === param.id)?.value ?? param.defaultValue
+      const slots = mapHashPointerSlotsForParameter(param, stored)
+      const slot = slots.find((entry) => entry.id === slotId)
+      if (slot) {
+        return slot
+      }
+    }
+  }
+
+  if (isMapHashEmbedSlotId(slotId)) {
+    for (const param of node.node.schema.parameters) {
+      if (param.type !== 'mapHashEmbed') {
+        continue
+      }
+      const stored =
+        node.node.values.find((entry) => entry.parameterId === param.id)?.value ?? param.defaultValue
+      const slots = mapHashEmbedSlotsForParameter(param, stored)
+      const slot = slots.find((entry) => entry.id === slotId)
+      if (slot) {
+        return slot
+      }
+    }
+  }
+
+  if (isMapU64PointerSlotId(slotId)) {
+    for (const param of node.node.schema.parameters) {
+      if (param.type !== 'mapU64Pointer') {
+        continue
+      }
+      const stored =
+        node.node.values.find((entry) => entry.parameterId === param.id)?.value ?? param.defaultValue
+      const slots = mapU64PointerSlotsForParameter(param, stored)
+      const slot = slots.find((entry) => entry.id === slotId)
+      if (slot) {
+        return slot
+      }
+    }
   }
 
   return null

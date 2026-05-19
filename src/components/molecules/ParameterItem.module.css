@@ -254,3 +254,35 @@
   opacity: 0.92;
   text-transform: lowercase;
 }
+
+.itemMapHashPointer,
+.itemMapHashEmbed,
+.itemMapU64Pointer {
+  min-height: auto;
+}
+
+.itemMapHashPointer .paramShell,
+.itemMapHashEmbed .paramShell,
+.itemMapU64Pointer .paramShell {
+  grid-template-columns: 1fr;
+  grid-template-rows: auto auto 1fr;
+  grid-template-areas:
+    'name'
+    'type'
+    'value';
+}
+
+.mapHashStructureValue,
+.mapHashPointerValue {
+  width: 100%;
+  min-width: 0;
+}
+
+.cellValueMapHashPointer,
+.cellValueMapHashEmbed,
+.cellValueMapU64Pointer {
+  justify-self: stretch;
+  width: 100%;
+  max-width: none;
+}
+

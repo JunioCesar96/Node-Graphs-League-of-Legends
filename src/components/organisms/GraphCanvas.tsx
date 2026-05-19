@@ -35,6 +35,33 @@ import {
 } from '@/core/listPointerSlots'
 import { filterOutListEmbedCatalogChildStructures } from '@/core/listEmbedElementMenu'
 import { filterOutListPointerCatalogChildStructures } from '@/core/listPointerElementMenu'
+import {
+  estimateMapHashEmbedParameterHeight,
+  findMapHashEmbedEntryBySlotId,
+  getMapHashEmbedStructurePortYOffset,
+  isMapHashEmbedSlotId,
+  mapHashEmbedSlotsForParameter,
+  resolveCollectionTypeForMapHashEmbedSlot,
+} from '@/core/mapHashEmbedSlots'
+import { parseMapHashEmbedString } from '@/core/mapHashEmbedValue'
+import {
+  estimateMapHashPointerParameterHeight,
+  findMapHashPointerEntryBySlotId,
+  getMapHashPointerStructurePortYOffset,
+  isMapHashPointerSlotId,
+  mapHashPointerSlotsForParameter,
+  resolveCollectionTypeForMapHashPointerSlot,
+} from '@/core/mapHashPointerSlots'
+import { parseMapHashPointerString } from '@/core/mapHashPointerValue'
+import {
+  estimateMapU64PointerParameterHeight,
+  findMapU64PointerEntryBySlotId,
+  getMapU64PointerStructurePortYOffset,
+  isMapU64PointerSlotId,
+  mapU64PointerSlotsForParameter,
+  resolveCollectionTypeForMapU64PointerSlot,
+} from '@/core/mapU64PointerSlots'
+import { parseMapU64PointerString } from '@/core/mapU64PointerValue'
 import { populatedSlotsForPointer } from '@/core/pointerSlots'
 import { populatedSlotsForListPointer } from '@/core/listPointerSlots'
 import type { NodeElementListItem } from '@/core/listNodeElements'
@@ -171,6 +198,7 @@ type GraphCanvasProps = {
   onUndo: () => void
   /** Actualiza o valor de um parâmetro directamente no card do nó. */
   onUpdateNodeParameter?: (canvasNodeId: string, parameterId: string, value: string) => void
+  onRemoveConnectionsFromOutputSlot?: (canvasNodeId: string, structureId: string) => void
   /** Reordena parâmetros no card (índice 1-based na lista actual). */
   onSetNodeParameterOrder?: (
     canvasNodeId: string,
@@ -258,11 +286,73 @@ function isEditableTarget(target: EventTarget | null) {
   return Boolean(target.closest('input, textarea, select, button, [contenteditable="true"]'))
 }
 
+function getParameterValueFromNode(
+  node: CanvasNode,
+  parameterId: string,
+  defaultValue: string,
+): string {
+  return node.node.values.find((entry) => entry.parameterId === parameterId)?.value ?? defaultValue
+}
+
+function getParameterRowHeight(node: CanvasNode, parameter: NodeParameterDefinition): number {
+  const stored = getParameterValueFromNode(node, parameter.id, parameter.defaultValue)
+  if (parameter.type === 'mapHashPointer') {
+    return estimateMapHashPointerParameterHeight(parameter, stored)
+  }
+  if (parameter.type === 'mapHashEmbed') {
+    return estimateMapHashEmbedParameterHeight(parameter, stored)
+  }
+  if (parameter.type === 'mapU64Pointer') {
+    return estimateMapU64PointerParameterHeight(parameter, stored)
+  }
+  return PARAMETER_ITEM_HEIGHT
+}
+
 function getParameterSectionHeight(node: CanvasNode) {
-  const itemCount = node.node.schema.parameters.length
-  const listHeight = itemCount * PARAMETER_ITEM_HEIGHT + Math.max(0, itemCount - 1) * ITEM_GAP
+  const params = node.node.schema.parameters
+  let listHeight = 0
+  for (let i = 0; i < params.length; i += 1) {
+    listHeight += getParameterRowHeight(node, params[i]!)
+    if (i < params.length - 1) {
+      listHeight += ITEM_GAP
+    }
+  }
 
   return SECTION_TITLE_HEIGHT + SECTION_TITLE_GAP + listHeight
+}
+
+function getMapHashStructurePortY(node: CanvasNode, structureId: string): number | null {
+  let cursor =
+    node.position.y + HEADER_HEIGHT + BODY_PADDING + SECTION_TITLE_HEIGHT + SECTION_TITLE_GAP
+
+  for (let i = 0; i < node.node.schema.parameters.length; i += 1) {
+    const param = node.node.schema.parameters[i]!
+    const value = getParameterValueFromNode(node, param.id, param.defaultValue)
+    if (param.type === 'mapHashPointer') {
+      const entries = parseMapHashPointerString(value)
+      const offset = getMapHashPointerStructurePortYOffset(param.id, entries, structureId)
+      if (offset !== null) {
+        return cursor + offset
+      }
+    }
+    if (param.type === 'mapHashEmbed') {
+      const entries = parseMapHashEmbedString(value)
+      const offset = getMapHashEmbedStructurePortYOffset(param.id, entries, structureId)
+      if (offset !== null) {
+        return cursor + offset
+      }
+    }
+    if (param.type === 'mapU64Pointer') {
+      const entries = parseMapU64PointerString(value)
+      const offset = getMapU64PointerStructurePortYOffset(param.id, entries, structureId)
+      if (offset !== null) {
+        return cursor + offset
+      }
+    }
+    cursor += getParameterRowHeight(node, param) + ITEM_GAP
+  }
+
+  return null
 }
 
 function getEmbedBlocksHeight(node: CanvasNode) {
@@ -667,6 +757,11 @@ function getInternalStructurePortY(
   structureId: string,
   connections: readonly CanvasConnection[],
 ) {
+  const mapHashStructureY = getMapHashStructurePortY(node, structureId)
+  if (mapHashStructureY !== null) {
+    return mapHashStructureY
+  }
+
   const embedBlocks = node.node.schema.embed ?? []
   const inEmbed = embedBlocks.some((block) =>
     populatedSlotsForEmbed(block).some((slot) => slot.id === structureId),
@@ -987,6 +1082,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     onSetNodeParameterOrder,
     onUndo,
     onUpdateNodeParameter,
+    onRemoveConnectionsFromOutputSlot,
     scene,
     selectedNodeIds,
     selectedNodeId,
@@ -1183,41 +1279,103 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
         entity.id,
         scene.nodes,
       )
-      const embedHit = fromNode ? findSlotInEmbedSchema(fromNode.node.schema, entity.id) : null
+      const valuesByParameterId: Record<string, string> = {}
+      if (fromNode) {
+        for (const param of fromNode.node.schema.parameters) {
+          if (
+            param.type === 'mapHashPointer' ||
+            param.type === 'mapHashEmbed' ||
+            param.type === 'mapU64Pointer'
+          ) {
+            valuesByParameterId[param.id] = getParameterValueFromNode(
+              fromNode,
+              param.id,
+              param.defaultValue,
+            )
+          }
+        }
+      }
+      const mapHashPointerHit =
+        fromNode && isMapHashPointerSlotId(entity.id)
+          ? findMapHashPointerEntryBySlotId(fromNode.node.schema, entity.id, valuesByParameterId)
+          : null
+      const mapHashEmbedHit =
+        fromNode && !mapHashPointerHit && isMapHashEmbedSlotId(entity.id)
+          ? findMapHashEmbedEntryBySlotId(fromNode.node.schema, entity.id, valuesByParameterId)
+          : null
+      const mapU64PointerHit =
+        fromNode && !mapHashPointerHit && !mapHashEmbedHit && isMapU64PointerSlotId(entity.id)
+          ? findMapU64PointerEntryBySlotId(fromNode.node.schema, entity.id, valuesByParameterId)
+          : null
+      const embedHit =
+        !mapHashPointerHit && !mapHashEmbedHit && !mapU64PointerHit && fromNode
+          ? findSlotInEmbedSchema(fromNode.node.schema, entity.id)
+          : null
       const pointerHit =
-        !embedHit && fromNode ? findSlotInPointerSchema(fromNode.node.schema, entity.id) : null
+        !mapHashPointerHit && !mapHashEmbedHit && !mapU64PointerHit && !embedHit && fromNode
+          ? findSlotInPointerSchema(fromNode.node.schema, entity.id)
+          : null
       const listEmbedHit =
-        !embedHit && !pointerHit && fromNode
+        !mapHashPointerHit &&
+        !mapHashEmbedHit &&
+        !mapU64PointerHit &&
+        !embedHit &&
+        !pointerHit &&
+        fromNode
           ? findSlotInListEmbedSchema(fromNode.node.schema, entity.id)
           : null
       const listPointerHit =
-        !embedHit && !pointerHit && !listEmbedHit && fromNode
+        !mapHashPointerHit &&
+        !mapHashEmbedHit &&
+        !mapU64PointerHit &&
+        !embedHit &&
+        !pointerHit &&
+        !listEmbedHit &&
+        fromNode
           ? findSlotInListPointerSchema(fromNode.node.schema, entity.id)
           : null
-      const targetCollectionType = embedHit
-        ? resolveCollectionTypeForEmbedSlot(entity, embedHit.embed, schemaRegistry, connectedTarget) ?? ''
-        : pointerHit
-          ? resolveCollectionTypeForPointerSlot(
-              entity,
-              pointerHit.pointer,
+      const targetCollectionType = mapHashPointerHit
+        ? resolveCollectionTypeForMapHashPointerSlot(
+            mapHashPointerHit.slot,
+            schemaRegistry,
+            connectedTarget,
+          ) ?? ''
+        : mapHashEmbedHit
+          ? resolveCollectionTypeForMapHashEmbedSlot(
+              mapHashEmbedHit.slot,
               schemaRegistry,
               connectedTarget,
             ) ?? ''
-          : listEmbedHit
-            ? resolveCollectionTypeForListEmbedSlot(
-                entity,
-                listEmbedHit.listEmbed,
+          : mapU64PointerHit
+            ? resolveCollectionTypeForMapU64PointerSlot(
+                mapU64PointerHit.slot,
                 schemaRegistry,
                 connectedTarget,
               ) ?? ''
-            : listPointerHit
-              ? resolveCollectionTypeForListPointerSlot(
+          : embedHit
+          ? resolveCollectionTypeForEmbedSlot(entity, embedHit.embed, schemaRegistry, connectedTarget) ?? ''
+          : pointerHit
+            ? resolveCollectionTypeForPointerSlot(
+                entity,
+                pointerHit.pointer,
+                schemaRegistry,
+                connectedTarget,
+              ) ?? ''
+            : listEmbedHit
+              ? resolveCollectionTypeForListEmbedSlot(
                   entity,
-                  listPointerHit.listPointer,
+                  listEmbedHit.listEmbed,
                   schemaRegistry,
                   connectedTarget,
                 ) ?? ''
-              : resolveCollectionTypeForInternalStructure(entity, schemaRegistry, connectedTarget) ?? ''
+              : listPointerHit
+                ? resolveCollectionTypeForListPointerSlot(
+                    entity,
+                    listPointerHit.listPointer,
+                    schemaRegistry,
+                    connectedTarget,
+                  ) ?? ''
+                : resolveCollectionTypeForInternalStructure(entity, schemaRegistry, connectedTarget) ?? ''
 
       linkDraftClientRef.current = null
       setLinkDraftPoint(null)
@@ -1317,43 +1475,102 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
         structure.id,
         scene.nodes,
       )
-      const embedHit = findSlotInEmbedSchema(fromNode.node.schema, structure.id)
-      const pointerHit = !embedHit ? findSlotInPointerSchema(fromNode.node.schema, structure.id) : null
-      const listEmbedHit = !embedHit && !pointerHit
-        ? findSlotInListEmbedSchema(fromNode.node.schema, structure.id)
+      const valuesByParameterId: Record<string, string> = {}
+      for (const param of fromNode.node.schema.parameters) {
+        if (
+          param.type === 'mapHashPointer' ||
+          param.type === 'mapHashEmbed' ||
+          param.type === 'mapU64Pointer'
+        ) {
+          valuesByParameterId[param.id] = getParameterValueFromNode(
+            fromNode,
+            param.id,
+            param.defaultValue,
+          )
+        }
+      }
+      const mapHashPointerHit = isMapHashPointerSlotId(structure.id)
+        ? findMapHashPointerEntryBySlotId(fromNode.node.schema, structure.id, valuesByParameterId)
         : null
+      const mapHashEmbedHit =
+        !mapHashPointerHit && isMapHashEmbedSlotId(structure.id)
+          ? findMapHashEmbedEntryBySlotId(fromNode.node.schema, structure.id, valuesByParameterId)
+          : null
+      const mapU64PointerHit =
+        !mapHashPointerHit && !mapHashEmbedHit && isMapU64PointerSlotId(structure.id)
+          ? findMapU64PointerEntryBySlotId(fromNode.node.schema, structure.id, valuesByParameterId)
+          : null
+      const embedHit =
+        !mapHashPointerHit && !mapHashEmbedHit && !mapU64PointerHit
+          ? findSlotInEmbedSchema(fromNode.node.schema, structure.id)
+          : null
+      const pointerHit =
+        !mapHashPointerHit && !mapHashEmbedHit && !mapU64PointerHit && !embedHit
+          ? findSlotInPointerSchema(fromNode.node.schema, structure.id)
+          : null
+      const listEmbedHit =
+        !mapHashPointerHit &&
+        !mapHashEmbedHit &&
+        !mapU64PointerHit &&
+        !embedHit &&
+        !pointerHit
+          ? findSlotInListEmbedSchema(fromNode.node.schema, structure.id)
+          : null
       const listPointerHit =
-        !embedHit && !pointerHit && !listEmbedHit
+        !mapHashPointerHit &&
+        !mapHashEmbedHit &&
+        !mapU64PointerHit &&
+        !embedHit &&
+        !pointerHit &&
+        !listEmbedHit
           ? findSlotInListPointerSchema(fromNode.node.schema, structure.id)
           : null
-      const collectionType = embedHit
-        ? resolveCollectionTypeForEmbedSlot(
-            structure,
-            embedHit.embed,
+      const collectionType = mapHashPointerHit
+        ? resolveCollectionTypeForMapHashPointerSlot(
+            mapHashPointerHit.slot,
             schemaRegistry,
             connectedTarget,
           )
-        : pointerHit
-          ? resolveCollectionTypeForPointerSlot(
-              structure,
-              pointerHit.pointer,
+        : mapHashEmbedHit
+          ? resolveCollectionTypeForMapHashEmbedSlot(
+              mapHashEmbedHit.slot,
               schemaRegistry,
               connectedTarget,
             )
-          : listEmbedHit
-            ? resolveCollectionTypeForListEmbedSlot(
-                structure,
-                listEmbedHit.listEmbed,
+          : mapU64PointerHit
+            ? resolveCollectionTypeForMapU64PointerSlot(
+                mapU64PointerHit.slot,
                 schemaRegistry,
                 connectedTarget,
               )
-            : listPointerHit
-              ? resolveCollectionTypeForListPointerSlot(
+          : embedHit
+          ? resolveCollectionTypeForEmbedSlot(
+              structure,
+              embedHit.embed,
+              schemaRegistry,
+              connectedTarget,
+            )
+          : pointerHit
+            ? resolveCollectionTypeForPointerSlot(
+                structure,
+                pointerHit.pointer,
+                schemaRegistry,
+                connectedTarget,
+              )
+            : listEmbedHit
+              ? resolveCollectionTypeForListEmbedSlot(
                   structure,
-                  listPointerHit.listPointer,
+                  listEmbedHit.listEmbed,
                   schemaRegistry,
                   connectedTarget,
                 )
+              : listPointerHit
+                ? resolveCollectionTypeForListPointerSlot(
+                    structure,
+                    listPointerHit.listPointer,
+                    schemaRegistry,
+                    connectedTarget,
+                  )
               : resolveCollectionTypeForInternalStructure(structure, schemaRegistry, connectedTarget)
 
       if (!collectionType) {
@@ -2459,6 +2676,11 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
                   onUpdateNodeParameter
                     ? (parameterId, nextValue) =>
                         onUpdateNodeParameter(canvasNode.id, parameterId, nextValue)
+                    : undefined
+                }
+                onMapHashStructureSlotRemoved={
+                  onRemoveConnectionsFromOutputSlot
+                    ? (slotId) => onRemoveConnectionsFromOutputSlot(canvasNode.id, slotId)
                     : undefined
                 }
                 parameterHints={hints}

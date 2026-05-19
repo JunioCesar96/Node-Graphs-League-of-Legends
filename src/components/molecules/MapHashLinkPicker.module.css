@@ -1,0 +1,243 @@
+.picker {
+  --map-accent: var(--syntax-link);
+  --map-accent-line: color-mix(in srgb, var(--map-accent) 88%, white);
+  --map-input-bg: rgb(255 255 255 / 4%);
+
+  display: grid;
+  gap: var(--space-3);
+  width: min(520px, 96vw);
+  max-height: min(80vh, 560px);
+  padding: var(--space-3);
+  font-family: var(--font-ui);
+  background: rgb(18 20 24 / 98%);
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-leaf);
+  box-shadow: 0 12px 40px var(--color-shadow);
+}
+
+.pickerWithLinkEditor {
+  width: min(900px, 98vw);
+}
+
+.title {
+  color: var(--color-text-primary);
+  font-family: var(--font-data);
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.body {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-3);
+  align-items: stretch;
+  min-height: 0;
+}
+
+.pickerWithLinkEditor .body {
+  grid-template-columns: minmax(260px, 1fr) minmax(300px, 400px);
+}
+
+.mainColumn {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+  min-height: 0;
+}
+
+.listScroll {
+  display: grid;
+  gap: var(--space-2);
+  max-height: min(52vh, 400px);
+  padding-right: var(--space-1);
+  overflow: auto;
+}
+
+.pickerWithLinkEditor .listScroll {
+  max-height: min(56vh, 440px);
+}
+
+.entryRow {
+  display: grid;
+  grid-template-columns: minmax(7rem, 38%) 1fr;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.keyInput {
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  color: var(--color-text-secondary);
+  font-family: var(--font-data);
+  font-size: 0.76rem;
+  text-align: center;
+  background: var(--map-input-bg);
+  border: 1px solid rgb(255 255 255 / 55%);
+  border-radius: 999px;
+}
+
+.keyInput:focus-visible {
+  outline: 2px solid var(--map-accent);
+  outline-offset: 1px;
+}
+
+.valueLinkButton {
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  color: var(--syntax-link);
+  font-family: var(--font-data);
+  font-size: 0.76rem;
+  text-align: left;
+  background: var(--map-input-bg);
+  border: 1px solid rgb(255 255 255 / 72%);
+  border-radius: 4px;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.valueLinkButton:hover,
+.valueLinkButtonSelected {
+  border-color: var(--map-accent-line);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--map-accent) 35%, transparent);
+}
+
+.valueTextInput {
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  color: var(--color-text-primary);
+  font-family: var(--font-data);
+  font-size: 0.76rem;
+  background: var(--map-input-bg);
+  border: 1px solid rgb(255 255 255 / 72%);
+  border-radius: 4px;
+}
+
+.valueTextInput:focus-visible {
+  outline: 2px solid var(--map-accent);
+  outline-offset: 1px;
+}
+
+.emptyHint {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+  text-align: center;
+}
+
+.itemMenuWrap {
+  position: relative;
+  justify-self: center;
+}
+
+.itemMenuTrigger {
+  padding: var(--space-1) var(--space-4);
+  color: var(--color-text-primary);
+  font-family: var(--font-data);
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  background: var(--map-input-bg);
+  border: 1px solid var(--color-border-soft);
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.itemMenuTriggerOpen {
+  border-color: var(--map-accent-line);
+}
+
+.itemSubmenu {
+  position: absolute;
+  z-index: 2;
+  top: calc(100% + var(--space-1));
+  left: 50%;
+  display: grid;
+  min-width: 10rem;
+  padding: var(--space-1);
+  background: rgb(22 24 28 / 98%);
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-leaf);
+  box-shadow: 0 8px 24px var(--color-shadow);
+  transform: translateX(-50%);
+}
+
+.itemSubmenuEntry {
+  padding: var(--space-2) var(--space-3);
+  color: var(--color-text-primary);
+  font-size: 0.8rem;
+  text-align: left;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.itemSubmenuEntry:hover:not(:disabled) {
+  background: rgb(255 255 255 / 6%);
+}
+
+.itemSubmenuEntry:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.linkEditorAside {
+  display: grid;
+  grid-template-rows: auto auto 1fr auto;
+  gap: var(--space-2);
+  min-width: 0;
+  min-height: 0;
+  max-height: min(56vh, 440px);
+  padding-left: var(--space-3);
+  border-left: 1px solid var(--color-border-soft);
+}
+
+.linkEditorLabel {
+  color: var(--color-text-muted);
+  font-family: var(--font-data);
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.linkEditorKey {
+  overflow: hidden;
+  color: var(--color-text-primary);
+  font-family: var(--font-data);
+  font-size: 0.76rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.linkEditorBody {
+  min-height: 0;
+  overflow: auto;
+}
+
+.linkEditorClose {
+  justify-self: end;
+  padding: var(--space-1) var(--space-3);
+  color: var(--color-text-primary);
+  font-family: var(--font-data);
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: var(--map-input-bg);
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-control);
+  cursor: pointer;
+}
+
+.linkEditorClose:hover {
+  border-color: var(--map-accent-line);
+  background: color-mix(in srgb, var(--map-accent) 10%, transparent);
+}
+
+.linkEditorClose:focus-visible {
+  outline: 2px solid var(--map-accent);
+  outline-offset: 1px;
+}

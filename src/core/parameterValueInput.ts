@@ -9,6 +9,32 @@ import { isValidPartialListStringValue, normalizeListStringString } from '@/core
 import { isValidPartialListVector2Value, normalizeListVector2String } from '@/core/listVector2Value'
 import { isValidPartialListVector3Value, normalizeListVector3String } from '@/core/listVector3Value'
 import { isValidPartialListVector4Value, normalizeListVector4String } from '@/core/listVector4Value'
+import {
+  isValidPartialOptionF32Value,
+  isValidPartialOptionStringValue,
+  isValidPartialOptionVector3Value,
+  normalizeOptionF32String,
+  normalizeOptionStringString,
+  normalizeOptionVector3String,
+} from '@/core/optionValue'
+import {
+  isValidPartialMapHashLinkValue,
+  normalizeMapHashLinkString,
+} from '@/core/mapHashLinkValue'
+import {
+  isValidPartialMapHashEmbedValue,
+  normalizeMapHashEmbedString,
+} from '@/core/mapHashEmbedValue'
+import {
+  isValidPartialMapHashPointerValue,
+  normalizeMapHashPointerString,
+} from '@/core/mapHashPointerValue'
+import {
+  isValidPartialMapU64PointerValue,
+  normalizeMapU64PointerString,
+} from '@/core/mapU64PointerValue'
+import { isValidPartialLinkValue, normalizeLinkPath } from '@/core/linkValue'
+import { isValidPartialMtx44Value, normalizeMtx44String } from '@/core/mtx44Value'
 import { isValidPartialVector4Value, normalizeVector4String } from '@/core/vector4Value'
 import {
   boundedIntegerInputHint,
@@ -63,12 +89,18 @@ export function getParameterInputHint(type: NodeDataType): string {
       return 'Número decimal: dígitos e no máximo um ponto (ex.: -3.14).'
     case 'bool':
       return 'Bool: clique para escolher true ou false.'
+    case 'flag':
+      return 'Flag: clique para escolher true ou false.'
     case 'vector2':
       return 'Vec2: clique para abrir o seletor (x, y) ou edite «x, y» manualmente.'
     case 'vector3':
       return 'Vec3: clique para abrir o seletor (x, y, z) ou edite «x, y, z» manualmente.'
     case 'vector4':
       return 'Vec4: clique para abrir o seletor (x, y, z, w) ou edite «x, y, z, w» manualmente.'
+    case 'mtx44':
+      return 'Mtx44: clique para abrir o seletor (escala e translação) ou edite os 16 valores manualmente.'
+    case 'link':
+      return 'Link: clique para abrir o editor de caminho (segmentos separados por /).'
     case 'listF32':
       return 'List[f32]: clique para abrir o editor de lista ou edite um valor por linha.'
     case 'listString':
@@ -81,6 +113,20 @@ export function getParameterInputHint(type: NodeDataType): string {
       return 'List[Vec3]: clique para abrir o editor de lista ou edite itens «x, y, z» (um por linha).'
     case 'listVector4':
       return 'List[Vec4]: clique para abrir o editor de lista ou edite itens «x, y, z, w» (um por linha).'
+    case 'optionF32':
+      return 'Option[f32]: clique para abrir o editor (no máximo um valor).'
+    case 'optionString':
+      return 'Option[string]: clique para abrir o editor (no máximo um valor).'
+    case 'optionVector3':
+      return 'Option[vec3]: clique para abrir o editor (no máximo um vec3).'
+    case 'mapHashLink':
+      return 'Map[hash,link]: clique para abrir o editor de pares hash → valor.'
+    case 'mapHashPointer':
+      return 'Map[hash,pointer]: pares hash → estrutura interna (ligação no canvas).'
+    case 'mapHashEmbed':
+      return 'Map[hash,embed]: pares hash → estrutura interna (ligação no canvas).'
+    case 'mapU64Pointer':
+      return 'Map[u64,pointer]: pares u64 → estrutura interna (ligação no canvas).'
     case 'rgba':
       return 'Cor RGBA: clique para abrir o seletor (r, g, b, a em 0..1 ou 0..255).'
     case 'keyword':
@@ -110,6 +156,7 @@ export function getParameterInputRejectionMessage(type: NodeDataType): string {
     case 'f32':
       return 'Este campo só aceita números decimais (dígitos e um ponto decimal).'
     case 'bool':
+    case 'flag':
       return 'Escolha true ou false na lista.'
     case 'vector2':
       return 'Use o seletor Vec2 ou valores numéricos separados por vírgula.'
@@ -117,6 +164,10 @@ export function getParameterInputRejectionMessage(type: NodeDataType): string {
       return 'Use o seletor Vec3 ou valores numéricos separados por vírgula.'
     case 'vector4':
       return 'Use o seletor Vec4 ou valores numéricos separados por vírgula.'
+    case 'mtx44':
+      return 'Use o seletor mtx44 ou 16 números (escala diagonal + translação).'
+    case 'link':
+      return 'Use o editor de caminho link ou um texto numa linha sem quebras.'
     case 'listF32':
       return 'Use o editor List[f32] ou um número por linha.'
     case 'listString':
@@ -129,6 +180,20 @@ export function getParameterInputRejectionMessage(type: NodeDataType): string {
       return 'Use o editor List[Vec3] ou um vec3 por linha (formato «x, y, z»).'
     case 'listVector4':
       return 'Use o editor List[Vec4] ou um vec4 por linha (formato «x, y, z, w»).'
+    case 'optionF32':
+      return 'Use o editor Option[f32] para definir um único valor.'
+    case 'optionString':
+      return 'Use o editor Option[string] para definir um único texto.'
+    case 'optionVector3':
+      return 'Use o editor Option[vec3] para definir um único vec3.'
+    case 'mapHashLink':
+      return 'Use o editor Map[hash,link]; valores com / abrem o picker link.'
+    case 'mapHashPointer':
+      return 'Edite as entradas hash e ligue cada estrutura pela porta.'
+    case 'mapHashEmbed':
+      return 'Edite as entradas hash e ligue cada estrutura pela porta.'
+    case 'mapU64Pointer':
+      return 'Edite as entradas u64 e ligue cada estrutura pela porta.'
     case 'rgba':
       return 'Use o seletor de cor ou valores numéricos separados por vírgula.'
     case 'keyword':
@@ -149,7 +214,7 @@ export function isValidPartialParameterValue(type: NodeDataType, value: string):
   if (type === 'rgba') {
     return isValidPartialRgbaValue(value)
   }
-  if (type === 'bool') {
+  if (type === 'bool' || type === 'flag') {
     return isValidPartialBoolValue(value)
   }
   if (type === 'vector2') {
@@ -160,6 +225,12 @@ export function isValidPartialParameterValue(type: NodeDataType, value: string):
   }
   if (type === 'vector4') {
     return isValidPartialVector4Value(value)
+  }
+  if (type === 'mtx44') {
+    return isValidPartialMtx44Value(value)
+  }
+  if (type === 'link') {
+    return isValidPartialLinkValue(value)
   }
   if (type === 'listF32') {
     return isValidPartialListF32Value(value)
@@ -178,6 +249,27 @@ export function isValidPartialParameterValue(type: NodeDataType, value: string):
   }
   if (type === 'listVector4') {
     return isValidPartialListVector4Value(value)
+  }
+  if (type === 'optionF32') {
+    return isValidPartialOptionF32Value(value)
+  }
+  if (type === 'optionString') {
+    return isValidPartialOptionStringValue(value)
+  }
+  if (type === 'optionVector3') {
+    return isValidPartialOptionVector3Value(value)
+  }
+  if (type === 'mapHashLink') {
+    return isValidPartialMapHashLinkValue(value)
+  }
+  if (type === 'mapHashPointer') {
+    return isValidPartialMapHashPointerValue(value)
+  }
+  if (type === 'mapHashEmbed') {
+    return isValidPartialMapHashEmbedValue(value)
+  }
+  if (type === 'mapU64Pointer') {
+    return isValidPartialMapU64PointerValue(value)
   }
 
   if (isBoundedIntegerType(type)) {
@@ -210,7 +302,7 @@ export function normalizeParameterValueForCommit(type: NodeDataType, value: stri
   if (type === 'rgba') {
     return normalizeRgbaString(value)
   }
-  if (type === 'bool') {
+  if (type === 'bool' || type === 'flag') {
     return normalizeBoolString(value)
   }
   if (type === 'vector2') {
@@ -221,6 +313,12 @@ export function normalizeParameterValueForCommit(type: NodeDataType, value: stri
   }
   if (type === 'vector4') {
     return normalizeVector4String(value)
+  }
+  if (type === 'mtx44') {
+    return normalizeMtx44String(value)
+  }
+  if (type === 'link') {
+    return normalizeLinkPath(value)
   }
   if (type === 'listF32') {
     return normalizeListF32String(value)
@@ -239,6 +337,27 @@ export function normalizeParameterValueForCommit(type: NodeDataType, value: stri
   }
   if (type === 'listVector4') {
     return normalizeListVector4String(value)
+  }
+  if (type === 'optionF32') {
+    return normalizeOptionF32String(value)
+  }
+  if (type === 'optionString') {
+    return normalizeOptionStringString(value)
+  }
+  if (type === 'optionVector3') {
+    return normalizeOptionVector3String(value)
+  }
+  if (type === 'mapHashLink') {
+    return normalizeMapHashLinkString(value)
+  }
+  if (type === 'mapHashPointer') {
+    return normalizeMapHashPointerString(value)
+  }
+  if (type === 'mapHashEmbed') {
+    return normalizeMapHashEmbedString(value)
+  }
+  if (type === 'mapU64Pointer') {
+    return normalizeMapU64PointerString(value)
   }
   if (isBoundedIntegerType(type)) {
     return normalizeBoundedIntegerForCommit(type, value)
