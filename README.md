@@ -9,7 +9,7 @@ Arquivo salvo em: `feature_md/feature/feature-wireless-connection.md`
 | Nome da Branch | `feature/wireless-connection` |
 | Nome das Features | Ligação sem fio (terceiro modo de roteamento); ícone de corrente nos ports; destaque e pulso do nó par no hover |
 | Versão atual | `1.4.0` |
-| Hash do Commit | _ver branch `feature/wireless-connection`_ |
+| Hash do Commit | `2662ffe` |
 
 ## 2. Definição e Resumo de Tags
 
