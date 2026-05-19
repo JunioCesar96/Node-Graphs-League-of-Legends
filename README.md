@@ -9,7 +9,7 @@ Arquivo salvo em: `feature_md/feature/feature-pointer-class-group.md`
 | Nome da Branch | `feature/pointer-class-group` |
 | Nome das Features | POINTER e LIST_POINTER no schema e conversor Class Group; secções no card; slots, stubs, menus Element; correção de loop infinito no `ElementRemovalPicker` ao arrastar nós na grade |
 | Versão atual | `1.4.0` |
-| Hash do Commit | `COMMIT_HASH_PLACEHOLDER` |
+| Hash do Commit | `21d3cbaf863d5d318896de3df356828ba75c3ad9` |
 
 Base: `feature/list-embed-class-group`.
 
