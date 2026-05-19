@@ -1,0 +1,11 @@
+{
+  "id": "VfxAlphaErosionDefinitionData_embed_ErosionDriveCurve",
+  "title": "ErosionDriveCurve",
+  "internalStructures": [
+    {
+      "id": "VfxAlphaErosionDefinitionData_embed_ErosionDriveCurve-catalog-0",
+      "name": "ValueFloat",
+      "schemaId": "value-float"
+    }
+  ]
+}

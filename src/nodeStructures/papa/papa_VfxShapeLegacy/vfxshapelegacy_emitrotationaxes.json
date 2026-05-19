@@ -1,6 +1,0 @@
-{
-  "id": "VfxShapeLegacy_emitRotationAxes",
-  "name": "emitRotationAxes",
-  "type": "listvector3",
-  "defaultValue": ""
-}

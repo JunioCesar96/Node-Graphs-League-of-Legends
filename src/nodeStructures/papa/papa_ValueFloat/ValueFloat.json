@@ -3,17 +3,18 @@
   "title": "ValueFloat",
   "parameters": [
     {
-      "id": "value-float-constant-value",
-      "name": "constantValue",
+      "id": "ValueFloat_parameter_ConstantValue",
+      "name": "ConstantValue",
       "type": "f32",
       "defaultValue": "3"
     }
   ],
+  "embed": [],
   "listEmbed": [],
   "internalStructures": [
     {
       "id": "value-float-dynamics",
-      "name": "dynamics",
+      "name": "Dynamics",
       "schemaId": "vfx-animated-float-variable-data"
     }
   ],
@@ -21,7 +22,7 @@
     "group": "#3 Internal Structures",
     "collection": "#3 Embed Block",
     "collectionType": "ValueFloat",
-    "pathHierarchy": "entries > Characters/Zac/Skins/Skin0/Particles/Zac_Base_Q_tar > complexEmitterDefinitionData:0 > rate",
+    "pathHierarchy": "entries > Characters/Zac/Skins/Skin0/Particles/Zac_Base_Q_tar > ComplexEmitterDefinitionData:0 > Rate",
     "pathHierarchySteps": [
       {
         "id": "entries",
@@ -32,11 +33,11 @@
         "type": "#2 Root Entry (VfxSystemDefinitionData)"
       },
       {
-        "id": "complexEmitterDefinitionData:0",
+        "id": "ComplexEmitterDefinitionData:0",
         "type": "#3 Collection Block"
       },
       {
-        "id": "rate",
+        "id": "Rate",
         "type": "#3 Embed Block"
       }
     ]

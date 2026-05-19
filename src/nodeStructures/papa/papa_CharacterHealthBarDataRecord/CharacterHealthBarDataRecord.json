@@ -3,12 +3,13 @@
   "title": "CharacterHealthBarDataRecord",
   "parameters": [
     {
-      "id": "character-health-bar-data-record-unit-health-bar-style",
-      "name": "unitHealthBarStyle",
+      "id": "CharacterHealthBarDataRecord_parameter_UnitHealthBarStyle",
+      "name": "UnitHealthBarStyle",
       "type": "u8",
       "defaultValue": "12"
     }
   ],
+  "embed": [],
   "listEmbed": [],
   "internalStructures": [],
   "nomenclature": {

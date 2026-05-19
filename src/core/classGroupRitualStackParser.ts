@@ -8,14 +8,27 @@ import {
   FIELD_SCALAR_BRACED_REGEX,
   FIELD_SCALAR_REGEX,
   INLINE_CHILD_OPEN_REGEX,
+  INLINE_EMBED_OPEN_REGEX,
+  INLINE_LINK_OPEN_REGEX,
+  INLINE_POINTER_OPEN_REGEX,
+  INLINE_POINTER_LINK_OPEN_REGEX,
   LIST_EMBED_OPEN_REGEX,
   MAP_ENTRY_HEAD_REGEX,
   STRUCT_ONLY_LINE,
   classifyRitualLine,
   isEmbedListType,
+  isPointerListType,
   isPrimitiveListType,
   isStructuralListType,
 } from '@/core/classGroupFieldClassifier'
+import {
+  nodeBaseEmbedId,
+  nodeBaseListEmbedId,
+  nodeBaseListPointerId,
+  nodeBasePointerId,
+} from '@/core/extractNodeBaseParameters'
+import { listPointerSlotId } from '@/core/listPointerSlots'
+import { pointerSlotId } from '@/core/pointerSlots'
 import { formatRgbaString, parseRgbaString } from '@/core/rgbaColor'
 import { normalizeBoolString } from '@/core/boolValue'
 import { formatVector2String, parseVector2String } from '@/core/vector2Value'
@@ -50,21 +63,29 @@ import {
   normalizeListVector4String,
 } from '@/core/listVector4Value'
 import { formatVector3String, parseVector3String } from '@/core/vector3Value'
+import { embedSlotId } from '@/core/embedSlots'
 import type {
+  EmbedDefinition,
   ListEmbedDefinition,
+  ListPointerDefinition,
   NodeDataType,
   NodeSchemaDefinition,
   NomenclaturePathSegment,
+  PointerDefinition,
 } from '@/core/nodeSchema'
 import { slugifyStructureId } from '@/core/convertRitobinTextToNodeStructures'
+import { nodeBaseParameterId } from '@/core/extractNodeBaseParameters'
 
 export type MutableClassGroupSchema = Omit<
   NodeSchemaDefinition,
-  'parameters' | 'internalStructures' | 'listEmbed'
+  'parameters' | 'internalStructures' | 'embed' | 'pointer' | 'listEmbed' | 'listPointer'
 > & {
   parameters: NodeSchemaDefinition['parameters']
   internalStructures: NodeSchemaDefinition['internalStructures']
+  embed: EmbedDefinition[]
+  pointer: PointerDefinition[]
   listEmbed: ListEmbedDefinition[]
+  listPointer: ListPointerDefinition[]
 }
 
 type ScopeKind = 'entries' | 'entity' | 'internal' | 'listItem'
@@ -260,7 +281,10 @@ function emptyMutable(title: string, idFallback: string): MutableClassGroupSchem
     id: idFallback || 'struct-unknown',
     title,
     parameters: [],
+    embed: [],
+    pointer: [],
     listEmbed: [],
+    listPointer: [],
     internalStructures: [],
   }
 }
@@ -420,11 +444,30 @@ function ensureListEmbed(parentSchema: MutableClassGroupSchema, parentType: stri
   }
 
   const block: ListEmbedDefinition = {
-    id: slugifyStructureId(`${parentType}-${fieldName}`).replace(/^-+/, '') || fieldName.toLowerCase(),
+    id: nodeBaseListEmbedId(parentType, fieldName),
     title: fieldName,
     internalStructures: [],
   }
   parentSchema.listEmbed.push(block)
+  return block
+}
+
+function ensureListPointer(
+  parentSchema: MutableClassGroupSchema,
+  parentType: string,
+  fieldName: string,
+): ListPointerDefinition {
+  const existing = parentSchema.listPointer.find((block) => block.title === fieldName)
+  if (existing) {
+    return existing
+  }
+
+  const block: ListPointerDefinition = {
+    id: nodeBaseListPointerId(parentType, fieldName),
+    title: fieldName,
+    internalStructures: [],
+  }
+  parentSchema.listPointer.push(block)
   return block
 }
 
@@ -436,6 +479,116 @@ function pushListEmbedCatalogItem(
   segId: string,
 ): void {
   listEmbed.internalStructures.push({
+    id: slugifyStructureId(`${parentType}-${segId}`).replace(/^-+/, '') || segId.toLowerCase(),
+    name: childName,
+    schemaId: childSchemaId,
+  })
+}
+
+function ensureEmbedBlock(parentSchema: MutableClassGroupSchema, parentType: string, fieldName: string): EmbedDefinition {
+  const existing = parentSchema.embed.find((block) => block.title === fieldName)
+  if (existing) {
+    return existing
+  }
+
+  const block: EmbedDefinition = {
+    id: nodeBaseEmbedId(parentType, fieldName),
+    title: fieldName,
+    internalStructures: [],
+  }
+  parentSchema.embed.push(block)
+  return block
+}
+
+function ensurePointerBlock(
+  parentSchema: MutableClassGroupSchema,
+  parentType: string,
+  fieldName: string,
+): PointerDefinition {
+  const existing = parentSchema.pointer.find((block) => block.title === fieldName)
+  if (existing) {
+    return existing
+  }
+
+  const block: PointerDefinition = {
+    id: nodeBasePointerId(parentType, fieldName),
+    title: fieldName,
+    internalStructures: [],
+  }
+  parentSchema.pointer.push(block)
+  return block
+}
+
+function pushEmbedCatalogItem(
+  embedBlock: EmbedDefinition,
+  parentType: string,
+  childName: string,
+  childSchemaId: string,
+  segId: string,
+): void {
+  embedBlock.internalStructures.push({
+    id: slugifyStructureId(`${parentType}-${segId}`).replace(/^-+/, '') || segId.toLowerCase(),
+    name: childName,
+    schemaId: childSchemaId,
+  })
+}
+
+function pushEmbedInitialSlot(
+  embedBlock: EmbedDefinition,
+  childName: string,
+  childSchemaId: string,
+): void {
+  if ((embedBlock.slots ?? []).length >= 1) {
+    return
+  }
+  embedBlock.slots = [
+    {
+      id: embedSlotId(embedBlock.id, 0),
+      name: childName,
+      schemaId: childSchemaId,
+    },
+  ]
+}
+
+function pushPointerCatalogItem(
+  pointerBlock: PointerDefinition,
+  parentType: string,
+  childName: string,
+  childSchemaId: string,
+  segId: string,
+): void {
+  pointerBlock.internalStructures.push({
+    id: slugifyStructureId(`${parentType}-${segId}`).replace(/^-+/, '') || segId.toLowerCase(),
+    name: childName,
+    schemaId: childSchemaId,
+  })
+}
+
+function pushPointerInitialSlot(
+  pointerBlock: PointerDefinition,
+  childName: string,
+  childSchemaId: string,
+): void {
+  if ((pointerBlock.slots ?? []).length >= 1) {
+    return
+  }
+  pointerBlock.slots = [
+    {
+      id: pointerSlotId(pointerBlock.id, 0),
+      name: childName,
+      schemaId: childSchemaId,
+    },
+  ]
+}
+
+function pushListPointerCatalogItem(
+  listPointer: ListPointerDefinition,
+  parentType: string,
+  childName: string,
+  childSchemaId: string,
+  segId: string,
+): void {
+  listPointer.internalStructures.push({
     id: slugifyStructureId(`${parentType}-${segId}`).replace(/^-+/, '') || segId.toLowerCase(),
     name: childName,
     schemaId: childSchemaId,
@@ -545,7 +698,7 @@ function pushScalarParameter(
 
   value = value.length > 480 ? `${value.slice(0, 477)}…` : value
 
-  const pid = slugifyStructureId(`${parentType}_${fieldName}`).replace(/^-+/, '') || fieldName.toLowerCase()
+  const pid = nodeBaseParameterId(parentType, fieldName)
 
   parentSchema.parameters.push({
     id: pid,
@@ -570,8 +723,10 @@ function parseStructuralListBody(
   listInner: string,
   parentSchema: MutableClassGroupSchema,
   useListEmbed: boolean,
+  useListPointer: boolean,
 ): void {
   const listEmbed = useListEmbed ? ensureListEmbed(parentSchema, parentType, fieldName) : null
+  const listPointer = useListPointer ? ensureListPointer(parentSchema, parentType, fieldName) : null
   const listLines = listInner.replace(/\t/g, '  ').split('\n')
   let li = 0
   let itemIdx = 0
@@ -586,8 +741,9 @@ function parseStructuralListBody(
     }
 
     const inlinePtr = INLINE_CHILD_OPEN_REGEX.exec(lineRaw)
-    if (inlinePtr?.[1] && inlinePtr[3]) {
+    if (inlinePtr?.[1] && inlinePtr[2] && inlinePtr[3]) {
       const childField = inlinePtr[1]!
+      const inlineKind = inlinePtr[2]!.toLowerCase()
       const childName = inlinePtr[3]!
       const concatFromHere = listLines.slice(li - 1).join('\n')
       const openRel = concatFromHere.indexOf('{')
@@ -605,8 +761,10 @@ function parseStructuralListBody(
       const childSchema = ensureSchema(ctx, childName)
       const segId = `${fieldName}:${String(itemIdx)}:${childField}`
 
-      if (listEmbed) {
+      if (listEmbed && inlineKind === 'embed') {
         pushListEmbedCatalogItem(listEmbed, parentType, childName, childSchema.id, segId)
+      } else if (listPointer && inlineKind === 'pointer') {
+        pushListPointerCatalogItem(listPointer, parentType, childName, childSchema.id, segId)
       } else {
         pushInternalStructure(parentSchema, parentType, childField, childSchema.id, segId)
       }
@@ -655,6 +813,8 @@ function parseStructuralListBody(
 
     if (listEmbed) {
       pushListEmbedCatalogItem(listEmbed, parentType, childName, childSchema.id, segId)
+    } else if (listPointer) {
+      pushListPointerCatalogItem(listPointer, parentType, childName, childSchema.id, segId)
     } else {
       const listItemFieldName = itemIdx === 0 ? fieldName : `${fieldName}:${String(itemIdx)}`
       pushInternalStructure(parentSchema, parentType, listItemFieldName, childSchema.id, segId)
@@ -758,9 +918,11 @@ function parseBlockBody(ctx: ParseCtx, parentType: string, body: string): void {
       idx += consumedHead.split('\n').length - 1
 
       if (isEmbedListType(listType)) {
-        parseStructuralListBody(ctx, parentType, fieldName, listInner, parentSchema, true)
+        parseStructuralListBody(ctx, parentType, fieldName, listInner, parentSchema, true, false)
+      } else if (isPointerListType(listType)) {
+        parseStructuralListBody(ctx, parentType, fieldName, listInner, parentSchema, false, true)
       } else if (isStructuralListType(listType)) {
-        parseStructuralListBody(ctx, parentType, fieldName, listInner, parentSchema, false)
+        parseStructuralListBody(ctx, parentType, fieldName, listInner, parentSchema, false, false)
       } else if (isPrimitiveListType(listType)) {
         const listValue = normalizePrimitiveListBody(listType, listInner)
         pushScalarParameter(ctx, parentType, parentSchema, fieldName, listType, listValue)
@@ -785,10 +947,10 @@ function parseBlockBody(ctx: ParseCtx, parentType: string, body: string): void {
       continue
     }
 
-    const embed = INLINE_CHILD_OPEN_REGEX.exec(lineRaw)
-    if (embed?.[2] && embed[3]) {
-      const fieldName = embed[1]!
-      const childName = embed[3]!
+    const embedInline = INLINE_EMBED_OPEN_REGEX.exec(lineRaw)
+    if (embedInline?.[1] && embedInline[2]) {
+      const fieldName = embedInline[1]!
+      const childName = embedInline[2]!
       const concatFromHere = bodyLines.slice(idx - 1).join('\n')
       const openRel = concatFromHere.indexOf('{')
       const closeAbs = openRel >= 0 ? findClosingBrace(concatFromHere, openRel) : -1
@@ -803,7 +965,88 @@ function parseBlockBody(ctx: ParseCtx, parentType: string, body: string): void {
       }
 
       const childSchema = ensureSchema(ctx, childName)
+      const embedBlock = ensureEmbedBlock(parentSchema, parentType, fieldName)
+      pushEmbedCatalogItem(embedBlock, parentType, childName, childSchema.id, fieldName)
+      pushEmbedInitialSlot(embedBlock, childName, childSchema.id)
 
+      pushScope(
+        ctx,
+        {
+          segmentId: fieldName,
+          typeName: childName,
+          kind: 'internal',
+          openingLine: lineRaw,
+        },
+        childSchema,
+      )
+
+      if (innerSlice.trim().length > 0) {
+        parseBlockBody(ctx, childName, innerSlice)
+      }
+
+      popScope(ctx)
+      continue
+    }
+
+    const pointerInline = INLINE_POINTER_OPEN_REGEX.exec(lineRaw)
+    if (pointerInline?.[1] && pointerInline[2]) {
+      const fieldName = pointerInline[1]!
+      const childName = pointerInline[2]!
+      const concatFromHere = bodyLines.slice(idx - 1).join('\n')
+      const openRel = concatFromHere.indexOf('{')
+      const closeAbs = openRel >= 0 ? findClosingBrace(concatFromHere, openRel) : -1
+
+      let innerSlice = ''
+      if (closeAbs <= openRel) {
+        ctx.warnings.push(`${parentType}.${fieldName}: bloco '${childName}' não fechado`)
+      } else {
+        innerSlice = concatFromHere.slice(openRel + 1, closeAbs)
+        const consumedHead = concatFromHere.slice(0, closeAbs + 1)
+        idx += consumedHead.split('\n').length - 1
+      }
+
+      const childSchema = ensureSchema(ctx, childName)
+      const pointerBlock = ensurePointerBlock(parentSchema, parentType, fieldName)
+      pushPointerCatalogItem(pointerBlock, parentType, childName, childSchema.id, fieldName)
+      pushPointerInitialSlot(pointerBlock, childName, childSchema.id)
+
+      pushScope(
+        ctx,
+        {
+          segmentId: fieldName,
+          typeName: childName,
+          kind: 'internal',
+          openingLine: lineRaw,
+        },
+        childSchema,
+      )
+
+      if (innerSlice.trim().length > 0) {
+        parseBlockBody(ctx, childName, innerSlice)
+      }
+
+      popScope(ctx)
+      continue
+    }
+
+    const linkInline = INLINE_LINK_OPEN_REGEX.exec(lineRaw)
+    if (linkInline?.[1] && linkInline[2]) {
+      const fieldName = linkInline[1]!
+      const childName = linkInline[2]!
+      const concatFromHere = bodyLines.slice(idx - 1).join('\n')
+      const openRel = concatFromHere.indexOf('{')
+      const closeAbs = openRel >= 0 ? findClosingBrace(concatFromHere, openRel) : -1
+
+      let innerSlice = ''
+      if (closeAbs <= openRel) {
+        ctx.warnings.push(`${parentType}.${fieldName}: bloco '${childName}' não fechado`)
+      } else {
+        innerSlice = concatFromHere.slice(openRel + 1, closeAbs)
+        const consumedHead = concatFromHere.slice(0, closeAbs + 1)
+        idx += consumedHead.split('\n').length - 1
+      }
+
+      const childSchema = ensureSchema(ctx, childName)
       pushInternalStructure(parentSchema, parentType, fieldName, childSchema.id)
 
       pushScope(
@@ -917,6 +1160,34 @@ function dedupeSchemas(ctx: ParseCtx): void {
       return true
     })
 
+    for (const block of schema.embed) {
+      const seenCatalog = new Set<string>()
+      block.internalStructures = block.internalStructures.filter((e) => {
+        const k = `${e.id}:${e.schemaId}`
+        if (seenCatalog.has(k)) {
+          return false
+        }
+        seenCatalog.add(k)
+        return true
+      })
+    }
+
+    schema.embed = schema.embed.filter((block) => block.internalStructures.length > 0)
+
+    for (const block of schema.pointer) {
+      const seenCatalog = new Set<string>()
+      block.internalStructures = block.internalStructures.filter((e) => {
+        const k = `${e.id}:${e.schemaId}`
+        if (seenCatalog.has(k)) {
+          return false
+        }
+        seenCatalog.add(k)
+        return true
+      })
+    }
+
+    schema.pointer = schema.pointer.filter((block) => block.internalStructures.length > 0)
+
     for (const block of schema.listEmbed) {
       const seenCatalog = new Set<string>()
       block.internalStructures = block.internalStructures.filter((e) => {
@@ -930,6 +1201,20 @@ function dedupeSchemas(ctx: ParseCtx): void {
     }
 
     schema.listEmbed = schema.listEmbed.filter((block) => block.internalStructures.length > 0)
+
+    for (const block of schema.listPointer) {
+      const seenCatalog = new Set<string>()
+      block.internalStructures = block.internalStructures.filter((e) => {
+        const k = `${e.id}:${e.schemaId}`
+        if (seenCatalog.has(k)) {
+          return false
+        }
+        seenCatalog.add(k)
+        return true
+      })
+    }
+
+    schema.listPointer = schema.listPointer.filter((block) => block.internalStructures.length > 0)
   }
 }
 
@@ -949,7 +1234,31 @@ function collectReachableSchemaIds(ctx: ParseCtx): Set<string> {
         queue.push(ref.schemaId)
       }
     }
+    for (const block of schema.embed) {
+      for (const ref of [...block.internalStructures, ...(block.slots ?? [])]) {
+        if (!out.has(ref.schemaId)) {
+          out.add(ref.schemaId)
+          queue.push(ref.schemaId)
+        }
+      }
+    }
+    for (const block of schema.pointer) {
+      for (const ref of [...block.internalStructures, ...(block.slots ?? [])]) {
+        if (!out.has(ref.schemaId)) {
+          out.add(ref.schemaId)
+          queue.push(ref.schemaId)
+        }
+      }
+    }
     for (const block of schema.listEmbed) {
+      for (const ref of block.internalStructures) {
+        if (!out.has(ref.schemaId)) {
+          out.add(ref.schemaId)
+          queue.push(ref.schemaId)
+        }
+      }
+    }
+    for (const block of schema.listPointer) {
       for (const ref of block.internalStructures) {
         if (!out.has(ref.schemaId)) {
           out.add(ref.schemaId)
@@ -1068,7 +1377,10 @@ export function schemasFromClassGroupStackParse(
       structuredClone({
         ...sch,
         parameters: [...sch.parameters].sort((a, bb) => a.name.localeCompare(bb.name)),
+        ...(sch.embed.length > 0 ? { embed: [...sch.embed] } : {}),
+        ...(sch.pointer.length > 0 ? { pointer: [...sch.pointer] } : {}),
         ...(sch.listEmbed.length > 0 ? { listEmbed: [...sch.listEmbed] } : {}),
+        ...(sch.listPointer.length > 0 ? { listPointer: [...sch.listPointer] } : {}),
         internalStructures: [...sch.internalStructures],
       }),
     )

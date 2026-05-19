@@ -6,6 +6,7 @@ import type {
   NodeSchemaDefinition,
 } from '@/core/nodeSchema'
 import { resolveCollectionTypeForSlot } from '@/core/collectionTypeLinking'
+import { populatedSlotsForPointer } from '@/core/pointerSlots'
 
 export const LIST_EMBED_SLOT_ID_PREFIX = '__slot__'
 
@@ -321,6 +322,22 @@ export function findOutputSlotInNode(
   const topLevel = node.node.schema.internalStructures.find((structure) => structure.id === slotId)
   if (topLevel) {
     return topLevel
+  }
+
+  for (const block of node.node.schema.embed ?? []) {
+    const slots = block.slots ?? []
+    const slot = slots.find((entry) => entry.id === slotId)
+    if (slot) {
+      return slot
+    }
+  }
+
+  for (const block of node.node.schema.pointer ?? []) {
+    const slots = populatedSlotsForPointer(block)
+    const slot = slots.find((entry) => entry.id === slotId)
+    if (slot) {
+      return slot
+    }
   }
 
   for (const block of node.node.schema.listEmbed ?? []) {

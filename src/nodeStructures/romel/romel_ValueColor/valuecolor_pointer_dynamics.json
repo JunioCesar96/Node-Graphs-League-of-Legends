@@ -1,0 +1,11 @@
+{
+  "id": "ValueColor_pointer_Dynamics",
+  "title": "Dynamics",
+  "internalStructures": [
+    {
+      "id": "ValueColor_pointer_Dynamics-catalog-0",
+      "name": "VfxAnimatedColorVariableData",
+      "schemaId": "vfx-animated-color-variable-data"
+    }
+  ]
+}

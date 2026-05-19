@@ -1,6 +1,0 @@
-{
-  "id": "ValueVector2_constantValue",
-  "name": "constantValue",
-  "type": "vector2",
-  "defaultValue": "0,0"
-}

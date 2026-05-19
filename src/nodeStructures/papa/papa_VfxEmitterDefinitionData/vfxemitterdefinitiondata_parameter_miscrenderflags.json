@@ -1,0 +1,6 @@
+{
+  "id": "VfxEmitterDefinitionData_parameter_MiscRenderFlags",
+  "name": "MiscRenderFlags",
+  "type": "u8",
+  "defaultValue": "1"
+}

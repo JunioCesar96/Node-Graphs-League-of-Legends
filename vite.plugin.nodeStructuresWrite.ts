@@ -4,11 +4,17 @@ import path from 'node:path'
 import type { Plugin } from 'vite'
 
 import {
+  buildNodeBaseEmbedPayload,
   buildNodeBaseListEmbedPayload,
+  buildNodeBaseListPointerPayload,
   buildNodeBaseParameterPayload,
+  buildNodeBasePointerPayload,
   buildNodeBaseSchemaBody,
   collectSchemaIdsFromListEmbedBlocks,
+  readEmbedBlocksFromSchemaJson,
   readListEmbedBlocksFromSchemaJson,
+  readListPointerBlocksFromSchemaJson,
+  readPointerBlocksFromSchemaJson,
 } from './src/core/extractNodeBaseParameters'
 import type { NodeStructureNomenclature } from './src/core/nodeSchema'
 import { nodeParameterDefinitionFromJsonStub, parseNomenclatureFromStructureJson } from './src/core/nodeStructureJson'
@@ -124,6 +130,68 @@ function registerCollectionTypeInInfo(
 ): void {
   if (!collectionTypeInfo[collectionType]) {
     collectionTypeInfo[collectionType] = { nomenclature }
+  }
+}
+
+async function registerEmbedChildrenInInfo(
+  fileJson: Record<string, unknown>,
+  parentNomenclature: NodeStructureNomenclature,
+  collectionTypeInfo: Record<string, { nomenclature: NodeStructureNomenclature }>,
+  schemaIdIndex: Map<string, string>,
+  errors: string[],
+): Promise<void> {
+  const blocks = readEmbedBlocksFromSchemaJson(fileJson)
+  const schemaIds = collectSchemaIdsFromListEmbedBlocks(blocks)
+
+  for (const schemaId of schemaIds) {
+    const childPath = schemaIdIndex.get(schemaId)
+    if (!childPath) {
+      const catalogRef = blocks
+        .flatMap((block) => block.internalStructures)
+        .find((ref) => ref.schemaId === schemaId)
+      const fallbackType = catalogRef?.name?.trim()
+      if (fallbackType) {
+        registerCollectionTypeInInfo(collectionTypeInfo, fallbackType, {
+          ...parentNomenclature,
+          collectionType: fallbackType,
+        })
+      } else {
+        errors.push(`embed: schemaId "${schemaId}" sem ficheiro no pack`)
+      }
+      continue
+    }
+
+    let childJson: unknown
+    try {
+      childJson = JSON.parse(await fs.readFile(childPath, 'utf8')) as unknown
+    } catch (err) {
+      errors.push(`embed ${schemaId}: ${err instanceof Error ? err.message : String(err)}`)
+      continue
+    }
+
+    if (!isRecord(childJson)) {
+      errors.push(`embed ${schemaId}: JSON inválido`)
+      continue
+    }
+
+    const childNom = parseNomenclatureFromStructureJson(childJson.nomenclature)
+    if (childNom) {
+      registerCollectionTypeInInfo(collectionTypeInfo, childNom.collectionType.trim(), childNom)
+      continue
+    }
+
+    const catalogRef = blocks
+      .flatMap((block) => block.internalStructures)
+      .find((ref) => ref.schemaId === schemaId)
+    const fallbackType = catalogRef?.name?.trim()
+    if (fallbackType) {
+      registerCollectionTypeInInfo(collectionTypeInfo, fallbackType, {
+        ...parentNomenclature,
+        collectionType: fallbackType,
+      })
+    } else {
+      errors.push(`embed ${schemaId}: falta nomenclature no filho`)
+    }
   }
 }
 
@@ -418,6 +486,14 @@ export function vitePluginNodeStructuresWrite(projectRoot: string): Plugin {
 
                   registerCollectionTypeInInfo(collectionTypeInfo, collectionType, parsedNom)
 
+                  await registerEmbedChildrenInInfo(
+                    fileJson,
+                    parsedNom,
+                    collectionTypeInfo,
+                    schemaIdIndex,
+                    errors,
+                  )
+
                   await registerListEmbedChildrenInInfo(
                     fileJson,
                     parsedNom,
@@ -483,6 +559,46 @@ export function vitePluginNodeStructuresWrite(projectRoot: string): Plugin {
                     created.push(`${subdirName}/${stem}.json`)
                   }
 
+                  const embedBlocks = readEmbedBlocksFromSchemaJson(fileJson)
+                  for (const block of embedBlocks) {
+                    const embedPayload = buildNodeBaseEmbedPayload(collectionType, block)
+                    if (!embedPayload) {
+                      continue
+                    }
+
+                    const embedStem = safeJsonStem(embedPayload.id)
+                    if (!embedStem) {
+                      skipped.push(embedPayload.id)
+                      continue
+                    }
+
+                    const embedOutFile = path.join(subdirPath, `${embedStem}.json`)
+                    const embedOutRel = path.relative(subdirPath, embedOutFile)
+                    if (embedOutRel.startsWith('..') || path.isAbsolute(embedOutRel)) {
+                      skipped.push(embedPayload.id)
+                      continue
+                    }
+
+                    if (knownIds.has(embedPayload.id)) {
+                      skipped.push(embedPayload.id)
+                      continue
+                    }
+
+                    if (await fileExists(embedOutFile)) {
+                      skipped.push(embedPayload.id)
+                      continue
+                    }
+
+                    await fs.mkdir(subdirPath, { recursive: true })
+                    await fs.writeFile(
+                      embedOutFile,
+                      `${JSON.stringify(embedPayload, null, 2)}\n`,
+                      'utf8',
+                    )
+                    knownIds.add(embedPayload.id)
+                    created.push(`${subdirName}/${embedStem}.json`)
+                  }
+
                   const listEmbedBlocks = readListEmbedBlocksFromSchemaJson(fileJson)
                   for (const block of listEmbedBlocks) {
                     const listEmbedPayload = buildNodeBaseListEmbedPayload(collectionType, block)
@@ -521,6 +637,86 @@ export function vitePluginNodeStructuresWrite(projectRoot: string): Plugin {
                     )
                     knownIds.add(listEmbedPayload.id)
                     created.push(`${subdirName}/${listEmbedStem}.json`)
+                  }
+
+                  const pointerBlocks = readPointerBlocksFromSchemaJson(fileJson)
+                  for (const block of pointerBlocks) {
+                    const pointerPayload = buildNodeBasePointerPayload(collectionType, block)
+                    if (!pointerPayload) {
+                      continue
+                    }
+
+                    const pointerStem = safeJsonStem(pointerPayload.id)
+                    if (!pointerStem) {
+                      skipped.push(pointerPayload.id)
+                      continue
+                    }
+
+                    const pointerOutFile = path.join(subdirPath, `${pointerStem}.json`)
+                    const pointerOutRel = path.relative(subdirPath, pointerOutFile)
+                    if (pointerOutRel.startsWith('..') || path.isAbsolute(pointerOutRel)) {
+                      skipped.push(pointerPayload.id)
+                      continue
+                    }
+
+                    if (knownIds.has(pointerPayload.id)) {
+                      skipped.push(pointerPayload.id)
+                      continue
+                    }
+
+                    if (await fileExists(pointerOutFile)) {
+                      skipped.push(pointerPayload.id)
+                      continue
+                    }
+
+                    await fs.mkdir(subdirPath, { recursive: true })
+                    await fs.writeFile(
+                      pointerOutFile,
+                      `${JSON.stringify(pointerPayload, null, 2)}\n`,
+                      'utf8',
+                    )
+                    knownIds.add(pointerPayload.id)
+                    created.push(`${subdirName}/${pointerStem}.json`)
+                  }
+
+                  const listPointerBlocks = readListPointerBlocksFromSchemaJson(fileJson)
+                  for (const block of listPointerBlocks) {
+                    const listPointerPayload = buildNodeBaseListPointerPayload(collectionType, block)
+                    if (!listPointerPayload) {
+                      continue
+                    }
+
+                    const listPointerStem = safeJsonStem(listPointerPayload.id)
+                    if (!listPointerStem) {
+                      skipped.push(listPointerPayload.id)
+                      continue
+                    }
+
+                    const listPointerOutFile = path.join(subdirPath, `${listPointerStem}.json`)
+                    const listPointerOutRel = path.relative(subdirPath, listPointerOutFile)
+                    if (listPointerOutRel.startsWith('..') || path.isAbsolute(listPointerOutRel)) {
+                      skipped.push(listPointerPayload.id)
+                      continue
+                    }
+
+                    if (knownIds.has(listPointerPayload.id)) {
+                      skipped.push(listPointerPayload.id)
+                      continue
+                    }
+
+                    if (await fileExists(listPointerOutFile)) {
+                      skipped.push(listPointerPayload.id)
+                      continue
+                    }
+
+                    await fs.mkdir(subdirPath, { recursive: true })
+                    await fs.writeFile(
+                      listPointerOutFile,
+                      `${JSON.stringify(listPointerPayload, null, 2)}\n`,
+                      'utf8',
+                    )
+                    knownIds.add(listPointerPayload.id)
+                    created.push(`${subdirName}/${listPointerStem}.json`)
                   }
                 }
 

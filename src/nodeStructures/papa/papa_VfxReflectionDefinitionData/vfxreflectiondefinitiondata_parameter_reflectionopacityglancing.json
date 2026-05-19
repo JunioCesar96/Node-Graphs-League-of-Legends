@@ -1,0 +1,6 @@
+{
+  "id": "VfxReflectionDefinitionData_parameter_ReflectionOpacityGlancing",
+  "name": "ReflectionOpacityGlancing",
+  "type": "f32",
+  "defaultValue": "0.100000001"
+}

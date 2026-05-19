@@ -1,0 +1,11 @@
+{
+  "id": "VfxEmitterDefinitionData_listEmbed_ParticleUvScrollRate",
+  "title": "ParticleUvScrollRate",
+  "internalStructures": [
+    {
+      "id": "VfxEmitterDefinitionData_listEmbed_ParticleUvScrollRate-catalog-0",
+      "name": "IntegratedValueVector2",
+      "schemaId": "integrated-value-vector2"
+    }
+  ]
+}

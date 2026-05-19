@@ -3,17 +3,18 @@
   "title": "IntegratedValueVector3",
   "parameters": [
     {
-      "id": "integrated-value-vector3-constant-value",
-      "name": "constantValue",
+      "id": "IntegratedValueVector3_parameter_ConstantValue",
+      "name": "ConstantValue",
       "type": "vector3",
       "defaultValue": "0, -1200, 0"
     }
   ],
+  "embed": [],
   "listEmbed": [],
   "internalStructures": [
     {
       "id": "integrated-value-vector3-dynamics",
-      "name": "dynamics",
+      "name": "Dynamics",
       "schemaId": "vfx-animated-vector3f-variable-data"
     }
   ],
@@ -21,7 +22,7 @@
     "group": "#3 Internal Structures",
     "collection": "#3 Embed Block",
     "collectionType": "IntegratedValueVector3",
-    "pathHierarchy": "entries > Characters/Zac/Skins/Skin0/Particles/Zac_Base_Q_tar > complexEmitterDefinitionData:2 > worldAcceleration",
+    "pathHierarchy": "entries > Characters/Zac/Skins/Skin0/Particles/Zac_Base_Q_tar > ComplexEmitterDefinitionData:2 > WorldAcceleration",
     "pathHierarchySteps": [
       {
         "id": "entries",
@@ -32,11 +33,11 @@
         "type": "#2 Root Entry (VfxSystemDefinitionData)"
       },
       {
-        "id": "complexEmitterDefinitionData:2",
+        "id": "ComplexEmitterDefinitionData:2",
         "type": "#3 Collection Block"
       },
       {
-        "id": "worldAcceleration",
+        "id": "WorldAcceleration",
         "type": "#3 Embed Block"
       }
     ]

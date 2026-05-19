@@ -1,0 +1,6 @@
+{
+  "id": "VfxEmitterDefinitionData_parameter_Texture",
+  "name": "Texture",
+  "type": "string",
+  "defaultValue": "ASSETS/Characters/Zac/Skins/Base/Particles/Zac_Goo_E.tex"
+}

@@ -1,0 +1,6 @@
+{
+  "id": "VfxEmitterAudio_parameter_SoundOnCreate",
+  "name": "SoundOnCreate",
+  "type": "string",
+  "defaultValue": "Play_sfx_Zac_ZacE_hit"
+}

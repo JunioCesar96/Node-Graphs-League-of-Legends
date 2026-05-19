@@ -3,31 +3,32 @@
   "title": "VfxEmitterFiltering",
   "parameters": [
     {
-      "id": "vfx-emitter-filtering-censor-policy",
-      "name": "censorPolicy",
+      "id": "VfxEmitterFiltering_parameter_CensorPolicy",
+      "name": "CensorPolicy",
       "type": "u8",
       "defaultValue": "2"
     },
     {
-      "id": "vfx-emitter-filtering-keywords-excluded",
-      "name": "keywordsExcluded",
+      "id": "VfxEmitterFiltering_parameter_KeywordsExcluded",
+      "name": "KeywordsExcluded",
       "type": "listString",
       "defaultValue": "ZacGrumpy"
     },
     {
-      "id": "vfx-emitter-filtering-spectator-policy",
-      "name": "spectatorPolicy",
+      "id": "VfxEmitterFiltering_parameter_SpectatorPolicy",
+      "name": "SpectatorPolicy",
       "type": "u8",
       "defaultValue": "1"
     }
   ],
+  "embed": [],
   "listEmbed": [],
   "internalStructures": [],
   "nomenclature": {
     "group": "#3 Internal Structures",
     "collection": "#3 Pointer Node",
     "collectionType": "VfxEmitterFiltering",
-    "pathHierarchy": "entries > 0x04ff5c13 > complexEmitterDefinitionData:0 > Filtering",
+    "pathHierarchy": "entries > 0x04ff5c13 > ComplexEmitterDefinitionData:0 > Filtering",
     "pathHierarchySteps": [
       {
         "id": "entries",
@@ -38,7 +39,7 @@
         "type": "#2 Root Entry (VfxSystemDefinitionData)"
       },
       {
-        "id": "complexEmitterDefinitionData:0",
+        "id": "ComplexEmitterDefinitionData:0",
         "type": "#3 Collection Block"
       },
       {

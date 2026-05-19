@@ -1,0 +1,11 @@
+{
+  "id": "VfxEmitterDefinitionData_listEmbed_AlphaErosionDefinition",
+  "title": "AlphaErosionDefinition",
+  "internalStructures": [
+    {
+      "id": "VfxEmitterDefinitionData_listEmbed_AlphaErosionDefinition-catalog-0",
+      "name": "VfxAlphaErosionDefinitionData",
+      "schemaId": "vfx-alpha-erosion-definition-data"
+    }
+  ]
+}

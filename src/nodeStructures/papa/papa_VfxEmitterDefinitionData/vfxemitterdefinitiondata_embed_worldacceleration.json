@@ -1,0 +1,11 @@
+{
+  "id": "VfxEmitterDefinitionData_embed_WorldAcceleration",
+  "title": "WorldAcceleration",
+  "internalStructures": [
+    {
+      "id": "VfxEmitterDefinitionData_embed_WorldAcceleration-catalog-0",
+      "name": "IntegratedValueVector3",
+      "schemaId": "integrated-value-vector3"
+    }
+  ]
+}

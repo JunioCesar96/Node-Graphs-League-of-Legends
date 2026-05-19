@@ -1,0 +1,6 @@
+{
+  "id": "VfxMeshDefinitionData_parameter_mSubmeshesToDraw",
+  "name": "mSubmeshesToDraw",
+  "type": "listHash",
+  "defaultValue": "Base_mat"
+}

@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  embedDefinitionFromJsonStub,
+  isEmbedStubShape,
+  isListEmbedStubShape,
+  isListPointerStubShape,
+  isPointerStubShape,
+  listEmbedDefinitionFromJsonStub,
+  listPointerDefinitionFromJsonStub,
+  pointerDefinitionFromJsonStub,
   nomenclatureGroupNumberFromLabel,
   nodeSchemaFromStructureJson,
   parseNomenclatureFromStructureJson,
@@ -180,5 +188,73 @@ describe('nodeSchemaFromStructureJson com nomenclatura vazia', () => {
       collectionType: 'Emitter',
       pathHierarchy: 'a > b',
     })
+  })
+})
+
+describe('stubs EMBED / LIST_EMBED', () => {
+  const embedStub = {
+    id: 'VfxEmitterDefinitionData_embed_bindWeight',
+    title: 'bindWeight',
+    internalStructures: [{ id: 'c0', name: 'ValueFloat', schemaId: 'value-float' }],
+  }
+
+  const listEmbedStub = {
+    id: 'VfxEmitterDefinitionData_listEmbed_bindWeight',
+    title: 'bindWeight',
+    internalStructures: [{ id: 'c1', name: 'ValueFloat', schemaId: 'value-float' }],
+  }
+
+  it('isEmbedStubShape aceita só ficheiros _embed_', () => {
+    expect(isEmbedStubShape(embedStub)).toBe(true)
+    expect(isEmbedStubShape(listEmbedStub)).toBe(false)
+  })
+
+  it('isListEmbedStubShape aceita só ficheiros _listEmbed_', () => {
+    expect(isListEmbedStubShape(listEmbedStub)).toBe(true)
+    expect(isListEmbedStubShape(embedStub)).toBe(false)
+  })
+
+  it('embedDefinitionFromJsonStub não classifica LIST_EMBED como EMBED', () => {
+    expect(embedDefinitionFromJsonStub(listEmbedStub)).toBeNull()
+    expect(embedDefinitionFromJsonStub(embedStub)?.id).toBe(embedStub.id)
+  })
+
+  it('listEmbedDefinitionFromJsonStub não classifica EMBED como LIST_EMBED', () => {
+    expect(listEmbedDefinitionFromJsonStub(embedStub)).toBeNull()
+    expect(listEmbedDefinitionFromJsonStub(listEmbedStub)?.id).toBe(listEmbedStub.id)
+  })
+})
+
+describe('stubs POINTER / LIST_POINTER', () => {
+  const pointerStub = {
+    id: 'VfxEmitterDefinitionData_pointer_Dynamics',
+    title: 'Dynamics',
+    internalStructures: [{ id: 'c0', name: 'ValueColor', schemaId: 'value-color' }],
+  }
+
+  const listPointerStub = {
+    id: 'VfxSystemDefinitionData_listPointer_ComplexEmitterDefinitionData',
+    title: 'ComplexEmitterDefinitionData',
+    internalStructures: [{ id: 'c1', name: 'ComplexEmitterDefinitionData', schemaId: 'complex-emitter' }],
+  }
+
+  it('isPointerStubShape aceita só ficheiros _pointer_', () => {
+    expect(isPointerStubShape(pointerStub)).toBe(true)
+    expect(isPointerStubShape(listPointerStub)).toBe(false)
+  })
+
+  it('isListPointerStubShape aceita só ficheiros _listPointer_', () => {
+    expect(isListPointerStubShape(listPointerStub)).toBe(true)
+    expect(isListPointerStubShape(pointerStub)).toBe(false)
+  })
+
+  it('pointerDefinitionFromJsonStub não classifica LIST_POINTER como POINTER', () => {
+    expect(pointerDefinitionFromJsonStub(listPointerStub)).toBeNull()
+    expect(pointerDefinitionFromJsonStub(pointerStub)?.id).toBe(pointerStub.id)
+  })
+
+  it('listPointerDefinitionFromJsonStub não classifica POINTER como LIST_POINTER', () => {
+    expect(listPointerDefinitionFromJsonStub(pointerStub)).toBeNull()
+    expect(listPointerDefinitionFromJsonStub(listPointerStub)?.id).toBe(listPointerStub.id)
   })
 })

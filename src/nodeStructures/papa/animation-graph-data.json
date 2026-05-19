@@ -3,24 +3,25 @@
   "title": "AnimationGraphData",
   "parameters": [
     {
-      "id": "animation-graph-data-m-cascade-blend-value",
+      "id": "AnimationGraphData_parameter_mCascadeBlendValue",
       "name": "mCascadeBlendValue",
       "type": "f32",
       "defaultValue": "0"
     },
     {
-      "id": "animation-graph-data-m-clip-name",
+      "id": "AnimationGraphData_parameter_mClipName",
       "name": "mClipName",
       "type": "integer",
       "defaultValue": "0xda0f555e"
     },
     {
-      "id": "animation-graph-data-m-time",
+      "id": "AnimationGraphData_parameter_mTime",
       "name": "mTime",
       "type": "f32",
       "defaultValue": "0"
     }
   ],
+  "embed": [],
   "listEmbed": [],
   "internalStructures": [],
   "nomenclature": {

@@ -1,0 +1,6 @@
+{
+  "id": "SkinAudioProperties_parameter_TagEventList",
+  "name": "TagEventList",
+  "type": "listString",
+  "defaultValue": "Zac"
+}

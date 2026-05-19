@@ -2,20 +2,23 @@ import { describe, expect, it } from 'vitest'
 
 import {
   classifyRitualLine,
+  isEmbedListType,
+  isPointerListType,
   isPrimitiveListType,
   isStructuralListType,
 } from '@/core/classGroupFieldClassifier'
 
 describe('classGroupFieldClassifier', () => {
-  it('list[pointer] é estrutural; list[string] e list[vec4] são simples', () => {
-    expect(isStructuralListType('list[pointer]')).toBe(true)
+  it('list[pointer] é list pointer; list[link] estrutural; primitivos simples', () => {
+    expect(isPointerListType('list[pointer]')).toBe(true)
+    expect(isStructuralListType('list[link]')).toBe(true)
     expect(isPrimitiveListType('list[f32]')).toBe(true)
     expect(isPrimitiveListType('list[string]')).toBe(true)
     expect(isPrimitiveListType('list[hash]')).toBe(true)
     expect(isPrimitiveListType('list[vec2]')).toBe(true)
     expect(isPrimitiveListType('list[vec3]')).toBe(true)
     expect(isPrimitiveListType('list[vec4]')).toBe(true)
-    expect(isStructuralListType('list2[embed]')).toBe(true)
+    expect(isEmbedListType('list2[embed]')).toBe(true)
   })
 
   it('classifica rgba com valor entre chavetas como simples', () => {

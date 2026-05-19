@@ -1,0 +1,43 @@
+{
+  "id": "mask-data",
+  "title": "MaskData",
+  "parameters": [
+    {
+      "id": "MaskData_parameter_mId",
+      "name": "mId",
+      "type": "u32",
+      "defaultValue": "1"
+    },
+    {
+      "id": "MaskData_parameter_mWeightList",
+      "name": "mWeightList",
+      "type": "listF32",
+      "defaultValue": "1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1"
+    }
+  ],
+  "embed": [],
+  "pointer": [],
+  "listEmbed": [],
+  "listPointer": [],
+  "internalStructures": [],
+  "nomenclature": {
+    "group": "#3 Internal Structures",
+    "collection": "#3 Collection Block",
+    "collectionType": "MaskData",
+    "pathHierarchy": "entries > Characters/Zac/Animations/Skin0 > ScaleBody",
+    "pathHierarchySteps": [
+      {
+        "id": "entries",
+        "type": "#1 Root Entry"
+      },
+      {
+        "id": "Characters/Zac/Animations/Skin0",
+        "type": "#2 Root Entry (AnimationGraphData)"
+      },
+      {
+        "id": "ScaleBody",
+        "type": "#3 Collection Block"
+      }
+    ]
+  }
+}

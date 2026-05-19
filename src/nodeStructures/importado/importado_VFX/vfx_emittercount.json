@@ -1,6 +1,0 @@
-{
-  "id": "VFX_emitterCount",
-  "name": "emitterCount",
-  "type": "integer",
-  "defaultValue": "0"
-}

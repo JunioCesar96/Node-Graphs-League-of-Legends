@@ -2,6 +2,7 @@
   "id": "persistent-effect-condition-data",
   "title": "PersistentEffectConditionData",
   "parameters": [],
+  "embed": [],
   "listEmbed": [
     {
       "id": "persistent-effect-condition-data-persistent-vfxs",

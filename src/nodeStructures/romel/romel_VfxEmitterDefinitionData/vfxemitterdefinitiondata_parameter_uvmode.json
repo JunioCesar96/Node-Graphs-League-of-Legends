@@ -1,0 +1,6 @@
+{
+  "id": "VfxEmitterDefinitionData_parameter_UvMode",
+  "name": "UvMode",
+  "type": "u8",
+  "defaultValue": "1"
+}

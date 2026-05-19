@@ -1,0 +1,45 @@
+{
+  "id": "particle-event-data-pair",
+  "title": "ParticleEventDataPair",
+  "parameters": [
+    {
+      "id": "ParticleEventDataPair_parameter_mBoneName",
+      "name": "mBoneName",
+      "type": "integer",
+      "defaultValue": "0x3ddef4e8"
+    }
+  ],
+  "embed": [],
+  "pointer": [],
+  "listEmbed": [],
+  "listPointer": [],
+  "internalStructures": [],
+  "nomenclature": {
+    "group": "#3 Internal Structures",
+    "collection": "#3 Collection Block",
+    "collectionType": "ParticleEventDataPair",
+    "pathHierarchy": "entries > Characters/Zac/Animations/Skin0 > Recall > 0x1b5d9a25 > mParticleEventDataPairList:0",
+    "pathHierarchySteps": [
+      {
+        "id": "entries",
+        "type": "#1 Root Entry"
+      },
+      {
+        "id": "Characters/Zac/Animations/Skin0",
+        "type": "#2 Root Entry (AnimationGraphData)"
+      },
+      {
+        "id": "Recall",
+        "type": "#3 Collection Block"
+      },
+      {
+        "id": "0x1b5d9a25",
+        "type": "#3 Collection Block"
+      },
+      {
+        "id": "mParticleEventDataPairList:0",
+        "type": "#3 Collection Block"
+      }
+    ]
+  }
+}

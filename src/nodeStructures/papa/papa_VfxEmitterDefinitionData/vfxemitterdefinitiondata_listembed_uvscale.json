@@ -1,0 +1,11 @@
+{
+  "id": "VfxEmitterDefinitionData_listEmbed_UvScale",
+  "title": "UvScale",
+  "internalStructures": [
+    {
+      "id": "VfxEmitterDefinitionData_listEmbed_UvScale-catalog-0",
+      "name": "ValueVector2",
+      "schemaId": "value-vector2"
+    }
+  ]
+}

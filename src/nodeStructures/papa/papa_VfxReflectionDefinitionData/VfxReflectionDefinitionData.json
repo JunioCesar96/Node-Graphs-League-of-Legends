@@ -3,55 +3,56 @@
   "title": "VfxReflectionDefinitionData",
   "parameters": [
     {
-      "id": "vfx-reflection-definition-data-fresnel",
+      "id": "VfxReflectionDefinitionData_parameter_Fresnel",
       "name": "Fresnel",
       "type": "f32",
-      "defaultValue": "0.22"
+      "defaultValue": "0.219999999"
     },
     {
-      "id": "vfx-reflection-definition-data-fresnel-color",
-      "name": "fresnelColor",
+      "id": "VfxReflectionDefinitionData_parameter_FresnelColor",
+      "name": "FresnelColor",
       "type": "vector4",
       "defaultValue": "0.102, 0.302, 0.078, 1"
     },
     {
-      "id": "vfx-reflection-definition-data-reflection-fresnel",
-      "name": "reflectionFresnel",
+      "id": "VfxReflectionDefinitionData_parameter_ReflectionFresnel",
+      "name": "ReflectionFresnel",
       "type": "f32",
-      "defaultValue": "0.1"
+      "defaultValue": "0.100000001"
     },
     {
-      "id": "vfx-reflection-definition-data-reflection-fresnel-color",
-      "name": "reflectionFresnelColor",
+      "id": "VfxReflectionDefinitionData_parameter_ReflectionFresnelColor",
+      "name": "ReflectionFresnelColor",
       "type": "vector4",
       "defaultValue": "1, 1, 1, 0.5"
     },
     {
-      "id": "vfx-reflection-definition-data-reflection-map-texture",
-      "name": "reflectionMapTexture",
+      "id": "VfxReflectionDefinitionData_parameter_ReflectionMapTexture",
+      "name": "ReflectionMapTexture",
       "type": "string",
       "defaultValue": "ASSETS/Characters/Zac/Skins/Base/particles/Samira_CubeMap.dds"
     },
     {
-      "id": "vfx-reflection-definition-data-reflection-opacity-direct",
-      "name": "reflectionOpacityDirect",
+      "id": "VfxReflectionDefinitionData_parameter_ReflectionOpacityDirect",
+      "name": "ReflectionOpacityDirect",
       "type": "f32",
       "defaultValue": "0.25"
     },
     {
-      "id": "vfx-reflection-definition-data-reflection-opacity-glancing",
-      "name": "reflectionOpacityGlancing",
+      "id": "VfxReflectionDefinitionData_parameter_ReflectionOpacityGlancing",
+      "name": "ReflectionOpacityGlancing",
       "type": "f32",
-      "defaultValue": "0.1"
+      "defaultValue": "0.100000001"
     }
   ],
+  "embed": [],
   "listEmbed": [],
   "internalStructures": [],
   "nomenclature": {
     "group": "#3 Internal Structures",
     "collection": "#3 Pointer Node",
     "collectionType": "VfxReflectionDefinitionData",
-    "pathHierarchy": "entries > Characters/Zac/Skins/Skin0/Particles/Zac_Base_Q_tar > complexEmitterDefinitionData:0 > reflectionDefinition",
+    "pathHierarchy": "entries > Characters/Zac/Skins/Skin0/Particles/Zac_Base_Q_tar > ComplexEmitterDefinitionData:0 > ReflectionDefinition",
     "pathHierarchySteps": [
       {
         "id": "entries",
@@ -62,11 +63,11 @@
         "type": "#2 Root Entry (VfxSystemDefinitionData)"
       },
       {
-        "id": "complexEmitterDefinitionData:0",
+        "id": "ComplexEmitterDefinitionData:0",
         "type": "#3 Collection Block"
       },
       {
-        "id": "reflectionDefinition",
+        "id": "ReflectionDefinition",
         "type": "#3 Pointer Node"
       }
     ]

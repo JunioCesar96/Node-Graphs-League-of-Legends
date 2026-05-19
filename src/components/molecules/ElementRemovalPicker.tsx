@@ -28,11 +28,20 @@ function kindLabel(kind: NodeElementListItem['kind']): string {
   if (kind === 'parameter') {
     return 'Parâmetro'
   }
+  if (kind === 'embedBlock') {
+    return 'EMBED'
+  }
+  if (kind === 'pointerBlock') {
+    return 'POINTER'
+  }
+  if (kind === 'embedSlot' || kind === 'pointerSlot' || kind === 'listEmbedSlot' || kind === 'listPointerSlot') {
+    return 'Estrutura interna'
+  }
   if (kind === 'listEmbedBlock') {
     return 'LIST_EMBED'
   }
-  if (kind === 'listEmbedSlot') {
-    return 'Estrutura interna'
+  if (kind === 'listPointerBlock') {
+    return 'LIST_POINTER'
   }
   return 'Internal_Structure'
 }
@@ -82,6 +91,11 @@ export function ElementRemovalPicker({
   useEffect(() => {
     if (!open) {
       setQuery('')
+    }
+  }, [open])
+
+  useEffect(() => {
+    if (!open) {
       return
     }
     if (selectedKey !== null && !elements.some((element) => itemKey(element) === selectedKey)) {

@@ -3,18 +3,19 @@
   "title": "SequencerClipData",
   "parameters": [
     {
-      "id": "sequencer-clip-data-m-clip-name-list",
+      "id": "SequencerClipData_parameter_mClipNameList",
       "name": "mClipNameList",
       "type": "listHash",
       "defaultValue": "0xdcc88589\n0xe75f72aa"
     },
     {
-      "id": "sequencer-clip-data-m-flags",
+      "id": "SequencerClipData_parameter_mFlags",
       "name": "mFlags",
       "type": "u32",
       "defaultValue": "2"
     }
   ],
+  "embed": [],
   "listEmbed": [],
   "internalStructures": [],
   "nomenclature": {

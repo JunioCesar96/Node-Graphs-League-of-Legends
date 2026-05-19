@@ -3,59 +3,99 @@
   "title": "VfxAlphaErosionDefinitionData",
   "parameters": [
     {
-      "id": "vfx-alpha-erosion-definition-data-erosion-feather-in",
-      "name": "erosionFeatherIn",
+      "id": "VfxAlphaErosionDefinitionData_parameter_ErosionFeatherIn",
+      "name": "ErosionFeatherIn",
       "type": "f32",
-      "defaultValue": "0.2"
+      "defaultValue": "0.200000003"
     },
     {
-      "id": "vfx-alpha-erosion-definition-data-erosion-feather-out",
-      "name": "erosionFeatherOut",
+      "id": "VfxAlphaErosionDefinitionData_parameter_ErosionFeatherOut",
+      "name": "ErosionFeatherOut",
       "type": "f32",
-      "defaultValue": "0.2"
+      "defaultValue": "0.200000003"
     },
     {
-      "id": "vfx-alpha-erosion-definition-data-erosion-map-name",
-      "name": "erosionMapName",
+      "id": "VfxAlphaErosionDefinitionData_parameter_ErosionMapName",
+      "name": "ErosionMapName",
       "type": "string",
       "defaultValue": "ASSETS/Characters/Zac/Skins/base/Particles/Vladimir_Skin14_W_MagicCircle03.tex"
     },
     {
-      "id": "vfx-alpha-erosion-definition-data-erosion-slice-width",
-      "name": "erosionSliceWidth",
+      "id": "VfxAlphaErosionDefinitionData_parameter_ErosionSliceWidth",
+      "name": "ErosionSliceWidth",
       "type": "f32",
       "defaultValue": "1"
     },
     {
-      "id": "vfx-alpha-erosion-definition-data-use-linger-erosion-drive-curve",
+      "id": "VfxAlphaErosionDefinitionData_parameter_UseLingerErosionDriveCurve",
       "name": "UseLingerErosionDriveCurve",
       "type": "bool",
       "defaultValue": "true"
     }
   ],
-  "listEmbed": [],
-  "internalStructures": [
+  "embed": [
     {
       "id": "vfx-alpha-erosion-definition-data-erosion-drive-curve",
-      "name": "erosionDriveCurve",
-      "schemaId": "value-float"
+      "title": "ErosionDriveCurve",
+      "internalStructures": [
+        {
+          "id": "vfx-alpha-erosion-definition-data-erosion-drive-curve",
+          "name": "ValueFloat",
+          "schemaId": "value-float"
+        }
+      ],
+      "slots": [
+        {
+          "id": "vfx-alpha-erosion-definition-data-erosion-drive-curve__slot__0",
+          "name": "ValueFloat",
+          "schemaId": "value-float"
+        }
+      ]
     },
     {
       "id": "vfx-alpha-erosion-definition-data-erosion-map-channel-mixer",
-      "name": "erosionMapChannelMixer",
-      "schemaId": "value-color"
+      "title": "ErosionMapChannelMixer",
+      "internalStructures": [
+        {
+          "id": "vfx-alpha-erosion-definition-data-erosion-map-channel-mixer",
+          "name": "ValueColor",
+          "schemaId": "value-color"
+        }
+      ],
+      "slots": [
+        {
+          "id": "vfx-alpha-erosion-definition-data-erosion-map-channel-mixer__slot__0",
+          "name": "ValueColor",
+          "schemaId": "value-color"
+        }
+      ]
     },
     {
       "id": "vfx-alpha-erosion-definition-data-linger-erosion-drive-curve",
-      "name": "LingerErosionDriveCurve",
-      "schemaId": "value-float"
+      "title": "LingerErosionDriveCurve",
+      "internalStructures": [
+        {
+          "id": "vfx-alpha-erosion-definition-data-linger-erosion-drive-curve",
+          "name": "ValueFloat",
+          "schemaId": "value-float"
+        }
+      ],
+      "slots": [
+        {
+          "id": "vfx-alpha-erosion-definition-data-linger-erosion-drive-curve__slot__0",
+          "name": "ValueFloat",
+          "schemaId": "value-float"
+        }
+      ]
     }
   ],
+  "listEmbed": [],
+  "internalStructures": [],
   "nomenclature": {
     "group": "#3 Internal Structures",
     "collection": "#3 Pointer Node",
     "collectionType": "VfxAlphaErosionDefinitionData",
-    "pathHierarchy": "entries > 0x7b3a4b5f > complexEmitterDefinitionData:2 > alphaErosionDefinition",
+    "pathHierarchy": "entries > 0x7b3a4b5f > ComplexEmitterDefinitionData:2 > AlphaErosionDefinition",
     "pathHierarchySteps": [
       {
         "id": "entries",
@@ -66,11 +106,11 @@
         "type": "#2 Root Entry (VfxSystemDefinitionData)"
       },
       {
-        "id": "complexEmitterDefinitionData:2",
+        "id": "ComplexEmitterDefinitionData:2",
         "type": "#3 Collection Block"
       },
       {
-        "id": "alphaErosionDefinition",
+        "id": "AlphaErosionDefinition",
         "type": "#3 Pointer Node"
       }
     ]

@@ -3,33 +3,34 @@
   "title": "VfxAnimatedVector3fVariableData",
   "parameters": [
     {
-      "id": "vfx-animated-vector3f-variable-data-times",
-      "name": "times",
+      "id": "VfxAnimatedVector3fVariableData_parameter_Times",
+      "name": "Times",
       "type": "listF32",
       "defaultValue": "0"
     },
     {
-      "id": "vfx-animated-vector3f-variable-data-values",
-      "name": "values",
+      "id": "VfxAnimatedVector3fVariableData_parameter_Values",
+      "name": "Values",
       "type": "listVector3",
       "defaultValue": "0, -200, 0"
     }
   ],
+  "embed": [],
   "listEmbed": [],
   "internalStructures": [
     {
       "id": "vfx-animated-vector3f-variable-data-probability-tables-0",
-      "name": "probabilityTables",
+      "name": "ProbabilityTables",
       "schemaId": "vfx-probability-table-data"
     },
     {
       "id": "vfx-animated-vector3f-variable-data-probability-tables-1",
-      "name": "probabilityTables:1",
+      "name": "ProbabilityTables:1",
       "schemaId": "vfx-probability-table-data"
     },
     {
       "id": "vfx-animated-vector3f-variable-data-probability-tables-2",
-      "name": "probabilityTables:2",
+      "name": "ProbabilityTables:2",
       "schemaId": "vfx-probability-table-data"
     }
   ],
@@ -37,7 +38,7 @@
     "group": "#3 Internal Structures",
     "collection": "#3 Pointer Node",
     "collectionType": "VfxAnimatedVector3fVariableData",
-    "pathHierarchy": "entries > Characters/Zac/Skins/Skin0/Particles/Zac_Base_Q_tar > complexEmitterDefinitionData:0 > birthVelocity > dynamics",
+    "pathHierarchy": "entries > Characters/Zac/Skins/Skin0/Particles/Zac_Base_Q_tar > ComplexEmitterDefinitionData:0 > BirthVelocity > Dynamics",
     "pathHierarchySteps": [
       {
         "id": "entries",
@@ -48,15 +49,15 @@
         "type": "#2 Root Entry (VfxSystemDefinitionData)"
       },
       {
-        "id": "complexEmitterDefinitionData:0",
+        "id": "ComplexEmitterDefinitionData:0",
         "type": "#3 Collection Block"
       },
       {
-        "id": "birthVelocity",
+        "id": "BirthVelocity",
         "type": "#3 Embed Block"
       },
       {
-        "id": "dynamics",
+        "id": "Dynamics",
         "type": "#3 Pointer Node"
       }
     ]

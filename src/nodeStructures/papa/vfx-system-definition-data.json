@@ -3,108 +3,109 @@
   "title": "VfxSystemDefinitionData",
   "parameters": [
     {
-      "id": "vfx-system-definition-data-flags",
-      "name": "flags",
+      "id": "VfxSystemDefinitionData_parameter_Flags",
+      "name": "Flags",
       "type": "u16",
       "defaultValue": "198"
     },
     {
-      "id": "vfx-system-definition-data-particle-name",
-      "name": "particleName",
+      "id": "VfxSystemDefinitionData_parameter_ParticleName",
+      "name": "ParticleName",
       "type": "string",
       "defaultValue": "Zac_Base_Q_tar"
     },
     {
-      "id": "vfx-system-definition-data-particle-path",
-      "name": "particlePath",
+      "id": "VfxSystemDefinitionData_parameter_ParticlePath",
+      "name": "ParticlePath",
       "type": "string",
       "defaultValue": "Characters/Zac/Skins/Skin0/Particles/Zac_Base_Q_tar"
     },
     {
-      "id": "vfx-system-definition-data-sound-on-create-default",
-      "name": "soundOnCreateDefault",
+      "id": "VfxSystemDefinitionData_parameter_SoundOnCreateDefault",
+      "name": "SoundOnCreateDefault",
       "type": "string",
       "defaultValue": "Play_sfx_Zac_ZacQHit_hit"
     },
     {
-      "id": "vfx-system-definition-data-sound-persistent-default",
-      "name": "soundPersistentDefault",
+      "id": "VfxSystemDefinitionData_parameter_SoundPersistentDefault",
+      "name": "SoundPersistentDefault",
       "type": "string",
       "defaultValue": "Play_sfx_Zac_ZacR_hit_splat"
     },
     {
-      "id": "vfx-system-definition-data-visibility-radius",
-      "name": "visibilityRadius",
+      "id": "VfxSystemDefinitionData_parameter_VisibilityRadius",
+      "name": "VisibilityRadius",
       "type": "f32",
       "defaultValue": "25000"
     },
     {
-      "id": "vfx-system-definition-data-voice-over-on-create-default",
-      "name": "voiceOverOnCreateDefault",
+      "id": "VfxSystemDefinitionData_parameter_VoiceOverOnCreateDefault",
+      "name": "VoiceOverOnCreateDefault",
       "type": "string",
       "defaultValue": "Play_vo_Zac_ZacR_buffactivate"
     }
   ],
+  "embed": [],
   "listEmbed": [],
   "internalStructures": [
     {
       "id": "vfx-system-definition-data-complex-emitter-definition-data-0",
-      "name": "complexEmitterDefinitionData",
+      "name": "ComplexEmitterDefinitionData",
       "schemaId": "vfx-emitter-definition-data"
     },
     {
       "id": "vfx-system-definition-data-complex-emitter-definition-data-1",
-      "name": "complexEmitterDefinitionData:1",
+      "name": "ComplexEmitterDefinitionData:1",
       "schemaId": "vfx-emitter-definition-data"
     },
     {
       "id": "vfx-system-definition-data-complex-emitter-definition-data-2",
-      "name": "complexEmitterDefinitionData:2",
+      "name": "ComplexEmitterDefinitionData:2",
       "schemaId": "vfx-emitter-definition-data"
     },
     {
       "id": "vfx-system-definition-data-complex-emitter-definition-data-3",
-      "name": "complexEmitterDefinitionData:3",
+      "name": "ComplexEmitterDefinitionData:3",
       "schemaId": "vfx-emitter-definition-data"
     },
     {
       "id": "vfx-system-definition-data-complex-emitter-definition-data-4",
-      "name": "complexEmitterDefinitionData:4",
+      "name": "ComplexEmitterDefinitionData:4",
       "schemaId": "vfx-emitter-definition-data"
     },
     {
       "id": "vfx-system-definition-data-simple-emitter-definition-data-0",
-      "name": "simpleEmitterDefinitionData",
+      "name": "SimpleEmitterDefinitionData",
       "schemaId": "vfx-emitter-definition-data"
     },
     {
       "id": "vfx-system-definition-data-complex-emitter-definition-data-5",
-      "name": "complexEmitterDefinitionData:5",
+      "name": "ComplexEmitterDefinitionData:5",
       "schemaId": "vfx-emitter-definition-data"
     },
     {
       "id": "vfx-system-definition-data-complex-emitter-definition-data-6",
-      "name": "complexEmitterDefinitionData:6",
+      "name": "ComplexEmitterDefinitionData:6",
       "schemaId": "vfx-emitter-definition-data"
     },
     {
       "id": "vfx-system-definition-data-complex-emitter-definition-data-7",
-      "name": "complexEmitterDefinitionData:7",
+      "name": "ComplexEmitterDefinitionData:7",
       "schemaId": "vfx-emitter-definition-data"
     },
     {
       "id": "vfx-system-definition-data-complex-emitter-definition-data-8",
-      "name": "complexEmitterDefinitionData:8",
+      "name": "ComplexEmitterDefinitionData:8",
       "schemaId": "vfx-emitter-definition-data"
     },
     {
       "id": "vfx-system-definition-data-complex-emitter-definition-data-9",
-      "name": "complexEmitterDefinitionData:9",
+      "name": "ComplexEmitterDefinitionData:9",
       "schemaId": "vfx-emitter-definition-data"
     },
     {
       "id": "vfx-system-definition-data-complex-emitter-definition-data-10",
-      "name": "complexEmitterDefinitionData:10",
+      "name": "ComplexEmitterDefinitionData:10",
       "schemaId": "vfx-emitter-definition-data"
     }
   ],

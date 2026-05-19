@@ -1,14 +1,23 @@
 import type {
+  EmbedDefinition,
   InternalStructureDefinition,
   ListEmbedDefinition,
+  ListPointerDefinition,
   NodeInstance,
   NodeParameterDefinition,
   NodeSchemaDefinition,
+  PointerDefinition,
 } from './nodeSchema'
+import { applyEmbedSlotsToSchema } from './embedSlots'
 import { applyListEmbedSlotsToSchema } from './listEmbedSlots'
+import { applyListPointerSlotsToSchema } from './listPointerSlots'
+import { applyPointerSlotsToSchema } from './pointerSlots'
 import {
+  embedDefinitionFromJsonStub,
   listEmbedDefinitionFromJsonStub,
+  listPointerDefinitionFromJsonStub,
   nodeParameterDefinitionFromJsonStub,
+  pointerDefinitionFromJsonStub,
   nomenclatureGroupNumberFromLabel,
   nodeSchemaFromStructureJson,
 } from './nodeStructureJson'
@@ -29,26 +38,188 @@ function isStructureJsonRecord(value: unknown): value is Record<string, unknown>
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
+function embedBlockTitleKey(title: string): string {
+  return title.trim().toLowerCase()
+}
+
+function pickPreferredEmbedBlock(
+  current: EmbedDefinition | undefined,
+  candidate: EmbedDefinition,
+): EmbedDefinition {
+  if (!current) {
+    return candidate
+  }
+  const currentSlots = current.slots?.length ?? 0
+  const candidateSlots = candidate.slots?.length ?? 0
+  if (candidateSlots > currentSlots) {
+    return candidate
+  }
+  if (currentSlots > candidateSlots) {
+    return current
+  }
+  const currentCanonical = current.id.includes('_embed_')
+  const candidateCanonical = candidate.id.includes('_embed_')
+  if (candidateCanonical && !currentCanonical) {
+    return candidate
+  }
+  return current
+}
+
+function pickPreferredListEmbedBlock(
+  current: ListEmbedDefinition | undefined,
+  candidate: ListEmbedDefinition,
+): ListEmbedDefinition {
+  if (!current) {
+    return candidate
+  }
+  const currentSlots = current.slots?.length ?? 0
+  const candidateSlots = candidate.slots?.length ?? 0
+  if (candidateSlots > currentSlots) {
+    return candidate
+  }
+  if (currentSlots > candidateSlots) {
+    return current
+  }
+  const currentCanonical = current.id.includes('_listEmbed_')
+  const candidateCanonical = candidate.id.includes('_listEmbed_')
+  if (candidateCanonical && !currentCanonical) {
+    return candidate
+  }
+  return current
+}
+
 function mergeListEmbedStubsIntoSchema(
   schema: NodeSchemaDefinition,
   stubs: readonly ListEmbedDefinition[],
 ): NodeSchemaDefinition {
-  if (stubs.length === 0) {
+  if (stubs.length === 0 && (schema.listEmbed?.length ?? 0) === 0) {
     return schema
   }
 
-  const byId = new Map<string, ListEmbedDefinition>()
+  const byTitle = new Map<string, ListEmbedDefinition>()
   for (const block of schema.listEmbed ?? []) {
-    byId.set(block.id, block)
+    const key = embedBlockTitleKey(block.title)
+    byTitle.set(key, pickPreferredListEmbedBlock(byTitle.get(key), block))
   }
   for (const stub of stubs) {
-    if (!byId.has(stub.id)) {
-      byId.set(stub.id, stub)
-    }
+    const key = embedBlockTitleKey(stub.title)
+    byTitle.set(key, pickPreferredListEmbedBlock(byTitle.get(key), stub))
   }
 
-  const merged = [...byId.values()].sort((a, b) => a.title.localeCompare(b.title))
+  const merged = [...byTitle.values()].sort((a, b) => a.title.localeCompare(b.title))
   return { ...schema, listEmbed: merged }
+}
+
+function mergeEmbedStubsIntoSchema(
+  schema: NodeSchemaDefinition,
+  stubs: readonly EmbedDefinition[],
+): NodeSchemaDefinition {
+  if (stubs.length === 0 && (schema.embed?.length ?? 0) === 0) {
+    return schema
+  }
+
+  const byTitle = new Map<string, EmbedDefinition>()
+  for (const block of schema.embed ?? []) {
+    const key = embedBlockTitleKey(block.title)
+    byTitle.set(key, pickPreferredEmbedBlock(byTitle.get(key), block))
+  }
+  for (const stub of stubs) {
+    const key = embedBlockTitleKey(stub.title)
+    byTitle.set(key, pickPreferredEmbedBlock(byTitle.get(key), stub))
+  }
+
+  const merged = [...byTitle.values()].sort((a, b) => a.title.localeCompare(b.title))
+  return { ...schema, embed: merged }
+}
+
+function pickPreferredPointerBlock(
+  current: PointerDefinition | undefined,
+  candidate: PointerDefinition,
+): PointerDefinition {
+  if (!current) {
+    return candidate
+  }
+  const currentSlots = current.slots?.length ?? 0
+  const candidateSlots = candidate.slots?.length ?? 0
+  if (candidateSlots > currentSlots) {
+    return candidate
+  }
+  if (currentSlots > candidateSlots) {
+    return current
+  }
+  const currentCanonical = current.id.includes('_pointer_')
+  const candidateCanonical = candidate.id.includes('_pointer_')
+  if (candidateCanonical && !currentCanonical) {
+    return candidate
+  }
+  return current
+}
+
+function pickPreferredListPointerBlock(
+  current: ListPointerDefinition | undefined,
+  candidate: ListPointerDefinition,
+): ListPointerDefinition {
+  if (!current) {
+    return candidate
+  }
+  const currentSlots = current.slots?.length ?? 0
+  const candidateSlots = candidate.slots?.length ?? 0
+  if (candidateSlots > currentSlots) {
+    return candidate
+  }
+  if (currentSlots > candidateSlots) {
+    return current
+  }
+  const currentCanonical = current.id.includes('_listPointer_')
+  const candidateCanonical = candidate.id.includes('_listPointer_')
+  if (candidateCanonical && !currentCanonical) {
+    return candidate
+  }
+  return current
+}
+
+function mergePointerStubsIntoSchema(
+  schema: NodeSchemaDefinition,
+  stubs: readonly PointerDefinition[],
+): NodeSchemaDefinition {
+  if (stubs.length === 0 && (schema.pointer?.length ?? 0) === 0) {
+    return schema
+  }
+
+  const byTitle = new Map<string, PointerDefinition>()
+  for (const block of schema.pointer ?? []) {
+    const key = embedBlockTitleKey(block.title)
+    byTitle.set(key, pickPreferredPointerBlock(byTitle.get(key), block))
+  }
+  for (const stub of stubs) {
+    const key = embedBlockTitleKey(stub.title)
+    byTitle.set(key, pickPreferredPointerBlock(byTitle.get(key), stub))
+  }
+
+  const merged = [...byTitle.values()].sort((a, b) => a.title.localeCompare(b.title))
+  return { ...schema, pointer: merged }
+}
+
+function mergeListPointerStubsIntoSchema(
+  schema: NodeSchemaDefinition,
+  stubs: readonly ListPointerDefinition[],
+): NodeSchemaDefinition {
+  if (stubs.length === 0 && (schema.listPointer?.length ?? 0) === 0) {
+    return schema
+  }
+
+  const byTitle = new Map<string, ListPointerDefinition>()
+  for (const block of schema.listPointer ?? []) {
+    const key = embedBlockTitleKey(block.title)
+    byTitle.set(key, pickPreferredListPointerBlock(byTitle.get(key), block))
+  }
+  for (const stub of stubs) {
+    const key = embedBlockTitleKey(stub.title)
+    byTitle.set(key, pickPreferredListPointerBlock(byTitle.get(key), stub))
+  }
+
+  const merged = [...byTitle.values()].sort((a, b) => a.title.localeCompare(b.title))
+  return { ...schema, listPointer: merged }
 }
 
 /**
@@ -299,7 +470,19 @@ function validateInternalStructureRefs(registry: Record<string, NodeSchemaDefini
   for (const schema of Object.values(registry)) {
     const refs = [
       ...schema.internalStructures,
+      ...(schema.embed ?? []).flatMap((block) => [
+        ...block.internalStructures,
+        ...(block.slots ?? []),
+      ]),
+      ...(schema.pointer ?? []).flatMap((block) => [
+        ...block.internalStructures,
+        ...(block.slots ?? []),
+      ]),
       ...(schema.listEmbed ?? []).flatMap((block) => [
+        ...block.internalStructures,
+        ...(block.slots ?? []),
+      ]),
+      ...(schema.listPointer ?? []).flatMap((block) => [
         ...block.internalStructures,
         ...(block.slots ?? []),
       ]),
@@ -323,7 +506,10 @@ function buildRegistry(): {
   jsonRelativePathBySchemaId: Record<string, string>
   schemaNodeKindBySchemaId: Record<string, 'module' | 'base'>
   schemaBaseParameterCatalogBySchemaId: Record<string, NodeParameterDefinition[]>
+  schemaBaseEmbedCatalogBySchemaId: Record<string, EmbedDefinition[]>
+  schemaBasePointerCatalogBySchemaId: Record<string, PointerDefinition[]>
   schemaBaseListEmbedCatalogBySchemaId: Record<string, ListEmbedDefinition[]>
+  schemaBaseListPointerCatalogBySchemaId: Record<string, ListPointerDefinition[]>
   schemaBaseInternalStructureCatalogBySchemaId: Record<string, InternalStructureDefinition[]>
 } {
   const registry: Record<string, NodeSchemaDefinition> = {}
@@ -362,7 +548,10 @@ function buildRegistry(): {
   }
 
   const schemaBaseParameterCatalogBySchemaId: Record<string, NodeParameterDefinition[]> = {}
+  const schemaBaseEmbedCatalogBySchemaId: Record<string, EmbedDefinition[]> = {}
+  const schemaBasePointerCatalogBySchemaId: Record<string, PointerDefinition[]> = {}
   const schemaBaseListEmbedCatalogBySchemaId: Record<string, ListEmbedDefinition[]> = {}
+  const schemaBaseListPointerCatalogBySchemaId: Record<string, ListPointerDefinition[]> = {}
   const schemaBaseInternalStructureCatalogBySchemaId: Record<string, InternalStructureDefinition[]> = {}
 
   for (const schemaId of Object.keys(registry)) {
@@ -378,7 +567,10 @@ function buildRegistry(): {
     const dirPrefix = modulePathDirectoryPrefix(modulePath)
     const dirNorm = dirPrefix.replace(/\\/g, '/')
     const stubs: NodeParameterDefinition[] = []
+    const embedStubs: EmbedDefinition[] = []
+    const pointerStubs: PointerDefinition[] = []
     const listEmbedStubs: ListEmbedDefinition[] = []
+    const listPointerStubs: ListPointerDefinition[] = []
 
     for (const [otherPath, otherMod] of Object.entries(modules)) {
       const otherNorm = otherPath.replace(/\\/g, '/')
@@ -393,19 +585,52 @@ function buildRegistry(): {
         stubs.push(stub)
         continue
       }
+      const embedStub = embedDefinitionFromJsonStub(otherMod.default)
+      if (embedStub) {
+        embedStubs.push(embedStub)
+        continue
+      }
+      const pointerStub = pointerDefinitionFromJsonStub(otherMod.default)
+      if (pointerStub) {
+        pointerStubs.push(pointerStub)
+        continue
+      }
       const listEmbedStub = listEmbedDefinitionFromJsonStub(otherMod.default)
       if (listEmbedStub) {
         listEmbedStubs.push(listEmbedStub)
+        continue
+      }
+      const listPointerStub = listPointerDefinitionFromJsonStub(otherMod.default)
+      if (listPointerStub) {
+        listPointerStubs.push(listPointerStub)
       }
     }
 
     stubs.sort((a, b) => a.name.localeCompare(b.name))
     schemaBaseParameterCatalogBySchemaId[schemaId] = stubs
 
+    embedStubs.sort((a, b) => a.title.localeCompare(b.title))
+    schemaBaseEmbedCatalogBySchemaId[schemaId] = embedStubs
+    if (embedStubs.length > 0) {
+      registry[schemaId] = mergeEmbedStubsIntoSchema(registry[schemaId]!, embedStubs)
+    }
+
+    pointerStubs.sort((a, b) => a.title.localeCompare(b.title))
+    schemaBasePointerCatalogBySchemaId[schemaId] = pointerStubs
+    if (pointerStubs.length > 0) {
+      registry[schemaId] = mergePointerStubsIntoSchema(registry[schemaId]!, pointerStubs)
+    }
+
     listEmbedStubs.sort((a, b) => a.title.localeCompare(b.title))
     schemaBaseListEmbedCatalogBySchemaId[schemaId] = listEmbedStubs
     if (listEmbedStubs.length > 0) {
       registry[schemaId] = mergeListEmbedStubsIntoSchema(registry[schemaId]!, listEmbedStubs)
+    }
+
+    listPointerStubs.sort((a, b) => a.title.localeCompare(b.title))
+    schemaBaseListPointerCatalogBySchemaId[schemaId] = listPointerStubs
+    if (listPointerStubs.length > 0) {
+      registry[schemaId] = mergeListPointerStubsIntoSchema(registry[schemaId]!, listPointerStubs)
     }
   }
 
@@ -481,7 +706,10 @@ function buildRegistry(): {
     jsonRelativePathBySchemaId,
     schemaNodeKindBySchemaId,
     schemaBaseParameterCatalogBySchemaId,
+    schemaBaseEmbedCatalogBySchemaId,
+    schemaBasePointerCatalogBySchemaId,
     schemaBaseListEmbedCatalogBySchemaId,
+    schemaBaseListPointerCatalogBySchemaId,
     schemaBaseInternalStructureCatalogBySchemaId,
   }
 }
@@ -493,7 +721,10 @@ const {
   jsonRelativePathBySchemaId: builtJsonRelPathMap,
   schemaNodeKindBySchemaId: builtNodeKindMap,
   schemaBaseParameterCatalogBySchemaId: builtBaseParamCatalog,
+  schemaBaseEmbedCatalogBySchemaId: builtBaseEmbedCatalog,
+  schemaBasePointerCatalogBySchemaId: builtBasePointerCatalog,
   schemaBaseListEmbedCatalogBySchemaId: builtBaseListEmbedCatalog,
+  schemaBaseListPointerCatalogBySchemaId: builtBaseListPointerCatalog,
   schemaBaseInternalStructureCatalogBySchemaId: builtBaseISCatalog,
 } = buildRegistry()
 
@@ -520,9 +751,20 @@ export const schemaNodeKindBySchemaId: Record<string, 'module' | 'base'> = built
 export const schemaBaseParameterCatalogBySchemaId: Record<string, NodeParameterDefinition[]> =
   builtBaseParamCatalog
 
+/** Para nós base: blocos EMBED reutilizáveis (`{collectionType}_embed_{title}.json` na mesma pasta). */
+export const schemaBaseEmbedCatalogBySchemaId: Record<string, EmbedDefinition[]> = builtBaseEmbedCatalog
+
 /** Para nós base: blocos LIST_EMBED reutilizáveis (`{collectionType}_listEmbed_{title}.json` na mesma pasta). */
 export const schemaBaseListEmbedCatalogBySchemaId: Record<string, ListEmbedDefinition[]> =
   builtBaseListEmbedCatalog
+
+/** Para nós base: blocos POINTER reutilizáveis (`{collectionType}_pointer_{title}.json` na mesma pasta). */
+export const schemaBasePointerCatalogBySchemaId: Record<string, PointerDefinition[]> =
+  builtBasePointerCatalog
+
+/** Para nós base: blocos LIST_POINTER reutilizáveis (`{collectionType}_listPointer_{title}.json` na mesma pasta). */
+export const schemaBaseListPointerCatalogBySchemaId: Record<string, ListPointerDefinition[]> =
+  builtBaseListPointerCatalog
 
 /**
  * Para nós base: outros nós base no mesmo pack com o mesmo número em `nomenclature.group` (`#2 …`).
@@ -541,7 +783,9 @@ export function createNodeInstanceFromRegistry(
     return null
   }
 
-  const schemaClone = applyListEmbedSlotsToSchema(structuredClone(schema))
+  const schemaClone = applyPointerSlotsToSchema(
+    applyEmbedSlotsToSchema(applyListPointerSlotsToSchema(applyListEmbedSlotsToSchema(structuredClone(schema)))),
+  )
   const catalog = schemaBaseParameterCatalogBySchemaId[schemaId] ?? []
   const requiredList = schemaClone.required_parameter ?? []
   const linkedPairs = schemaClone.linked_parameter_values ?? []

@@ -1,0 +1,60 @@
+{
+  "id": "value-vector2",
+  "title": "ValueVector2",
+  "parameters": [
+    {
+      "id": "ValueVector2_parameter_ConstantValue",
+      "name": "ConstantValue",
+      "type": "vector2",
+      "defaultValue": "0, 1"
+    }
+  ],
+  "embed": [],
+  "pointer": [
+    {
+      "id": "ValueVector2_pointer_Dynamics",
+      "title": "Dynamics",
+      "internalStructures": [
+        {
+          "id": "value-vector2-dynamics",
+          "name": "VfxAnimatedVector2fVariableData",
+          "schemaId": "vfx-animated-vector2f-variable-data"
+        }
+      ],
+      "slots": [
+        {
+          "id": "ValueVector2_pointer_Dynamics__slot__0",
+          "name": "VfxAnimatedVector2fVariableData",
+          "schemaId": "vfx-animated-vector2f-variable-data"
+        }
+      ]
+    }
+  ],
+  "listEmbed": [],
+  "listPointer": [],
+  "internalStructures": [],
+  "nomenclature": {
+    "group": "#3 Internal Structures",
+    "collection": "#3 Embed Block",
+    "collectionType": "ValueVector2",
+    "pathHierarchy": "entries > Characters/Zac/Skins/Skin0/Particles/Zac_Base_Q_tar > ComplexEmitterDefinitionData:0 > BirthUvScrollRate",
+    "pathHierarchySteps": [
+      {
+        "id": "entries",
+        "type": "#1 Root Entry"
+      },
+      {
+        "id": "Characters/Zac/Skins/Skin0/Particles/Zac_Base_Q_tar",
+        "type": "#2 Root Entry (VfxSystemDefinitionData)"
+      },
+      {
+        "id": "ComplexEmitterDefinitionData:0",
+        "type": "#3 Collection Block"
+      },
+      {
+        "id": "BirthUvScrollRate",
+        "type": "#3 Embed Block"
+      }
+    ]
+  }
+}

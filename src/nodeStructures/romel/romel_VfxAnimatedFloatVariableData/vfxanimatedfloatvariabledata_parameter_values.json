@@ -1,0 +1,6 @@
+{
+  "id": "VfxAnimatedFloatVariableData_parameter_Values",
+  "name": "Values",
+  "type": "listF32",
+  "defaultValue": "0.6"
+}

@@ -1,0 +1,11 @@
+{
+  "id": "VfxEmitterDefinitionData_pointer_DistortionDefinition",
+  "title": "DistortionDefinition",
+  "internalStructures": [
+    {
+      "id": "VfxEmitterDefinitionData_pointer_DistortionDefinition-catalog-0",
+      "name": "VfxDistortionDefinitionData",
+      "schemaId": "vfx-distortion-definition-data"
+    }
+  ]
+}

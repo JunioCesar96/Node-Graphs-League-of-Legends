@@ -3,19 +3,20 @@
   "title": "CensoredImage",
   "parameters": [
     {
-      "id": "censored-image-image",
-      "name": "image",
+      "id": "CensoredImage_parameter_Image",
+      "name": "Image",
       "type": "string",
       "defaultValue": "ASSETS/Characters/Zac/Skins/Base/ZacLoadScreen.tex"
     }
   ],
+  "embed": [],
   "listEmbed": [],
   "internalStructures": [],
   "nomenclature": {
     "group": "#3 Internal Structures",
     "collection": "#3 Embed Block",
     "collectionType": "CensoredImage",
-    "pathHierarchy": "entries > Characters/Zac/Skins/Skin0 > loadscreen",
+    "pathHierarchy": "entries > Characters/Zac/Skins/Skin0 > Loadscreen",
     "pathHierarchySteps": [
       {
         "id": "entries",
@@ -26,7 +27,7 @@
         "type": "#2 Root Entry (SkinCharacterDataProperties)"
       },
       {
-        "id": "loadscreen",
+        "id": "Loadscreen",
         "type": "#3 Embed Block"
       }
     ]

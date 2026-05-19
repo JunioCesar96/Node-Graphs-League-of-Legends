@@ -1,0 +1,11 @@
+{
+  "id": "VfxTextureMultDefinitionData_listEmbed_BirthUvScrollRateMult",
+  "title": "BirthUvScrollRateMult",
+  "internalStructures": [
+    {
+      "id": "VfxTextureMultDefinitionData_listEmbed_BirthUvScrollRateMult-catalog-0",
+      "name": "ValueVector2",
+      "schemaId": "value-vector2"
+    }
+  ]
+}

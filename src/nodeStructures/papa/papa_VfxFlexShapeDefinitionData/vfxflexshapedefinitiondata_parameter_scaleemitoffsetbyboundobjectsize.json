@@ -1,0 +1,6 @@
+{
+  "id": "VfxFlexShapeDefinitionData_parameter_ScaleEmitOffsetByBoundObjectSize",
+  "name": "ScaleEmitOffsetByBoundObjectSize",
+  "type": "f32",
+  "defaultValue": "0.00499999989"
+}

@@ -1,0 +1,6 @@
+{
+  "id": "CensoredImage_parameter_Image",
+  "name": "Image",
+  "type": "string",
+  "defaultValue": "ASSETS/Characters/Zac/Skins/Base/ZacLoadScreen.tex"
+}

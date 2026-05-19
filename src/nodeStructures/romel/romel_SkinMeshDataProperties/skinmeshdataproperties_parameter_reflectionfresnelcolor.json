@@ -1,0 +1,6 @@
+{
+  "id": "SkinMeshDataProperties_parameter_ReflectionFresnelColor",
+  "name": "ReflectionFresnelColor",
+  "type": "rgba",
+  "defaultValue": "0.6, 0.6, 0.6, 1"
+}

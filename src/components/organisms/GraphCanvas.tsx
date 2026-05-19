@@ -13,12 +13,30 @@ import {
   schemaMatchesCollectionType,
 } from '@/core/collectionTypeLinking'
 import {
+  findSlotInEmbedSchema,
+  populatedSlotsForEmbed,
+  resolveCollectionTypeForEmbedSlot,
+} from '@/core/embedSlots'
+import {
+  findSlotInPointerSchema,
+  resolveCollectionTypeForPointerSlot,
+} from '@/core/pointerSlots'
+import { filterOutEmbedCatalogChildStructures } from '@/core/embedElementMenu'
+import { filterOutPointerCatalogChildStructures } from '@/core/pointerElementMenu'
+import {
   findOutputSlotInNode,
-  findSlotInSchema,
+  findSlotInSchema as findSlotInListEmbedSchema,
   resolveCollectionTypeForListEmbedSlot,
   populatedSlotsForListEmbed,
 } from '@/core/listEmbedSlots'
+import {
+  findSlotInSchema as findSlotInListPointerSchema,
+  resolveCollectionTypeForListPointerSlot,
+} from '@/core/listPointerSlots'
 import { filterOutListEmbedCatalogChildStructures } from '@/core/listEmbedElementMenu'
+import { filterOutListPointerCatalogChildStructures } from '@/core/listPointerElementMenu'
+import { populatedSlotsForPointer } from '@/core/pointerSlots'
+import { populatedSlotsForListPointer } from '@/core/listPointerSlots'
 import type { NodeElementListItem } from '@/core/listNodeElements'
 import type { InternalStructureDefinition, NodeParameterDefinition, NodeSchemaDefinition } from '@/core/nodeSchema'
 import {
@@ -38,8 +56,9 @@ const SECTION_TITLE_HEIGHT = 16
 const SECTION_TITLE_GAP = 8
 /** Altura por linha na secção Internal_Structures (layout compacto). */
 const INTERNAL_STRUCTURE_ITEM_HEIGHT = 44
-/** Cabeçalho de cada bloco LIST_EMBED (título + botão +). */
-const LIST_EMBED_BLOCK_HEADER_HEIGHT = 42
+/** Cabeçalho de cada bloco EMBED / LIST_EMBED (título + botões). */
+const EMBED_BLOCK_HEADER_HEIGHT = 42
+const LIST_EMBED_BLOCK_HEADER_HEIGHT = EMBED_BLOCK_HEADER_HEIGHT
 /** Altura por parâmetro: pilha nome (hint+label) + valor + tipo (cards). */
 const PARAMETER_ITEM_HEIGHT = 128
 const ITEM_GAP = 8
@@ -103,9 +122,24 @@ type GraphCanvasProps = {
     canvasNodeId: string,
     structure: InternalStructureDefinition,
   ) => void
+  onAppendEmbedCatalogItem?: (
+    canvasNodeId: string,
+    embedId: string,
+    structure: InternalStructureDefinition,
+  ) => void
   onAppendListEmbedCatalogItem?: (
     canvasNodeId: string,
     listEmbedId: string,
+    structure: InternalStructureDefinition,
+  ) => void
+  onAppendPointerCatalogItem?: (
+    canvasNodeId: string,
+    pointerId: string,
+    structure: InternalStructureDefinition,
+  ) => void
+  onAppendListPointerCatalogItem?: (
+    canvasNodeId: string,
+    listPointerId: string,
     structure: InternalStructureDefinition,
   ) => void
   onCatalogParameterAppend?: (canvasNodeId: string, definition: NodeParameterDefinition) => void
@@ -211,6 +245,70 @@ function getParameterSectionHeight(node: CanvasNode) {
   return SECTION_TITLE_HEIGHT + SECTION_TITLE_GAP + listHeight
 }
 
+function getEmbedBlocksHeight(node: CanvasNode) {
+  const blocks = node.node.schema.embed ?? []
+  if (blocks.length === 0) {
+    return 0
+  }
+
+  let height = 0
+  for (let i = 0; i < blocks.length; i += 1) {
+    const block = blocks[i]!
+    const slots = populatedSlotsForEmbed(block)
+    const slotsHeight =
+      slots.length > 0
+        ? slots.length * INTERNAL_STRUCTURE_ITEM_HEIGHT + Math.max(0, slots.length - 1) * ITEM_GAP + ITEM_GAP
+        : 0
+    height += EMBED_BLOCK_HEADER_HEIGHT + slotsHeight
+    if (i < blocks.length - 1) {
+      height += ITEM_GAP
+    }
+  }
+
+  return height
+}
+
+function getEmbedSectionHeight(node: CanvasNode) {
+  const blocksHeight = getEmbedBlocksHeight(node)
+  if (blocksHeight === 0) {
+    return SECTION_TITLE_HEIGHT + SECTION_TITLE_GAP
+  }
+
+  return SECTION_TITLE_HEIGHT + SECTION_TITLE_GAP + blocksHeight
+}
+
+function getPointerBlocksHeight(node: CanvasNode) {
+  const blocks = node.node.schema.pointer ?? []
+  if (blocks.length === 0) {
+    return 0
+  }
+
+  let height = 0
+  for (let i = 0; i < blocks.length; i += 1) {
+    const block = blocks[i]!
+    const slots = populatedSlotsForPointer(block)
+    const slotsHeight =
+      slots.length > 0
+        ? slots.length * INTERNAL_STRUCTURE_ITEM_HEIGHT + Math.max(0, slots.length - 1) * ITEM_GAP + ITEM_GAP
+        : 0
+    height += EMBED_BLOCK_HEADER_HEIGHT + slotsHeight
+    if (i < blocks.length - 1) {
+      height += ITEM_GAP
+    }
+  }
+
+  return height
+}
+
+function getPointerSectionHeight(node: CanvasNode) {
+  const blocksHeight = getPointerBlocksHeight(node)
+  if (blocksHeight === 0) {
+    return SECTION_TITLE_HEIGHT + SECTION_TITLE_GAP
+  }
+
+  return SECTION_TITLE_HEIGHT + SECTION_TITLE_GAP + blocksHeight
+}
+
 function getListEmbedBlocksHeight(node: CanvasNode, connections: readonly CanvasConnection[]) {
   const blocks = node.node.schema.listEmbed ?? []
   if (blocks.length === 0) {
@@ -243,6 +341,38 @@ function getListEmbedSectionHeight(node: CanvasNode, connections: readonly Canva
   return SECTION_TITLE_HEIGHT + SECTION_TITLE_GAP + blocksHeight
 }
 
+function getListPointerBlocksHeight(node: CanvasNode) {
+  const blocks = node.node.schema.listPointer ?? []
+  if (blocks.length === 0) {
+    return 0
+  }
+
+  let height = 0
+  for (let i = 0; i < blocks.length; i += 1) {
+    const block = blocks[i]!
+    const slots = populatedSlotsForListPointer(block)
+    const slotsHeight =
+      slots.length > 0
+        ? slots.length * INTERNAL_STRUCTURE_ITEM_HEIGHT + Math.max(0, slots.length - 1) * ITEM_GAP + ITEM_GAP
+        : 0
+    height += LIST_EMBED_BLOCK_HEADER_HEIGHT + slotsHeight
+    if (i < blocks.length - 1) {
+      height += ITEM_GAP
+    }
+  }
+
+  return height
+}
+
+function getListPointerSectionHeight(node: CanvasNode) {
+  const blocksHeight = getListPointerBlocksHeight(node)
+  if (blocksHeight === 0) {
+    return SECTION_TITLE_HEIGHT + SECTION_TITLE_GAP
+  }
+
+  return SECTION_TITLE_HEIGHT + SECTION_TITLE_GAP + blocksHeight
+}
+
 function getInternalStructureSectionHeight(node: CanvasNode) {
   const itemCount = node.node.schema.internalStructures.length
   const listHeight =
@@ -257,7 +387,13 @@ function getNodeCardHeight(node: CanvasNode, connections: readonly CanvasConnect
     BODY_PADDING * 2 +
     getParameterSectionHeight(node) +
     SECTION_GAP +
+    getEmbedSectionHeight(node) +
+    SECTION_GAP +
+    getPointerSectionHeight(node) +
+    SECTION_GAP +
     getListEmbedSectionHeight(node, connections) +
+    SECTION_GAP +
+    getListPointerSectionHeight(node) +
     SECTION_GAP +
     getInternalStructureSectionHeight(node) +
     SECTION_GAP +
@@ -278,6 +414,74 @@ function getCanvasBounds(scene: CanvasScene): CanvasBounds {
   )
 }
 
+function getEmbedPortY(node: CanvasNode, structureId: string) {
+  let cursor =
+    node.position.y +
+    HEADER_HEIGHT +
+    BODY_PADDING +
+    getParameterSectionHeight(node) +
+    SECTION_GAP +
+    SECTION_TITLE_HEIGHT +
+    SECTION_TITLE_GAP
+
+  for (const block of node.node.schema.embed ?? []) {
+    cursor += EMBED_BLOCK_HEADER_HEIGHT
+    const slots = populatedSlotsForEmbed(block)
+    const slotIndex = slots.findIndex((slot) => slot.id === structureId)
+    if (slotIndex >= 0) {
+      return (
+        cursor +
+        slotIndex * (INTERNAL_STRUCTURE_ITEM_HEIGHT + ITEM_GAP) +
+        INTERNAL_STRUCTURE_ITEM_HEIGHT / 2
+      )
+    }
+    if (slots.length > 0) {
+      cursor +=
+        ITEM_GAP +
+        slots.length * INTERNAL_STRUCTURE_ITEM_HEIGHT +
+        Math.max(0, slots.length - 1) * ITEM_GAP
+    }
+    cursor += ITEM_GAP
+  }
+
+  return cursor
+}
+
+function getPointerPortY(node: CanvasNode, structureId: string) {
+  let cursor =
+    node.position.y +
+    HEADER_HEIGHT +
+    BODY_PADDING +
+    getParameterSectionHeight(node) +
+    SECTION_GAP +
+    getEmbedSectionHeight(node) +
+    SECTION_GAP +
+    SECTION_TITLE_HEIGHT +
+    SECTION_TITLE_GAP
+
+  for (const block of node.node.schema.pointer ?? []) {
+    cursor += EMBED_BLOCK_HEADER_HEIGHT
+    const slots = populatedSlotsForPointer(block)
+    const slotIndex = slots.findIndex((slot) => slot.id === structureId)
+    if (slotIndex >= 0) {
+      return (
+        cursor +
+        slotIndex * (INTERNAL_STRUCTURE_ITEM_HEIGHT + ITEM_GAP) +
+        INTERNAL_STRUCTURE_ITEM_HEIGHT / 2
+      )
+    }
+    if (slots.length > 0) {
+      cursor +=
+        ITEM_GAP +
+        slots.length * INTERNAL_STRUCTURE_ITEM_HEIGHT +
+        Math.max(0, slots.length - 1) * ITEM_GAP
+    }
+    cursor += ITEM_GAP
+  }
+
+  return cursor
+}
+
 function getListEmbedPortY(
   node: CanvasNode,
   structureId: string,
@@ -288,6 +492,10 @@ function getListEmbedPortY(
     HEADER_HEIGHT +
     BODY_PADDING +
     getParameterSectionHeight(node) +
+    SECTION_GAP +
+    getEmbedSectionHeight(node) +
+    SECTION_GAP +
+    getPointerSectionHeight(node) +
     SECTION_GAP +
     SECTION_TITLE_HEIGHT +
     SECTION_TITLE_GAP
@@ -315,11 +523,66 @@ function getListEmbedPortY(
   return cursor
 }
 
+function getListPointerPortY(node: CanvasNode, structureId: string, connections: readonly CanvasConnection[]) {
+  let cursor =
+    node.position.y +
+    HEADER_HEIGHT +
+    BODY_PADDING +
+    getParameterSectionHeight(node) +
+    SECTION_GAP +
+    getEmbedSectionHeight(node) +
+    SECTION_GAP +
+    getPointerSectionHeight(node) +
+    SECTION_GAP +
+    getListEmbedSectionHeight(node, connections) +
+    SECTION_GAP +
+    SECTION_TITLE_HEIGHT +
+    SECTION_TITLE_GAP
+
+  for (const block of node.node.schema.listPointer ?? []) {
+    cursor += LIST_EMBED_BLOCK_HEADER_HEIGHT
+    const slots = populatedSlotsForListPointer(block)
+    const slotIndex = slots.findIndex((slot) => slot.id === structureId)
+    if (slotIndex >= 0) {
+      return (
+        cursor +
+        slotIndex * (INTERNAL_STRUCTURE_ITEM_HEIGHT + ITEM_GAP) +
+        INTERNAL_STRUCTURE_ITEM_HEIGHT / 2
+      )
+    }
+    if (slots.length > 0) {
+      cursor +=
+        ITEM_GAP +
+        slots.length * INTERNAL_STRUCTURE_ITEM_HEIGHT +
+        Math.max(0, slots.length - 1) * ITEM_GAP
+    }
+    cursor += ITEM_GAP
+  }
+
+  return cursor
+}
+
 function getInternalStructurePortY(
   node: CanvasNode,
   structureId: string,
   connections: readonly CanvasConnection[],
 ) {
+  const embedBlocks = node.node.schema.embed ?? []
+  const inEmbed = embedBlocks.some((block) =>
+    populatedSlotsForEmbed(block).some((slot) => slot.id === structureId),
+  )
+  if (inEmbed) {
+    return getEmbedPortY(node, structureId)
+  }
+
+  const pointerBlocks = node.node.schema.pointer ?? []
+  const inPointer = pointerBlocks.some((block) =>
+    populatedSlotsForPointer(block).some((slot) => slot.id === structureId),
+  )
+  if (inPointer) {
+    return getPointerPortY(node, structureId)
+  }
+
   const listEmbedY = getListEmbedPortY(node, structureId, connections)
   const blocks = node.node.schema.listEmbed ?? []
   const inListEmbed = blocks.some((block) =>
@@ -327,6 +590,14 @@ function getInternalStructurePortY(
   )
   if (inListEmbed) {
     return listEmbedY
+  }
+
+  const listPointerBlocks = node.node.schema.listPointer ?? []
+  const inListPointer = listPointerBlocks.some((block) =>
+    populatedSlotsForListPointer(block).some((slot) => slot.id === structureId),
+  )
+  if (inListPointer) {
+    return getListPointerPortY(node, structureId, connections)
   }
 
   const structureIndex = node.node.schema.internalStructures.findIndex((s) => s.id === structureId)
@@ -338,7 +609,13 @@ function getInternalStructurePortY(
     BODY_PADDING +
     getParameterSectionHeight(node) +
     SECTION_GAP +
+    getEmbedSectionHeight(node) +
+    SECTION_GAP +
+    getPointerSectionHeight(node) +
+    SECTION_GAP +
     getListEmbedSectionHeight(node, connections) +
+    SECTION_GAP +
+    getListPointerSectionHeight(node) +
     SECTION_GAP +
     SECTION_TITLE_HEIGHT +
     SECTION_TITLE_GAP +
@@ -594,7 +871,10 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     onResetScene,
     hints,
     onAppendCatalogInternalStructure,
+    onAppendEmbedCatalogItem,
+    onAppendPointerCatalogItem,
     onAppendListEmbedCatalogItem,
+    onAppendListPointerCatalogItem,
     onCatalogParameterAppend,
     onRequestRemoveElement,
     onClearSelection,
@@ -799,10 +1079,41 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
         entity.id,
         scene.nodes,
       )
-      const listHit = fromNode ? findSlotInSchema(fromNode.node.schema, entity.id) : null
-      const targetCollectionType = listHit
-        ? resolveCollectionTypeForListEmbedSlot(entity, listHit.listEmbed, schemaRegistry, connectedTarget) ?? ''
-        : resolveCollectionTypeForInternalStructure(entity, schemaRegistry, connectedTarget) ?? ''
+      const embedHit = fromNode ? findSlotInEmbedSchema(fromNode.node.schema, entity.id) : null
+      const pointerHit =
+        !embedHit && fromNode ? findSlotInPointerSchema(fromNode.node.schema, entity.id) : null
+      const listEmbedHit =
+        !embedHit && !pointerHit && fromNode
+          ? findSlotInListEmbedSchema(fromNode.node.schema, entity.id)
+          : null
+      const listPointerHit =
+        !embedHit && !pointerHit && !listEmbedHit && fromNode
+          ? findSlotInListPointerSchema(fromNode.node.schema, entity.id)
+          : null
+      const targetCollectionType = embedHit
+        ? resolveCollectionTypeForEmbedSlot(entity, embedHit.embed, schemaRegistry, connectedTarget) ?? ''
+        : pointerHit
+          ? resolveCollectionTypeForPointerSlot(
+              entity,
+              pointerHit.pointer,
+              schemaRegistry,
+              connectedTarget,
+            ) ?? ''
+          : listEmbedHit
+            ? resolveCollectionTypeForListEmbedSlot(
+                entity,
+                listEmbedHit.listEmbed,
+                schemaRegistry,
+                connectedTarget,
+              ) ?? ''
+            : listPointerHit
+              ? resolveCollectionTypeForListPointerSlot(
+                  entity,
+                  listPointerHit.listPointer,
+                  schemaRegistry,
+                  connectedTarget,
+                ) ?? ''
+              : resolveCollectionTypeForInternalStructure(entity, schemaRegistry, connectedTarget) ?? ''
 
       linkDraftClientRef.current = null
       setLinkDraftPoint(null)
@@ -902,15 +1213,44 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
         structure.id,
         scene.nodes,
       )
-      const listHit = findSlotInSchema(fromNode.node.schema, structure.id)
-      const collectionType = listHit
-        ? resolveCollectionTypeForListEmbedSlot(
+      const embedHit = findSlotInEmbedSchema(fromNode.node.schema, structure.id)
+      const pointerHit = !embedHit ? findSlotInPointerSchema(fromNode.node.schema, structure.id) : null
+      const listEmbedHit = !embedHit && !pointerHit
+        ? findSlotInListEmbedSchema(fromNode.node.schema, structure.id)
+        : null
+      const listPointerHit =
+        !embedHit && !pointerHit && !listEmbedHit
+          ? findSlotInListPointerSchema(fromNode.node.schema, structure.id)
+          : null
+      const collectionType = embedHit
+        ? resolveCollectionTypeForEmbedSlot(
             structure,
-            listHit.listEmbed,
+            embedHit.embed,
             schemaRegistry,
             connectedTarget,
           )
-        : resolveCollectionTypeForInternalStructure(structure, schemaRegistry, connectedTarget)
+        : pointerHit
+          ? resolveCollectionTypeForPointerSlot(
+              structure,
+              pointerHit.pointer,
+              schemaRegistry,
+              connectedTarget,
+            )
+          : listEmbedHit
+            ? resolveCollectionTypeForListEmbedSlot(
+                structure,
+                listEmbedHit.listEmbed,
+                schemaRegistry,
+                connectedTarget,
+              )
+            : listPointerHit
+              ? resolveCollectionTypeForListPointerSlot(
+                  structure,
+                  listPointerHit.listPointer,
+                  schemaRegistry,
+                  connectedTarget,
+                )
+              : resolveCollectionTypeForInternalStructure(structure, schemaRegistry, connectedTarget)
 
       if (!collectionType) {
         return
@@ -1893,12 +2233,21 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
                   )
                   const fresh = list.filter((structure) => !used.has(structure.schemaId))
                   const templateSchema = schemaRegistry[sid] ?? null
-                  return filterOutListEmbedCatalogChildStructures(
-                    filterInternalStructuresByPathHierarchy(
-                      parentSchema,
-                      fresh,
-                      schemaRegistry,
-                      schemaJsonRelativePathBySchemaId,
+                  return filterOutEmbedCatalogChildStructures(
+                    filterOutPointerCatalogChildStructures(
+                      filterOutListEmbedCatalogChildStructures(
+                        filterOutListPointerCatalogChildStructures(
+                          filterInternalStructuresByPathHierarchy(
+                            parentSchema,
+                            fresh,
+                            schemaRegistry,
+                            schemaJsonRelativePathBySchemaId,
+                          ),
+                          templateSchema,
+                        ),
+                        templateSchema,
+                      ),
+                      templateSchema,
                     ),
                     templateSchema,
                   )
@@ -1930,10 +2279,28 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
                     ? (definition) => onCatalogParameterAppend(canvasNode.id, definition)
                     : undefined
                 }
+                onAppendEmbedCatalogItem={
+                  onAppendEmbedCatalogItem
+                    ? (embedId, structure) =>
+                        onAppendEmbedCatalogItem(canvasNode.id, embedId, structure)
+                    : undefined
+                }
+                onAppendPointerCatalogItem={
+                  onAppendPointerCatalogItem
+                    ? (pointerId, structure) =>
+                        onAppendPointerCatalogItem(canvasNode.id, pointerId, structure)
+                    : undefined
+                }
                 onAppendListEmbedCatalogItem={
                   onAppendListEmbedCatalogItem
                     ? (listEmbedId, structure) =>
                         onAppendListEmbedCatalogItem(canvasNode.id, listEmbedId, structure)
+                    : undefined
+                }
+                onAppendListPointerCatalogItem={
+                  onAppendListPointerCatalogItem
+                    ? (listPointerId, structure) =>
+                        onAppendListPointerCatalogItem(canvasNode.id, listPointerId, structure)
                     : undefined
                 }
                 onCreateElement={(entity) => onCreateChildNode(canvasNode.id, entity)}

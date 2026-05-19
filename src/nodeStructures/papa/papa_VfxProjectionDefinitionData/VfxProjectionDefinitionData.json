@@ -3,25 +3,26 @@
   "title": "VfxProjectionDefinitionData",
   "parameters": [
     {
-      "id": "vfx-projection-definition-data-m-fading",
+      "id": "VfxProjectionDefinitionData_parameter_mFading",
       "name": "mFading",
       "type": "f32",
       "defaultValue": "100"
     },
     {
-      "id": "vfx-projection-definition-data-m-yrange",
+      "id": "VfxProjectionDefinitionData_parameter_mYRange",
       "name": "mYRange",
       "type": "f32",
       "defaultValue": "150"
     }
   ],
+  "embed": [],
   "listEmbed": [],
   "internalStructures": [],
   "nomenclature": {
     "group": "#3 Internal Structures",
     "collection": "#3 Embed Block",
     "collectionType": "VfxProjectionDefinitionData",
-    "pathHierarchy": "entries > Characters/Zac/Skins/Skin0/Particles/Zac_Base_W_cas > simpleEmitterDefinitionData:0 > primitive > mProjection",
+    "pathHierarchy": "entries > Characters/Zac/Skins/Skin0/Particles/Zac_Base_W_cas > SimpleEmitterDefinitionData:0 > Primitive > mProjection",
     "pathHierarchySteps": [
       {
         "id": "entries",
@@ -32,11 +33,11 @@
         "type": "#2 Root Entry (VfxSystemDefinitionData)"
       },
       {
-        "id": "simpleEmitterDefinitionData:0",
+        "id": "SimpleEmitterDefinitionData:0",
         "type": "#3 Collection Block"
       },
       {
-        "id": "primitive",
+        "id": "Primitive",
         "type": "#3 Pointer Node"
       },
       {

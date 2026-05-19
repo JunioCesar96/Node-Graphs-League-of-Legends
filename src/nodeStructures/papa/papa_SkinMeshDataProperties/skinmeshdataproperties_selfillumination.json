@@ -1,6 +1,0 @@
-{
-  "id": "SkinMeshDataProperties_selfIllumination",
-  "name": "selfIllumination",
-  "type": "f32",
-  "defaultValue": "0"
-}

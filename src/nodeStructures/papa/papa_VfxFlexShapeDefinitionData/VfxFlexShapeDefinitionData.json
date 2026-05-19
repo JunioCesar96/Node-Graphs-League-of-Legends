@@ -3,25 +3,26 @@
   "title": "VfxFlexShapeDefinitionData",
   "parameters": [
     {
-      "id": "vfx-flex-shape-definition-data-scale-birth-scale-by-bound-object-size",
-      "name": "scaleBirthScaleByBoundObjectSize",
+      "id": "VfxFlexShapeDefinitionData_parameter_ScaleBirthScaleByBoundObjectSize",
+      "name": "ScaleBirthScaleByBoundObjectSize",
       "type": "f32",
-      "defaultValue": "0.0055"
+      "defaultValue": "0.00549999997"
     },
     {
-      "id": "vfx-flex-shape-definition-data-scale-emit-offset-by-bound-object-size",
-      "name": "scaleEmitOffsetByBoundObjectSize",
+      "id": "VfxFlexShapeDefinitionData_parameter_ScaleEmitOffsetByBoundObjectSize",
+      "name": "ScaleEmitOffsetByBoundObjectSize",
       "type": "f32",
-      "defaultValue": "0.005"
+      "defaultValue": "0.00499999989"
     }
   ],
+  "embed": [],
   "listEmbed": [],
   "internalStructures": [],
   "nomenclature": {
     "group": "#3 Internal Structures",
     "collection": "#3 Pointer Node",
     "collectionType": "VfxFlexShapeDefinitionData",
-    "pathHierarchy": "entries > Characters/Zac/Skins/Skin0/Particles/Zac_Base_Q_tar > complexEmitterDefinitionData:0 > FlexShapeDefinition",
+    "pathHierarchy": "entries > Characters/Zac/Skins/Skin0/Particles/Zac_Base_Q_tar > ComplexEmitterDefinitionData:0 > FlexShapeDefinition",
     "pathHierarchySteps": [
       {
         "id": "entries",
@@ -32,7 +33,7 @@
         "type": "#2 Root Entry (VfxSystemDefinitionData)"
       },
       {
-        "id": "complexEmitterDefinitionData:0",
+        "id": "ComplexEmitterDefinitionData:0",
         "type": "#3 Collection Block"
       },
       {

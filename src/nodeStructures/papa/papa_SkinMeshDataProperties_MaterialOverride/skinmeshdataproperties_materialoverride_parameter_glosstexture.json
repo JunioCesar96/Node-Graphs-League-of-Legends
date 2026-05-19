@@ -1,0 +1,6 @@
+{
+  "id": "SkinMeshDataProperties_MaterialOverride_parameter_GlossTexture",
+  "name": "GlossTexture",
+  "type": "string",
+  "defaultValue": "ASSETS/Characters/Zac/Skins/Base/Zac_base_puddle_TX_GM.tex"
+}

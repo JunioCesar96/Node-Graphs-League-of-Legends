@@ -15,10 +15,10 @@ import {
   schemaJsonRelativePathBySchemaId as _schemaJsonRelativePathBySchemaId,
 } from './nodeStructureRegistry'
 
-import {
-  applyListEmbedSlotsToSchema,
-  migrateSceneListEmbedConnections,
-} from './listEmbedSlots'
+import { applyEmbedSlotsToSchema } from './embedSlots'
+import { applyListPointerSlotsToSchema } from './listPointerSlots'
+import { applyPointerSlotsToSchema } from './pointerSlots'
+import { applyListEmbedSlotsToSchema, migrateSceneListEmbedConnections } from './listEmbedSlots'
 import {
   instanceLinkedPairsEqual,
   linked_parameter_values_apply_to_instance,
@@ -92,11 +92,13 @@ function coerceEmbeddedSchema(schema: NodeSchemaDefinition): NodeSchemaDefinitio
         ? legacyList
         : []
 
+  const embed = Array.isArray(schema.embed) ? schema.embed : []
   const listEmbed = Array.isArray(schema.listEmbed) ? schema.listEmbed : []
 
   return {
     ...schema,
     internalStructures,
+    ...(embed.length > 0 ? { embed } : {}),
     ...(listEmbed.length > 0 ? { listEmbed } : {}),
   }
 }
@@ -147,7 +149,13 @@ export function hydrateScene(scene: CanvasScene): CanvasScene {
   const nodes = scene.nodes.map((n) => {
     const nodeInstance: NodeInstance = {
       ...n.node,
-      schema: applyListEmbedSlotsToSchema(coerceEmbeddedSchema(structuredClone(n.node.schema))),
+      schema: applyPointerSlotsToSchema(
+        applyEmbedSlotsToSchema(
+          applyListPointerSlotsToSchema(
+            applyListEmbedSlotsToSchema(coerceEmbeddedSchema(structuredClone(n.node.schema))),
+          ),
+        ),
+      ),
       values: structuredClone(n.node.values),
         ...(Array.isArray(n.node.required_parameter)
           ? { required_parameter: structuredClone(n.node.required_parameter) }

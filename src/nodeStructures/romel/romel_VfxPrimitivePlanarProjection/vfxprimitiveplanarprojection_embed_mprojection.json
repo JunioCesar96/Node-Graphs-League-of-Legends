@@ -1,0 +1,11 @@
+{
+  "id": "VfxPrimitivePlanarProjection_embed_mProjection",
+  "title": "mProjection",
+  "internalStructures": [
+    {
+      "id": "VfxPrimitivePlanarProjection_embed_mProjection-catalog-0",
+      "name": "VfxProjectionDefinitionData",
+      "schemaId": "vfx-projection-definition-data"
+    }
+  ]
+}

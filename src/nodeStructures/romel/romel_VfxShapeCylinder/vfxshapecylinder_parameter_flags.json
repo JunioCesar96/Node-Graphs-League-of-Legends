@@ -1,0 +1,6 @@
+{
+  "id": "VfxShapeCylinder_parameter_Flags",
+  "name": "Flags",
+  "type": "u8",
+  "defaultValue": "1"
+}

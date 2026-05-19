@@ -1,0 +1,51 @@
+{
+  "id": "vfx-projection-definition-data",
+  "title": "VfxProjectionDefinitionData",
+  "parameters": [
+    {
+      "id": "VfxProjectionDefinitionData_parameter_mFading",
+      "name": "mFading",
+      "type": "f32",
+      "defaultValue": "100"
+    },
+    {
+      "id": "VfxProjectionDefinitionData_parameter_mYRange",
+      "name": "mYRange",
+      "type": "f32",
+      "defaultValue": "150"
+    }
+  ],
+  "embed": [],
+  "pointer": [],
+  "listEmbed": [],
+  "listPointer": [],
+  "internalStructures": [],
+  "nomenclature": {
+    "group": "#3 Internal Structures",
+    "collection": "#3 Embed Block",
+    "collectionType": "VfxProjectionDefinitionData",
+    "pathHierarchy": "entries > Characters/Zac/Skins/Skin0/Particles/Zac_Base_W_cas > SimpleEmitterDefinitionData:0 > Primitive > mProjection",
+    "pathHierarchySteps": [
+      {
+        "id": "entries",
+        "type": "#1 Root Entry"
+      },
+      {
+        "id": "Characters/Zac/Skins/Skin0/Particles/Zac_Base_W_cas",
+        "type": "#2 Root Entry (VfxSystemDefinitionData)"
+      },
+      {
+        "id": "SimpleEmitterDefinitionData:0",
+        "type": "#3 Collection Block"
+      },
+      {
+        "id": "Primitive",
+        "type": "#3 Pointer Node"
+      },
+      {
+        "id": "mProjection",
+        "type": "#3 Embed Block"
+      }
+    ]
+  }
+}

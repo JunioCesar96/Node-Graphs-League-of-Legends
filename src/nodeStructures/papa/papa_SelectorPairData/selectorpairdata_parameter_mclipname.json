@@ -1,0 +1,6 @@
+{
+  "id": "SelectorPairData_parameter_mClipName",
+  "name": "mClipName",
+  "type": "integer",
+  "defaultValue": "0xd7d89ccc"
+}

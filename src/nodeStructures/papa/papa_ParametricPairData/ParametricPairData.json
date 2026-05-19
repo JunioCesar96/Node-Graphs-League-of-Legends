@@ -3,18 +3,19 @@
   "title": "ParametricPairData",
   "parameters": [
     {
-      "id": "parametric-pair-data-m-clip-name",
+      "id": "ParametricPairData_parameter_mClipName",
       "name": "mClipName",
       "type": "integer",
       "defaultValue": "Spell1_Max"
     },
     {
-      "id": "parametric-pair-data-m-value",
+      "id": "ParametricPairData_parameter_mValue",
       "name": "mValue",
       "type": "f32",
-      "defaultValue": "0.7"
+      "defaultValue": "0.699999988"
     }
   ],
+  "embed": [],
   "listEmbed": [],
   "internalStructures": [],
   "nomenclature": {

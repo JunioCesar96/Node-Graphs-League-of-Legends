@@ -1,0 +1,11 @@
+{
+  "id": "VfxEmitterDefinitionData_listEmbed_Color",
+  "title": "Color",
+  "internalStructures": [
+    {
+      "id": "VfxEmitterDefinitionData_listEmbed_Color-catalog-0",
+      "name": "ValueColor",
+      "schemaId": "value-color"
+    }
+  ]
+}

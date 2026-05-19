@@ -1,0 +1,6 @@
+{
+  "id": "VfxEmitterDefinitionData_parameter_EmitterName",
+  "name": "EmitterName",
+  "type": "string",
+  "defaultValue": "Ring"
+}

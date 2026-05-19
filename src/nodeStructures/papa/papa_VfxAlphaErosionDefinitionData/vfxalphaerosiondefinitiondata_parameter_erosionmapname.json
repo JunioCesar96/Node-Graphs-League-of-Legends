@@ -1,0 +1,6 @@
+{
+  "id": "VfxAlphaErosionDefinitionData_parameter_ErosionMapName",
+  "name": "ErosionMapName",
+  "type": "string",
+  "defaultValue": "ASSETS/Characters/Zac/Skins/base/Particles/Vladimir_Skin14_W_MagicCircle03.tex"
+}

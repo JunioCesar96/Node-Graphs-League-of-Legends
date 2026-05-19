@@ -1,0 +1,6 @@
+{
+  "id": "SkinMeshDataProperties_parameter_ReflectionMap",
+  "name": "ReflectionMap",
+  "type": "string",
+  "defaultValue": "ASSETS/Characters/Zac/Skins/Base/particles/Swain_Skin03_CubeMap.dds"
+}

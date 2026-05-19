@@ -1,0 +1,11 @@
+{
+  "id": "VfxAlphaErosionDefinitionData_embed_ErosionMapChannelMixer",
+  "title": "ErosionMapChannelMixer",
+  "internalStructures": [
+    {
+      "id": "VfxAlphaErosionDefinitionData_embed_ErosionMapChannelMixer-catalog-0",
+      "name": "ValueColor",
+      "schemaId": "value-color"
+    }
+  ]
+}

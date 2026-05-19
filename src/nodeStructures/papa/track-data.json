@@ -3,18 +3,19 @@
   "title": "TrackData",
   "parameters": [
     {
-      "id": "track-data-m-blend-mode",
+      "id": "TrackData_parameter_mBlendMode",
       "name": "mBlendMode",
       "type": "u8",
       "defaultValue": "1"
     },
     {
-      "id": "track-data-m-priority",
+      "id": "TrackData_parameter_mPriority",
       "name": "mPriority",
       "type": "u8",
       "defaultValue": "1"
     }
   ],
+  "embed": [],
   "listEmbed": [],
   "internalStructures": [],
   "nomenclature": {

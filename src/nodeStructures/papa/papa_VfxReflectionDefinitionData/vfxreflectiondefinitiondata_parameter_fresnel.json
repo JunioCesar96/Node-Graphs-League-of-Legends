@@ -1,0 +1,6 @@
+{
+  "id": "VfxReflectionDefinitionData_parameter_Fresnel",
+  "name": "Fresnel",
+  "type": "f32",
+  "defaultValue": "0.219999999"
+}

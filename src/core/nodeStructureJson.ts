@@ -1,11 +1,14 @@
 import type {
+  EmbedDefinition,
   InternalStructureDefinition,
   ListEmbedDefinition,
+  ListPointerDefinition,
   NodeDataType,
   NodeParameterDefinition,
   NodeSchemaDefinition,
   NodeStructureNomenclature,
   NomenclaturePathSegment,
+  PointerDefinition,
 } from './nodeSchema'
 
 const NODE_DATA_TYPES: ReadonlySet<string> = new Set<NodeDataType>([
@@ -56,7 +59,36 @@ export function nomenclatureGroupNumberFromLabel(group: string | undefined): num
   return Number.isFinite(n) ? n : null
 }
 
+/** Stub JSON de parâmetro na pasta do nó base (não confundir com embed/listEmbed). */
+export function isParameterStubShape(raw: unknown): boolean {
+  if (!isRecord(raw)) {
+    return false
+  }
+  if ('title' in raw || 'internalStructures' in raw || 'embed' in raw || 'listEmbed' in raw) {
+    return false
+  }
+  const id = typeof raw.id === 'string' ? raw.id : ''
+  const name = typeof raw.name === 'string' ? raw.name : ''
+  const typ = typeof raw.type === 'string' ? raw.type : ''
+  const defaultValue = typeof raw.defaultValue === 'string' ? raw.defaultValue : null
+  if (!id || !name || defaultValue === null || !typ || !NODE_DATA_TYPES.has(typ)) {
+    return false
+  }
+  if (
+    id.includes('_embed_') ||
+    id.includes('_pointer_') ||
+    id.includes('_listEmbed_') ||
+    id.includes('_listPointer_')
+  ) {
+    return false
+  }
+  return true
+}
+
 export function nodeParameterDefinitionFromJsonStub(raw: unknown): NodeParameterDefinition | null {
+  if (!isParameterStubShape(raw)) {
+    return null
+  }
   return parseParameter(raw)
 }
 
@@ -181,9 +213,138 @@ function parseInternalStructuresList(raw: unknown): InternalStructureDefinition[
   return out
 }
 
+/** Stub JSON de EMBED (`{collectionType}_embed_{title}.json`). */
+export function isEmbedStubShape(raw: unknown): boolean {
+  if (!isRecord(raw)) {
+    return false
+  }
+  if ('type' in raw && 'defaultValue' in raw) {
+    return false
+  }
+  const id = typeof raw.id === 'string' ? raw.id : ''
+  if (!id.includes('_embed_') || id.includes('_listEmbed_')) {
+    return false
+  }
+  return typeof raw.title === 'string' && Array.isArray(raw.internalStructures)
+}
+
+/** Stub JSON de LIST_EMBED (`{collectionType}_listEmbed_{title}.json`). */
+export function isListEmbedStubShape(raw: unknown): boolean {
+  if (!isRecord(raw)) {
+    return false
+  }
+  if ('type' in raw && 'defaultValue' in raw) {
+    return false
+  }
+  const id = typeof raw.id === 'string' ? raw.id : ''
+  if (!id.includes('_listEmbed_')) {
+    return false
+  }
+  return typeof raw.title === 'string' && Array.isArray(raw.internalStructures)
+}
+
+/** Stub individual de EMBED (`{collectionType}_embed_{title}.json`). */
+export function embedDefinitionFromJsonStub(raw: unknown): EmbedDefinition | null {
+  if (!isEmbedStubShape(raw)) {
+    return null
+  }
+  return parseEmbed(raw)
+}
+
 /** Stub individual de LIST_EMBED na pasta do nó base (`{collectionType}_listEmbed_{title}.json`). */
 export function listEmbedDefinitionFromJsonStub(raw: unknown): ListEmbedDefinition | null {
+  if (!isListEmbedStubShape(raw)) {
+    return null
+  }
   return parseListEmbed(raw)
+}
+
+/** Stub JSON de POINTER (`{collectionType}_pointer_{title}.json`). */
+export function isPointerStubShape(raw: unknown): boolean {
+  if (!isRecord(raw)) {
+    return false
+  }
+  if ('type' in raw && 'defaultValue' in raw) {
+    return false
+  }
+  const id = typeof raw.id === 'string' ? raw.id : ''
+  if (!id.includes('_pointer_') || id.includes('_listPointer_')) {
+    return false
+  }
+  return typeof raw.title === 'string' && Array.isArray(raw.internalStructures)
+}
+
+/** Stub JSON de LIST_POINTER (`{collectionType}_listPointer_{title}.json`). */
+export function isListPointerStubShape(raw: unknown): boolean {
+  if (!isRecord(raw)) {
+    return false
+  }
+  if ('type' in raw && 'defaultValue' in raw) {
+    return false
+  }
+  const id = typeof raw.id === 'string' ? raw.id : ''
+  if (!id.includes('_listPointer_')) {
+    return false
+  }
+  return typeof raw.title === 'string' && Array.isArray(raw.internalStructures)
+}
+
+export function pointerDefinitionFromJsonStub(raw: unknown): PointerDefinition | null {
+  if (!isPointerStubShape(raw)) {
+    return null
+  }
+  return parsePointer(raw)
+}
+
+export function listPointerDefinitionFromJsonStub(raw: unknown): ListPointerDefinition | null {
+  if (!isListPointerStubShape(raw)) {
+    return null
+  }
+  return parseListPointer(raw)
+}
+
+function parseEmbed(raw: unknown): EmbedDefinition | null {
+  if (!isRecord(raw)) {
+    return null
+  }
+  const id = typeof raw.id === 'string' ? raw.id : null
+  const title = typeof raw.title === 'string' ? raw.title : null
+  if (!id || !title) {
+    return null
+  }
+  const catalog = parseInternalStructuresList(raw.internalStructures)
+  if (!catalog) {
+    return null
+  }
+  const result: EmbedDefinition = { id, title, internalStructures: catalog }
+  if ('slots' in raw && raw.slots !== undefined) {
+    const slots = parseInternalStructuresList(raw.slots)
+    if (!slots) {
+      return null
+    }
+    if (slots.length > 0) {
+      result.slots = slots.slice(0, 1)
+    }
+  }
+  return result
+}
+
+function parseEmbedArray(raw: unknown): EmbedDefinition[] | null {
+  if (raw === undefined) {
+    return []
+  }
+  if (!Array.isArray(raw)) {
+    return null
+  }
+  const out: EmbedDefinition[] = []
+  for (const entry of raw) {
+    const block = parseEmbed(entry)
+    if (!block) {
+      return null
+    }
+    out.push(block)
+  }
+  return out
 }
 
 function parseListEmbed(raw: unknown): ListEmbedDefinition | null {
@@ -230,6 +391,50 @@ function parseListEmbedArray(raw: unknown): ListEmbedDefinition[] | null {
   const out: ListEmbedDefinition[] = []
   for (const entry of raw) {
     const block = parseListEmbed(entry)
+    if (!block) {
+      return null
+    }
+    out.push(block)
+  }
+  return out
+}
+
+function parsePointer(raw: unknown): PointerDefinition | null {
+  return parseEmbed(raw)
+}
+
+function parsePointerArray(raw: unknown): PointerDefinition[] | null {
+  if (raw === undefined) {
+    return []
+  }
+  if (!Array.isArray(raw)) {
+    return null
+  }
+  const out: PointerDefinition[] = []
+  for (const entry of raw) {
+    const block = parsePointer(entry)
+    if (!block) {
+      return null
+    }
+    out.push(block)
+  }
+  return out
+}
+
+function parseListPointer(raw: unknown): ListPointerDefinition | null {
+  return parseListEmbed(raw)
+}
+
+function parseListPointerArray(raw: unknown): ListPointerDefinition[] | null {
+  if (raw === undefined) {
+    return []
+  }
+  if (!Array.isArray(raw)) {
+    return null
+  }
+  const out: ListPointerDefinition[] = []
+  for (const entry of raw) {
+    const block = parseListPointer(entry)
     if (!block) {
       return null
     }
@@ -342,8 +547,23 @@ export function nodeSchemaFromStructureJson(raw: unknown): NodeSchemaDefinition 
     internalStructures.push(s)
   }
 
+  const embed = parseEmbedArray(raw.embed)
+  if (embed === null) {
+    return null
+  }
+
+  const pointer = parsePointerArray(raw.pointer)
+  if (pointer === null) {
+    return null
+  }
+
   const listEmbed = parseListEmbedArray(raw.listEmbed)
   if (listEmbed === null) {
+    return null
+  }
+
+  const listPointer = parseListPointerArray(raw.listPointer)
+  if (listPointer === null) {
     return null
   }
 
@@ -354,7 +574,10 @@ export function nodeSchemaFromStructureJson(raw: unknown): NodeSchemaDefinition 
     title: raw.title,
     parameters,
     internalStructures,
+    ...(embed.length > 0 ? { embed } : {}),
+    ...(pointer.length > 0 ? { pointer } : {}),
     ...(listEmbed.length > 0 ? { listEmbed } : {}),
+    ...(listPointer.length > 0 ? { listPointer } : {}),
   }
 
   const parameterIdSet = new Set(parameters.map((parameter) => parameter.id))

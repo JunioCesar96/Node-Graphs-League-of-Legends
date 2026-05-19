@@ -3,18 +3,19 @@
   "title": "PersistentVfxData",
   "parameters": [
     {
-      "id": "persistent-vfx-data-bone-name",
-      "name": "boneName",
+      "id": "PersistentVfxData_parameter_BoneName",
+      "name": "BoneName",
       "type": "string",
       "defaultValue": "L_ArmNoodle1"
     },
     {
-      "id": "persistent-vfx-data-effect-key",
-      "name": "effectKey",
+      "id": "PersistentVfxData_parameter_EffectKey",
+      "name": "EffectKey",
       "type": "integer",
       "defaultValue": "0xa55ad994"
     }
   ],
+  "embed": [],
   "listEmbed": [],
   "internalStructures": [],
   "nomenclature": {

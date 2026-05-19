@@ -1,6 +1,0 @@
-{
-  "id": "SubmeshVisibilityEventData_mEndFrame",
-  "name": "mEndFrame",
-  "type": "f32",
-  "defaultValue": "0"
-}

@@ -2,6 +2,7 @@
   "id": "resource-resolver",
   "title": "ResourceResolver",
   "parameters": [],
+  "embed": [],
   "listEmbed": [],
   "internalStructures": [],
   "nomenclature": {

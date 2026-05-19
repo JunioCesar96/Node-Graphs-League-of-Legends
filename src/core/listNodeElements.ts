@@ -1,20 +1,39 @@
 import type { CanvasConnection, CanvasScene } from '@/core/canvasScene'
 import { fx_required_parameter_isMarked } from '@/core/fx_required_parameter'
+import { listRemovableEmbedBlocks, slotIdsForEmbedBlock } from '@/core/embedElementMenu'
 import {
   listRemovableListEmbedBlocks,
   slotIdsForListEmbedBlock,
 } from '@/core/listEmbedElementMenu'
+import {
+  listRemovableListPointerBlocks,
+  slotIdsForListPointerBlock,
+} from '@/core/listPointerElementMenu'
+import { listRemovablePointerBlocks, slotIdsForPointerBlock } from '@/core/pointerElementMenu'
 import type { NodeInstance, NodeParameterDefinition } from '@/core/nodeSchema'
 
-export type NodeElementKind = 'parameter' | 'internalStructure' | 'listEmbedSlot' | 'listEmbedBlock'
+export type NodeElementKind =
+  | 'parameter'
+  | 'internalStructure'
+  | 'embedSlot'
+  | 'embedBlock'
+  | 'pointerSlot'
+  | 'pointerBlock'
+  | 'listEmbedSlot'
+  | 'listEmbedBlock'
+  | 'listPointerSlot'
+  | 'listPointerBlock'
 
 export type NodeElementListItem = {
   id: string
   kind: NodeElementKind
   meta?: string
   name: string
-  /** Bloco LIST_EMBED pai (slot ou bloco). */
+  /** Bloco LIST_EMBED / LIST_POINTER pai (slot ou bloco). */
   listEmbedId?: string
+  listPointerId?: string
+  embedId?: string
+  pointerId?: string
 }
 
 export type ListRemovableNodeElementsOptions = {
@@ -64,6 +83,22 @@ export function listRemovableNodeElements(
     name: structure.name,
   }))
 
+  const embedBlocks: NodeElementListItem[] = listRemovableEmbedBlocks(node).map((block) => ({
+    id: block.id,
+    kind: 'embedBlock' as const,
+    meta: block.meta,
+    name: block.name,
+    embedId: block.embedId,
+  }))
+
+  const pointerBlocks: NodeElementListItem[] = listRemovablePointerBlocks(node).map((block) => ({
+    id: block.id,
+    kind: 'pointerBlock' as const,
+    meta: block.meta,
+    name: block.name,
+    pointerId: block.pointerId,
+  }))
+
   const listEmbedBlocks: NodeElementListItem[] = listRemovableListEmbedBlocks(node).map((block) => ({
     id: block.id,
     kind: 'listEmbedBlock' as const,
@@ -72,7 +107,22 @@ export function listRemovableNodeElements(
     listEmbedId: block.listEmbedId,
   }))
 
-  return [...parameters, ...structures, ...listEmbedBlocks]
+  const listPointerBlocks: NodeElementListItem[] = listRemovableListPointerBlocks(node).map((block) => ({
+    id: block.id,
+    kind: 'listPointerBlock' as const,
+    meta: block.meta,
+    name: block.name,
+    listPointerId: block.listPointerId,
+  }))
+
+  return [
+    ...parameters,
+    ...structures,
+    ...embedBlocks,
+    ...pointerBlocks,
+    ...listEmbedBlocks,
+    ...listPointerBlocks,
+  ]
 }
 
 export function countElementDependencies(
@@ -86,10 +136,40 @@ export function countElementDependencies(
     return 0
   }
 
-  if (kind === 'internalStructure' || kind === 'listEmbedSlot') {
+  if (
+    kind === 'internalStructure' ||
+    kind === 'listEmbedSlot' ||
+    kind === 'listPointerSlot' ||
+    kind === 'embedSlot' ||
+    kind === 'pointerSlot'
+  ) {
     return scene.connections.filter(
       (connection) =>
         connection.fromNodeId === nodeId && connection.fromInternalStructureId === elementId,
+    ).length
+  }
+
+  if (kind === 'embedBlock') {
+    const block = canvasNode.node.schema.embed?.find((entry) => entry.id === elementId)
+    if (!block) {
+      return 0
+    }
+    const slotIds = new Set(slotIdsForEmbedBlock(block))
+    return scene.connections.filter(
+      (connection) =>
+        connection.fromNodeId === nodeId && slotIds.has(connection.fromInternalStructureId),
+    ).length
+  }
+
+  if (kind === 'pointerBlock') {
+    const block = canvasNode.node.schema.pointer?.find((entry) => entry.id === elementId)
+    if (!block) {
+      return 0
+    }
+    const slotIds = new Set(slotIdsForPointerBlock(block))
+    return scene.connections.filter(
+      (connection) =>
+        connection.fromNodeId === nodeId && slotIds.has(connection.fromInternalStructureId),
     ).length
   }
 
@@ -99,6 +179,18 @@ export function countElementDependencies(
       return 0
     }
     const slotIds = new Set(slotIdsForListEmbedBlock(block))
+    return scene.connections.filter(
+      (connection) =>
+        connection.fromNodeId === nodeId && slotIds.has(connection.fromInternalStructureId),
+    ).length
+  }
+
+  if (kind === 'listPointerBlock') {
+    const block = canvasNode.node.schema.listPointer?.find((entry) => entry.id === elementId)
+    if (!block) {
+      return 0
+    }
+    const slotIds = new Set(slotIdsForListPointerBlock(block))
     return scene.connections.filter(
       (connection) =>
         connection.fromNodeId === nodeId && slotIds.has(connection.fromInternalStructureId),

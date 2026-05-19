@@ -1,0 +1,11 @@
+{
+  "id": "IntegratedValueVector3_pointer_Dynamics",
+  "title": "Dynamics",
+  "internalStructures": [
+    {
+      "id": "IntegratedValueVector3_pointer_Dynamics-catalog-0",
+      "name": "VfxAnimatedVector3fVariableData",
+      "schemaId": "vfx-animated-vector3f-variable-data"
+    }
+  ]
+}

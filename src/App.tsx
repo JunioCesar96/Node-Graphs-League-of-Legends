@@ -193,9 +193,18 @@ function App() {
     addDynamicParameter,
     removeCanvasParameter,
     removeCanvasInternalStructure,
+    appendEmbedCatalogItem,
+    appendPointerCatalogItem,
     appendListEmbedCatalogItem,
+    appendListPointerCatalogItem,
+    removeEmbedSlot,
+    removeEmbedBlock,
+    removePointerSlot,
+    removePointerBlock,
     removeListEmbedSlot,
     removeListEmbedBlock,
+    removeListPointerSlot,
+    removeListPointerBlock,
   } = useSceneHistory({ extendSchemaLookup })
 
   const { showConfirmByCatalogId } = useMessengerPopup()
@@ -1368,12 +1377,36 @@ function App() {
             removeCanvasParameter(canvasNodeId, item.id)
             return
           }
+          if (item.kind === 'embedBlock') {
+            removeEmbedBlock(canvasNodeId, item.id)
+            return
+          }
+          if (item.kind === 'embedSlot') {
+            removeEmbedSlot(canvasNodeId, item.id)
+            return
+          }
           if (item.kind === 'listEmbedBlock') {
             removeListEmbedBlock(canvasNodeId, item.id)
             return
           }
           if (item.kind === 'listEmbedSlot') {
             removeListEmbedSlot(canvasNodeId, item.id)
+            return
+          }
+          if (item.kind === 'pointerBlock') {
+            removePointerBlock(canvasNodeId, item.id)
+            return
+          }
+          if (item.kind === 'pointerSlot') {
+            removePointerSlot(canvasNodeId, item.id)
+            return
+          }
+          if (item.kind === 'listPointerBlock') {
+            removeListPointerBlock(canvasNodeId, item.id)
+            return
+          }
+          if (item.kind === 'listPointerSlot') {
+            removeListPointerSlot(canvasNodeId, item.id)
             return
           }
           removeCanvasInternalStructure(canvasNodeId, item.id)
@@ -1383,8 +1416,14 @@ function App() {
     [
       mergedBaseParameterCatalogBySchemaId,
       removeCanvasInternalStructure,
+      removeEmbedSlot,
+      removeEmbedBlock,
       removeListEmbedSlot,
       removeListEmbedBlock,
+      removePointerSlot,
+      removePointerBlock,
+      removeListPointerSlot,
+      removeListPointerBlock,
       removeCanvasParameter,
       scene,
       showConfirmByCatalogId,
@@ -1564,8 +1603,17 @@ function App() {
             onAppendCatalogInternalStructure={(canvasNodeId, structure) =>
               addDynamicInternalStructureSlot(canvasNodeId, structure)
             }
+            onAppendEmbedCatalogItem={(canvasNodeId, embedId, structure) =>
+              appendEmbedCatalogItem(canvasNodeId, embedId, structure)
+            }
+            onAppendPointerCatalogItem={(canvasNodeId, pointerId, structure) =>
+              appendPointerCatalogItem(canvasNodeId, pointerId, structure)
+            }
             onAppendListEmbedCatalogItem={(canvasNodeId, listEmbedId, structure) =>
               appendListEmbedCatalogItem(canvasNodeId, listEmbedId, structure)
+            }
+            onAppendListPointerCatalogItem={(canvasNodeId, listPointerId, structure) =>
+              appendListPointerCatalogItem(canvasNodeId, listPointerId, structure)
             }
             onCatalogParameterAppend={(canvasNodeId, definition) =>
               addDynamicParameter(canvasNodeId, definition)

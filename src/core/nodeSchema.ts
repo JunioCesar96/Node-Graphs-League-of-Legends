@@ -59,6 +59,15 @@ export type InternalStructureDefinition = {
   schemaId: string
 }
 
+/** Bloco `embed` no ritual: título = nome do campo; no máximo uma estrutura interna. */
+export type EmbedDefinition = {
+  id: string
+  title: string
+  templateBlockId?: string
+  internalStructures: InternalStructureDefinition[]
+  slots?: InternalStructureDefinition[]
+}
+
 /** Bloco `list[embed]` no ritual: título = nome do campo; catálogo = itens da lista. */
 export type ListEmbedDefinition = {
   id: string
@@ -71,12 +80,36 @@ export type ListEmbedDefinition = {
   slots?: InternalStructureDefinition[]
 }
 
+/** Bloco `pointer` no ritual: título = nome do campo; no máximo uma estrutura interna. */
+export type PointerDefinition = {
+  id: string
+  title: string
+  templateBlockId?: string
+  internalStructures: InternalStructureDefinition[]
+  slots?: InternalStructureDefinition[]
+}
+
+/** Bloco `list[pointer]` no ritual: título = nome do campo; catálogo = itens da lista. */
+export type ListPointerDefinition = {
+  id: string
+  title: string
+  templateBlockId?: string
+  internalStructures: InternalStructureDefinition[]
+  slots?: InternalStructureDefinition[]
+}
+
 export type NodeSchemaDefinition = {
   id: string
   title: string
   parameters: NodeParameterDefinition[]
-  /** Listas estruturais `list[embed]` (entre parameters e internalStructures no card). */
+  /** Campos `embed` (entre parameters e pointer no card). */
+  embed?: EmbedDefinition[]
+  /** Campos `pointer` (entre embed e listEmbed no card). */
+  pointer?: PointerDefinition[]
+  /** Listas estruturais `list[embed]`. */
   listEmbed?: ListEmbedDefinition[]
+  /** Listas estruturais `list[pointer]`. */
+  listPointer?: ListPointerDefinition[]
   internalStructures: InternalStructureDefinition[]
   /** Opcional: parâmetros obrigatórios por defeito (copiados para novas instâncias). */
   required_parameter?: string[]

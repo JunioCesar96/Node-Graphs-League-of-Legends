@@ -1,0 +1,6 @@
+{
+  "id": "SkinMeshDataProperties_parameter_Skeleton",
+  "name": "Skeleton",
+  "type": "string",
+  "defaultValue": "ASSETS/Characters/Zac/Skins/Base/Zac_Base.skl"
+}

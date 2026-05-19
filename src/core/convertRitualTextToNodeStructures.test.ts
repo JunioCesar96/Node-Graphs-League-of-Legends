@@ -133,10 +133,9 @@ entries: map[hash,embed] = {
     expect(skin?.nomenclature?.group).toBe('#2 Entidades')
     expect(skin?.nomenclature?.pathHierarchy).toBe('entries > Characters/Zac/Skins/Skin0')
 
-    const registry = Object.fromEntries(out.schemas.map((s) => [s.id, s]))
-    const filtered = filterInternalStructuresByPathHierarchy(skin!, skin!.internalStructures, registry)
-
-    expect(filtered.some((f) => f.schemaId === audio!.id)).toBe(true)
+    const audioEmbed = skin!.embed?.find((block) => block.title === 'SkinAudioProperties')
+    expect(audioEmbed).toBeDefined()
+    expect(audioEmbed!.internalStructures.some((ref) => ref.schemaId === audio!.id)).toBe(true)
     expect(audio?.nomenclature?.collection).toBe('#3 Embed Block')
   })
 })

@@ -3,46 +3,138 @@
   "title": "SkinCharacterDataProperties",
   "parameters": [
     {
-      "id": "skin-character-data-properties-armor-material",
-      "name": "armorMaterial",
+      "id": "SkinCharacterDataProperties_parameter_ArmorMaterial",
+      "name": "ArmorMaterial",
       "type": "string",
       "defaultValue": "Flesh"
     },
     {
-      "id": "skin-character-data-properties-champion-skin-name",
-      "name": "championSkinName",
+      "id": "SkinCharacterDataProperties_parameter_ChampionSkinName",
+      "name": "ChampionSkinName",
       "type": "string",
       "defaultValue": "Zac"
     },
     {
-      "id": "skin-character-data-properties-emote-buffbone",
-      "name": "emoteBuffbone",
+      "id": "SkinCharacterDataProperties_parameter_EmoteBuffbone",
+      "name": "EmoteBuffbone",
       "type": "string",
       "defaultValue": ""
     },
     {
-      "id": "skin-character-data-properties-godray-fxbone",
-      "name": "godrayFXbone",
+      "id": "SkinCharacterDataProperties_parameter_GodrayFxBone",
+      "name": "GodrayFxBone",
       "type": "string",
       "defaultValue": ""
     },
     {
-      "id": "skin-character-data-properties-meta-data-tags",
-      "name": "metaDataTags",
+      "id": "SkinCharacterDataProperties_parameter_MetaDataTags",
+      "name": "MetaDataTags",
       "type": "string",
       "defaultValue": "faction:zaun,gender:male"
     },
     {
-      "id": "skin-character-data-properties-skin-classification",
-      "name": "skinClassification",
+      "id": "SkinCharacterDataProperties_parameter_SkinClassification",
+      "name": "SkinClassification",
       "type": "u32",
       "defaultValue": "1"
+    }
+  ],
+  "embed": [
+    {
+      "id": "skin-character-data-properties-loadscreen",
+      "title": "Loadscreen",
+      "internalStructures": [
+        {
+          "id": "skin-character-data-properties-loadscreen",
+          "name": "CensoredImage",
+          "schemaId": "censored-image"
+        }
+      ],
+      "slots": [
+        {
+          "id": "skin-character-data-properties-loadscreen__slot__0",
+          "name": "CensoredImage",
+          "schemaId": "censored-image"
+        }
+      ]
+    },
+    {
+      "id": "skin-character-data-properties-skin-audio-properties",
+      "title": "SkinAudioProperties",
+      "internalStructures": [
+        {
+          "id": "skin-character-data-properties-skin-audio-properties",
+          "name": "SkinAudioProperties",
+          "schemaId": "skin-audio-properties"
+        }
+      ],
+      "slots": [
+        {
+          "id": "skin-character-data-properties-skin-audio-properties__slot__0",
+          "name": "SkinAudioProperties",
+          "schemaId": "skin-audio-properties"
+        }
+      ]
+    },
+    {
+      "id": "skin-character-data-properties-skin-animation-properties",
+      "title": "SkinAnimationProperties",
+      "internalStructures": [
+        {
+          "id": "skin-character-data-properties-skin-animation-properties",
+          "name": "SkinAnimationProperties",
+          "schemaId": "skin-animation-properties"
+        }
+      ],
+      "slots": [
+        {
+          "id": "skin-character-data-properties-skin-animation-properties__slot__0",
+          "name": "SkinAnimationProperties",
+          "schemaId": "skin-animation-properties"
+        }
+      ]
+    },
+    {
+      "id": "skin-character-data-properties-skin-mesh-properties",
+      "title": "SkinMeshProperties",
+      "internalStructures": [
+        {
+          "id": "skin-character-data-properties-skin-mesh-properties",
+          "name": "SkinMeshDataProperties",
+          "schemaId": "skin-mesh-data-properties"
+        }
+      ],
+      "slots": [
+        {
+          "id": "skin-character-data-properties-skin-mesh-properties__slot__0",
+          "name": "SkinMeshDataProperties",
+          "schemaId": "skin-mesh-data-properties"
+        }
+      ]
+    },
+    {
+      "id": "skin-character-data-properties-health-bar-data",
+      "title": "HealthBarData",
+      "internalStructures": [
+        {
+          "id": "skin-character-data-properties-health-bar-data",
+          "name": "CharacterHealthBarDataRecord",
+          "schemaId": "character-health-bar-data-record"
+        }
+      ],
+      "slots": [
+        {
+          "id": "skin-character-data-properties-health-bar-data__slot__0",
+          "name": "CharacterHealthBarDataRecord",
+          "schemaId": "character-health-bar-data-record"
+        }
+      ]
     }
   ],
   "listEmbed": [
     {
       "id": "skin-character-data-properties-idle-particles-effects",
-      "title": "idleParticlesEffects",
+      "title": "IdleParticlesEffects",
       "internalStructures": [
         {
           "id": "skin-character-data-properties-idle-particles-effects-0",
@@ -53,31 +145,6 @@
     }
   ],
   "internalStructures": [
-    {
-      "id": "skin-character-data-properties-loadscreen",
-      "name": "loadscreen",
-      "schemaId": "censored-image"
-    },
-    {
-      "id": "skin-character-data-properties-skin-audio-properties",
-      "name": "SkinAudioProperties",
-      "schemaId": "skin-audio-properties"
-    },
-    {
-      "id": "skin-character-data-properties-skin-animation-properties",
-      "name": "SkinAnimationProperties",
-      "schemaId": "skin-animation-properties"
-    },
-    {
-      "id": "skin-character-data-properties-skin-mesh-properties",
-      "name": "skinMeshProperties",
-      "schemaId": "skin-mesh-data-properties"
-    },
-    {
-      "id": "skin-character-data-properties-health-bar-data",
-      "name": "HealthBarData",
-      "schemaId": "character-health-bar-data-record"
-    },
     {
       "id": "skin-character-data-properties-persistent-effect-conditions-0",
       "name": "PersistentEffectConditions",

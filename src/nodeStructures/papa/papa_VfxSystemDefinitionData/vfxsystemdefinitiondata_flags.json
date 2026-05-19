@@ -1,6 +1,0 @@
-{
-  "id": "VfxSystemDefinitionData_flags",
-  "name": "flags",
-  "type": "u16",
-  "defaultValue": "0"
-}

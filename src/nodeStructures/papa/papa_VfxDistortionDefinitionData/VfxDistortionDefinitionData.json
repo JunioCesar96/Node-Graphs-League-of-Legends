@@ -3,25 +3,26 @@
   "title": "VfxDistortionDefinitionData",
   "parameters": [
     {
-      "id": "vfx-distortion-definition-data-distortion",
-      "name": "distortion",
+      "id": "VfxDistortionDefinitionData_parameter_Distortion",
+      "name": "Distortion",
       "type": "f32",
-      "defaultValue": "0.0025"
+      "defaultValue": "0.00249999994"
     },
     {
-      "id": "vfx-distortion-definition-data-normal-map-texture",
-      "name": "normalMapTexture",
+      "id": "VfxDistortionDefinitionData_parameter_NormalMapTexture",
+      "name": "NormalMapTexture",
       "type": "string",
       "defaultValue": "ASSETS/Characters/Zac/Skins/Base/Particles/common_distort-twirl.tex"
     }
   ],
+  "embed": [],
   "listEmbed": [],
   "internalStructures": [],
   "nomenclature": {
     "group": "#3 Internal Structures",
     "collection": "#3 Pointer Node",
     "collectionType": "VfxDistortionDefinitionData",
-    "pathHierarchy": "entries > 0x04ff5c13 > complexEmitterDefinitionData:4 > distortionDefinition",
+    "pathHierarchy": "entries > 0x04ff5c13 > ComplexEmitterDefinitionData:4 > DistortionDefinition",
     "pathHierarchySteps": [
       {
         "id": "entries",
@@ -32,11 +33,11 @@
         "type": "#2 Root Entry (VfxSystemDefinitionData)"
       },
       {
-        "id": "complexEmitterDefinitionData:4",
+        "id": "ComplexEmitterDefinitionData:4",
         "type": "#3 Collection Block"
       },
       {
-        "id": "distortionDefinition",
+        "id": "DistortionDefinition",
         "type": "#3 Pointer Node"
       }
     ]

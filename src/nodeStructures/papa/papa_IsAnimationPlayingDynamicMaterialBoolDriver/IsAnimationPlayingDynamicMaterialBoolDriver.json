@@ -3,12 +3,13 @@
   "title": "IsAnimationPlayingDynamicMaterialBoolDriver",
   "parameters": [
     {
-      "id": "is-animation-playing-dynamic-material-bool-driver-m-animation-names",
+      "id": "IsAnimationPlayingDynamicMaterialBoolDriver_parameter_mAnimationNames",
       "name": "mAnimationNames",
       "type": "listHash",
       "defaultValue": "Spell4\n0x792ee8b0\n0xda949924\n0x4f25d6ab"
     }
   ],
+  "embed": [],
   "listEmbed": [],
   "internalStructures": [],
   "nomenclature": {

@@ -1,0 +1,6 @@
+{
+  "id": "VfxEmitterFiltering_parameter_KeywordsExcluded",
+  "name": "KeywordsExcluded",
+  "type": "listString",
+  "defaultValue": "ZacGrumpy"
+}

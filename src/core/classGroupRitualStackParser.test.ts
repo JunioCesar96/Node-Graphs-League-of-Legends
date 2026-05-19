@@ -54,6 +54,7 @@ entries: map[hash,embed] = {
     const fresnelColor = mesh!.parameters.find((p) => p.name === 'FresnelColor')
     const reflectionColor = mesh!.parameters.find((p) => p.name === 'ReflectionFresnelColor')
     expect(fresnelColor?.type).toBe('rgba')
+    expect(fresnelColor?.id).toBe('SkinMeshDataProperties_parameter_FresnelColor')
     expect(fresnelColor?.defaultValue).toBe('0.078, 0.302, 0.102, 1')
     expect(reflectionColor?.type).toBe('rgba')
     expect(reflectionColor?.defaultValue).toBe('0.6, 0.6, 0.6, 1')
@@ -127,7 +128,7 @@ entries: map[hash,embed] = {
     expect(schemas.some((s) => s.id === 'main-node')).toBe(false)
   })
 
-  it('list[pointer]: internalStructures usa nome do campo; filho VfxEmitter', () => {
+  it('list[pointer]: listPointer[] com catálogo; filho VfxEmitter', () => {
     const text = `
 entries: map[hash,embed] = {
   "Vfx/Key" = VfxSystemDefinitionData {
@@ -148,10 +149,9 @@ entries: map[hash,embed] = {
     expect(vfx).toBeDefined()
     expect(emitter).toBeDefined()
     expect(vfx!.parameters.some((p) => p.name === 'particleLifetime')).toBe(true)
-    expect(vfx!.internalStructures.some((x) => x.name === 'ComplexEmitterDefinitionData')).toBe(true)
-    expect(vfx!.internalStructures.find((x) => x.name === 'ComplexEmitterDefinitionData')?.schemaId).toBe(
-      emitter!.id,
-    )
+    const listPtr = vfx!.listPointer.find((b) => b.title === 'ComplexEmitterDefinitionData')
+    expect(listPtr).toBeDefined()
+    expect(listPtr!.internalStructures.some((c) => c.schemaId === emitter!.id)).toBe(true)
   })
 
   it('mFlags não gera schema órfão; fica em parameters do pai', () => {
@@ -368,11 +368,41 @@ entries: map[hash,embed] = {
     expect(vfx).toBeDefined()
     expect(emitter).toBeDefined()
 
-    const registry = Object.fromEntries(out.schemas.map((s) => [s.id, s]))
-    const filtered = filterInternalStructuresByPathHierarchy(vfx!, vfx!.internalStructures, registry)
-
-    expect(filtered.some((f) => f.schemaId === emitter!.id)).toBe(true)
+    const listPtr = vfx!.listPointer?.find((b) => b.title === 'ComplexEmitterDefinitionData')
+    expect(listPtr?.internalStructures.some((c) => c.schemaId === emitter!.id)).toBe(true)
     expect(emitter?.nomenclature?.collection).toBe('#3 Collection Block')
+  })
+
+  it('embed simples vira embed[] com slot inicial; não vai para internalStructures', () => {
+    const text = `
+entries: map[hash,embed] = {
+  "Characters/Zac/Skins/Skin0" = SkinCharacterDataProperties {
+    Loadscreen: embed = CensoredImage {
+      Image: string = "splash"
+    }
+    SkinMeshProperties: pointer = SkinMeshDataProperties {
+      ReflectionFresnel: f32 = 0.5
+    }
+  }
+}
+`.trim()
+
+    const parsed = parseClassGroupRitualWithStack(text)
+    const skin = parsed.registry.get('skin-character-data-properties')
+    expect(skin).toBeDefined()
+    expect(skin!.internalStructures.some((x) => x.name === 'Loadscreen')).toBe(false)
+    expect(skin!.internalStructures.some((x) => x.name === 'SkinMeshProperties')).toBe(false)
+
+    const loadscreen = skin!.embed.find((b) => b.title === 'Loadscreen')
+    expect(loadscreen).toBeDefined()
+    expect(loadscreen!.internalStructures[0]!.name).toBe('CensoredImage')
+    expect(loadscreen!.slots).toHaveLength(1)
+    expect(loadscreen!.slots![0]!.name).toBe('CensoredImage')
+
+    const meshPointer = skin!.pointer.find((b) => b.title === 'SkinMeshProperties')
+    expect(meshPointer).toBeDefined()
+    expect(meshPointer!.internalStructures[0]!.name).toBe('SkinMeshDataProperties')
+    expect(meshPointer!.slots).toHaveLength(1)
   })
 
   it('list[embed] MaterialOverride vira listEmbed com title do campo e name do tipo filho', () => {

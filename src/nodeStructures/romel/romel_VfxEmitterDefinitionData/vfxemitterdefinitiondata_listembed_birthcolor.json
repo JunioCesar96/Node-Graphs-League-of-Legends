@@ -1,0 +1,11 @@
+{
+  "id": "VfxEmitterDefinitionData_listEmbed_BirthColor",
+  "title": "BirthColor",
+  "internalStructures": [
+    {
+      "id": "VfxEmitterDefinitionData_listEmbed_BirthColor-catalog-0",
+      "name": "ValueColor",
+      "schemaId": "value-color"
+    }
+  ]
+}

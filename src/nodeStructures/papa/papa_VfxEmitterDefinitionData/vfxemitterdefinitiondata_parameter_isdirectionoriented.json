@@ -1,0 +1,6 @@
+{
+  "id": "VfxEmitterDefinitionData_parameter_IsDirectionOriented",
+  "name": "IsDirectionOriented",
+  "type": "bool",
+  "defaultValue": "true"
+}

@@ -1,0 +1,11 @@
+{
+  "id": "VfxEmitterDefinitionData_embed_BirthUvScrollRate",
+  "title": "BirthUvScrollRate",
+  "internalStructures": [
+    {
+      "id": "VfxEmitterDefinitionData_embed_BirthUvScrollRate-catalog-0",
+      "name": "ValueVector2",
+      "schemaId": "value-vector2"
+    }
+  ]
+}

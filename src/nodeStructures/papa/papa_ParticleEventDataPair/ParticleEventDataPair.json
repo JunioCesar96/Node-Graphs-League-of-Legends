@@ -3,12 +3,13 @@
   "title": "ParticleEventDataPair",
   "parameters": [
     {
-      "id": "particle-event-data-pair-m-bone-name",
+      "id": "ParticleEventDataPair_parameter_mBoneName",
       "name": "mBoneName",
       "type": "integer",
       "defaultValue": "0x3ddef4e8"
     }
   ],
+  "embed": [],
   "listEmbed": [],
   "internalStructures": [],
   "nomenclature": {

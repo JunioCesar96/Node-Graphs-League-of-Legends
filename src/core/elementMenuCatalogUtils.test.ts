@@ -267,4 +267,27 @@ describe('elementMenuCatalogUtils', () => {
     expect(listEmbedEntry?.meta).toContain('SkinCharacterDataProperties_CharacterIdleEffect')
     expect(listEmbedEntry?.sortTipo).toBe('LIST_EMBED')
   })
+
+  it('entrada catalog-embed usa título do campo e meta com tipo filho', () => {
+    const entries = buildElementMenuEntries({
+      presetStructures: [],
+      includeCatalogStructures: false,
+      includeCatalogParameters: false,
+      includeEmbedCatalog: true,
+      embedCatalog: [
+        {
+          embedId: 'tpl-loadscreen',
+          embedTitle: 'Loadscreen',
+          structure: { id: 'cat', name: 'CensoredImage', schemaId: 'censored-image' },
+        },
+      ],
+    })
+
+    const embedEntry = entries.find((entry) => entry.kind === 'catalog-embed')
+    expect(embedEntry?.label).toBe('Loadscreen')
+    expect(embedEntry?.meta).toContain('EMBED')
+    expect(embedEntry?.meta).toContain('CensoredImage')
+    expect(embedEntry?.sortTipo).toBe('EMBED')
+    expect(embedEntry?.onPick).toBe('append-embed-catalog')
+  })
 })

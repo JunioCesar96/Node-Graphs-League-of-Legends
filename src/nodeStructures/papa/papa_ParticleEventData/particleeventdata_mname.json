@@ -1,6 +1,0 @@
-{
-  "id": "ParticleEventData_mName",
-  "name": "mName",
-  "type": "integer",
-  "defaultValue": "0"
-}

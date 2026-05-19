@@ -1,0 +1,6 @@
+{
+  "id": "VfxFlexShapeDefinitionData_parameter_ScaleBirthScaleByBoundObjectSize",
+  "name": "ScaleBirthScaleByBoundObjectSize",
+  "type": "f32",
+  "defaultValue": "0.00549999997"
+}

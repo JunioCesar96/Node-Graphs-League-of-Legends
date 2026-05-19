@@ -1,0 +1,11 @@
+{
+  "id": "VfxEmitterDefinitionData_listEmbed_ParticleLifetime",
+  "title": "ParticleLifetime",
+  "internalStructures": [
+    {
+      "id": "VfxEmitterDefinitionData_listEmbed_ParticleLifetime-catalog-0",
+      "name": "ValueFloat",
+      "schemaId": "value-float"
+    }
+  ]
+}

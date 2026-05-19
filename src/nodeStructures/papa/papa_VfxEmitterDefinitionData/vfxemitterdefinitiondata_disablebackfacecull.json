@@ -1,6 +1,0 @@
-{
-  "id": "VfxEmitterDefinitionData_disableBackfaceCull",
-  "name": "disableBackfaceCull",
-  "type": "bool",
-  "defaultValue": "false"
-}

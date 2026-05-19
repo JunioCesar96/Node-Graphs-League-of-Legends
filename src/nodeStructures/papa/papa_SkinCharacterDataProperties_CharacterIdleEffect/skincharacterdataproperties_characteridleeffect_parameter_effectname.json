@@ -1,0 +1,6 @@
+{
+  "id": "SkinCharacterDataProperties_CharacterIdleEffect_parameter_EffectName",
+  "name": "EffectName",
+  "type": "string",
+  "defaultValue": "DATA/Particles/Malphite_Glacial_Idle.troy"
+}

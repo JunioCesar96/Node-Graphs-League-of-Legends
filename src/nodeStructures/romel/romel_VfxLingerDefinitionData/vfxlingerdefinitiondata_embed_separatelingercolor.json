@@ -1,0 +1,11 @@
+{
+  "id": "VfxLingerDefinitionData_embed_SeparateLingerColor",
+  "title": "SeparateLingerColor",
+  "internalStructures": [
+    {
+      "id": "VfxLingerDefinitionData_embed_SeparateLingerColor-catalog-0",
+      "name": "ValueColor",
+      "schemaId": "value-color"
+    }
+  ]
+}

@@ -1,0 +1,132 @@
+{
+  "id": "skin-mesh-data-properties",
+  "title": "SkinMeshDataProperties",
+  "parameters": [
+    {
+      "id": "SkinMeshDataProperties_parameter_Fresnel",
+      "name": "Fresnel",
+      "type": "f32",
+      "defaultValue": "0.219999999"
+    },
+    {
+      "id": "SkinMeshDataProperties_parameter_FresnelColor",
+      "name": "FresnelColor",
+      "type": "rgba",
+      "defaultValue": "0.078, 0.302, 0.102, 1"
+    },
+    {
+      "id": "SkinMeshDataProperties_parameter_GlossTexture",
+      "name": "GlossTexture",
+      "type": "string",
+      "defaultValue": "ASSETS/Characters/Zac/Skins/Base/Zac_base_TX_GM.tex"
+    },
+    {
+      "id": "SkinMeshDataProperties_parameter_InitialSubmeshToHide",
+      "name": "InitialSubmeshToHide",
+      "type": "string",
+      "defaultValue": "Ult Puddle Tail"
+    },
+    {
+      "id": "SkinMeshDataProperties_parameter_ReflectionFresnel",
+      "name": "ReflectionFresnel",
+      "type": "f32",
+      "defaultValue": "0.600000024"
+    },
+    {
+      "id": "SkinMeshDataProperties_parameter_ReflectionFresnelColor",
+      "name": "ReflectionFresnelColor",
+      "type": "rgba",
+      "defaultValue": "0.6, 0.6, 0.6, 1"
+    },
+    {
+      "id": "SkinMeshDataProperties_parameter_ReflectionMap",
+      "name": "ReflectionMap",
+      "type": "string",
+      "defaultValue": "ASSETS/Characters/Zac/Skins/Base/particles/Swain_Skin03_CubeMap.dds"
+    },
+    {
+      "id": "SkinMeshDataProperties_parameter_ReflectionOpacityDirect",
+      "name": "ReflectionOpacityDirect",
+      "type": "f32",
+      "defaultValue": "0.5"
+    },
+    {
+      "id": "SkinMeshDataProperties_parameter_ReflectionOpacityGlancing",
+      "name": "ReflectionOpacityGlancing",
+      "type": "f32",
+      "defaultValue": "0.400000006"
+    },
+    {
+      "id": "SkinMeshDataProperties_parameter_SelfIllumination",
+      "name": "SelfIllumination",
+      "type": "f32",
+      "defaultValue": "1"
+    },
+    {
+      "id": "SkinMeshDataProperties_parameter_SimpleSkin",
+      "name": "SimpleSkin",
+      "type": "string",
+      "defaultValue": "ASSETS/Characters/Zac/Skins/Base/Zac_Base.skn"
+    },
+    {
+      "id": "SkinMeshDataProperties_parameter_Skeleton",
+      "name": "Skeleton",
+      "type": "string",
+      "defaultValue": "ASSETS/Characters/Zac/Skins/Base/Zac_Base.skl"
+    },
+    {
+      "id": "SkinMeshDataProperties_parameter_SkinScale",
+      "name": "SkinScale",
+      "type": "f32",
+      "defaultValue": "0.949999988"
+    },
+    {
+      "id": "SkinMeshDataProperties_parameter_Texture",
+      "name": "Texture",
+      "type": "string",
+      "defaultValue": "ASSETS/Characters/Zac/Skins/Base/Zac_base_TX_CM.tex"
+    }
+  ],
+  "embed": [],
+  "pointer": [],
+  "listEmbed": [
+    {
+      "id": "SkinMeshDataProperties_listEmbed_MaterialOverride",
+      "title": "MaterialOverride",
+      "internalStructures": [
+        {
+          "id": "skin-mesh-data-properties-material-override-0",
+          "name": "SkinMeshDataProperties_MaterialOverride",
+          "schemaId": "skin-mesh-data-properties-material-override"
+        },
+        {
+          "id": "skin-mesh-data-properties-material-override-1",
+          "name": "SkinMeshDataProperties_MaterialOverride",
+          "schemaId": "skin-mesh-data-properties-material-override"
+        }
+      ]
+    }
+  ],
+  "listPointer": [],
+  "internalStructures": [],
+  "nomenclature": {
+    "group": "#3 Internal Structures",
+    "collection": "#3 Embed Block",
+    "collectionType": "SkinMeshDataProperties",
+    "pathHierarchy": "entries > Characters/Zac/Skins/Skin0 > SkinMeshProperties",
+    "pathHierarchySteps": [
+      {
+        "id": "entries",
+        "type": "#1 Root Entry"
+      },
+      {
+        "id": "Characters/Zac/Skins/Skin0",
+        "type": "#2 Root Entry (SkinCharacterDataProperties)"
+      },
+      {
+        "id": "SkinMeshProperties",
+        "type": "#3 Embed Block"
+      }
+    ]
+  }
+}

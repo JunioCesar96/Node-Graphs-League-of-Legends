@@ -3,16 +3,36 @@
   "title": "VfxShapeLegacy",
   "parameters": [
     {
-      "id": "vfx-shape-legacy-emit-rotation-axes",
-      "name": "emitRotationAxes",
+      "id": "VfxShapeLegacy_parameter_EmitRotationAxes",
+      "name": "EmitRotationAxes",
       "type": "listVector3",
       "defaultValue": "0, 1, 0"
+    }
+  ],
+  "embed": [
+    {
+      "id": "vfx-shape-legacy-emit-offset",
+      "title": "EmitOffset",
+      "internalStructures": [
+        {
+          "id": "vfx-shape-legacy-emit-offset",
+          "name": "ValueVector3",
+          "schemaId": "value-vector3"
+        }
+      ],
+      "slots": [
+        {
+          "id": "vfx-shape-legacy-emit-offset__slot__0",
+          "name": "ValueVector3",
+          "schemaId": "value-vector3"
+        }
+      ]
     }
   ],
   "listEmbed": [
     {
       "id": "vfx-shape-legacy-emit-rotation-angles",
-      "title": "emitRotationAngles",
+      "title": "EmitRotationAngles",
       "internalStructures": [
         {
           "id": "vfx-shape-legacy-emit-rotation-angles-0",
@@ -22,18 +42,12 @@
       ]
     }
   ],
-  "internalStructures": [
-    {
-      "id": "vfx-shape-legacy-emit-offset",
-      "name": "emitOffset",
-      "schemaId": "value-vector3"
-    }
-  ],
+  "internalStructures": [],
   "nomenclature": {
     "group": "#3 Internal Structures",
     "collection": "#3 Pointer Node",
     "collectionType": "VfxShapeLegacy",
-    "pathHierarchy": "entries > Characters/Zac/Skins/Skin0/Particles/Zac_Base_E_LandSplash > complexEmitterDefinitionData:1 > SpawnShape",
+    "pathHierarchy": "entries > Characters/Zac/Skins/Skin0/Particles/Zac_Base_E_LandSplash > ComplexEmitterDefinitionData:1 > SpawnShape",
     "pathHierarchySteps": [
       {
         "id": "entries",
@@ -44,7 +58,7 @@
         "type": "#2 Root Entry (VfxSystemDefinitionData)"
       },
       {
-        "id": "complexEmitterDefinitionData:1",
+        "id": "ComplexEmitterDefinitionData:1",
         "type": "#3 Collection Block"
       },
       {

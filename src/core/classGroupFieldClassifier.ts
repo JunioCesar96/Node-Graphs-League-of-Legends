@@ -23,6 +23,14 @@ const FIELD_SCALAR_REGEX =
 /** `FresnelColor: rgba = { 20, 77, 26, 255 }` — valor entre chavetas na mesma linha. */
 const FIELD_SCALAR_BRACED_REGEX =
   /^\s*([A-Za-z_]\w*)\s*:\s*([^=\n]*?)=\s*\{([^}]*)\}\s*$/
+const INLINE_EMBED_OPEN_REGEX =
+  /^\s*([A-Za-z_]\w*)\s*:\s*\bembed\s*=\s*([A-Za-z_]\w*)\s*\{\s*$/
+const INLINE_POINTER_OPEN_REGEX =
+  /^\s*([A-Za-z_]\w*)\s*:\s*\bpointer\s*=\s*([A-Za-z_]\w*)\s*\{\s*$/
+const INLINE_LINK_OPEN_REGEX =
+  /^\s*([A-Za-z_]\w*)\s*:\s*\blink\s*=\s*([A-Za-z_]\w*)\s*\{\s*$/
+const INLINE_POINTER_LINK_OPEN_REGEX =
+  /^\s*([A-Za-z_]\w*)\s*:\s*\b(pointer|link)\s*=\s*([A-Za-z_]\w*)\s*\{\s*$/
 const INLINE_CHILD_OPEN_REGEX =
   /^\s*([A-Za-z_]\w*)\s*:\s*\b(embed|pointer|link)\s*=\s*([A-Za-z_]\w*)\s*\{\s*$/
 const LIST_STRUCTURAL_OPEN_REGEX =
@@ -34,9 +42,12 @@ const METADATA_LINE_REGEX = /^\s*(type|version|linked)\s*:/i
 const PRIMITIVE_TYPE_REGEX =
   /\b(u8|u16|u32|u64|s8|s16|s32|s64|f32|f64|bool|string|hash|flag|symbol|keyword|vec[234]|rgb|rgba)\b/i
 
-/** Lista com pointer/embed/link no elemento → filhos são nodes. */
+/** Lista estrutural genérica (ex. `list[link]`) → filhos em Internal_Structures. */
 export function isStructuralListType(listTypeBracket: string): boolean {
   const inner = listTypeBracket.replace(/^list2?\[/i, '').replace(/\]$/, '').trim()
+  if (isEmbedListType(listTypeBracket) || isPointerListType(listTypeBracket)) {
+    return false
+  }
   return /\b(embed|pointer|link)\b/i.test(inner)
 }
 
@@ -44,6 +55,12 @@ export function isStructuralListType(listTypeBracket: string): boolean {
 export function isEmbedListType(listTypeBracket: string): boolean {
   const inner = listTypeBracket.replace(/^list2?\[/i, '').replace(/\]$/, '').trim()
   return /\bembed\b/i.test(inner)
+}
+
+/** `list[pointer]` / `list2[pointer]` → bloco LIST_POINTER no schema. */
+export function isPointerListType(listTypeBracket: string): boolean {
+  const inner = listTypeBracket.replace(/^list2?\[/i, '').replace(/\]$/, '').trim()
+  return /\bpointer\b/i.test(inner)
 }
 
 /** Lista de primitivos (list[f32], list[string]) → parâmetro simples no pai. */
@@ -93,7 +110,7 @@ export function classifyRitualLine(lineRaw: string): ParsedRitualField {
     const m = LIST_STRUCTURAL_OPEN_REGEX.exec(lineRaw)
     if (m?.[1] && m[2]) {
       const listType = m[2]
-      if (isStructuralListType(listType)) {
+      if (isEmbedListType(listType) || isPointerListType(listType) || isStructuralListType(listType)) {
         return {
           kind: 'structural',
           fieldName: m[1],
@@ -110,13 +127,33 @@ export function classifyRitualLine(lineRaw: string): ParsedRitualField {
     }
   }
 
-  const embed = INLINE_CHILD_OPEN_REGEX.exec(lineRaw)
-  if (embed?.[1] && embed[3]) {
+  const embedInline = INLINE_EMBED_OPEN_REGEX.exec(lineRaw)
+  if (embedInline?.[1] && embedInline[2]) {
     return {
       kind: 'structural',
-      fieldName: embed[1],
-      ritType: embed[2],
-      childTypeName: embed[3],
+      fieldName: embedInline[1],
+      ritType: 'embed',
+      childTypeName: embedInline[2],
+    }
+  }
+
+  const pointerInline = INLINE_POINTER_OPEN_REGEX.exec(lineRaw)
+  if (pointerInline?.[1] && pointerInline[2]) {
+    return {
+      kind: 'structural',
+      fieldName: pointerInline[1],
+      ritType: 'pointer',
+      childTypeName: pointerInline[2],
+    }
+  }
+
+  const linkInline = INLINE_LINK_OPEN_REGEX.exec(lineRaw)
+  if (linkInline?.[1] && linkInline[2]) {
+    return {
+      kind: 'structural',
+      fieldName: linkInline[1],
+      ritType: 'link',
+      childTypeName: linkInline[2],
     }
   }
 
@@ -173,6 +210,10 @@ export {
   STRUCT_ONLY_LINE,
   FIELD_SCALAR_REGEX,
   FIELD_SCALAR_BRACED_REGEX,
+  INLINE_EMBED_OPEN_REGEX,
+  INLINE_POINTER_OPEN_REGEX,
+  INLINE_LINK_OPEN_REGEX,
+  INLINE_POINTER_LINK_OPEN_REGEX,
   INLINE_CHILD_OPEN_REGEX,
   LIST_STRUCTURAL_OPEN_REGEX as LIST_EMBED_OPEN_REGEX,
   MAP_ENTRY_HEAD_REGEX,

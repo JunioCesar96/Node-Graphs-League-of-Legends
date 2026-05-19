@@ -8,7 +8,12 @@ import {
   collectSchemaIdsFromListEmbedJson,
   defaultValueForNodeBaseType,
   isKnownStructureParameterType,
+  nodeBaseEmbedId,
   nodeBaseListEmbedId,
+  buildNodeBaseEmbedPayload,
+  isLegacyParameterId,
+  migrateParameterId,
+  migrateParameterIdLoose,
   nodeBaseParameterId,
   readListEmbedBlocksFromSchemaJson,
 } from './extractNodeBaseParameters'
@@ -32,8 +37,60 @@ describe('defaultValueForNodeBaseType', () => {
 })
 
 describe('nodeBaseParameterId', () => {
-  it('preserva capitalização de collectionType e nome', () => {
-    expect(nodeBaseParameterId('Emitter', 'birthScale0')).toBe('Emitter_birthScale0')
+  it('usa o padrão collectionType_parameter_paramName', () => {
+    expect(nodeBaseParameterId('Emitter', 'birthScale0')).toBe('Emitter_parameter_birthScale0')
+  })
+
+  it('não colide com nodeBaseEmbedId para o mesmo nome de campo', () => {
+    const paramId = nodeBaseParameterId('VfxEmitterDefinitionData', 'rate')
+    const embedId = nodeBaseEmbedId('VfxEmitterDefinitionData', 'rate')
+    expect(paramId).toBe('VfxEmitterDefinitionData_parameter_rate')
+    expect(embedId).toBe('VfxEmitterDefinitionData_embed_rate')
+    expect(paramId).not.toBe(embedId)
+  })
+})
+
+describe('migrateParameterId', () => {
+  it('converte legacy CollectionType_name para CollectionType_parameter_name', () => {
+    expect(migrateParameterId('Emitter', 'Emitter_rate', 'rate')).toBe('Emitter_parameter_rate')
+  })
+
+  it('é noop se já tem _parameter_', () => {
+    expect(migrateParameterId('Emitter', 'Emitter_parameter_rate')).toBe('Emitter_parameter_rate')
+  })
+
+  it('migrateParameterIdLoose infere collectionType do prefixo', () => {
+    expect(migrateParameterIdLoose('Emitter_birthScale0')).toBe('Emitter_parameter_birthScale0')
+    expect(migrateParameterIdLoose('Emitter_embed_rate')).toBe('Emitter_embed_rate')
+  })
+})
+
+describe('isLegacyParameterId', () => {
+  it('detecta ids sem marcador estrutural', () => {
+    expect(isLegacyParameterId('Emitter_rate')).toBe(true)
+    expect(isLegacyParameterId('Emitter_parameter_rate')).toBe(false)
+    expect(isLegacyParameterId('Emitter_embed_rate')).toBe(false)
+  })
+})
+
+describe('nodeBaseEmbedId', () => {
+  it('usa o padrão collectionType_embed_title', () => {
+    expect(nodeBaseEmbedId('SkinCharacterDataProperties', 'Loadscreen')).toBe(
+      'SkinCharacterDataProperties_embed_Loadscreen',
+    )
+  })
+})
+
+describe('buildNodeBaseEmbedPayload', () => {
+  it('gera stub com catálogo deduplicado por schemaId', () => {
+    const payload = buildNodeBaseEmbedPayload('SkinCharacterDataProperties', {
+      id: 'skin-character-data-properties-loadscreen',
+      title: 'Loadscreen',
+      internalStructures: [{ schemaId: 'censored-image', name: 'CensoredImage' }],
+    })
+    expect(payload?.id).toBe('SkinCharacterDataProperties_embed_Loadscreen')
+    expect(payload?.title).toBe('Loadscreen')
+    expect(payload?.internalStructures).toHaveLength(1)
   })
 })
 
@@ -79,7 +136,7 @@ describe('buildNodeBaseParameterPayload', () => {
   it('constrói payload com type em minúsculas', () => {
     const p = buildNodeBaseParameterPayload('Emitter', 'rate', 'Float')
     expect(p).toEqual({
-      id: 'Emitter_rate',
+      id: 'Emitter_parameter_rate',
       name: 'rate',
       type: 'float',
       defaultValue: '0',
@@ -101,7 +158,10 @@ describe('buildNodeBaseSchemaBody', () => {
     const body = buildNodeBaseSchemaBody('Emitter', nom)
     expect(body).toEqual({
       internalStructures: [],
+      embed: [],
+      pointer: [],
       listEmbed: [],
+      listPointer: [],
       id: 'Emitter',
       title: 'Emitter',
       nomenclature: { ...nom },

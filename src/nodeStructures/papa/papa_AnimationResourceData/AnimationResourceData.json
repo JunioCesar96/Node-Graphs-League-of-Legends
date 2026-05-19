@@ -3,12 +3,13 @@
   "title": "AnimationResourceData",
   "parameters": [
     {
-      "id": "animation-resource-data-m-animation-file-path",
+      "id": "AnimationResourceData_parameter_mAnimationFilePath",
       "name": "mAnimationFilePath",
       "type": "string",
       "defaultValue": "ASSETS/Characters/Zac/Skins/Base/Animations/Zac_death.anm"
     }
   ],
+  "embed": [],
   "listEmbed": [],
   "internalStructures": [],
   "nomenclature": {

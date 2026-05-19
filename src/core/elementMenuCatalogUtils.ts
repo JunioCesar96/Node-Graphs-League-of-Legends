@@ -21,12 +21,18 @@ export type ElementMenuEntryKind =
   | 'catalog-structure'
   | 'catalog-parameter'
   | 'catalog-list-embed'
+  | 'catalog-embed'
+  | 'catalog-list-pointer'
+  | 'catalog-pointer'
 
 export type ElementMenuPickAction =
   | 'create-element'
   | 'append-structure'
   | 'append-parameter'
   | 'append-list-embed-catalog'
+  | 'append-embed-catalog'
+  | 'append-list-pointer-catalog'
+  | 'append-pointer-catalog'
 
 export type ElementMenuCatalogLabelMode = 'base' | 'path-hierarchy'
 
@@ -46,6 +52,9 @@ export type ElementMenuEntry = {
   parameterType?: string
   onPick: ElementMenuPickAction
   listEmbedId?: string
+  listPointerId?: string
+  embedId?: string
+  pointerId?: string
   structure?: InternalStructureDefinition
   parameter?: NodeParameterDefinition
 }
@@ -59,9 +68,27 @@ export type BuildElementMenuEntriesInput = {
     listEmbedTitle: string
     structure: InternalStructureDefinition
   }[]
+  embedCatalog?: readonly {
+    embedId: string
+    embedTitle: string
+    structure: InternalStructureDefinition
+  }[]
+  pointerCatalog?: readonly {
+    pointerId: string
+    pointerTitle: string
+    structure: InternalStructureDefinition
+  }[]
+  listPointerCatalog?: readonly {
+    listPointerId: string
+    listPointerTitle: string
+    structure: InternalStructureDefinition
+  }[]
   includeCatalogStructures: boolean
   includeCatalogParameters: boolean
   includeListEmbedCatalog?: boolean
+  includeEmbedCatalog?: boolean
+  includeListPointerCatalog?: boolean
+  includePointerCatalog?: boolean
   schemaRegistry?: Record<string, NodeSchemaDefinition>
   catalogScope?: ElementMenuCatalogScope
 }
@@ -172,6 +199,18 @@ function sortTipoForKind(kind: ElementMenuEntryKind): string {
 
   if (kind === 'catalog-list-embed') {
     return 'LIST_EMBED'
+  }
+
+  if (kind === 'catalog-embed') {
+    return 'EMBED'
+  }
+
+  if (kind === 'catalog-pointer') {
+    return 'POINTER'
+  }
+
+  if (kind === 'catalog-list-pointer') {
+    return 'LIST_POINTER'
   }
 
   return 'Parâmetro'
@@ -298,6 +337,97 @@ export function buildElementMenuEntries(input: BuildElementMenuEntriesInput): El
           structure,
         })
       }
+    }
+  }
+
+  if (input.includeEmbedCatalog && input.embedCatalog) {
+    for (const pick of input.embedCatalog) {
+      const schemaId = pick.structure.schemaId.trim()
+      const childSchema = schemaId && registry?.[schemaId]
+      const childLabel = childSchema
+        ? catalogStructureMenuLabel(pick.structure, registry)
+        : pick.structure.name
+      const label = pick.embedTitle
+      const meta = `EMBED · ${childLabel}`
+      const typeTag = identifyElementEntryTypeTag('catalog-embed', {
+        schemaId: pick.structure.schemaId,
+        schemaRegistry: registry,
+      })
+
+      entries.push({
+        id: `embed-catalog:${pick.embedId}:${schemaId}:${pick.structure.id}`,
+        kind: 'catalog-embed',
+        label,
+        meta,
+        searchText: `${label} ${pick.embedTitle} ${childLabel} ${schemaId} EMBED ${typeTag}`.toLowerCase(),
+        sortTipo: sortTipoForKind('catalog-embed'),
+        typeTag,
+        catalogScope: scope,
+        embedId: pick.embedId,
+        onPick: 'append-embed-catalog',
+        structure: pick.structure,
+      })
+    }
+  }
+
+  if (input.includePointerCatalog && input.pointerCatalog) {
+    for (const pick of input.pointerCatalog) {
+      const schemaId = pick.structure.schemaId.trim()
+      const childSchema = schemaId && registry?.[schemaId]
+      const childLabel = childSchema
+        ? catalogStructureMenuLabel(pick.structure, registry)
+        : pick.structure.name
+      const label = pick.pointerTitle
+      const meta = `POINTER · ${childLabel}`
+      const typeTag = identifyElementEntryTypeTag('catalog-pointer', {
+        schemaId: pick.structure.schemaId,
+        schemaRegistry: registry,
+      })
+
+      entries.push({
+        id: `pointer-catalog:${pick.pointerId}:${schemaId}:${pick.structure.id}`,
+        kind: 'catalog-pointer',
+        label,
+        meta,
+        searchText: `${label} ${pick.pointerTitle} ${childLabel} ${schemaId} POINTER ${typeTag}`.toLowerCase(),
+        sortTipo: sortTipoForKind('catalog-pointer'),
+        typeTag,
+        catalogScope: scope,
+        pointerId: pick.pointerId,
+        onPick: 'append-pointer-catalog',
+        structure: pick.structure,
+      })
+    }
+  }
+
+  if (input.includeListPointerCatalog && input.listPointerCatalog) {
+    for (const pick of input.listPointerCatalog) {
+      const schemaId = pick.structure.schemaId.trim()
+      const childSchema = schemaId && registry?.[schemaId]
+      const childLabel = childSchema
+        ? catalogStructureMenuLabel(pick.structure, registry)
+        : pick.structure.name
+      const label = pick.listPointerTitle
+      const meta = `LIST_POINTER · ${childLabel}`
+      const typeTag = identifyElementEntryTypeTag('catalog-list-pointer', {
+        schemaId: pick.structure.schemaId,
+        schemaRegistry: registry,
+      })
+
+      entries.push({
+        id: `list-pointer-catalog:${pick.listPointerId}:${schemaId}:${pick.structure.id}`,
+        kind: 'catalog-list-pointer',
+        label,
+        meta,
+        searchText:
+          `${label} ${pick.listPointerTitle} ${childLabel} ${schemaId} LIST_POINTER ${typeTag}`.toLowerCase(),
+        sortTipo: sortTipoForKind('catalog-list-pointer'),
+        typeTag,
+        catalogScope: scope,
+        listPointerId: pick.listPointerId,
+        onPick: 'append-list-pointer-catalog',
+        structure: pick.structure,
+      })
     }
   }
 

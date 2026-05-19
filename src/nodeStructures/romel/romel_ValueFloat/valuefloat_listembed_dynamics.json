@@ -1,0 +1,11 @@
+{
+  "id": "ValueFloat_listEmbed_Dynamics",
+  "title": "Dynamics",
+  "internalStructures": [
+    {
+      "id": "ValueFloat_listEmbed_Dynamics-catalog-0",
+      "name": "VfxAnimatedFloatVariableData",
+      "schemaId": "vfx-animated-float-variable-data"
+    }
+  ]
+}

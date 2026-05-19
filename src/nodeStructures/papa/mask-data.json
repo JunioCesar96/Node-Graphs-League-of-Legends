@@ -3,18 +3,19 @@
   "title": "MaskData",
   "parameters": [
     {
-      "id": "mask-data-mid",
-      "name": "Mid",
+      "id": "MaskData_parameter_mId",
+      "name": "mId",
       "type": "u32",
       "defaultValue": "1"
     },
     {
-      "id": "mask-data-m-weight-list",
+      "id": "MaskData_parameter_mWeightList",
       "name": "mWeightList",
       "type": "listF32",
       "defaultValue": "1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1\n1"
     }
   ],
+  "embed": [],
   "listEmbed": [],
   "internalStructures": [],
   "nomenclature": {

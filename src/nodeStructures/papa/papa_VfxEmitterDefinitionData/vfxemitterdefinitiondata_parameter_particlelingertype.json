@@ -1,0 +1,6 @@
+{
+  "id": "VfxEmitterDefinitionData_parameter_ParticleLingerType",
+  "name": "ParticleLingerType",
+  "type": "u8",
+  "defaultValue": "1"
+}

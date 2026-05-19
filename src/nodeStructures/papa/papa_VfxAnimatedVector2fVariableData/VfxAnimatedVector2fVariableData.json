@@ -3,28 +3,29 @@
   "title": "VfxAnimatedVector2fVariableData",
   "parameters": [
     {
-      "id": "vfx-animated-vector2f-variable-data-times",
-      "name": "times",
+      "id": "VfxAnimatedVector2fVariableData_parameter_Times",
+      "name": "Times",
       "type": "listF32",
       "defaultValue": "0"
     },
     {
-      "id": "vfx-animated-vector2f-variable-data-values",
-      "name": "values",
+      "id": "VfxAnimatedVector2fVariableData_parameter_Values",
+      "name": "Values",
       "type": "listVector2",
       "defaultValue": "1, 1"
     }
   ],
+  "embed": [],
   "listEmbed": [],
   "internalStructures": [
     {
       "id": "vfx-animated-vector2f-variable-data-probability-tables-0",
-      "name": "probabilityTables",
+      "name": "ProbabilityTables",
       "schemaId": "vfx-probability-table-data"
     },
     {
       "id": "vfx-animated-vector2f-variable-data-probability-tables-1",
-      "name": "probabilityTables:1",
+      "name": "ProbabilityTables:1",
       "schemaId": "vfx-probability-table-data"
     }
   ],
@@ -32,7 +33,7 @@
     "group": "#3 Internal Structures",
     "collection": "#3 Pointer Node",
     "collectionType": "VfxAnimatedVector2fVariableData",
-    "pathHierarchy": "entries > Characters/Zac/Skins/Skin0/Particles/Zac_Base_Q_tar > complexEmitterDefinitionData:2 > birthUVOffset > dynamics",
+    "pathHierarchy": "entries > Characters/Zac/Skins/Skin0/Particles/Zac_Base_Q_tar > ComplexEmitterDefinitionData:2 > BirthUvoffset > Dynamics",
     "pathHierarchySteps": [
       {
         "id": "entries",
@@ -43,15 +44,15 @@
         "type": "#2 Root Entry (VfxSystemDefinitionData)"
       },
       {
-        "id": "complexEmitterDefinitionData:2",
+        "id": "ComplexEmitterDefinitionData:2",
         "type": "#3 Collection Block"
       },
       {
-        "id": "birthUVOffset",
+        "id": "BirthUvoffset",
         "type": "#3 Embed Block"
       },
       {
-        "id": "dynamics",
+        "id": "Dynamics",
         "type": "#3 Pointer Node"
       }
     ]

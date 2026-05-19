@@ -1,0 +1,11 @@
+{
+  "id": "VfxPrimitiveBeam_listEmbed_mMesh",
+  "title": "mMesh",
+  "internalStructures": [
+    {
+      "id": "VfxPrimitiveBeam_listEmbed_mMesh-catalog-0",
+      "name": "VfxMeshDefinitionData",
+      "schemaId": "vfx-mesh-definition-data"
+    }
+  ]
+}

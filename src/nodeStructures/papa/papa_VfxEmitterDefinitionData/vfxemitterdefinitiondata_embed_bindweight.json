@@ -1,0 +1,11 @@
+{
+  "id": "VfxEmitterDefinitionData_embed_BindWeight",
+  "title": "BindWeight",
+  "internalStructures": [
+    {
+      "id": "VfxEmitterDefinitionData_embed_BindWeight-catalog-0",
+      "name": "ValueFloat",
+      "schemaId": "value-float"
+    }
+  ]
+}

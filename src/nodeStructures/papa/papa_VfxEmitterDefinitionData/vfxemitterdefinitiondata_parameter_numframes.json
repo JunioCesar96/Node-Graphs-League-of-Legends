@@ -1,0 +1,6 @@
+{
+  "id": "VfxEmitterDefinitionData_parameter_NumFrames",
+  "name": "NumFrames",
+  "type": "u16",
+  "defaultValue": "16"
+}

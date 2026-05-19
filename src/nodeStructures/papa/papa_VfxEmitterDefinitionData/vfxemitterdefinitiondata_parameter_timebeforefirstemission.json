@@ -1,0 +1,6 @@
+{
+  "id": "VfxEmitterDefinitionData_parameter_TimeBeforeFirstEmission",
+  "name": "TimeBeforeFirstEmission",
+  "type": "f32",
+  "defaultValue": "0.200000003"
+}

@@ -2,34 +2,87 @@
   "id": "vfx-emitter-legacy-simple",
   "title": "VfxEmitterLegacySimple",
   "parameters": [],
-  "listEmbed": [],
-  "internalStructures": [
+  "embed": [
     {
       "id": "vfx-emitter-legacy-simple-birth-scale",
-      "name": "birthScale",
-      "schemaId": "value-float"
+      "title": "BirthScale",
+      "internalStructures": [
+        {
+          "id": "vfx-emitter-legacy-simple-birth-scale",
+          "name": "ValueFloat",
+          "schemaId": "value-float"
+        }
+      ],
+      "slots": [
+        {
+          "id": "vfx-emitter-legacy-simple-birth-scale__slot__0",
+          "name": "ValueFloat",
+          "schemaId": "value-float"
+        }
+      ]
     },
     {
       "id": "vfx-emitter-legacy-simple-scale",
-      "name": "Scale",
-      "schemaId": "value-float"
+      "title": "Scale",
+      "internalStructures": [
+        {
+          "id": "vfx-emitter-legacy-simple-scale",
+          "name": "ValueFloat",
+          "schemaId": "value-float"
+        }
+      ],
+      "slots": [
+        {
+          "id": "vfx-emitter-legacy-simple-scale__slot__0",
+          "name": "ValueFloat",
+          "schemaId": "value-float"
+        }
+      ]
     },
     {
       "id": "vfx-emitter-legacy-simple-birth-rotation",
-      "name": "birthRotation",
-      "schemaId": "value-float"
+      "title": "BirthRotation",
+      "internalStructures": [
+        {
+          "id": "vfx-emitter-legacy-simple-birth-rotation",
+          "name": "ValueFloat",
+          "schemaId": "value-float"
+        }
+      ],
+      "slots": [
+        {
+          "id": "vfx-emitter-legacy-simple-birth-rotation__slot__0",
+          "name": "ValueFloat",
+          "schemaId": "value-float"
+        }
+      ]
     },
     {
       "id": "vfx-emitter-legacy-simple-birth-rotational-velocity",
-      "name": "birthRotationalVelocity",
-      "schemaId": "value-float"
+      "title": "BirthRotationalVelocity",
+      "internalStructures": [
+        {
+          "id": "vfx-emitter-legacy-simple-birth-rotational-velocity",
+          "name": "ValueFloat",
+          "schemaId": "value-float"
+        }
+      ],
+      "slots": [
+        {
+          "id": "vfx-emitter-legacy-simple-birth-rotational-velocity__slot__0",
+          "name": "ValueFloat",
+          "schemaId": "value-float"
+        }
+      ]
     }
   ],
+  "listEmbed": [],
+  "internalStructures": [],
   "nomenclature": {
     "group": "#3 Internal Structures",
     "collection": "#3 Pointer Node",
     "collectionType": "VfxEmitterLegacySimple",
-    "pathHierarchy": "entries > Characters/Zac/Skins/Skin0/Particles/Zac_Base_W_cas > simpleEmitterDefinitionData:0 > LegacySimple",
+    "pathHierarchy": "entries > Characters/Zac/Skins/Skin0/Particles/Zac_Base_W_cas > SimpleEmitterDefinitionData:0 > LegacySimple",
     "pathHierarchySteps": [
       {
         "id": "entries",
@@ -40,7 +93,7 @@
         "type": "#2 Root Entry (VfxSystemDefinitionData)"
       },
       {
-        "id": "simpleEmitterDefinitionData:0",
+        "id": "SimpleEmitterDefinitionData:0",
         "type": "#3 Collection Block"
       },
       {

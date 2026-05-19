@@ -1,0 +1,65 @@
+{
+  "id": "submesh-visibility-event-data",
+  "title": "SubmeshVisibilityEventData",
+  "parameters": [
+    {
+      "id": "SubmeshVisibilityEventData_parameter_mEndFrame",
+      "name": "mEndFrame",
+      "type": "f32",
+      "defaultValue": "13"
+    },
+    {
+      "id": "SubmeshVisibilityEventData_parameter_mHideSubmeshList",
+      "name": "mHideSubmeshList",
+      "type": "listHash",
+      "defaultValue": "0x194d360c"
+    },
+    {
+      "id": "SubmeshVisibilityEventData_parameter_mName",
+      "name": "mName",
+      "type": "integer",
+      "defaultValue": "0x831fa58e"
+    },
+    {
+      "id": "SubmeshVisibilityEventData_parameter_mShowSubmeshList",
+      "name": "mShowSubmeshList",
+      "type": "listHash",
+      "defaultValue": "Tail"
+    },
+    {
+      "id": "SubmeshVisibilityEventData_parameter_mStartFrame",
+      "name": "mStartFrame",
+      "type": "f32",
+      "defaultValue": "6"
+    }
+  ],
+  "embed": [],
+  "pointer": [],
+  "listEmbed": [],
+  "listPointer": [],
+  "internalStructures": [],
+  "nomenclature": {
+    "group": "#3 Internal Structures",
+    "collection": "#3 Collection Block",
+    "collectionType": "SubmeshVisibilityEventData",
+    "pathHierarchy": "entries > Characters/Zac/Animations/Skin0 > Spell3_Flying > 0x831fa58e",
+    "pathHierarchySteps": [
+      {
+        "id": "entries",
+        "type": "#1 Root Entry"
+      },
+      {
+        "id": "Characters/Zac/Animations/Skin0",
+        "type": "#2 Root Entry (AnimationGraphData)"
+      },
+      {
+        "id": "Spell3_Flying",
+        "type": "#3 Collection Block"
+      },
+      {
+        "id": "0x831fa58e",
+        "type": "#3 Collection Block"
+      }
+    ]
+  }
+}

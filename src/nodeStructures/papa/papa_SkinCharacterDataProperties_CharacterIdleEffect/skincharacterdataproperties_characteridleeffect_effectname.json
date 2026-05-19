@@ -1,6 +1,0 @@
-{
-  "id": "SkinCharacterDataProperties_CharacterIdleEffect_effectName",
-  "name": "effectName",
-  "type": "string",
-  "defaultValue": ""
-}

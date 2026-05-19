@@ -3,36 +3,37 @@
   "title": "SubmeshVisibilityEventData",
   "parameters": [
     {
-      "id": "submesh-visibility-event-data-m-end-frame",
+      "id": "SubmeshVisibilityEventData_parameter_mEndFrame",
       "name": "mEndFrame",
       "type": "f32",
       "defaultValue": "13"
     },
     {
-      "id": "submesh-visibility-event-data-m-hide-submesh-list",
+      "id": "SubmeshVisibilityEventData_parameter_mHideSubmeshList",
       "name": "mHideSubmeshList",
       "type": "listHash",
-      "defaultValue": "Legs"
+      "defaultValue": "0x194d360c"
     },
     {
-      "id": "submesh-visibility-event-data-m-name",
+      "id": "SubmeshVisibilityEventData_parameter_mName",
       "name": "mName",
       "type": "integer",
       "defaultValue": "0x831fa58e"
     },
     {
-      "id": "submesh-visibility-event-data-m-show-submesh-list",
+      "id": "SubmeshVisibilityEventData_parameter_mShowSubmeshList",
       "name": "mShowSubmeshList",
       "type": "listHash",
       "defaultValue": "Tail"
     },
     {
-      "id": "submesh-visibility-event-data-m-start-frame",
+      "id": "SubmeshVisibilityEventData_parameter_mStartFrame",
       "name": "mStartFrame",
       "type": "f32",
       "defaultValue": "6"
     }
   ],
+  "embed": [],
   "listEmbed": [],
   "internalStructures": [],
   "nomenclature": {

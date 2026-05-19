@@ -3,16 +3,17 @@
   "title": "SkinAudioProperties",
   "parameters": [
     {
-      "id": "skin-audio-properties-tag-event-list",
-      "name": "tagEventList",
+      "id": "SkinAudioProperties_parameter_TagEventList",
+      "name": "TagEventList",
       "type": "listString",
       "defaultValue": "Zac"
     }
   ],
+  "embed": [],
   "listEmbed": [
     {
       "id": "skin-audio-properties-bank-units",
-      "title": "bankUnits",
+      "title": "BankUnits",
       "internalStructures": [
         {
           "id": "skin-audio-properties-bank-units-0",

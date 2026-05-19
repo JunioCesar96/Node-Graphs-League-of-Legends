@@ -1,6 +1,0 @@
-{
-  "id": "SkinMeshDataProperties_fresnelColor",
-  "name": "fresnelColor",
-  "type": "rgba",
-  "defaultValue": "1, 1, 1, 1"
-}

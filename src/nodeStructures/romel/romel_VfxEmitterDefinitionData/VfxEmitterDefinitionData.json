@@ -1,0 +1,756 @@
+{
+  "id": "vfx-emitter-definition-data",
+  "title": "VfxEmitterDefinitionData",
+  "parameters": [
+    {
+      "id": "VfxEmitterDefinitionData_parameter_AlphaRef",
+      "name": "AlphaRef",
+      "type": "u8",
+      "defaultValue": "10"
+    },
+    {
+      "id": "VfxEmitterDefinitionData_parameter_BlendMode",
+      "name": "BlendMode",
+      "type": "u8",
+      "defaultValue": "1"
+    },
+    {
+      "id": "VfxEmitterDefinitionData_parameter_CensorModulateValue",
+      "name": "CensorModulateValue",
+      "type": "vector4",
+      "defaultValue": "0, 0, 0, 1"
+    },
+    {
+      "id": "VfxEmitterDefinitionData_parameter_ColorLookUpTypeX",
+      "name": "ColorLookUpTypeX",
+      "type": "u8",
+      "defaultValue": "3"
+    },
+    {
+      "id": "VfxEmitterDefinitionData_parameter_ColorLookUpTypeY",
+      "name": "ColorLookUpTypeY",
+      "type": "u8",
+      "defaultValue": "3"
+    },
+    {
+      "id": "VfxEmitterDefinitionData_parameter_DirectionVelocityScale",
+      "name": "DirectionVelocityScale",
+      "type": "f32",
+      "defaultValue": "0.00400000019"
+    },
+    {
+      "id": "VfxEmitterDefinitionData_parameter_DisableBackfaceCull",
+      "name": "DisableBackfaceCull",
+      "type": "bool",
+      "defaultValue": "true"
+    },
+    {
+      "id": "VfxEmitterDefinitionData_parameter_EmitOffset",
+      "name": "EmitOffset",
+      "type": "vector3",
+      "defaultValue": "0, -20, 0"
+    },
+    {
+      "id": "VfxEmitterDefinitionData_parameter_EmitterName",
+      "name": "EmitterName",
+      "type": "string",
+      "defaultValue": "Ring"
+    },
+    {
+      "id": "VfxEmitterDefinitionData_parameter_Importance",
+      "name": "Importance",
+      "type": "u8",
+      "defaultValue": "1"
+    },
+    {
+      "id": "VfxEmitterDefinitionData_parameter_IsDirectionOriented",
+      "name": "IsDirectionOriented",
+      "type": "bool",
+      "defaultValue": "true"
+    },
+    {
+      "id": "VfxEmitterDefinitionData_parameter_IsGroundLayer",
+      "name": "IsGroundLayer",
+      "type": "bool",
+      "defaultValue": "true"
+    },
+    {
+      "id": "VfxEmitterDefinitionData_parameter_IsLocalOrientation",
+      "name": "IsLocalOrientation",
+      "type": "bool",
+      "defaultValue": "false"
+    },
+    {
+      "id": "VfxEmitterDefinitionData_parameter_IsRandomStartFrame",
+      "name": "IsRandomStartFrame",
+      "type": "bool",
+      "defaultValue": "true"
+    },
+    {
+      "id": "VfxEmitterDefinitionData_parameter_IsSingleParticle",
+      "name": "IsSingleParticle",
+      "type": "bool",
+      "defaultValue": "true"
+    },
+    {
+      "id": "VfxEmitterDefinitionData_parameter_IsUniformScale",
+      "name": "IsUniformScale",
+      "type": "bool",
+      "defaultValue": "true"
+    },
+    {
+      "id": "VfxEmitterDefinitionData_parameter_MeshRenderFlags",
+      "name": "MeshRenderFlags",
+      "type": "u8",
+      "defaultValue": "0"
+    },
+    {
+      "id": "VfxEmitterDefinitionData_parameter_MiscRenderFlags",
+      "name": "MiscRenderFlags",
+      "type": "u8",
+      "defaultValue": "1"
+    },
+    {
+      "id": "VfxEmitterDefinitionData_parameter_NumFrames",
+      "name": "NumFrames",
+      "type": "u16",
+      "defaultValue": "16"
+    },
+    {
+      "id": "VfxEmitterDefinitionData_parameter_ParticleColorTexture",
+      "name": "ParticleColorTexture",
+      "type": "string",
+      "defaultValue": "ASSETS/Characters/Zac/Skins/Base/Particles/Zac_Goo_RGB.tex"
+    },
+    {
+      "id": "VfxEmitterDefinitionData_parameter_ParticleIsLocalOrientation",
+      "name": "ParticleIsLocalOrientation",
+      "type": "bool",
+      "defaultValue": "true"
+    },
+    {
+      "id": "VfxEmitterDefinitionData_parameter_ParticleLingerType",
+      "name": "ParticleLingerType",
+      "type": "u8",
+      "defaultValue": "1"
+    },
+    {
+      "id": "VfxEmitterDefinitionData_parameter_TexAddressModeBase",
+      "name": "TexAddressModeBase",
+      "type": "u8",
+      "defaultValue": "2"
+    },
+    {
+      "id": "VfxEmitterDefinitionData_parameter_TexDiv",
+      "name": "TexDiv",
+      "type": "vector2",
+      "defaultValue": "2, 2"
+    },
+    {
+      "id": "VfxEmitterDefinitionData_parameter_Texture",
+      "name": "Texture",
+      "type": "string",
+      "defaultValue": "ASSETS/Characters/Zac/Skins/Base/Particles/Zac_Goo_E.tex"
+    },
+    {
+      "id": "VfxEmitterDefinitionData_parameter_TimeBeforeFirstEmission",
+      "name": "TimeBeforeFirstEmission",
+      "type": "f32",
+      "defaultValue": "0.200000003"
+    },
+    {
+      "id": "VfxEmitterDefinitionData_parameter_UseNavmeshMask",
+      "name": "UseNavmeshMask",
+      "type": "bool",
+      "defaultValue": "true"
+    },
+    {
+      "id": "VfxEmitterDefinitionData_parameter_UvMode",
+      "name": "UvMode",
+      "type": "u8",
+      "defaultValue": "1"
+    }
+  ],
+  "embed": [
+    {
+      "id": "VfxEmitterDefinitionData_embed_Rate",
+      "title": "Rate",
+      "internalStructures": [
+        {
+          "id": "vfx-emitter-definition-data-rate",
+          "name": "ValueFloat",
+          "schemaId": "value-float"
+        }
+      ],
+      "slots": [
+        {
+          "id": "VfxEmitterDefinitionData_embed_Rate__slot__0",
+          "name": "ValueFloat",
+          "schemaId": "value-float"
+        }
+      ]
+    },
+    {
+      "id": "VfxEmitterDefinitionData_embed_ParticleLifetime",
+      "title": "ParticleLifetime",
+      "internalStructures": [
+        {
+          "id": "vfx-emitter-definition-data-particle-lifetime",
+          "name": "ValueFloat",
+          "schemaId": "value-float"
+        }
+      ],
+      "slots": [
+        {
+          "id": "VfxEmitterDefinitionData_embed_ParticleLifetime__slot__0",
+          "name": "ValueFloat",
+          "schemaId": "value-float"
+        }
+      ]
+    },
+    {
+      "id": "VfxEmitterDefinitionData_embed_BirthVelocity",
+      "title": "BirthVelocity",
+      "internalStructures": [
+        {
+          "id": "vfx-emitter-definition-data-birth-velocity",
+          "name": "ValueVector3",
+          "schemaId": "value-vector3"
+        }
+      ],
+      "slots": [
+        {
+          "id": "VfxEmitterDefinitionData_embed_BirthVelocity__slot__0",
+          "name": "ValueVector3",
+          "schemaId": "value-vector3"
+        }
+      ]
+    },
+    {
+      "id": "VfxEmitterDefinitionData_embed_EmitterPosition",
+      "title": "EmitterPosition",
+      "internalStructures": [
+        {
+          "id": "vfx-emitter-definition-data-emitter-position",
+          "name": "ValueVector3",
+          "schemaId": "value-vector3"
+        }
+      ],
+      "slots": [
+        {
+          "id": "VfxEmitterDefinitionData_embed_EmitterPosition__slot__0",
+          "name": "ValueVector3",
+          "schemaId": "value-vector3"
+        }
+      ]
+    },
+    {
+      "id": "VfxEmitterDefinitionData_embed_Color",
+      "title": "Color",
+      "internalStructures": [
+        {
+          "id": "vfx-emitter-definition-data-color",
+          "name": "ValueColor",
+          "schemaId": "value-color"
+        }
+      ],
+      "slots": [
+        {
+          "id": "VfxEmitterDefinitionData_embed_Color__slot__0",
+          "name": "ValueColor",
+          "schemaId": "value-color"
+        }
+      ]
+    },
+    {
+      "id": "VfxEmitterDefinitionData_embed_BirthRotation0",
+      "title": "BirthRotation0",
+      "internalStructures": [
+        {
+          "id": "vfx-emitter-definition-data-birth-rotation0",
+          "name": "ValueVector3",
+          "schemaId": "value-vector3"
+        }
+      ],
+      "slots": [
+        {
+          "id": "VfxEmitterDefinitionData_embed_BirthRotation0__slot__0",
+          "name": "ValueVector3",
+          "schemaId": "value-vector3"
+        }
+      ]
+    },
+    {
+      "id": "VfxEmitterDefinitionData_embed_BirthScale0",
+      "title": "BirthScale0",
+      "internalStructures": [
+        {
+          "id": "vfx-emitter-definition-data-birth-scale0",
+          "name": "ValueVector3",
+          "schemaId": "value-vector3"
+        }
+      ],
+      "slots": [
+        {
+          "id": "VfxEmitterDefinitionData_embed_BirthScale0__slot__0",
+          "name": "ValueVector3",
+          "schemaId": "value-vector3"
+        }
+      ]
+    },
+    {
+      "id": "VfxEmitterDefinitionData_embed_BirthUvScrollRate",
+      "title": "BirthUvScrollRate",
+      "internalStructures": [
+        {
+          "id": "vfx-emitter-definition-data-birth-uv-scroll-rate",
+          "name": "ValueVector2",
+          "schemaId": "value-vector2"
+        }
+      ],
+      "slots": [
+        {
+          "id": "VfxEmitterDefinitionData_embed_BirthUvScrollRate__slot__0",
+          "name": "ValueVector2",
+          "schemaId": "value-vector2"
+        }
+      ]
+    },
+    {
+      "id": "VfxEmitterDefinitionData_embed_BirthUvoffset",
+      "title": "BirthUvoffset",
+      "internalStructures": [
+        {
+          "id": "vfx-emitter-definition-data-birth-uvoffset",
+          "name": "ValueVector2",
+          "schemaId": "value-vector2"
+        }
+      ],
+      "slots": [
+        {
+          "id": "VfxEmitterDefinitionData_embed_BirthUvoffset__slot__0",
+          "name": "ValueVector2",
+          "schemaId": "value-vector2"
+        }
+      ]
+    },
+    {
+      "id": "VfxEmitterDefinitionData_embed_Scale0",
+      "title": "Scale0",
+      "internalStructures": [
+        {
+          "id": "vfx-emitter-definition-data-scale0",
+          "name": "ValueVector3",
+          "schemaId": "value-vector3"
+        }
+      ],
+      "slots": [
+        {
+          "id": "VfxEmitterDefinitionData_embed_Scale0__slot__0",
+          "name": "ValueVector3",
+          "schemaId": "value-vector3"
+        }
+      ]
+    },
+    {
+      "id": "VfxEmitterDefinitionData_embed_BirthDrag",
+      "title": "BirthDrag",
+      "internalStructures": [
+        {
+          "id": "vfx-emitter-definition-data-birth-drag",
+          "name": "ValueVector3",
+          "schemaId": "value-vector3"
+        }
+      ],
+      "slots": [
+        {
+          "id": "VfxEmitterDefinitionData_embed_BirthDrag__slot__0",
+          "name": "ValueVector3",
+          "schemaId": "value-vector3"
+        }
+      ]
+    },
+    {
+      "id": "VfxEmitterDefinitionData_embed_WorldAcceleration",
+      "title": "WorldAcceleration",
+      "internalStructures": [
+        {
+          "id": "vfx-emitter-definition-data-world-acceleration",
+          "name": "IntegratedValueVector3",
+          "schemaId": "integrated-value-vector3"
+        }
+      ],
+      "slots": [
+        {
+          "id": "VfxEmitterDefinitionData_embed_WorldAcceleration__slot__0",
+          "name": "IntegratedValueVector3",
+          "schemaId": "integrated-value-vector3"
+        }
+      ]
+    },
+    {
+      "id": "VfxEmitterDefinitionData_embed_BirthRotationalVelocity0",
+      "title": "BirthRotationalVelocity0",
+      "internalStructures": [
+        {
+          "id": "vfx-emitter-definition-data-birth-rotational-velocity0",
+          "name": "ValueVector3",
+          "schemaId": "value-vector3"
+        }
+      ],
+      "slots": [
+        {
+          "id": "VfxEmitterDefinitionData_embed_BirthRotationalVelocity0__slot__0",
+          "name": "ValueVector3",
+          "schemaId": "value-vector3"
+        }
+      ]
+    },
+    {
+      "id": "VfxEmitterDefinitionData_embed_BindWeight",
+      "title": "BindWeight",
+      "internalStructures": [
+        {
+          "id": "vfx-emitter-definition-data-bind-weight",
+          "name": "ValueFloat",
+          "schemaId": "value-float"
+        }
+      ],
+      "slots": [
+        {
+          "id": "VfxEmitterDefinitionData_embed_BindWeight__slot__0",
+          "name": "ValueFloat",
+          "schemaId": "value-float"
+        }
+      ]
+    },
+    {
+      "id": "VfxEmitterDefinitionData_embed_BirthColor",
+      "title": "BirthColor",
+      "internalStructures": [
+        {
+          "id": "vfx-emitter-definition-data-birth-color",
+          "name": "ValueColor",
+          "schemaId": "value-color"
+        }
+      ],
+      "slots": [
+        {
+          "id": "VfxEmitterDefinitionData_embed_BirthColor__slot__0",
+          "name": "ValueColor",
+          "schemaId": "value-color"
+        }
+      ]
+    },
+    {
+      "id": "VfxEmitterDefinitionData_embed_ParticleUvScrollRate",
+      "title": "ParticleUvScrollRate",
+      "internalStructures": [
+        {
+          "id": "vfx-emitter-definition-data-particle-uv-scroll-rate",
+          "name": "IntegratedValueVector2",
+          "schemaId": "integrated-value-vector2"
+        }
+      ],
+      "slots": [
+        {
+          "id": "VfxEmitterDefinitionData_embed_ParticleUvScrollRate__slot__0",
+          "name": "IntegratedValueVector2",
+          "schemaId": "integrated-value-vector2"
+        }
+      ]
+    },
+    {
+      "id": "VfxEmitterDefinitionData_embed_UvScale",
+      "title": "UvScale",
+      "internalStructures": [
+        {
+          "id": "vfx-emitter-definition-data-uv-scale",
+          "name": "ValueVector2",
+          "schemaId": "value-vector2"
+        }
+      ],
+      "slots": [
+        {
+          "id": "VfxEmitterDefinitionData_embed_UvScale__slot__0",
+          "name": "ValueVector2",
+          "schemaId": "value-vector2"
+        }
+      ]
+    },
+    {
+      "id": "VfxEmitterDefinitionData_embed_BirthAcceleration",
+      "title": "BirthAcceleration",
+      "internalStructures": [
+        {
+          "id": "vfx-emitter-definition-data-birth-acceleration",
+          "name": "ValueVector3",
+          "schemaId": "value-vector3"
+        }
+      ],
+      "slots": [
+        {
+          "id": "VfxEmitterDefinitionData_embed_BirthAcceleration__slot__0",
+          "name": "ValueVector3",
+          "schemaId": "value-vector3"
+        }
+      ]
+    },
+    {
+      "id": "VfxEmitterDefinitionData_embed_BirthOrbitalVelocity",
+      "title": "BirthOrbitalVelocity",
+      "internalStructures": [
+        {
+          "id": "vfx-emitter-definition-data-birth-orbital-velocity",
+          "name": "ValueVector3",
+          "schemaId": "value-vector3"
+        }
+      ],
+      "slots": [
+        {
+          "id": "VfxEmitterDefinitionData_embed_BirthOrbitalVelocity__slot__0",
+          "name": "ValueVector3",
+          "schemaId": "value-vector3"
+        }
+      ]
+    }
+  ],
+  "pointer": [
+    {
+      "id": "VfxEmitterDefinitionData_pointer_FlexShapeDefinition",
+      "title": "FlexShapeDefinition",
+      "internalStructures": [
+        {
+          "id": "vfx-emitter-definition-data-flex-shape-definition",
+          "name": "VfxFlexShapeDefinitionData",
+          "schemaId": "vfx-flex-shape-definition-data"
+        }
+      ],
+      "slots": [
+        {
+          "id": "VfxEmitterDefinitionData_pointer_FlexShapeDefinition__slot__0",
+          "name": "VfxFlexShapeDefinitionData",
+          "schemaId": "vfx-flex-shape-definition-data"
+        }
+      ]
+    },
+    {
+      "id": "VfxEmitterDefinitionData_pointer_Primitive",
+      "title": "Primitive",
+      "internalStructures": [
+        {
+          "id": "vfx-emitter-definition-data-primitive",
+          "name": "VfxPrimitiveMesh",
+          "schemaId": "vfx-primitive-mesh"
+        },
+        {
+          "id": "vfx-emitter-definition-data-primitive",
+          "name": "VfxPrimitiveBeam",
+          "schemaId": "vfx-primitive-beam"
+        },
+        {
+          "id": "vfx-emitter-definition-data-primitive",
+          "name": "VfxPrimitivePlanarProjection",
+          "schemaId": "vfx-primitive-planar-projection"
+        }
+      ],
+      "slots": [
+        {
+          "id": "VfxEmitterDefinitionData_pointer_Primitive__slot__0",
+          "name": "VfxPrimitiveMesh",
+          "schemaId": "vfx-primitive-mesh"
+        }
+      ]
+    },
+    {
+      "id": "VfxEmitterDefinitionData_pointer_ReflectionDefinition",
+      "title": "ReflectionDefinition",
+      "internalStructures": [
+        {
+          "id": "vfx-emitter-definition-data-reflection-definition",
+          "name": "VfxReflectionDefinitionData",
+          "schemaId": "vfx-reflection-definition-data"
+        }
+      ],
+      "slots": [
+        {
+          "id": "VfxEmitterDefinitionData_pointer_ReflectionDefinition__slot__0",
+          "name": "VfxReflectionDefinitionData",
+          "schemaId": "vfx-reflection-definition-data"
+        }
+      ]
+    },
+    {
+      "id": "VfxEmitterDefinitionData_pointer_Audio",
+      "title": "Audio",
+      "internalStructures": [
+        {
+          "id": "vfx-emitter-definition-data-audio",
+          "name": "VfxEmitterAudio",
+          "schemaId": "vfx-emitter-audio"
+        }
+      ],
+      "slots": [
+        {
+          "id": "VfxEmitterDefinitionData_pointer_Audio__slot__0",
+          "name": "VfxEmitterAudio",
+          "schemaId": "vfx-emitter-audio"
+        }
+      ]
+    },
+    {
+      "id": "VfxEmitterDefinitionData_pointer_LegacySimple",
+      "title": "LegacySimple",
+      "internalStructures": [
+        {
+          "id": "vfx-emitter-definition-data-legacy-simple",
+          "name": "VfxEmitterLegacySimple",
+          "schemaId": "vfx-emitter-legacy-simple"
+        }
+      ],
+      "slots": [
+        {
+          "id": "VfxEmitterDefinitionData_pointer_LegacySimple__slot__0",
+          "name": "VfxEmitterLegacySimple",
+          "schemaId": "vfx-emitter-legacy-simple"
+        }
+      ]
+    },
+    {
+      "id": "VfxEmitterDefinitionData_pointer_SpawnShape",
+      "title": "SpawnShape",
+      "internalStructures": [
+        {
+          "id": "vfx-emitter-definition-data-spawn-shape",
+          "name": "VfxShapeLegacy",
+          "schemaId": "vfx-shape-legacy"
+        },
+        {
+          "id": "vfx-emitter-definition-data-spawn-shape",
+          "name": "VfxShapeCylinder",
+          "schemaId": "vfx-shape-cylinder"
+        }
+      ],
+      "slots": [
+        {
+          "id": "VfxEmitterDefinitionData_pointer_SpawnShape__slot__0",
+          "name": "VfxShapeLegacy",
+          "schemaId": "vfx-shape-legacy"
+        }
+      ]
+    },
+    {
+      "id": "VfxEmitterDefinitionData_pointer_Filtering",
+      "title": "Filtering",
+      "internalStructures": [
+        {
+          "id": "vfx-emitter-definition-data-filtering",
+          "name": "VfxEmitterFiltering",
+          "schemaId": "vfx-emitter-filtering"
+        }
+      ],
+      "slots": [
+        {
+          "id": "VfxEmitterDefinitionData_pointer_Filtering__slot__0",
+          "name": "VfxEmitterFiltering",
+          "schemaId": "vfx-emitter-filtering"
+        }
+      ]
+    },
+    {
+      "id": "VfxEmitterDefinitionData_pointer_DistortionDefinition",
+      "title": "DistortionDefinition",
+      "internalStructures": [
+        {
+          "id": "vfx-emitter-definition-data-distortion-definition",
+          "name": "VfxDistortionDefinitionData",
+          "schemaId": "vfx-distortion-definition-data"
+        }
+      ],
+      "slots": [
+        {
+          "id": "VfxEmitterDefinitionData_pointer_DistortionDefinition__slot__0",
+          "name": "VfxDistortionDefinitionData",
+          "schemaId": "vfx-distortion-definition-data"
+        }
+      ]
+    },
+    {
+      "id": "VfxEmitterDefinitionData_pointer_AlphaErosionDefinition",
+      "title": "AlphaErosionDefinition",
+      "internalStructures": [
+        {
+          "id": "vfx-emitter-definition-data-alpha-erosion-definition",
+          "name": "VfxAlphaErosionDefinitionData",
+          "schemaId": "vfx-alpha-erosion-definition-data"
+        }
+      ],
+      "slots": [
+        {
+          "id": "VfxEmitterDefinitionData_pointer_AlphaErosionDefinition__slot__0",
+          "name": "VfxAlphaErosionDefinitionData",
+          "schemaId": "vfx-alpha-erosion-definition-data"
+        }
+      ]
+    },
+    {
+      "id": "VfxEmitterDefinitionData_pointer_TextureMult",
+      "title": "TextureMult",
+      "internalStructures": [
+        {
+          "id": "vfx-emitter-definition-data-texture-mult",
+          "name": "VfxTextureMultDefinitionData",
+          "schemaId": "vfx-texture-mult-definition-data"
+        }
+      ],
+      "slots": [
+        {
+          "id": "VfxEmitterDefinitionData_pointer_TextureMult__slot__0",
+          "name": "VfxTextureMultDefinitionData",
+          "schemaId": "vfx-texture-mult-definition-data"
+        }
+      ]
+    },
+    {
+      "id": "VfxEmitterDefinitionData_pointer_Linger",
+      "title": "Linger",
+      "internalStructures": [
+        {
+          "id": "vfx-emitter-definition-data-linger",
+          "name": "VfxLingerDefinitionData",
+          "schemaId": "vfx-linger-definition-data"
+        }
+      ],
+      "slots": [
+        {
+          "id": "VfxEmitterDefinitionData_pointer_Linger__slot__0",
+          "name": "VfxLingerDefinitionData",
+          "schemaId": "vfx-linger-definition-data"
+        }
+      ]
+    }
+  ],
+  "listEmbed": [],
+  "listPointer": [],
+  "internalStructures": [],
+  "nomenclature": {
+    "group": "#3 Internal Structures",
+    "collection": "#3 Collection Block",
+    "collectionType": "VfxEmitterDefinitionData",
+    "pathHierarchy": "entries > Characters/Zac/Skins/Skin0/Particles/Zac_Base_Q_tar > ComplexEmitterDefinitionData:0",
+    "pathHierarchySteps": [
+      {
+        "id": "entries",
+        "type": "#1 Root Entry"
+      },
+      {
+        "id": "Characters/Zac/Skins/Skin0/Particles/Zac_Base_Q_tar",
+        "type": "#2 Root Entry (VfxSystemDefinitionData)"
+      },
+      {
+        "id": "ComplexEmitterDefinitionData:0",
+        "type": "#3 Collection Block"
+      }
+    ]
+  }
+}

@@ -13,7 +13,10 @@ import {
   filterAndSortElementMenuEntries,
   filterElementMenuEntriesByCatalogScope,
 } from '@/core/elementMenuCatalogUtils'
+import { structureForEmbedAdd } from '@/core/embedElementMenu'
 import { structureForListEmbedAdd } from '@/core/listEmbedElementMenu'
+import { structureForPointerAdd } from '@/core/pointerElementMenu'
+import { structureForListPointerAdd } from '@/core/listPointerElementMenu'
 import { ElementMenuAddPanel } from '@/components/molecules/ElementMenuAddPanel'
 import { listRemovableNodeElements } from '@/core/listNodeElements'
 import {
@@ -45,7 +48,10 @@ type ElementMenuProps = {
   node: NodeInstance
   onAppendCatalogInternalStructure?: (structure: InternalStructureDefinition) => void
   onAppendCatalogParameter?: (parameter: NodeParameterDefinition) => void
+  onAppendEmbedCatalogItem?: (embedId: string, structure: InternalStructureDefinition) => void
+  onAppendPointerCatalogItem?: (pointerId: string, structure: InternalStructureDefinition) => void
   onAppendListEmbedCatalogItem?: (listEmbedId: string, structure: InternalStructureDefinition) => void
+  onAppendListPointerCatalogItem?: (listPointerId: string, structure: InternalStructureDefinition) => void
   onCreateElement?: (structure: InternalStructureDefinition) => void
   onRemoveElement?: () => void
   parameterStubCatalog?: readonly NodeParameterDefinition[]
@@ -68,7 +74,10 @@ export function ElementMenu({
   node,
   onAppendCatalogInternalStructure,
   onAppendCatalogParameter,
+  onAppendEmbedCatalogItem,
+  onAppendPointerCatalogItem,
   onAppendListEmbedCatalogItem,
+  onAppendListPointerCatalogItem,
   onCreateElement,
   onRemoveElement,
   parameterStubCatalog,
@@ -305,12 +314,25 @@ export function ElementMenu({
       })
     } else if (entry.onPick === 'append-parameter' && entry.parameter) {
       onAppendCatalogParameter?.(entry.parameter)
+    } else if (entry.onPick === 'append-embed-catalog' && entry.structure && entry.embedId) {
+      onAppendEmbedCatalogItem?.(entry.embedId, structureForEmbedAdd(entry.structure))
+    } else if (entry.onPick === 'append-pointer-catalog' && entry.structure && entry.pointerId) {
+      onAppendPointerCatalogItem?.(entry.pointerId, structureForPointerAdd(entry.structure))
     } else if (
       entry.onPick === 'append-list-embed-catalog' &&
       entry.structure &&
       entry.listEmbedId
     ) {
       onAppendListEmbedCatalogItem?.(entry.listEmbedId, structureForListEmbedAdd(entry.structure))
+    } else if (
+      entry.onPick === 'append-list-pointer-catalog' &&
+      entry.structure &&
+      entry.listPointerId
+    ) {
+      onAppendListPointerCatalogItem?.(
+        entry.listPointerId,
+        structureForListPointerAdd(entry.structure),
+      )
     }
 
     closeMenu()

@@ -3,18 +3,19 @@
   "title": "SelectorPairData",
   "parameters": [
     {
-      "id": "selector-pair-data-m-clip-name",
+      "id": "SelectorPairData_parameter_mClipName",
       "name": "mClipName",
       "type": "integer",
-      "defaultValue": "Attack1_BASE"
+      "defaultValue": "0xd7d89ccc"
     },
     {
-      "id": "selector-pair-data-m-probability",
+      "id": "SelectorPairData_parameter_mProbability",
       "name": "mProbability",
       "type": "f32",
       "defaultValue": "1"
     }
   ],
+  "embed": [],
   "listEmbed": [],
   "internalStructures": [],
   "nomenclature": {

@@ -1,0 +1,6 @@
+{
+  "id": "VfxEmitterDefinitionData_parameter_EmitOffset",
+  "name": "EmitOffset",
+  "type": "vector3",
+  "defaultValue": "0, -20, 0"
+}

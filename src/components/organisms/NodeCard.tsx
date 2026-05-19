@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
+import { useCallback, useId, useMemo, useRef, useState } from 'react'
 import type {
   MouseEvent as ReactMouseEvent,
   PointerEvent as ReactPointerEvent,
@@ -8,13 +8,27 @@ import type {
 import { ElementMenu } from '@/components/molecules/ElementMenu'
 import { ElementRemovalPicker } from '@/components/molecules/ElementRemovalPicker'
 import { InternalStructureItem } from '@/components/molecules/InternalStructureItem'
+import { EmbedAddPicker } from '@/components/molecules/EmbedAddPicker'
+import { EmbedItem } from '@/components/molecules/EmbedItem'
 import { ListEmbedAddPicker } from '@/components/molecules/ListEmbedAddPicker'
 import { ListEmbedItem } from '@/components/molecules/ListEmbedItem'
+import { ListPointerItem } from '@/components/molecules/ListPointerItem'
+import { PointerItem } from '@/components/molecules/PointerItem'
 import { NodeHeader } from '@/components/molecules/NodeHeader'
 import { ParameterItem } from '@/components/molecules/ParameterItem'
 import type { CanvasConnection } from '@/core/canvasScene'
+import { populatedSlotsForEmbed } from '@/core/embedSlots'
 import { populatedSlotsForListEmbed } from '@/core/listEmbedSlots'
+import { populatedSlotsForListPointer } from '@/core/listPointerSlots'
+import { populatedSlotsForPointer } from '@/core/pointerSlots'
 import { listRemovableNodeElements, type NodeElementListItem } from '@/core/listNodeElements'
+import {
+  buildEmbedAddChoices,
+  embedCatalogPicksForElementMenu,
+  listRemovableEmbedSlotsForBlock,
+  resolveEmbedTemplateBlockId,
+  structureForEmbedAdd,
+} from '@/core/embedElementMenu'
 import {
   buildListEmbedAddChoices,
   listListEmbedCatalogPicksForElementMenu,
@@ -22,6 +36,24 @@ import {
   resolveListEmbedTemplateBlockId,
   structureForListEmbedAdd,
 } from '@/core/listEmbedElementMenu'
+import type { ListEmbedAddBlockChoice } from '@/core/listEmbedElementMenu'
+import type { EmbedAddBlockChoice } from '@/core/embedElementMenu'
+import {
+  buildListPointerAddChoices,
+  listListPointerCatalogPicksForElementMenu,
+  listRemovableListPointerSlotsForBlock,
+  resolveListPointerTemplateBlockId,
+  structureForListPointerAdd,
+} from '@/core/listPointerElementMenu'
+import type { ListPointerAddBlockChoice } from '@/core/listPointerElementMenu'
+import {
+  buildPointerAddChoices,
+  pointerCatalogPicksForElementMenu,
+  listRemovablePointerSlotsForBlock,
+  resolvePointerTemplateBlockId,
+  structureForPointerAdd,
+} from '@/core/pointerElementMenu'
+import type { PointerAddBlockChoice } from '@/core/pointerElementMenu'
 import type {
   InternalStructureDefinition,
   NodeInstance,
@@ -30,6 +62,26 @@ import type {
 } from '@/core/nodeSchema'
 
 import styles from './NodeCard.module.css'
+
+const EMPTY_REMOVAL_ELEMENTS: NodeElementListItem[] = []
+
+function pointerAddBlocksAsEmbed(blocks: readonly PointerAddBlockChoice[]): EmbedAddBlockChoice[] {
+  return blocks.map((block) => ({
+    embedId: block.pointerId,
+    title: block.title,
+    structures: block.structures,
+  }))
+}
+
+function listPointerAddBlocksAsListEmbed(
+  blocks: readonly ListPointerAddBlockChoice[],
+): ListEmbedAddBlockChoice[] {
+  return blocks.map((block) => ({
+    listEmbedId: block.listPointerId,
+    title: block.title,
+    structures: block.structures,
+  }))
+}
 
 type NodeCardProps = {
   canvasNodeId: string
@@ -43,7 +95,10 @@ type NodeCardProps = {
   node: NodeInstance
   onAppendCatalogInternalStructure?: (structure: InternalStructureDefinition) => void
   onAppendCatalogParameter?: (parameter: NodeParameterDefinition) => void
+  onAppendEmbedCatalogItem?: (embedId: string, structure: InternalStructureDefinition) => void
+  onAppendPointerCatalogItem?: (pointerId: string, structure: InternalStructureDefinition) => void
   onAppendListEmbedCatalogItem?: (listEmbedId: string, structure: InternalStructureDefinition) => void
+  onAppendListPointerCatalogItem?: (listPointerId: string, structure: InternalStructureDefinition) => void
   /** Schema base (registry) — catálogo LIST_EMBED para o picker «+». */
   templateSchema?: NodeSchemaDefinition | null
   onCreateElement?: (structure: InternalStructureDefinition) => void
@@ -97,7 +152,10 @@ export function NodeCard({
   node,
   onAppendCatalogInternalStructure,
   onAppendCatalogParameter,
+  onAppendEmbedCatalogItem,
+  onAppendPointerCatalogItem,
   onAppendListEmbedCatalogItem,
+  onAppendListPointerCatalogItem,
   templateSchema = null,
   onCreateElement,
   onRequestRemoveElement,
@@ -117,10 +175,19 @@ export function NodeCard({
 }: NodeCardProps) {
   const [removalPickerOpen, setRemovalPickerOpen] = useState(false)
   const [removalSelectedKey, setRemovalSelectedKey] = useState<string | null>(null)
+  const [embedAddPickerOpen, setEmbedAddPickerOpen] = useState(false)
+  const [embedAddTargetBlockId, setEmbedAddTargetBlockId] = useState<string | null>(null)
+  const [embedRemoveTargetBlockId, setEmbedRemoveTargetBlockId] = useState<string | null>(null)
   const [listEmbedAddPickerOpen, setListEmbedAddPickerOpen] = useState(false)
   /** Id da instância do bloco LIST_EMBED (não o template). */
   const [listEmbedAddTargetBlockId, setListEmbedAddTargetBlockId] = useState<string | null>(null)
   const [listEmbedRemoveTargetBlockId, setListEmbedRemoveTargetBlockId] = useState<string | null>(null)
+  const [pointerAddPickerOpen, setPointerAddPickerOpen] = useState(false)
+  const [pointerAddTargetBlockId, setPointerAddTargetBlockId] = useState<string | null>(null)
+  const [pointerRemoveTargetBlockId, setPointerRemoveTargetBlockId] = useState<string | null>(null)
+  const [listPointerAddPickerOpen, setListPointerAddPickerOpen] = useState(false)
+  const [listPointerAddTargetBlockId, setListPointerAddTargetBlockId] = useState<string | null>(null)
+  const [listPointerRemoveTargetBlockId, setListPointerRemoveTargetBlockId] = useState<string | null>(null)
   const sectionId = useId()
   const removalPickerTitleId = `${sectionId}-element-removal-title`
 
@@ -216,6 +283,128 @@ export function NodeCard({
     catalogInternalStructures?.length && onAppendCatalogInternalStructure,
   )
   const hasCatalogParameters = Boolean(catalogParameters?.length && onAppendCatalogParameter)
+  const embedAddChoices = useMemo(() => buildEmbedAddChoices(node, templateSchema), [node, templateSchema])
+  const embedAddPickerBlocks = useMemo(() => {
+    if (!embedAddTargetBlockId) {
+      return embedAddChoices
+    }
+    const block = node.schema.embed?.find((entry) => entry.id === embedAddTargetBlockId)
+    const templateId = block ? resolveEmbedTemplateBlockId(block) : embedAddTargetBlockId
+    return embedAddChoices.filter((choice) => choice.embedId === templateId)
+  }, [embedAddChoices, embedAddTargetBlockId, node.schema.embed])
+
+  const embedAddPickerFieldTitle = useMemo(() => {
+    if (!embedAddTargetBlockId) {
+      return undefined
+    }
+    return node.schema.embed?.find((entry) => entry.id === embedAddTargetBlockId)?.title
+  }, [embedAddTargetBlockId, node.schema.embed])
+
+  const canAddToEmbedBlock = useCallback(
+    (blockInstanceId: string) => {
+      const block = node.schema.embed?.find((entry) => entry.id === blockInstanceId)
+      if (!block || populatedSlotsForEmbed(block).length >= 1) {
+        return false
+      }
+      const templateId = resolveEmbedTemplateBlockId(block)
+      return Boolean(
+        onAppendEmbedCatalogItem &&
+          embedAddChoices.some((choice) => choice.embedId === templateId),
+      )
+    },
+    [embedAddChoices, node.schema.embed, onAppendEmbedCatalogItem],
+  )
+
+  const embedRemovalElements = useMemo((): NodeElementListItem[] => {
+    if (!embedRemoveTargetBlockId) {
+      return EMPTY_REMOVAL_ELEMENTS
+    }
+    return listRemovableEmbedSlotsForBlock(node, embedRemoveTargetBlockId).map((slot) => ({
+      id: slot.id,
+      kind: 'embedSlot' as const,
+      meta: slot.meta,
+      name: slot.name,
+      embedId: slot.embedId,
+    }))
+  }, [embedRemoveTargetBlockId, node])
+
+  const embedRemovalPickerOpen = embedRemoveTargetBlockId !== null
+
+  const canRemoveFromEmbedBlock = useCallback(
+    (blockInstanceId: string) =>
+      Boolean(
+        onRequestRemoveElement &&
+          listRemovableEmbedSlotsForBlock(node, blockInstanceId).length > 0,
+      ),
+    [node, onRequestRemoveElement],
+  )
+
+  const hasEmbedElementMenu = Boolean(
+    onAppendEmbedCatalogItem && embedCatalogPicksForElementMenu(node, templateSchema).length > 0,
+  )
+
+  const pointerAddChoices = useMemo(() => buildPointerAddChoices(node, templateSchema), [node, templateSchema])
+  const pointerAddPickerBlocks = useMemo(() => {
+    if (!pointerAddTargetBlockId) {
+      return pointerAddBlocksAsEmbed(pointerAddChoices)
+    }
+    const block = node.schema.pointer?.find((entry) => entry.id === pointerAddTargetBlockId)
+    const templateId = block ? resolvePointerTemplateBlockId(block) : pointerAddTargetBlockId
+    return pointerAddBlocksAsEmbed(
+      pointerAddChoices.filter((choice) => choice.pointerId === templateId),
+    )
+  }, [pointerAddChoices, pointerAddTargetBlockId, node.schema.pointer])
+
+  const pointerAddPickerFieldTitle = useMemo(() => {
+    if (!pointerAddTargetBlockId) {
+      return undefined
+    }
+    return node.schema.pointer?.find((entry) => entry.id === pointerAddTargetBlockId)?.title
+  }, [pointerAddTargetBlockId, node.schema.pointer])
+
+  const canAddToPointerBlock = useCallback(
+    (blockInstanceId: string) => {
+      const block = node.schema.pointer?.find((entry) => entry.id === blockInstanceId)
+      if (!block || populatedSlotsForPointer(block).length >= 1) {
+        return false
+      }
+      const templateId = resolvePointerTemplateBlockId(block)
+      return Boolean(
+        onAppendPointerCatalogItem &&
+          pointerAddChoices.some((choice) => choice.pointerId === templateId),
+      )
+    },
+    [pointerAddChoices, node.schema.pointer, onAppendPointerCatalogItem],
+  )
+
+  const pointerRemovalElements = useMemo((): NodeElementListItem[] => {
+    if (!pointerRemoveTargetBlockId) {
+      return EMPTY_REMOVAL_ELEMENTS
+    }
+    return listRemovablePointerSlotsForBlock(node, pointerRemoveTargetBlockId).map((slot) => ({
+      id: slot.id,
+      kind: 'pointerSlot' as const,
+      meta: slot.meta,
+      name: slot.name,
+      pointerId: slot.pointerId,
+    }))
+  }, [pointerRemoveTargetBlockId, node])
+
+  const pointerRemovalPickerOpen = pointerRemoveTargetBlockId !== null
+
+  const canRemoveFromPointerBlock = useCallback(
+    (blockInstanceId: string) =>
+      Boolean(
+        onRequestRemoveElement &&
+          listRemovablePointerSlotsForBlock(node, blockInstanceId).length > 0,
+      ),
+    [node, onRequestRemoveElement],
+  )
+
+  const hasPointerElementMenu = Boolean(
+    onAppendPointerCatalogItem && pointerCatalogPicksForElementMenu(node, templateSchema).length > 0,
+  )
+
   const listEmbedAddChoices = useMemo(
     () => buildListEmbedAddChoices(node, templateSchema),
     [node, templateSchema],
@@ -254,7 +443,7 @@ export function NodeCard({
 
   const listEmbedRemovalElements = useMemo((): NodeElementListItem[] => {
     if (!listEmbedRemoveTargetBlockId) {
-      return []
+      return EMPTY_REMOVAL_ELEMENTS
     }
     return listRemovableListEmbedSlotsForBlock(node, listEmbedRemoveTargetBlockId).map((slot) => ({
       id: slot.id,
@@ -280,6 +469,73 @@ export function NodeCard({
       listListEmbedCatalogPicksForElementMenu(node, templateSchema).length > 0,
   )
 
+  const listPointerAddChoices = useMemo(
+    () => buildListPointerAddChoices(node, templateSchema),
+    [node, templateSchema],
+  )
+  const listPointerAddPickerBlocks = useMemo(() => {
+    if (!listPointerAddTargetBlockId) {
+      return listPointerAddBlocksAsListEmbed(listPointerAddChoices)
+    }
+    const block = node.schema.listPointer?.find((entry) => entry.id === listPointerAddTargetBlockId)
+    const templateId = block ? resolveListPointerTemplateBlockId(block) : listPointerAddTargetBlockId
+    return listPointerAddBlocksAsListEmbed(
+      listPointerAddChoices.filter((choice) => choice.listPointerId === templateId),
+    )
+  }, [listPointerAddChoices, listPointerAddTargetBlockId, node.schema.listPointer])
+
+  const listPointerAddPickerInitialTemplateId = useMemo(() => {
+    if (!listPointerAddTargetBlockId) {
+      return null
+    }
+    const block = node.schema.listPointer?.find((entry) => entry.id === listPointerAddTargetBlockId)
+    return block ? resolveListPointerTemplateBlockId(block) : null
+  }, [listPointerAddTargetBlockId, node.schema.listPointer])
+
+  const canAddToListPointerBlock = useCallback(
+    (blockInstanceId: string) => {
+      const block = node.schema.listPointer?.find((entry) => entry.id === blockInstanceId)
+      if (!block) {
+        return false
+      }
+      const templateId = resolveListPointerTemplateBlockId(block)
+      return Boolean(
+        onAppendListPointerCatalogItem &&
+          listPointerAddChoices.some((choice) => choice.listPointerId === templateId),
+      )
+    },
+    [listPointerAddChoices, node.schema.listPointer, onAppendListPointerCatalogItem],
+  )
+
+  const listPointerRemovalElements = useMemo((): NodeElementListItem[] => {
+    if (!listPointerRemoveTargetBlockId) {
+      return EMPTY_REMOVAL_ELEMENTS
+    }
+    return listRemovableListPointerSlotsForBlock(node, listPointerRemoveTargetBlockId).map((slot) => ({
+      id: slot.id,
+      kind: 'listPointerSlot' as const,
+      meta: slot.meta,
+      name: slot.name,
+      listPointerId: slot.listPointerId,
+    }))
+  }, [listPointerRemoveTargetBlockId, node])
+
+  const listPointerRemovalPickerOpen = listPointerRemoveTargetBlockId !== null
+
+  const canRemoveFromListPointerBlock = useCallback(
+    (blockInstanceId: string) =>
+      Boolean(
+        onRequestRemoveElement &&
+          listRemovableListPointerSlotsForBlock(node, blockInstanceId).length > 0,
+      ),
+    [node, onRequestRemoveElement],
+  )
+
+  const hasListPointerElementMenu = Boolean(
+    onAppendListPointerCatalogItem &&
+      listListPointerCatalogPicksForElementMenu(node, templateSchema).length > 0,
+  )
+
   const removables = listRemovableNodeElements(node, parameterStubCatalog, {
     canvasNodeId,
     connections,
@@ -289,21 +545,12 @@ export function NodeCard({
     presetStructureCount > 0 ||
     hasCatalogStructures ||
     hasCatalogParameters ||
+    hasEmbedElementMenu ||
+    hasPointerElementMenu ||
     hasListEmbedElementMenu ||
+    hasListPointerElementMenu ||
     removables.length > 0 ||
     isModule
-
-  useEffect(() => {
-    if (!removalPickerOpen) {
-      setRemovalSelectedKey(null)
-    }
-  }, [removalPickerOpen])
-
-  useEffect(() => {
-    if (!listEmbedRemovalPickerOpen) {
-      setRemovalSelectedKey(null)
-    }
-  }, [listEmbedRemovalPickerOpen])
 
   return (
     <article className={styles.card} aria-label={`${node.schema.title} node`}>
@@ -355,6 +602,64 @@ export function NodeCard({
           </ul>
         </section>
 
+        <section className={styles.section} aria-labelledby={`${sectionId}-embed`}>
+          <h3 className={styles.sectionTitle} id={`${sectionId}-embed`}>
+            EMBED
+          </h3>
+          <ul className={styles.list}>
+            {(node.schema.embed ?? []).map((embed) => (
+              <EmbedItem
+                activeSlotId={activeOutputInternalStructureId}
+                canAdd={canAddToEmbedBlock(embed.id)}
+                canRemove={canRemoveFromEmbedBlock(embed.id)}
+                canvasNodeId={canvasNodeId}
+                embed={embed}
+                key={embed.id}
+                onAddClick={() => {
+                  setEmbedAddTargetBlockId(embed.id)
+                  setEmbedAddPickerOpen(true)
+                }}
+                onRemoveClick={() => setEmbedRemoveTargetBlockId(embed.id)}
+                onOutputWireKeyboard={onOutputWireKeyboard}
+                onOutputWirePointerCancel={onOutputWirePointerCancel}
+                onOutputWirePointerDown={onOutputWirePointerDown}
+                onOutputWirePointerMove={onOutputWirePointerMove}
+                onOutputWirePointerUp={onOutputWirePointerUp}
+                slots={populatedSlotsForEmbed(embed)}
+              />
+            ))}
+          </ul>
+        </section>
+
+        <section className={styles.section} aria-labelledby={`${sectionId}-pointer`}>
+          <h3 className={styles.sectionTitle} id={`${sectionId}-pointer`}>
+            POINTER
+          </h3>
+          <ul className={styles.list}>
+            {(node.schema.pointer ?? []).map((pointer) => (
+              <PointerItem
+                activeSlotId={activeOutputInternalStructureId}
+                canAdd={canAddToPointerBlock(pointer.id)}
+                canRemove={canRemoveFromPointerBlock(pointer.id)}
+                canvasNodeId={canvasNodeId}
+                key={pointer.id}
+                onAddClick={() => {
+                  setPointerAddTargetBlockId(pointer.id)
+                  setPointerAddPickerOpen(true)
+                }}
+                onRemoveClick={() => setPointerRemoveTargetBlockId(pointer.id)}
+                onOutputWireKeyboard={onOutputWireKeyboard}
+                onOutputWirePointerCancel={onOutputWirePointerCancel}
+                onOutputWirePointerDown={onOutputWirePointerDown}
+                onOutputWirePointerMove={onOutputWirePointerMove}
+                onOutputWirePointerUp={onOutputWirePointerUp}
+                pointer={pointer}
+                slots={populatedSlotsForPointer(pointer)}
+              />
+            ))}
+          </ul>
+        </section>
+
         <section className={styles.section} aria-labelledby={`${sectionId}-list-embed`}>
           <h3 className={styles.sectionTitle} id={`${sectionId}-list-embed`}>
             LIST_EMBED
@@ -379,6 +684,35 @@ export function NodeCard({
                 onOutputWirePointerMove={onOutputWirePointerMove}
                 onOutputWirePointerUp={onOutputWirePointerUp}
                 slots={populatedSlotsForListEmbed(listEmbed)}
+              />
+            ))}
+          </ul>
+        </section>
+
+        <section className={styles.section} aria-labelledby={`${sectionId}-list-pointer`}>
+          <h3 className={styles.sectionTitle} id={`${sectionId}-list-pointer`}>
+            LIST_POINTER
+          </h3>
+          <ul className={styles.list}>
+            {(node.schema.listPointer ?? []).map((listPointer) => (
+              <ListPointerItem
+                activeSlotId={activeOutputInternalStructureId}
+                canAdd={canAddToListPointerBlock(listPointer.id)}
+                canRemove={canRemoveFromListPointerBlock(listPointer.id)}
+                canvasNodeId={canvasNodeId}
+                key={listPointer.id}
+                listPointer={listPointer}
+                onAddClick={() => {
+                  setListPointerAddTargetBlockId(listPointer.id)
+                  setListPointerAddPickerOpen(true)
+                }}
+                onRemoveClick={() => setListPointerRemoveTargetBlockId(listPointer.id)}
+                onOutputWireKeyboard={onOutputWireKeyboard}
+                onOutputWirePointerCancel={onOutputWirePointerCancel}
+                onOutputWirePointerDown={onOutputWirePointerDown}
+                onOutputWirePointerMove={onOutputWirePointerMove}
+                onOutputWirePointerUp={onOutputWirePointerUp}
+                slots={populatedSlotsForListPointer(listPointer)}
               />
             ))}
           </ul>
@@ -415,7 +749,10 @@ export function NodeCard({
           nodeKind={nodeKind}
           onAppendCatalogInternalStructure={onAppendCatalogInternalStructure}
           onAppendCatalogParameter={onAppendCatalogParameter}
+          onAppendEmbedCatalogItem={onAppendEmbedCatalogItem}
+          onAppendPointerCatalogItem={onAppendPointerCatalogItem}
           onAppendListEmbedCatalogItem={onAppendListEmbedCatalogItem}
+          onAppendListPointerCatalogItem={onAppendListPointerCatalogItem}
           onCreateElement={onCreateElement}
           onRemoveElement={
             onRequestRemoveElement && removables.length > 0
@@ -426,46 +763,110 @@ export function NodeCard({
           showPicker={showElementPicker}
         />
 
-        <ElementRemovalPicker
-          elements={removables}
-          nodeTitle={node.schema.title}
-          onClose={() => setRemovalPickerOpen(false)}
-          onConfirm={(item) => {
-            setRemovalPickerOpen(false)
-            onRequestRemoveElement?.(item)
-          }}
-          onSelectKey={setRemovalSelectedKey}
-          open={removalPickerOpen}
-          selectedKey={removalPickerOpen ? removalSelectedKey : null}
-          titleDomId={removalPickerTitleId}
-        />
+        {removalPickerOpen ? (
+          <ElementRemovalPicker
+            elements={removables}
+            nodeTitle={node.schema.title}
+            onClose={() => {
+              setRemovalPickerOpen(false)
+              setRemovalSelectedKey(null)
+            }}
+            onConfirm={(item) => {
+              setRemovalPickerOpen(false)
+              setRemovalSelectedKey(null)
+              onRequestRemoveElement?.(item)
+            }}
+            onSelectKey={setRemovalSelectedKey}
+            open
+            selectedKey={removalSelectedKey}
+            titleDomId={removalPickerTitleId}
+          />
+        ) : null}
 
-        <ElementRemovalPicker
-          confirmLabel="Remover"
-          dialogSubtitle={
-            listEmbedRemoveTargetBlockId ? (
-              <>
-                Escolha a estrutura a remover de{' '}
-                <strong>
-                  {node.schema.listEmbed?.find((b) => b.id === listEmbedRemoveTargetBlockId)?.title ??
-                    listEmbedRemoveTargetBlockId}
-                </strong>
-                .
-              </>
-            ) : undefined
-          }
-          dialogTitle="Remover estrutura interna"
-          elements={listEmbedRemovalElements}
+        {listEmbedRemovalPickerOpen ? (
+          <ElementRemovalPicker
+            confirmLabel="Remover"
+            dialogSubtitle={
+              listEmbedRemoveTargetBlockId ? (
+                <>
+                  Escolha a estrutura a remover de{' '}
+                  <strong>
+                    {node.schema.listEmbed?.find((b) => b.id === listEmbedRemoveTargetBlockId)?.title ??
+                      listEmbedRemoveTargetBlockId}
+                  </strong>
+                  .
+                </>
+              ) : undefined
+            }
+            dialogTitle="Remover estrutura interna"
+            elements={listEmbedRemovalElements}
+            nodeTitle={node.schema.title}
+            onClose={() => {
+              setListEmbedRemoveTargetBlockId(null)
+              setRemovalSelectedKey(null)
+            }}
+            onConfirm={(item) => {
+              setListEmbedRemoveTargetBlockId(null)
+              setRemovalSelectedKey(null)
+              onRequestRemoveElement?.(item)
+            }}
+            onSelectKey={setRemovalSelectedKey}
+            open
+            selectedKey={removalSelectedKey}
+            titleDomId={`${sectionId}-list-embed-remove-title`}
+          />
+        ) : null}
+
+        {embedRemovalPickerOpen ? (
+          <ElementRemovalPicker
+            confirmLabel="Remover"
+            dialogSubtitle={
+              embedRemoveTargetBlockId ? (
+                <>
+                  Escolha a estrutura a remover de{' '}
+                  <strong>
+                    {node.schema.embed?.find((b) => b.id === embedRemoveTargetBlockId)?.title ??
+                      embedRemoveTargetBlockId}
+                  </strong>
+                  .
+                </>
+              ) : undefined
+            }
+            dialogTitle="Remover estrutura interna"
+            elements={embedRemovalElements}
+            nodeTitle={node.schema.title}
+            onClose={() => {
+              setEmbedRemoveTargetBlockId(null)
+              setRemovalSelectedKey(null)
+            }}
+            onConfirm={(item) => {
+              setEmbedRemoveTargetBlockId(null)
+              setRemovalSelectedKey(null)
+              onRequestRemoveElement?.(item)
+            }}
+            onSelectKey={setRemovalSelectedKey}
+            open
+            selectedKey={removalSelectedKey}
+            titleDomId={`${sectionId}-embed-remove-title`}
+          />
+        ) : null}
+
+        <EmbedAddPicker
+          blocks={embedAddPickerBlocks}
+          embedFieldTitle={embedAddPickerFieldTitle}
           nodeTitle={node.schema.title}
-          onClose={() => setListEmbedRemoveTargetBlockId(null)}
-          onConfirm={(item) => {
-            setListEmbedRemoveTargetBlockId(null)
-            onRequestRemoveElement?.(item)
+          onClose={() => {
+            setEmbedAddPickerOpen(false)
+            setEmbedAddTargetBlockId(null)
           }}
-          onSelectKey={setRemovalSelectedKey}
-          open={listEmbedRemovalPickerOpen}
-          selectedKey={listEmbedRemovalPickerOpen ? removalSelectedKey : null}
-          titleDomId={`${sectionId}-list-embed-remove-title`}
+          onConfirm={(choice) => {
+            if (!embedAddTargetBlockId) {
+              return
+            }
+            onAppendEmbedCatalogItem?.(embedAddTargetBlockId, structureForEmbedAdd(choice.structure))
+          }}
+          open={embedAddPickerOpen}
+          titleDomId={`${sectionId}-embed-add-title`}
         />
 
         <ListEmbedAddPicker
@@ -487,6 +888,116 @@ export function NodeCard({
           }}
           open={listEmbedAddPickerOpen}
           titleDomId={`${sectionId}-list-embed-add-title`}
+        />
+
+        {pointerRemovalPickerOpen ? (
+          <ElementRemovalPicker
+            confirmLabel="Remover"
+            dialogSubtitle={
+              pointerRemoveTargetBlockId ? (
+                <>
+                  Escolha a estrutura a remover de{' '}
+                  <strong>
+                    {node.schema.pointer?.find((b) => b.id === pointerRemoveTargetBlockId)?.title ??
+                      pointerRemoveTargetBlockId}
+                  </strong>
+                  .
+                </>
+              ) : undefined
+            }
+            dialogTitle="Remover estrutura interna"
+            elements={pointerRemovalElements}
+            nodeTitle={node.schema.title}
+            onClose={() => {
+              setPointerRemoveTargetBlockId(null)
+              setRemovalSelectedKey(null)
+            }}
+            onConfirm={(item) => {
+              setPointerRemoveTargetBlockId(null)
+              setRemovalSelectedKey(null)
+              onRequestRemoveElement?.(item)
+            }}
+            onSelectKey={setRemovalSelectedKey}
+            open
+            selectedKey={removalSelectedKey}
+            titleDomId={`${sectionId}-pointer-remove-title`}
+          />
+        ) : null}
+
+        {listPointerRemovalPickerOpen ? (
+          <ElementRemovalPicker
+            confirmLabel="Remover"
+            dialogSubtitle={
+              listPointerRemoveTargetBlockId ? (
+                <>
+                  Escolha a estrutura a remover de{' '}
+                  <strong>
+                    {node.schema.listPointer?.find((b) => b.id === listPointerRemoveTargetBlockId)
+                      ?.title ?? listPointerRemoveTargetBlockId}
+                  </strong>
+                  .
+                </>
+              ) : undefined
+            }
+            dialogTitle="Remover estrutura interna"
+            elements={listPointerRemovalElements}
+            nodeTitle={node.schema.title}
+            onClose={() => {
+              setListPointerRemoveTargetBlockId(null)
+              setRemovalSelectedKey(null)
+            }}
+            onConfirm={(item) => {
+              setListPointerRemoveTargetBlockId(null)
+              setRemovalSelectedKey(null)
+              onRequestRemoveElement?.(item)
+            }}
+            onSelectKey={setRemovalSelectedKey}
+            open
+            selectedKey={removalSelectedKey}
+            titleDomId={`${sectionId}-list-pointer-remove-title`}
+          />
+        ) : null}
+
+        <EmbedAddPicker
+          blocks={pointerAddPickerBlocks}
+          embedFieldTitle={pointerAddPickerFieldTitle}
+          nodeTitle={node.schema.title}
+          onClose={() => {
+            setPointerAddPickerOpen(false)
+            setPointerAddTargetBlockId(null)
+          }}
+          onConfirm={(choice) => {
+            if (!pointerAddTargetBlockId) {
+              return
+            }
+            onAppendPointerCatalogItem?.(
+              pointerAddTargetBlockId,
+              structureForPointerAdd(choice.structure),
+            )
+          }}
+          open={pointerAddPickerOpen}
+          titleDomId={`${sectionId}-pointer-add-title`}
+        />
+
+        <ListEmbedAddPicker
+          blocks={listPointerAddPickerBlocks}
+          initialListEmbedId={listPointerAddPickerInitialTemplateId}
+          nodeTitle={node.schema.title}
+          onClose={() => {
+            setListPointerAddPickerOpen(false)
+            setListPointerAddTargetBlockId(null)
+          }}
+          onConfirm={(_templateListPointerId, choice) => {
+            if (!listPointerAddTargetBlockId) {
+              return
+            }
+            onAppendListPointerCatalogItem?.(
+              listPointerAddTargetBlockId,
+              structureForListPointerAdd(choice.structure),
+            )
+          }}
+          open={listPointerAddPickerOpen}
+          titleDomId={`${sectionId}-list-pointer-add-title`}
         />
 
       </div>

@@ -1,0 +1,11 @@
+{
+  "id": "VfxEmitterDefinitionData_embed_BirthDrag",
+  "title": "BirthDrag",
+  "internalStructures": [
+    {
+      "id": "VfxEmitterDefinitionData_embed_BirthDrag-catalog-0",
+      "name": "ValueVector3",
+      "schemaId": "value-vector3"
+    }
+  ]
+}

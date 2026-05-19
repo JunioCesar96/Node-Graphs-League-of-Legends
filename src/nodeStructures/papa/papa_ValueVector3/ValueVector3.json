@@ -3,17 +3,18 @@
   "title": "ValueVector3",
   "parameters": [
     {
-      "id": "value-vector3-constant-value",
-      "name": "constantValue",
+      "id": "ValueVector3_parameter_ConstantValue",
+      "name": "ConstantValue",
       "type": "vector3",
       "defaultValue": "0, -200, 0"
     }
   ],
+  "embed": [],
   "listEmbed": [],
   "internalStructures": [
     {
       "id": "value-vector3-dynamics",
-      "name": "dynamics",
+      "name": "Dynamics",
       "schemaId": "vfx-animated-vector3f-variable-data"
     }
   ],
@@ -21,7 +22,7 @@
     "group": "#3 Internal Structures",
     "collection": "#3 Embed Block",
     "collectionType": "ValueVector3",
-    "pathHierarchy": "entries > Characters/Zac/Skins/Skin0/Particles/Zac_Base_Q_tar > complexEmitterDefinitionData:0 > birthVelocity",
+    "pathHierarchy": "entries > Characters/Zac/Skins/Skin0/Particles/Zac_Base_Q_tar > ComplexEmitterDefinitionData:0 > BirthVelocity",
     "pathHierarchySteps": [
       {
         "id": "entries",
@@ -32,11 +33,11 @@
         "type": "#2 Root Entry (VfxSystemDefinitionData)"
       },
       {
-        "id": "complexEmitterDefinitionData:0",
+        "id": "ComplexEmitterDefinitionData:0",
         "type": "#3 Collection Block"
       },
       {
-        "id": "birthVelocity",
+        "id": "BirthVelocity",
         "type": "#3 Embed Block"
       }
     ]

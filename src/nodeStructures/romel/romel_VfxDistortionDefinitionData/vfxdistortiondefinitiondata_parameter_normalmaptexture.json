@@ -1,0 +1,6 @@
+{
+  "id": "VfxDistortionDefinitionData_parameter_NormalMapTexture",
+  "name": "NormalMapTexture",
+  "type": "string",
+  "defaultValue": "ASSETS/Characters/Zac/Skins/Base/Particles/common_distort-twirl.tex"
+}

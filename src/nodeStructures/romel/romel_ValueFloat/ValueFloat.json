@@ -1,0 +1,60 @@
+{
+  "id": "value-float",
+  "title": "ValueFloat",
+  "parameters": [
+    {
+      "id": "ValueFloat_parameter_ConstantValue",
+      "name": "ConstantValue",
+      "type": "f32",
+      "defaultValue": "3"
+    }
+  ],
+  "embed": [],
+  "pointer": [
+    {
+      "id": "ValueFloat_pointer_Dynamics",
+      "title": "Dynamics",
+      "internalStructures": [
+        {
+          "id": "value-float-dynamics",
+          "name": "VfxAnimatedFloatVariableData",
+          "schemaId": "vfx-animated-float-variable-data"
+        }
+      ],
+      "slots": [
+        {
+          "id": "ValueFloat_pointer_Dynamics__slot__0",
+          "name": "VfxAnimatedFloatVariableData",
+          "schemaId": "vfx-animated-float-variable-data"
+        }
+      ]
+    }
+  ],
+  "listEmbed": [],
+  "listPointer": [],
+  "internalStructures": [],
+  "nomenclature": {
+    "group": "#3 Internal Structures",
+    "collection": "#3 Embed Block",
+    "collectionType": "ValueFloat",
+    "pathHierarchy": "entries > Characters/Zac/Skins/Skin0/Particles/Zac_Base_Q_tar > ComplexEmitterDefinitionData:0 > Rate",
+    "pathHierarchySteps": [
+      {
+        "id": "entries",
+        "type": "#1 Root Entry"
+      },
+      {
+        "id": "Characters/Zac/Skins/Skin0/Particles/Zac_Base_Q_tar",
+        "type": "#2 Root Entry (VfxSystemDefinitionData)"
+      },
+      {
+        "id": "ComplexEmitterDefinitionData:0",
+        "type": "#3 Collection Block"
+      },
+      {
+        "id": "Rate",
+        "type": "#3 Embed Block"
+      }
+    ]
+  }
+}

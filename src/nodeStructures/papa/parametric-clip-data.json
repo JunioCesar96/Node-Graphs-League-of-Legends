@@ -3,12 +3,13 @@
   "title": "ParametricClipData",
   "parameters": [
     {
-      "id": "parametric-clip-data-m-track-data-name",
+      "id": "ParametricClipData_parameter_mTrackDataName",
       "name": "mTrackDataName",
       "type": "integer",
       "defaultValue": "Default"
     }
   ],
+  "embed": [],
   "listEmbed": [
     {
       "id": "parametric-clip-data-m-parametric-pair-data-list",

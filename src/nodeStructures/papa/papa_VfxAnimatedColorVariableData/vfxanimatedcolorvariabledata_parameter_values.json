@@ -1,0 +1,6 @@
+{
+  "id": "VfxAnimatedColorVariableData_parameter_Values",
+  "name": "Values",
+  "type": "listVector4",
+  "defaultValue": "1, 1, 1, 0.5\n1, 1, 1, 0.5\n1, 1, 1, 0"
+}

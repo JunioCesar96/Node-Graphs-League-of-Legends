@@ -3,18 +3,19 @@
   "title": "ConditionBoolClipData",
   "parameters": [
     {
-      "id": "condition-bool-clip-data-m-false-condition-clip-name",
+      "id": "ConditionBoolClipData_parameter_mFalseConditionClipName",
       "name": "mFalseConditionClipName",
       "type": "integer",
       "defaultValue": "Spell4_ToIdle"
     },
     {
-      "id": "condition-bool-clip-data-m-true-condition-clip-name",
+      "id": "ConditionBoolClipData_parameter_mTrueConditionClipName",
       "name": "mTrueConditionClipName",
       "type": "integer",
       "defaultValue": "Spell4_ToRun"
     }
   ],
+  "embed": [],
   "listEmbed": [],
   "internalStructures": [],
   "nomenclature": {

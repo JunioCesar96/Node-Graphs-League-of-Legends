@@ -3,42 +3,43 @@
   "title": "ParticleEventData",
   "parameters": [
     {
-      "id": "particle-event-data-m-effect-key",
+      "id": "ParticleEventData_parameter_mEffectKey",
       "name": "mEffectKey",
       "type": "integer",
-      "defaultValue": "Zac_emote_laugh_sound_BV2"
+      "defaultValue": "0xd8c3d1c9"
     },
     {
-      "id": "particle-event-data-m-end-frame",
+      "id": "ParticleEventData_parameter_mEndFrame",
       "name": "mEndFrame",
       "type": "f32",
       "defaultValue": "25"
     },
     {
-      "id": "particle-event-data-m-is-kill-event",
+      "id": "ParticleEventData_parameter_mIsKillEvent",
       "name": "mIsKillEvent",
       "type": "bool",
       "defaultValue": "false"
     },
     {
-      "id": "particle-event-data-m-is-loop",
+      "id": "ParticleEventData_parameter_mIsLoop",
       "name": "mIsLoop",
       "type": "bool",
       "defaultValue": "false"
     },
     {
-      "id": "particle-event-data-m-name",
+      "id": "ParticleEventData_parameter_mName",
       "name": "mName",
       "type": "integer",
       "defaultValue": "0x0cf0606b"
     },
     {
-      "id": "particle-event-data-m-start-frame",
+      "id": "ParticleEventData_parameter_mStartFrame",
       "name": "mStartFrame",
       "type": "f32",
       "defaultValue": "5"
     }
   ],
+  "embed": [],
   "listEmbed": [
     {
       "id": "particle-event-data-m-particle-event-data-pair-list",
