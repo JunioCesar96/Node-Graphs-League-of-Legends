@@ -1,6 +1,8 @@
 import type {
   EmbedDefinition,
   InternalStructureDefinition,
+  List2EmbedDefinition,
+  List2PointerDefinition,
   ListEmbedDefinition,
   ListPointerDefinition,
   NodeDataType,
@@ -78,7 +80,9 @@ export function isParameterStubShape(raw: unknown): boolean {
     id.includes('_embed_') ||
     id.includes('_pointer_') ||
     id.includes('_listEmbed_') ||
-    id.includes('_listPointer_')
+    id.includes('_listPointer_') ||
+    id.includes('_list2Embed_') ||
+    id.includes('_list2Pointer_')
   ) {
     return false
   }
@@ -237,7 +241,7 @@ export function isListEmbedStubShape(raw: unknown): boolean {
     return false
   }
   const id = typeof raw.id === 'string' ? raw.id : ''
-  if (!id.includes('_listEmbed_')) {
+  if (!id.includes('_listEmbed_') || id.includes('_list2Embed_')) {
     return false
   }
   return typeof raw.title === 'string' && Array.isArray(raw.internalStructures)
@@ -283,7 +287,7 @@ export function isListPointerStubShape(raw: unknown): boolean {
     return false
   }
   const id = typeof raw.id === 'string' ? raw.id : ''
-  if (!id.includes('_listPointer_')) {
+  if (!id.includes('_listPointer_') || id.includes('_list2Pointer_')) {
     return false
   }
   return typeof raw.title === 'string' && Array.isArray(raw.internalStructures)
@@ -301,6 +305,50 @@ export function listPointerDefinitionFromJsonStub(raw: unknown): ListPointerDefi
     return null
   }
   return parseListPointer(raw)
+}
+
+/** Stub JSON de LIST2_EMBED (`{collectionType}_list2Embed_{title}.json`). */
+export function isList2EmbedStubShape(raw: unknown): boolean {
+  if (!isRecord(raw)) {
+    return false
+  }
+  if ('type' in raw && 'defaultValue' in raw) {
+    return false
+  }
+  const id = typeof raw.id === 'string' ? raw.id : ''
+  if (!id.includes('_list2Embed_') || id.includes('_listEmbed_')) {
+    return false
+  }
+  return typeof raw.title === 'string' && Array.isArray(raw.internalStructures)
+}
+
+/** Stub JSON de LIST2_POINTER (`{collectionType}_list2Pointer_{title}.json`). */
+export function isList2PointerStubShape(raw: unknown): boolean {
+  if (!isRecord(raw)) {
+    return false
+  }
+  if ('type' in raw && 'defaultValue' in raw) {
+    return false
+  }
+  const id = typeof raw.id === 'string' ? raw.id : ''
+  if (!id.includes('_list2Pointer_') || id.includes('_listPointer_')) {
+    return false
+  }
+  return typeof raw.title === 'string' && Array.isArray(raw.internalStructures)
+}
+
+export function list2EmbedDefinitionFromJsonStub(raw: unknown): List2EmbedDefinition | null {
+  if (!isList2EmbedStubShape(raw)) {
+    return null
+  }
+  return parseList2Embed(raw)
+}
+
+export function list2PointerDefinitionFromJsonStub(raw: unknown): List2PointerDefinition | null {
+  if (!isList2PointerStubShape(raw)) {
+    return null
+  }
+  return parseList2Pointer(raw)
 }
 
 function parseEmbed(raw: unknown): EmbedDefinition | null {
@@ -423,6 +471,98 @@ function parsePointerArray(raw: unknown): PointerDefinition[] | null {
 
 function parseListPointer(raw: unknown): ListPointerDefinition | null {
   return parseListEmbed(raw)
+}
+
+function parseList2Embed(raw: unknown): List2EmbedDefinition | null {
+  if (!isRecord(raw)) {
+    return null
+  }
+  const id = typeof raw.id === 'string' ? raw.id : null
+  const title = typeof raw.title === 'string' ? raw.title : null
+  if (!id || !title) {
+    return null
+  }
+
+  const catalog = parseInternalStructuresList(raw.internalStructures)
+  if (!catalog) {
+    return null
+  }
+
+  const instances = parseEmbedArray(raw.instances)
+  if (instances === null) {
+    return null
+  }
+
+  return {
+    id,
+    title,
+    internalStructures: catalog,
+    instances,
+  }
+}
+
+function parseList2Pointer(raw: unknown): List2PointerDefinition | null {
+  if (!isRecord(raw)) {
+    return null
+  }
+  const id = typeof raw.id === 'string' ? raw.id : null
+  const title = typeof raw.title === 'string' ? raw.title : null
+  if (!id || !title) {
+    return null
+  }
+
+  const catalog = parseInternalStructuresList(raw.internalStructures)
+  if (!catalog) {
+    return null
+  }
+
+  const instances = parsePointerArray(raw.instances)
+  if (instances === null) {
+    return null
+  }
+
+  return {
+    id,
+    title,
+    internalStructures: catalog,
+    instances,
+  }
+}
+
+function parseList2EmbedArray(raw: unknown): List2EmbedDefinition[] | null {
+  if (raw === undefined) {
+    return []
+  }
+  if (!Array.isArray(raw)) {
+    return null
+  }
+  const out: List2EmbedDefinition[] = []
+  for (const entry of raw) {
+    const block = parseList2Embed(entry)
+    if (!block) {
+      return null
+    }
+    out.push(block)
+  }
+  return out
+}
+
+function parseList2PointerArray(raw: unknown): List2PointerDefinition[] | null {
+  if (raw === undefined) {
+    return []
+  }
+  if (!Array.isArray(raw)) {
+    return null
+  }
+  const out: List2PointerDefinition[] = []
+  for (const entry of raw) {
+    const block = parseList2Pointer(entry)
+    if (!block) {
+      return null
+    }
+    out.push(block)
+  }
+  return out
 }
 
 function parseListPointerArray(raw: unknown): ListPointerDefinition[] | null {
@@ -567,6 +707,16 @@ export function nodeSchemaFromStructureJson(raw: unknown): NodeSchemaDefinition 
     return null
   }
 
+  const list2Embed = parseList2EmbedArray(raw.list2Embed)
+  if (list2Embed === null) {
+    return null
+  }
+
+  const list2Pointer = parseList2PointerArray(raw.list2Pointer)
+  if (list2Pointer === null) {
+    return null
+  }
+
   const nomenclature = parseNomenclature(raw.nomenclature)
 
   const result: NodeSchemaDefinition = {
@@ -578,6 +728,8 @@ export function nodeSchemaFromStructureJson(raw: unknown): NodeSchemaDefinition 
     ...(pointer.length > 0 ? { pointer } : {}),
     ...(listEmbed.length > 0 ? { listEmbed } : {}),
     ...(listPointer.length > 0 ? { listPointer } : {}),
+    ...(list2Embed.length > 0 ? { list2Embed } : {}),
+    ...(list2Pointer.length > 0 ? { list2Pointer } : {}),
   }
 
   const parameterIdSet = new Set(parameters.map((parameter) => parameter.id))

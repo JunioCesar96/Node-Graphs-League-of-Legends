@@ -52,6 +52,16 @@ import {
   slotIdsForListPointerBlock,
   structureForListPointerAdd,
 } from '@/core/listPointerElementMenu'
+import {
+  appendList2EmbedCatalogItemToSchema,
+  removeList2EmbedInstanceFromSchema,
+} from '@/core/list2EmbedElementMenu'
+import { populatedSlotsForList2EmbedInstance } from '@/core/list2EmbedSlots'
+import {
+  appendList2PointerCatalogItemToSchema,
+  removeList2PointerInstanceFromSchema,
+} from '@/core/list2PointerElementMenu'
+import { populatedSlotsForList2PointerInstance } from '@/core/list2PointerSlots'
 import { findOutputSlotInNode, patchOutputSlotInNodeSchema } from '@/core/listEmbedSlots'
 import type {
   InternalStructureDefinition,
@@ -1711,6 +1721,140 @@ export function useSceneHistory(options?: {
     [updateScene],
   )
 
+  const appendList2EmbedCatalogItem = useCallback(
+    (nodeId: string, targetList2EmbedId: string, structure: InternalStructureDefinition) => {
+      updateScene((currentScene) => ({
+        ...currentScene,
+        nodes: currentScene.nodes.map((canvasNode) => {
+          if (canvasNode.id !== nodeId) {
+            return canvasNode
+          }
+
+          const templateSchema = schemaLookup[canvasNode.node.schema.id] ?? null
+          return {
+            ...canvasNode,
+            node: {
+              ...canvasNode.node,
+              schema: appendList2EmbedCatalogItemToSchema(
+                canvasNode.node.schema,
+                targetList2EmbedId,
+                structure,
+                templateSchema,
+              ),
+            },
+          }
+        }),
+      }))
+    },
+    [schemaLookup, updateScene],
+  )
+
+  const appendList2PointerCatalogItem = useCallback(
+    (nodeId: string, targetList2PointerId: string, structure: InternalStructureDefinition) => {
+      updateScene((currentScene) => ({
+        ...currentScene,
+        nodes: currentScene.nodes.map((canvasNode) => {
+          if (canvasNode.id !== nodeId) {
+            return canvasNode
+          }
+
+          const templateSchema = schemaLookup[canvasNode.node.schema.id] ?? null
+          return {
+            ...canvasNode,
+            node: {
+              ...canvasNode.node,
+              schema: appendList2PointerCatalogItemToSchema(
+                canvasNode.node.schema,
+                targetList2PointerId,
+                structure,
+                templateSchema,
+              ),
+            },
+          }
+        }),
+      }))
+    },
+    [schemaLookup, updateScene],
+  )
+
+  const removeList2EmbedInstance = useCallback(
+    (nodeId: string, blockId: string, instanceId: string) => {
+      updateScene((currentScene) => {
+        const canvasNode = currentScene.nodes.find((entry) => entry.id === nodeId)
+        const block = canvasNode?.node.schema.list2Embed?.find((entry) => entry.id === blockId)
+        const instance = block?.instances.find((entry) => entry.id === instanceId)
+        const slotIds = instance
+          ? new Set(populatedSlotsForList2EmbedInstance(instance).map((slot) => slot.id))
+          : new Set<string>()
+
+        const nextConnections = currentScene.connections.filter(
+          (connection) =>
+            !(connection.fromNodeId === nodeId && slotIds.has(connection.fromInternalStructureId)),
+        )
+
+        return {
+          ...currentScene,
+          connections: nextConnections,
+          nodes: currentScene.nodes.map((entry) =>
+            entry.id !== nodeId
+              ? entry
+              : {
+                  ...entry,
+                  node: {
+                    ...entry.node,
+                    schema: removeList2EmbedInstanceFromSchema(
+                      entry.node.schema,
+                      blockId,
+                      instanceId,
+                    ),
+                  },
+                },
+          ),
+        }
+      })
+    },
+    [updateScene],
+  )
+
+  const removeList2PointerInstance = useCallback(
+    (nodeId: string, blockId: string, instanceId: string) => {
+      updateScene((currentScene) => {
+        const canvasNode = currentScene.nodes.find((entry) => entry.id === nodeId)
+        const block = canvasNode?.node.schema.list2Pointer?.find((entry) => entry.id === blockId)
+        const instance = block?.instances.find((entry) => entry.id === instanceId)
+        const slotIds = instance
+          ? new Set(populatedSlotsForList2PointerInstance(instance).map((slot) => slot.id))
+          : new Set<string>()
+
+        const nextConnections = currentScene.connections.filter(
+          (connection) =>
+            !(connection.fromNodeId === nodeId && slotIds.has(connection.fromInternalStructureId)),
+        )
+
+        return {
+          ...currentScene,
+          connections: nextConnections,
+          nodes: currentScene.nodes.map((entry) =>
+            entry.id !== nodeId
+              ? entry
+              : {
+                  ...entry,
+                  node: {
+                    ...entry.node,
+                    schema: removeList2PointerInstanceFromSchema(
+                      entry.node.schema,
+                      blockId,
+                      instanceId,
+                    ),
+                  },
+                },
+          ),
+        }
+      })
+    },
+    [updateScene],
+  )
+
   const undoScene = useCallback(() => {
     setSceneHistory((currentHistory) => {
       const previousScene = currentHistory.past.at(-1)
@@ -1840,6 +1984,10 @@ export function useSceneHistory(options?: {
     appendPointerCatalogItem,
     appendListEmbedCatalogItem,
     appendListPointerCatalogItem,
+    appendList2EmbedCatalogItem,
+    appendList2PointerCatalogItem,
+    removeList2EmbedInstance,
+    removeList2PointerInstance,
     removeCanvasInternalStructure,
     removeEmbedSlot,
     removeEmbedBlock,

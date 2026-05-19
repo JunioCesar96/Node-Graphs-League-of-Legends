@@ -142,6 +142,26 @@ type GraphCanvasProps = {
     listPointerId: string,
     structure: InternalStructureDefinition,
   ) => void
+  onAppendList2EmbedCatalogItem?: (
+    canvasNodeId: string,
+    list2EmbedId: string,
+    structure: InternalStructureDefinition,
+  ) => void
+  onAppendList2PointerCatalogItem?: (
+    canvasNodeId: string,
+    list2PointerId: string,
+    structure: InternalStructureDefinition,
+  ) => void
+  onRemoveList2EmbedInstance?: (
+    canvasNodeId: string,
+    list2EmbedId: string,
+    instanceId: string,
+  ) => void
+  onRemoveList2PointerInstance?: (
+    canvasNodeId: string,
+    list2PointerId: string,
+    instanceId: string,
+  ) => void
   onCatalogParameterAppend?: (canvasNodeId: string, definition: NodeParameterDefinition) => void
   onRequestRemoveElement?: (canvasNodeId: string, item: NodeElementListItem) => void
   /** Com seleção: limpa todos os nós. Sem seleção: delega seleccionar todos. */
@@ -373,6 +393,82 @@ function getListPointerSectionHeight(node: CanvasNode) {
   return SECTION_TITLE_HEIGHT + SECTION_TITLE_GAP + blocksHeight
 }
 
+function getList2EmbedBlocksHeight(node: CanvasNode) {
+  const blocks = node.node.schema.list2Embed ?? []
+  if (blocks.length === 0) {
+    return 0
+  }
+
+  let height = 0
+  for (let i = 0; i < blocks.length; i += 1) {
+    const block = blocks[i]!
+    let instancesHeight = 0
+    for (const instance of block.instances) {
+      const slots = instance.slots ?? []
+      instancesHeight +=
+        LIST_EMBED_BLOCK_HEADER_HEIGHT +
+        (slots.length > 0
+          ? slots.length * INTERNAL_STRUCTURE_ITEM_HEIGHT +
+            Math.max(0, slots.length - 1) * ITEM_GAP +
+            ITEM_GAP
+          : 0)
+    }
+    height += LIST_EMBED_BLOCK_HEADER_HEIGHT + instancesHeight
+    if (i < blocks.length - 1) {
+      height += ITEM_GAP
+    }
+  }
+
+  return height
+}
+
+function getList2EmbedSectionHeight(node: CanvasNode) {
+  const blocksHeight = getList2EmbedBlocksHeight(node)
+  if (blocksHeight === 0) {
+    return 0
+  }
+
+  return SECTION_TITLE_HEIGHT + SECTION_TITLE_GAP + blocksHeight
+}
+
+function getList2PointerBlocksHeight(node: CanvasNode) {
+  const blocks = node.node.schema.list2Pointer ?? []
+  if (blocks.length === 0) {
+    return 0
+  }
+
+  let height = 0
+  for (let i = 0; i < blocks.length; i += 1) {
+    const block = blocks[i]!
+    let instancesHeight = 0
+    for (const instance of block.instances) {
+      const slots = instance.slots ?? []
+      instancesHeight +=
+        LIST_EMBED_BLOCK_HEADER_HEIGHT +
+        (slots.length > 0
+          ? slots.length * INTERNAL_STRUCTURE_ITEM_HEIGHT +
+            Math.max(0, slots.length - 1) * ITEM_GAP +
+            ITEM_GAP
+          : 0)
+    }
+    height += LIST_EMBED_BLOCK_HEADER_HEIGHT + instancesHeight
+    if (i < blocks.length - 1) {
+      height += ITEM_GAP
+    }
+  }
+
+  return height
+}
+
+function getList2PointerSectionHeight(node: CanvasNode) {
+  const blocksHeight = getList2PointerBlocksHeight(node)
+  if (blocksHeight === 0) {
+    return 0
+  }
+
+  return SECTION_TITLE_HEIGHT + SECTION_TITLE_GAP + blocksHeight
+}
+
 function getInternalStructureSectionHeight(node: CanvasNode) {
   const itemCount = node.node.schema.internalStructures.length
   const listHeight =
@@ -394,6 +490,10 @@ function getNodeCardHeight(node: CanvasNode, connections: readonly CanvasConnect
     getListEmbedSectionHeight(node, connections) +
     SECTION_GAP +
     getListPointerSectionHeight(node) +
+    SECTION_GAP +
+    getList2EmbedSectionHeight(node) +
+    SECTION_GAP +
+    getList2PointerSectionHeight(node) +
     SECTION_GAP +
     getInternalStructureSectionHeight(node) +
     SECTION_GAP +
@@ -875,6 +975,10 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     onAppendPointerCatalogItem,
     onAppendListEmbedCatalogItem,
     onAppendListPointerCatalogItem,
+    onAppendList2EmbedCatalogItem,
+    onAppendList2PointerCatalogItem,
+    onRemoveList2EmbedInstance,
+    onRemoveList2PointerInstance,
     onCatalogParameterAppend,
     onRequestRemoveElement,
     onClearSelection,
@@ -2301,6 +2405,30 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
                   onAppendListPointerCatalogItem
                     ? (listPointerId, structure) =>
                         onAppendListPointerCatalogItem(canvasNode.id, listPointerId, structure)
+                    : undefined
+                }
+                onAppendList2EmbedCatalogItem={
+                  onAppendList2EmbedCatalogItem
+                    ? (list2EmbedId, structure) =>
+                        onAppendList2EmbedCatalogItem(canvasNode.id, list2EmbedId, structure)
+                    : undefined
+                }
+                onAppendList2PointerCatalogItem={
+                  onAppendList2PointerCatalogItem
+                    ? (list2PointerId, structure) =>
+                        onAppendList2PointerCatalogItem(canvasNode.id, list2PointerId, structure)
+                    : undefined
+                }
+                onRemoveList2EmbedInstance={
+                  onRemoveList2EmbedInstance
+                    ? (list2EmbedId, instanceId) =>
+                        onRemoveList2EmbedInstance(canvasNode.id, list2EmbedId, instanceId)
+                    : undefined
+                }
+                onRemoveList2PointerInstance={
+                  onRemoveList2PointerInstance
+                    ? (list2PointerId, instanceId) =>
+                        onRemoveList2PointerInstance(canvasNode.id, list2PointerId, instanceId)
                     : undefined
                 }
                 onCreateElement={(entity) => onCreateChildNode(canvasNode.id, entity)}

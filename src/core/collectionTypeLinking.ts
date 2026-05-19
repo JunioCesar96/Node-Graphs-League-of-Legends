@@ -12,11 +12,22 @@ import {
   slotMatchesListEmbedCatalog,
 } from '@/core/listEmbedSlots'
 import {
+  catalogSchemaIdsForList2Embed,
+  findList2EmbedByInstanceSlotId,
+  slotMatchesList2EmbedCatalog,
+} from '@/core/list2EmbedSlots'
+import {
+  catalogSchemaIdsForList2Pointer,
+  findList2PointerByInstanceSlotId,
+  slotMatchesList2PointerCatalog,
+} from '@/core/list2PointerSlots'
+import {
   catalogSchemaIdsForListPointer,
   findListPointerBySlotId,
   isListPointerSlotId,
   slotMatchesListPointerCatalog,
 } from '@/core/listPointerSlots'
+import { isEmbedSlotId } from '@/core/embedSlots'
 import {
   catalogSchemaIdsForPointer,
   findPointerBySlotId,
@@ -193,6 +204,75 @@ export function nodesShareCollectionTypeForOutputSlot(
     }
 
     return allowedTypes.includes(targetType)
+  }
+
+  const list2EmbedHit = findList2EmbedByInstanceSlotId(fromNode.node.schema, slot.id)
+  if (list2EmbedHit) {
+    if (!slotMatchesList2EmbedCatalog(list2EmbedHit.block, targetNode.node.schema.id)) {
+      return false
+    }
+
+    const targetType = getCollectionTypeForCanvasNode(targetNode)
+    if (!targetType) {
+      return catalogSchemaIdsForList2Embed(list2EmbedHit.block).includes(targetNode.node.schema.id)
+    }
+
+    const allowedTypes = catalogSchemaIdsForList2Embed(list2EmbedHit.block)
+      .map((schemaId) => resolveCollectionTypeForSlot(schemaId, registry))
+      .filter((value): value is string => Boolean(value))
+
+    if (allowedTypes.length === 0) {
+      return true
+    }
+
+    return allowedTypes.includes(targetType)
+  }
+
+  const list2PointerHit = findList2PointerByInstanceSlotId(fromNode.node.schema, slot.id)
+  if (list2PointerHit) {
+    if (!slotMatchesList2PointerCatalog(list2PointerHit.block, targetNode.node.schema.id)) {
+      return false
+    }
+
+    const targetType = getCollectionTypeForCanvasNode(targetNode)
+    if (!targetType) {
+      return catalogSchemaIdsForList2Pointer(list2PointerHit.block).includes(targetNode.node.schema.id)
+    }
+
+    const allowedTypes = catalogSchemaIdsForList2Pointer(list2PointerHit.block)
+      .map((schemaId) => resolveCollectionTypeForSlot(schemaId, registry))
+      .filter((value): value is string => Boolean(value))
+
+    if (allowedTypes.length === 0) {
+      return true
+    }
+
+    return allowedTypes.includes(targetType)
+  }
+
+  if (isEmbedSlotId(slot.id)) {
+    const embedHit = findEmbedBySlotId(fromNode.node.schema, slot.id)
+    if (embedHit) {
+      const embedBlock = embedHit.embed
+      if (!slotMatchesEmbedCatalog(embedBlock, targetNode.node.schema.id)) {
+        return false
+      }
+
+      const targetType = getCollectionTypeForCanvasNode(targetNode)
+      if (!targetType) {
+        return catalogSchemaIdsForEmbed(embedBlock).includes(targetNode.node.schema.id)
+      }
+
+      const allowedTypes = catalogSchemaIdsForEmbed(embedBlock)
+        .map((schemaId) => resolveCollectionTypeForSlot(schemaId, registry))
+        .filter((value): value is string => Boolean(value))
+
+      if (allowedTypes.length === 0) {
+        return true
+      }
+
+      return allowedTypes.includes(targetType)
+    }
   }
 
   return nodesShareCollectionType(slot.schemaId, targetNode, registry)

@@ -197,6 +197,10 @@ function App() {
     appendPointerCatalogItem,
     appendListEmbedCatalogItem,
     appendListPointerCatalogItem,
+    appendList2EmbedCatalogItem,
+    appendList2PointerCatalogItem,
+    removeList2EmbedInstance,
+    removeList2PointerInstance,
     removeEmbedSlot,
     removeEmbedBlock,
     removePointerSlot,
@@ -1614,6 +1618,18 @@ function App() {
             }
             onAppendListPointerCatalogItem={(canvasNodeId, listPointerId, structure) =>
               appendListPointerCatalogItem(canvasNodeId, listPointerId, structure)
+            }
+            onAppendList2EmbedCatalogItem={(canvasNodeId, list2EmbedId, structure) =>
+              appendList2EmbedCatalogItem(canvasNodeId, list2EmbedId, structure)
+            }
+            onAppendList2PointerCatalogItem={(canvasNodeId, list2PointerId, structure) =>
+              appendList2PointerCatalogItem(canvasNodeId, list2PointerId, structure)
+            }
+            onRemoveList2EmbedInstance={(canvasNodeId, list2EmbedId, instanceId) =>
+              removeList2EmbedInstance(canvasNodeId, list2EmbedId, instanceId)
+            }
+            onRemoveList2PointerInstance={(canvasNodeId, list2PointerId, instanceId) =>
+              removeList2PointerInstance(canvasNodeId, list2PointerId, instanceId)
             }
             onCatalogParameterAppend={(canvasNodeId, definition) =>
               addDynamicParameter(canvasNodeId, definition)

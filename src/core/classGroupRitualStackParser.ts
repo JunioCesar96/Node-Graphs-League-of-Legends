@@ -16,13 +16,17 @@ import {
   MAP_ENTRY_HEAD_REGEX,
   STRUCT_ONLY_LINE,
   classifyRitualLine,
+  isEmbedList2Type,
   isEmbedListType,
+  isPointerList2Type,
   isPointerListType,
   isPrimitiveListType,
   isStructuralListType,
 } from '@/core/classGroupFieldClassifier'
 import {
   nodeBaseEmbedId,
+  nodeBaseList2EmbedId,
+  nodeBaseList2PointerId,
   nodeBaseListEmbedId,
   nodeBaseListPointerId,
   nodeBasePointerId,
@@ -66,6 +70,8 @@ import { formatVector3String, parseVector3String } from '@/core/vector3Value'
 import { embedSlotId } from '@/core/embedSlots'
 import type {
   EmbedDefinition,
+  List2EmbedDefinition,
+  List2PointerDefinition,
   ListEmbedDefinition,
   ListPointerDefinition,
   NodeDataType,
@@ -78,7 +84,14 @@ import { nodeBaseParameterId } from '@/core/extractNodeBaseParameters'
 
 export type MutableClassGroupSchema = Omit<
   NodeSchemaDefinition,
-  'parameters' | 'internalStructures' | 'embed' | 'pointer' | 'listEmbed' | 'listPointer'
+  | 'parameters'
+  | 'internalStructures'
+  | 'embed'
+  | 'pointer'
+  | 'listEmbed'
+  | 'listPointer'
+  | 'list2Embed'
+  | 'list2Pointer'
 > & {
   parameters: NodeSchemaDefinition['parameters']
   internalStructures: NodeSchemaDefinition['internalStructures']
@@ -86,6 +99,8 @@ export type MutableClassGroupSchema = Omit<
   pointer: PointerDefinition[]
   listEmbed: ListEmbedDefinition[]
   listPointer: ListPointerDefinition[]
+  list2Embed: List2EmbedDefinition[]
+  list2Pointer: List2PointerDefinition[]
 }
 
 type ScopeKind = 'entries' | 'entity' | 'internal' | 'listItem'
@@ -285,6 +300,8 @@ function emptyMutable(title: string, idFallback: string): MutableClassGroupSchem
     pointer: [],
     listEmbed: [],
     listPointer: [],
+    list2Embed: [],
+    list2Pointer: [],
     internalStructures: [],
   }
 }
@@ -593,6 +610,340 @@ function pushListPointerCatalogItem(
     name: childName,
     schemaId: childSchemaId,
   })
+}
+
+function ensureList2Embed(
+  parentSchema: MutableClassGroupSchema,
+  parentType: string,
+  fieldName: string,
+): List2EmbedDefinition {
+  const existing = parentSchema.list2Embed.find((block) => block.title === fieldName)
+  if (existing) {
+    return existing
+  }
+
+  const block: List2EmbedDefinition = {
+    id: nodeBaseList2EmbedId(parentType, fieldName),
+    title: fieldName,
+    internalStructures: [],
+    instances: [],
+  }
+  parentSchema.list2Embed.push(block)
+  return block
+}
+
+function ensureList2Pointer(
+  parentSchema: MutableClassGroupSchema,
+  parentType: string,
+  fieldName: string,
+): List2PointerDefinition {
+  const existing = parentSchema.list2Pointer.find((block) => block.title === fieldName)
+  if (existing) {
+    return existing
+  }
+
+  const block: List2PointerDefinition = {
+    id: nodeBaseList2PointerId(parentType, fieldName),
+    title: fieldName,
+    internalStructures: [],
+    instances: [],
+  }
+  parentSchema.list2Pointer.push(block)
+  return block
+}
+
+function pushList2EmbedCatalogItem(
+  list2Embed: List2EmbedDefinition,
+  parentType: string,
+  childName: string,
+  childSchemaId: string,
+  segId: string,
+): void {
+  if (list2Embed.internalStructures.some((item) => item.schemaId === childSchemaId)) {
+    return
+  }
+  list2Embed.internalStructures.push({
+    id: slugifyStructureId(`${parentType}-${segId}`).replace(/^-+/, '') || segId.toLowerCase(),
+    name: childName,
+    schemaId: childSchemaId,
+  })
+}
+
+function pushList2PointerCatalogItem(
+  list2Pointer: List2PointerDefinition,
+  parentType: string,
+  childName: string,
+  childSchemaId: string,
+  segId: string,
+): void {
+  if (list2Pointer.internalStructures.some((item) => item.schemaId === childSchemaId)) {
+    return
+  }
+  list2Pointer.internalStructures.push({
+    id: slugifyStructureId(`${parentType}-${segId}`).replace(/^-+/, '') || segId.toLowerCase(),
+    name: childName,
+    schemaId: childSchemaId,
+  })
+}
+
+function pushList2EmbedInstance(
+  list2Embed: List2EmbedDefinition,
+  parentType: string,
+  childName: string,
+  childSchemaId: string,
+  itemIdx: number,
+  segId: string,
+): EmbedDefinition {
+  pushList2EmbedCatalogItem(list2Embed, parentType, childName, childSchemaId, segId)
+
+  const instanceId = `${list2Embed.id}-inst-${String(itemIdx)}`
+  const catalogEntry = list2Embed.internalStructures.find((item) => item.schemaId === childSchemaId)
+  const instance: EmbedDefinition = {
+    id: instanceId,
+    title: childName,
+    internalStructures: catalogEntry ? [{ ...catalogEntry }] : [],
+    slots: [],
+  }
+  pushEmbedInitialSlot(instance, childName, childSchemaId)
+  list2Embed.instances.push(instance)
+  return instance
+}
+
+function pushList2PointerInstance(
+  list2Pointer: List2PointerDefinition,
+  parentType: string,
+  childName: string,
+  childSchemaId: string,
+  itemIdx: number,
+  segId: string,
+): PointerDefinition {
+  pushList2PointerCatalogItem(list2Pointer, parentType, childName, childSchemaId, segId)
+
+  const instanceId = `${list2Pointer.id}-inst-${String(itemIdx)}`
+  const catalogEntry = list2Pointer.internalStructures.find((item) => item.schemaId === childSchemaId)
+  const instance: PointerDefinition = {
+    id: instanceId,
+    title: childName,
+    internalStructures: catalogEntry ? [{ ...catalogEntry }] : [],
+    slots: [],
+  }
+  pushPointerInitialSlot(instance, childName, childSchemaId)
+  list2Pointer.instances.push(instance)
+  return instance
+}
+
+function parseList2EmbedBody(
+  ctx: ParseCtx,
+  parentType: string,
+  fieldName: string,
+  listInner: string,
+  parentSchema: MutableClassGroupSchema,
+): void {
+  const list2Embed = ensureList2Embed(parentSchema, parentType, fieldName)
+  const listLines = listInner.replace(/\t/g, '  ').split('\n')
+  let li = 0
+  let itemIdx = 0
+
+  while (li < listLines.length) {
+    const lineRaw = listLines[li]!.trimEnd()
+    const t = lineRaw.trim()
+    li += 1
+
+    if (t === '' || t.startsWith('#')) {
+      continue
+    }
+
+    const inlinePtr = INLINE_CHILD_OPEN_REGEX.exec(lineRaw)
+    if (inlinePtr?.[1] && inlinePtr[2] && inlinePtr[3]) {
+      const childField = inlinePtr[1]!
+      const childName = inlinePtr[3]!
+      const concatFromHere = listLines.slice(li - 1).join('\n')
+      const openRel = concatFromHere.indexOf('{')
+      const closeAbs = openRel >= 0 ? findClosingBrace(concatFromHere, openRel) : -1
+
+      let innerSlice = ''
+      if (closeAbs <= openRel) {
+        ctx.warnings.push(`${parentType}.${fieldName}[${String(itemIdx)}].${childField}: não fechado`)
+      } else {
+        innerSlice = concatFromHere.slice(openRel + 1, closeAbs)
+        const consumedHead = concatFromHere.slice(0, closeAbs + 1)
+        li += consumedHead.split('\n').length - 1
+      }
+
+      const childSchema = ensureSchema(ctx, childName)
+      const segId = `${fieldName}:${String(itemIdx)}:${childField}`
+      pushList2EmbedInstance(list2Embed, parentType, childName, childSchema.id, itemIdx, segId)
+
+      pushScope(
+        ctx,
+        {
+          segmentId: segId,
+          typeName: childName,
+          kind: 'listItem',
+          openingLine: lineRaw,
+        },
+        childSchema,
+      )
+
+      if (innerSlice.trim().length > 0) {
+        parseBlockBody(ctx, childName, innerSlice)
+      }
+
+      popScope(ctx)
+      itemIdx += 1
+      continue
+    }
+
+    const head = STRUCT_ONLY_LINE.exec(t)
+    if (!head?.[1]) {
+      continue
+    }
+
+    const childName = head[1]!
+    const concatFromHere = listLines.slice(li - 1).join('\n')
+    const openRel = concatFromHere.indexOf('{')
+    const closeAbs = openRel >= 0 ? findClosingBrace(concatFromHere, openRel) : -1
+
+    let innerSlice = ''
+    if (closeAbs <= openRel) {
+      ctx.warnings.push(`${parentType}.${fieldName}[${String(itemIdx)}]: '${childName}' não fechado`)
+    } else {
+      innerSlice = concatFromHere.slice(openRel + 1, closeAbs)
+      const consumedHead = concatFromHere.slice(0, closeAbs + 1)
+      li += consumedHead.split('\n').length - 1
+    }
+
+    const childSchema = ensureSchema(ctx, childName)
+    const segId = `${fieldName}:${String(itemIdx)}`
+    pushList2EmbedInstance(list2Embed, parentType, childName, childSchema.id, itemIdx, segId)
+
+    pushScope(
+      ctx,
+      {
+        segmentId: segId,
+        typeName: childName,
+        kind: 'listItem',
+        openingLine: lineRaw,
+      },
+      childSchema,
+    )
+
+    if (innerSlice.trim().length > 0) {
+      parseBlockBody(ctx, childName, innerSlice)
+    }
+
+    popScope(ctx)
+    itemIdx += 1
+  }
+}
+
+function parseList2PointerBody(
+  ctx: ParseCtx,
+  parentType: string,
+  fieldName: string,
+  listInner: string,
+  parentSchema: MutableClassGroupSchema,
+): void {
+  const list2Pointer = ensureList2Pointer(parentSchema, parentType, fieldName)
+  const listLines = listInner.replace(/\t/g, '  ').split('\n')
+  let li = 0
+  let itemIdx = 0
+
+  while (li < listLines.length) {
+    const lineRaw = listLines[li]!.trimEnd()
+    const t = lineRaw.trim()
+    li += 1
+
+    if (t === '' || t.startsWith('#')) {
+      continue
+    }
+
+    const inlinePtr = INLINE_CHILD_OPEN_REGEX.exec(lineRaw)
+    if (inlinePtr?.[1] && inlinePtr[2] && inlinePtr[3]) {
+      const childField = inlinePtr[1]!
+      const inlineKind = inlinePtr[2]!.toLowerCase()
+      const childName = inlinePtr[3]!
+      if (inlineKind !== 'pointer') {
+        continue
+      }
+      const concatFromHere = listLines.slice(li - 1).join('\n')
+      const openRel = concatFromHere.indexOf('{')
+      const closeAbs = openRel >= 0 ? findClosingBrace(concatFromHere, openRel) : -1
+
+      let innerSlice = ''
+      if (closeAbs <= openRel) {
+        ctx.warnings.push(`${parentType}.${fieldName}[${String(itemIdx)}].${childField}: não fechado`)
+      } else {
+        innerSlice = concatFromHere.slice(openRel + 1, closeAbs)
+        const consumedHead = concatFromHere.slice(0, closeAbs + 1)
+        li += consumedHead.split('\n').length - 1
+      }
+
+      const childSchema = ensureSchema(ctx, childName)
+      const segId = `${fieldName}:${String(itemIdx)}:${childField}`
+      pushList2PointerInstance(list2Pointer, parentType, childName, childSchema.id, itemIdx, segId)
+
+      pushScope(
+        ctx,
+        {
+          segmentId: segId,
+          typeName: childName,
+          kind: 'listItem',
+          openingLine: lineRaw,
+        },
+        childSchema,
+      )
+
+      if (innerSlice.trim().length > 0) {
+        parseBlockBody(ctx, childName, innerSlice)
+      }
+
+      popScope(ctx)
+      itemIdx += 1
+      continue
+    }
+
+    const head = STRUCT_ONLY_LINE.exec(t)
+    if (!head?.[1]) {
+      continue
+    }
+
+    const childName = head[1]!
+    const concatFromHere = listLines.slice(li - 1).join('\n')
+    const openRel = concatFromHere.indexOf('{')
+    const closeAbs = openRel >= 0 ? findClosingBrace(concatFromHere, openRel) : -1
+
+    let innerSlice = ''
+    if (closeAbs <= openRel) {
+      ctx.warnings.push(`${parentType}.${fieldName}[${String(itemIdx)}]: '${childName}' não fechado`)
+    } else {
+      innerSlice = concatFromHere.slice(openRel + 1, closeAbs)
+      const consumedHead = concatFromHere.slice(0, closeAbs + 1)
+      li += consumedHead.split('\n').length - 1
+    }
+
+    const childSchema = ensureSchema(ctx, childName)
+    const segId = `${fieldName}:${String(itemIdx)}`
+    pushList2PointerInstance(list2Pointer, parentType, childName, childSchema.id, itemIdx, segId)
+
+    pushScope(
+      ctx,
+      {
+        segmentId: segId,
+        typeName: childName,
+        kind: 'listItem',
+        openingLine: lineRaw,
+      },
+      childSchema,
+    )
+
+    if (innerSlice.trim().length > 0) {
+      parseBlockBody(ctx, childName, innerSlice)
+    }
+
+    popScope(ctx)
+    itemIdx += 1
+  }
 }
 
 function normalizeScalarDefaultValue(ritType: string, rawValue: string): string | null {
@@ -919,8 +1270,12 @@ function parseBlockBody(ctx: ParseCtx, parentType: string, body: string): void {
 
       if (isEmbedListType(listType)) {
         parseStructuralListBody(ctx, parentType, fieldName, listInner, parentSchema, true, false)
+      } else if (isEmbedList2Type(listType)) {
+        parseList2EmbedBody(ctx, parentType, fieldName, listInner, parentSchema)
       } else if (isPointerListType(listType)) {
         parseStructuralListBody(ctx, parentType, fieldName, listInner, parentSchema, false, true)
+      } else if (isPointerList2Type(listType)) {
+        parseList2PointerBody(ctx, parentType, fieldName, listInner, parentSchema)
       } else if (isStructuralListType(listType)) {
         parseStructuralListBody(ctx, parentType, fieldName, listInner, parentSchema, false, false)
       } else if (isPrimitiveListType(listType)) {
@@ -1266,6 +1621,38 @@ function collectReachableSchemaIds(ctx: ParseCtx): Set<string> {
         }
       }
     }
+    for (const block of schema.list2Embed) {
+      for (const ref of block.internalStructures) {
+        if (!out.has(ref.schemaId)) {
+          out.add(ref.schemaId)
+          queue.push(ref.schemaId)
+        }
+      }
+      for (const instance of block.instances) {
+        for (const ref of [...instance.internalStructures, ...(instance.slots ?? [])]) {
+          if (!out.has(ref.schemaId)) {
+            out.add(ref.schemaId)
+            queue.push(ref.schemaId)
+          }
+        }
+      }
+    }
+    for (const block of schema.list2Pointer) {
+      for (const ref of block.internalStructures) {
+        if (!out.has(ref.schemaId)) {
+          out.add(ref.schemaId)
+          queue.push(ref.schemaId)
+        }
+      }
+      for (const instance of block.instances) {
+        for (const ref of [...instance.internalStructures, ...(instance.slots ?? [])]) {
+          if (!out.has(ref.schemaId)) {
+            out.add(ref.schemaId)
+            queue.push(ref.schemaId)
+          }
+        }
+      }
+    }
   }
 
   return out
@@ -1381,6 +1768,8 @@ export function schemasFromClassGroupStackParse(
         ...(sch.pointer.length > 0 ? { pointer: [...sch.pointer] } : {}),
         ...(sch.listEmbed.length > 0 ? { listEmbed: [...sch.listEmbed] } : {}),
         ...(sch.listPointer.length > 0 ? { listPointer: [...sch.listPointer] } : {}),
+        ...(sch.list2Embed.length > 0 ? { list2Embed: [...sch.list2Embed] } : {}),
+        ...(sch.list2Pointer.length > 0 ? { list2Pointer: [...sch.list2Pointer] } : {}),
         internalStructures: [...sch.internalStructures],
       }),
     )

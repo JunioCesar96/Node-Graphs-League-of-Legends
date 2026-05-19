@@ -128,6 +128,33 @@ entries: map[hash,embed] = {
     expect(schemas.some((s) => s.id === 'main-node')).toBe(false)
   })
 
+  it('list2[embed]: BankUnits → list2Embed[] com instâncias, não listEmbed[]', () => {
+    const text = `
+entries: map[hash,embed] = {
+  "Characters/Zac/Skins/Skin0" = SkinCharacterDataProperties {
+    SkinAudioProperties: embed = SkinAudioProperties {
+      BankUnits: list2[embed] = {
+        BankUnit {
+          Name: string = "A"
+        }
+        BankUnit {
+          Name: string = "B"
+        }
+      }
+    }
+  }
+}
+`.trim()
+
+    const parsed = parseClassGroupRitualWithStack(text)
+    const audio = parsed.registry.get('skin-audio-properties')
+    expect(audio).toBeDefined()
+    const bankUnits = audio!.list2Embed?.find((block) => block.title === 'BankUnits')
+    expect(bankUnits).toBeDefined()
+    expect(bankUnits!.instances).toHaveLength(2)
+    expect(audio!.listEmbed?.find((block) => block.title === 'BankUnits')).toBeUndefined()
+  })
+
   it('list[pointer]: listPointer[] com catálogo; filho VfxEmitter', () => {
     const text = `
 entries: map[hash,embed] = {

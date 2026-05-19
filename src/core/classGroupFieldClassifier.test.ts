@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest'
 
 import {
   classifyRitualLine,
+  isEmbedList2Type,
   isEmbedListType,
+  isPointerList2Type,
   isPointerListType,
   isPrimitiveListType,
   isStructuralListType,
@@ -18,7 +20,11 @@ describe('classGroupFieldClassifier', () => {
     expect(isPrimitiveListType('list[vec2]')).toBe(true)
     expect(isPrimitiveListType('list[vec3]')).toBe(true)
     expect(isPrimitiveListType('list[vec4]')).toBe(true)
-    expect(isEmbedListType('list2[embed]')).toBe(true)
+    expect(isEmbedListType('list[embed]')).toBe(true)
+    expect(isEmbedList2Type('list2[embed]')).toBe(true)
+    expect(isEmbedListType('list2[embed]')).toBe(false)
+    expect(isPointerList2Type('list2[pointer]')).toBe(true)
+    expect(isPointerListType('list2[pointer]')).toBe(false)
   })
 
   it('classifica rgba com valor entre chavetas como simples', () => {

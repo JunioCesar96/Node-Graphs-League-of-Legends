@@ -73,12 +73,14 @@ entries: map[hash,embed] = {
     expect(audioEmbed).toBeDefined()
     expect(audioEmbed!.internalStructures.some((x) => x.schemaId === audio!.id)).toBe(true)
     expect(audioEmbed!.slots?.[0]?.schemaId).toBe(audio!.id)
-    const bankUnits = audio!.listEmbed?.find((block) => block.title === 'BankUnits')
+    const bankUnits = audio!.list2Embed?.find((block) => block.title === 'BankUnits')
     expect(bankUnits).toBeDefined()
-    expect(bankUnits!.internalStructures).toHaveLength(2)
-    expect(bankUnits!.internalStructures.every((x) => x.name === 'BankUnit' && x.schemaId === bank!.id)).toBe(
-      true,
-    )
+    expect(bankUnits!.internalStructures).toHaveLength(1)
+    expect(bankUnits!.instances).toHaveLength(2)
+    expect(
+      bankUnits!.instances.every((inst) => inst.slots?.[0]?.schemaId === bank!.id),
+    ).toBe(true)
+    expect(audio!.listEmbed?.find((block) => block.title === 'BankUnits')).toBeUndefined()
 
     expect(out.classGroupPathBySchemaId?.[skin!.id]?.length).toBe(2)
     expect(out.classGroupPathBySchemaId?.[skin!.id]?.[0]!.id).toBe('entries')

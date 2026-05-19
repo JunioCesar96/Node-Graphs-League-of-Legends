@@ -98,6 +98,24 @@ export type ListPointerDefinition = {
   slots?: InternalStructureDefinition[]
 }
 
+/** Bloco `list2[embed]`: cada item da lista = instância estilo embed (máx. 1 slot). */
+export type List2EmbedDefinition = {
+  id: string
+  title: string
+  templateBlockId?: string
+  internalStructures: InternalStructureDefinition[]
+  instances: EmbedDefinition[]
+}
+
+/** Bloco `list2[pointer]`: cada item da lista = instância estilo pointer (máx. 1 slot). */
+export type List2PointerDefinition = {
+  id: string
+  title: string
+  templateBlockId?: string
+  internalStructures: InternalStructureDefinition[]
+  instances: PointerDefinition[]
+}
+
 export type NodeSchemaDefinition = {
   id: string
   title: string
@@ -110,6 +128,10 @@ export type NodeSchemaDefinition = {
   listEmbed?: ListEmbedDefinition[]
   /** Listas estruturais `list[pointer]`. */
   listPointer?: ListPointerDefinition[]
+  /** Listas `list2[embed]` (instâncias estilo embed). */
+  list2Embed?: List2EmbedDefinition[]
+  /** Listas `list2[pointer]` (instâncias estilo pointer). */
+  list2Pointer?: List2PointerDefinition[]
   internalStructures: InternalStructureDefinition[]
   /** Opcional: parâmetros obrigatórios por defeito (copiados para novas instâncias). */
   required_parameter?: string[]

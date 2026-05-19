@@ -45,21 +45,50 @@ const PRIMITIVE_TYPE_REGEX =
 /** Lista estrutural genérica (ex. `list[link]`) → filhos em Internal_Structures. */
 export function isStructuralListType(listTypeBracket: string): boolean {
   const inner = listTypeBracket.replace(/^list2?\[/i, '').replace(/\]$/, '').trim()
-  if (isEmbedListType(listTypeBracket) || isPointerListType(listTypeBracket)) {
+  if (
+    isEmbedListType(listTypeBracket) ||
+    isEmbedList2Type(listTypeBracket) ||
+    isPointerListType(listTypeBracket) ||
+    isPointerList2Type(listTypeBracket)
+  ) {
     return false
   }
   return /\b(embed|pointer|link)\b/i.test(inner)
 }
 
-/** `list[embed]` / `list2[embed]` → bloco LIST_EMBED no schema. */
+/** `list[embed]` → bloco LIST_EMBED no schema. */
 export function isEmbedListType(listTypeBracket: string): boolean {
-  const inner = listTypeBracket.replace(/^list2?\[/i, '').replace(/\]$/, '').trim()
+  if (!/^list\[/i.test(listTypeBracket)) {
+    return false
+  }
+  const inner = listTypeBracket.replace(/^list\[/i, '').replace(/\]$/, '').trim()
   return /\bembed\b/i.test(inner)
 }
 
-/** `list[pointer]` / `list2[pointer]` → bloco LIST_POINTER no schema. */
+/** `list2[embed]` → bloco LIST2_EMBED (instâncias estilo embed). */
+export function isEmbedList2Type(listTypeBracket: string): boolean {
+  if (!/^list2\[/i.test(listTypeBracket)) {
+    return false
+  }
+  const inner = listTypeBracket.replace(/^list2\[/i, '').replace(/\]$/, '').trim()
+  return /\bembed\b/i.test(inner)
+}
+
+/** `list[pointer]` → bloco LIST_POINTER no schema. */
 export function isPointerListType(listTypeBracket: string): boolean {
-  const inner = listTypeBracket.replace(/^list2?\[/i, '').replace(/\]$/, '').trim()
+  if (!/^list\[/i.test(listTypeBracket)) {
+    return false
+  }
+  const inner = listTypeBracket.replace(/^list\[/i, '').replace(/\]$/, '').trim()
+  return /\bpointer\b/i.test(inner)
+}
+
+/** `list2[pointer]` → bloco LIST2_POINTER (instâncias estilo pointer). */
+export function isPointerList2Type(listTypeBracket: string): boolean {
+  if (!/^list2\[/i.test(listTypeBracket)) {
+    return false
+  }
+  const inner = listTypeBracket.replace(/^list2\[/i, '').replace(/\]$/, '').trim()
   return /\bpointer\b/i.test(inner)
 }
 
@@ -110,7 +139,13 @@ export function classifyRitualLine(lineRaw: string): ParsedRitualField {
     const m = LIST_STRUCTURAL_OPEN_REGEX.exec(lineRaw)
     if (m?.[1] && m[2]) {
       const listType = m[2]
-      if (isEmbedListType(listType) || isPointerListType(listType) || isStructuralListType(listType)) {
+      if (
+        isEmbedListType(listType) ||
+        isEmbedList2Type(listType) ||
+        isPointerListType(listType) ||
+        isPointerList2Type(listType) ||
+        isStructuralListType(listType)
+      ) {
         return {
           kind: 'structural',
           fieldName: m[1],

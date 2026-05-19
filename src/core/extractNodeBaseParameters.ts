@@ -1,5 +1,7 @@
 import type {
   EmbedDefinition,
+  List2EmbedDefinition,
+  List2PointerDefinition,
   ListEmbedDefinition,
   ListPointerDefinition,
   NodeDataType,
@@ -96,6 +98,8 @@ const STRUCTURAL_ID_MARKERS = [
   '_pointer_',
   '_listEmbed_',
   '_listPointer_',
+  '_list2Embed_',
+  '_list2Pointer_',
 ] as const
 
 /** Id composto: `collectionType_parameter_paramName` (preserva capitalização). */
@@ -142,7 +146,9 @@ export function migrateParameterId(
     !id.includes('_embed_') &&
     !id.includes('_pointer_') &&
     !id.includes('_listEmbed_') &&
-    !id.includes('_listPointer_')
+    !id.includes('_listPointer_') &&
+    !id.includes('_list2Embed_') &&
+    !id.includes('_list2Pointer_')
   ) {
     const suffix = id.slice(prefix.length)
     if (suffix) {
@@ -189,6 +195,16 @@ export function nodeBaseListPointerId(collectionType: string, listPointerTitle: 
   return `${collectionType}_listPointer_${listPointerTitle}`
 }
 
+/** Id composto: `collectionType_list2Embed_list2EmbedTitle`. */
+export function nodeBaseList2EmbedId(collectionType: string, list2EmbedTitle: string): string {
+  return `${collectionType}_list2Embed_${list2EmbedTitle}`
+}
+
+/** Id composto: `collectionType_list2Pointer_list2PointerTitle`. */
+export function nodeBaseList2PointerId(collectionType: string, list2PointerTitle: string): string {
+  return `${collectionType}_list2Pointer_${list2PointerTitle}`
+}
+
 export type NodeBaseParameterPayload = {
   id: string
   name: string
@@ -200,6 +216,8 @@ export type NodeBaseEmbedPayload = EmbedDefinition
 export type NodeBaseListEmbedPayload = ListEmbedDefinition
 export type NodeBasePointerPayload = PointerDefinition
 export type NodeBaseListPointerPayload = ListPointerDefinition
+export type NodeBaseList2EmbedPayload = List2EmbedDefinition
+export type NodeBaseList2PointerPayload = List2PointerDefinition
 
 export function buildNodeBaseEmbedPayload(
   collectionType: string,
@@ -297,6 +315,74 @@ export function buildNodeBaseListPointerPayload(
     id,
     title,
     internalStructures,
+  }
+}
+
+export function buildNodeBaseList2EmbedPayload(
+  collectionType: string,
+  block: ListEmbedBlockRaw,
+): NodeBaseList2EmbedPayload | null {
+  const title = block.title.trim()
+  if (!title) {
+    return null
+  }
+
+  const id = nodeBaseList2EmbedId(collectionType, title)
+  const seenSchemaIds = new Set<string>()
+  const internalStructures: List2EmbedDefinition['internalStructures'] = []
+
+  for (const ref of block.internalStructures) {
+    if (seenSchemaIds.has(ref.schemaId)) {
+      continue
+    }
+    seenSchemaIds.add(ref.schemaId)
+    const catalogName = ref.name?.trim() || ref.schemaId
+    internalStructures.push({
+      id: `${id}-catalog-${String(internalStructures.length)}`,
+      name: catalogName,
+      schemaId: ref.schemaId,
+    })
+  }
+
+  return {
+    id,
+    title,
+    internalStructures,
+    instances: [],
+  }
+}
+
+export function buildNodeBaseList2PointerPayload(
+  collectionType: string,
+  block: ListPointerBlockRaw,
+): NodeBaseList2PointerPayload | null {
+  const title = block.title.trim()
+  if (!title) {
+    return null
+  }
+
+  const id = nodeBaseList2PointerId(collectionType, title)
+  const seenSchemaIds = new Set<string>()
+  const internalStructures: List2PointerDefinition['internalStructures'] = []
+
+  for (const ref of block.internalStructures) {
+    if (seenSchemaIds.has(ref.schemaId)) {
+      continue
+    }
+    seenSchemaIds.add(ref.schemaId)
+    const catalogName = ref.name?.trim() || ref.schemaId
+    internalStructures.push({
+      id: `${id}-catalog-${String(internalStructures.length)}`,
+      name: catalogName,
+      schemaId: ref.schemaId,
+    })
+  }
+
+  return {
+    id,
+    title,
+    internalStructures,
+    instances: [],
   }
 }
 
@@ -468,6 +554,32 @@ export function readListPointerBlocksFromSchemaJson(raw: Record<string, unknown>
   return []
 }
 
+export function readList2EmbedBlocksFromSchemaJson(raw: Record<string, unknown>): ListEmbedBlockRaw[] {
+  const fromOfficial: ListEmbedBlockRaw[] = []
+  if (Array.isArray(raw.list2Embed)) {
+    for (const item of raw.list2Embed) {
+      const block = parseListEmbedBlock(item)
+      if (block) {
+        fromOfficial.push(block)
+      }
+    }
+  }
+  return fromOfficial
+}
+
+export function readList2PointerBlocksFromSchemaJson(raw: Record<string, unknown>): ListPointerBlockRaw[] {
+  const fromOfficial: ListPointerBlockRaw[] = []
+  if (Array.isArray(raw.list2Pointer)) {
+    for (const item of raw.list2Pointer) {
+      const block = parseListEmbedBlock(item)
+      if (block) {
+        fromOfficial.push(block)
+      }
+    }
+  }
+  return fromOfficial
+}
+
 export function readListEmbedBlocksFromSchemaJson(raw: Record<string, unknown>): ListEmbedBlockRaw[] {
   const fromOfficial: ListEmbedBlockRaw[] = []
   if (Array.isArray(raw.listEmbed)) {
@@ -519,6 +631,8 @@ export type NodeBaseSchemaBodyJson = {
   pointer: []
   listEmbed: []
   listPointer: []
+  list2Embed: []
+  list2Pointer: []
   id: string
   title: string
   nomenclature: NodeStructureNomenclature
@@ -553,6 +667,8 @@ export function buildNodeBaseSchemaBody(
     pointer: [],
     listEmbed: [],
     listPointer: [],
+    list2Embed: [],
+    list2Pointer: [],
     id: collectionType,
     title: collectionType,
     nomenclature: cloneNomenclatureForNodeBase(nomenclature),

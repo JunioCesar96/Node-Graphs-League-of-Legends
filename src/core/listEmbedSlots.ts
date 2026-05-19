@@ -6,6 +6,14 @@ import type {
   NodeSchemaDefinition,
 } from '@/core/nodeSchema'
 import { resolveCollectionTypeForSlot } from '@/core/collectionTypeLinking'
+import {
+  findList2EmbedByInstanceSlotId,
+  populatedSlotsForList2EmbedInstance,
+} from '@/core/list2EmbedSlots'
+import {
+  findList2PointerByInstanceSlotId,
+  populatedSlotsForList2PointerInstance,
+} from '@/core/list2PointerSlots'
 import { populatedSlotsForPointer } from '@/core/pointerSlots'
 
 export const LIST_EMBED_SLOT_ID_PREFIX = '__slot__'
@@ -346,6 +354,26 @@ export function findOutputSlotInNode(
     if (slot) {
       return slot
     }
+  }
+
+  for (const block of node.node.schema.listPointer ?? []) {
+    const slots = populatedSlotsForListPointer(block)
+    const slot = slots.find((entry) => entry.id === slotId)
+    if (slot) {
+      return slot
+    }
+  }
+
+  const list2EmbedHit = findList2EmbedByInstanceSlotId(node.node.schema, slotId)
+  if (list2EmbedHit) {
+    const slots = populatedSlotsForList2EmbedInstance(list2EmbedHit.instance)
+    return slots[list2EmbedHit.slotIndex] ?? null
+  }
+
+  const list2PointerHit = findList2PointerByInstanceSlotId(node.node.schema, slotId)
+  if (list2PointerHit) {
+    const slots = populatedSlotsForList2PointerInstance(list2PointerHit.instance)
+    return slots[list2PointerHit.slotIndex] ?? null
   }
 
   return null

@@ -18,6 +18,8 @@ import {
 import { applyEmbedSlotsToSchema } from './embedSlots'
 import { applyListPointerSlotsToSchema } from './listPointerSlots'
 import { applyPointerSlotsToSchema } from './pointerSlots'
+import { applyList2EmbedInstancesToSchema } from './list2EmbedSlots'
+import { applyList2PointerInstancesToSchema } from './list2PointerSlots'
 import { applyListEmbedSlotsToSchema, migrateSceneListEmbedConnections } from './listEmbedSlots'
 import {
   instanceLinkedPairsEqual,
@@ -149,10 +151,14 @@ export function hydrateScene(scene: CanvasScene): CanvasScene {
   const nodes = scene.nodes.map((n) => {
     const nodeInstance: NodeInstance = {
       ...n.node,
-      schema: applyPointerSlotsToSchema(
-        applyEmbedSlotsToSchema(
-          applyListPointerSlotsToSchema(
-            applyListEmbedSlotsToSchema(coerceEmbeddedSchema(structuredClone(n.node.schema))),
+      schema: applyList2PointerInstancesToSchema(
+        applyList2EmbedInstancesToSchema(
+          applyPointerSlotsToSchema(
+            applyEmbedSlotsToSchema(
+              applyListPointerSlotsToSchema(
+                applyListEmbedSlotsToSchema(coerceEmbeddedSchema(structuredClone(n.node.schema))),
+              ),
+            ),
           ),
         ),
       ),

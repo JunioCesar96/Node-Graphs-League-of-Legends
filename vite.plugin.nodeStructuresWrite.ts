@@ -5,6 +5,8 @@ import type { Plugin } from 'vite'
 
 import {
   buildNodeBaseEmbedPayload,
+  buildNodeBaseList2EmbedPayload,
+  buildNodeBaseList2PointerPayload,
   buildNodeBaseListEmbedPayload,
   buildNodeBaseListPointerPayload,
   buildNodeBaseParameterPayload,
@@ -12,6 +14,8 @@ import {
   buildNodeBaseSchemaBody,
   collectSchemaIdsFromListEmbedBlocks,
   readEmbedBlocksFromSchemaJson,
+  readList2EmbedBlocksFromSchemaJson,
+  readList2PointerBlocksFromSchemaJson,
   readListEmbedBlocksFromSchemaJson,
   readListPointerBlocksFromSchemaJson,
   readPointerBlocksFromSchemaJson,
@@ -717,6 +721,86 @@ export function vitePluginNodeStructuresWrite(projectRoot: string): Plugin {
                     )
                     knownIds.add(listPointerPayload.id)
                     created.push(`${subdirName}/${listPointerStem}.json`)
+                  }
+
+                  const list2EmbedBlocks = readList2EmbedBlocksFromSchemaJson(fileJson)
+                  for (const block of list2EmbedBlocks) {
+                    const list2EmbedPayload = buildNodeBaseList2EmbedPayload(collectionType, block)
+                    if (!list2EmbedPayload) {
+                      continue
+                    }
+
+                    const list2EmbedStem = safeJsonStem(list2EmbedPayload.id)
+                    if (!list2EmbedStem) {
+                      skipped.push(list2EmbedPayload.id)
+                      continue
+                    }
+
+                    const list2EmbedOutFile = path.join(subdirPath, `${list2EmbedStem}.json`)
+                    const list2EmbedOutRel = path.relative(subdirPath, list2EmbedOutFile)
+                    if (list2EmbedOutRel.startsWith('..') || path.isAbsolute(list2EmbedOutRel)) {
+                      skipped.push(list2EmbedPayload.id)
+                      continue
+                    }
+
+                    if (knownIds.has(list2EmbedPayload.id)) {
+                      skipped.push(list2EmbedPayload.id)
+                      continue
+                    }
+
+                    if (await fileExists(list2EmbedOutFile)) {
+                      skipped.push(list2EmbedPayload.id)
+                      continue
+                    }
+
+                    await fs.mkdir(subdirPath, { recursive: true })
+                    await fs.writeFile(
+                      list2EmbedOutFile,
+                      `${JSON.stringify(list2EmbedPayload, null, 2)}\n`,
+                      'utf8',
+                    )
+                    knownIds.add(list2EmbedPayload.id)
+                    created.push(`${subdirName}/${list2EmbedStem}.json`)
+                  }
+
+                  const list2PointerBlocks = readList2PointerBlocksFromSchemaJson(fileJson)
+                  for (const block of list2PointerBlocks) {
+                    const list2PointerPayload = buildNodeBaseList2PointerPayload(collectionType, block)
+                    if (!list2PointerPayload) {
+                      continue
+                    }
+
+                    const list2PointerStem = safeJsonStem(list2PointerPayload.id)
+                    if (!list2PointerStem) {
+                      skipped.push(list2PointerPayload.id)
+                      continue
+                    }
+
+                    const list2PointerOutFile = path.join(subdirPath, `${list2PointerStem}.json`)
+                    const list2PointerOutRel = path.relative(subdirPath, list2PointerOutFile)
+                    if (list2PointerOutRel.startsWith('..') || path.isAbsolute(list2PointerOutRel)) {
+                      skipped.push(list2PointerPayload.id)
+                      continue
+                    }
+
+                    if (knownIds.has(list2PointerPayload.id)) {
+                      skipped.push(list2PointerPayload.id)
+                      continue
+                    }
+
+                    if (await fileExists(list2PointerOutFile)) {
+                      skipped.push(list2PointerPayload.id)
+                      continue
+                    }
+
+                    await fs.mkdir(subdirPath, { recursive: true })
+                    await fs.writeFile(
+                      list2PointerOutFile,
+                      `${JSON.stringify(list2PointerPayload, null, 2)}\n`,
+                      'utf8',
+                    )
+                    knownIds.add(list2PointerPayload.id)
+                    created.push(`${subdirName}/${list2PointerStem}.json`)
                   }
                 }
 

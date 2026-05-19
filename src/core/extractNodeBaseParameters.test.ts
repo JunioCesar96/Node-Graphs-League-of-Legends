@@ -162,6 +162,8 @@ describe('buildNodeBaseSchemaBody', () => {
       pointer: [],
       listEmbed: [],
       listPointer: [],
+      list2Embed: [],
+      list2Pointer: [],
       id: 'Emitter',
       title: 'Emitter',
       nomenclature: { ...nom },

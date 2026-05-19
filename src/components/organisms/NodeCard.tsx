@@ -12,6 +12,8 @@ import { EmbedAddPicker } from '@/components/molecules/EmbedAddPicker'
 import { EmbedItem } from '@/components/molecules/EmbedItem'
 import { ListEmbedAddPicker } from '@/components/molecules/ListEmbedAddPicker'
 import { ListEmbedItem } from '@/components/molecules/ListEmbedItem'
+import { List2EmbedItem } from '@/components/molecules/List2EmbedItem'
+import { List2PointerItem } from '@/components/molecules/List2PointerItem'
 import { ListPointerItem } from '@/components/molecules/ListPointerItem'
 import { PointerItem } from '@/components/molecules/PointerItem'
 import { NodeHeader } from '@/components/molecules/NodeHeader'
@@ -99,6 +101,10 @@ type NodeCardProps = {
   onAppendPointerCatalogItem?: (pointerId: string, structure: InternalStructureDefinition) => void
   onAppendListEmbedCatalogItem?: (listEmbedId: string, structure: InternalStructureDefinition) => void
   onAppendListPointerCatalogItem?: (listPointerId: string, structure: InternalStructureDefinition) => void
+  onAppendList2EmbedCatalogItem?: (list2EmbedId: string, structure: InternalStructureDefinition) => void
+  onAppendList2PointerCatalogItem?: (list2PointerId: string, structure: InternalStructureDefinition) => void
+  onRemoveList2EmbedInstance?: (list2EmbedId: string, instanceId: string) => void
+  onRemoveList2PointerInstance?: (list2PointerId: string, instanceId: string) => void
   /** Schema base (registry) — catálogo LIST_EMBED para o picker «+». */
   templateSchema?: NodeSchemaDefinition | null
   onCreateElement?: (structure: InternalStructureDefinition) => void
@@ -156,6 +162,10 @@ export function NodeCard({
   onAppendPointerCatalogItem,
   onAppendListEmbedCatalogItem,
   onAppendListPointerCatalogItem,
+  onAppendList2EmbedCatalogItem,
+  onAppendList2PointerCatalogItem,
+  onRemoveList2EmbedInstance,
+  onRemoveList2PointerInstance,
   templateSchema = null,
   onCreateElement,
   onRequestRemoveElement,
@@ -717,6 +727,86 @@ export function NodeCard({
             ))}
           </ul>
         </section>
+
+        {(node.schema.list2Embed?.length ?? 0) > 0 ? (
+          <section className={styles.section} aria-labelledby={`${sectionId}-list2-embed`}>
+            <h3 className={styles.sectionTitle} id={`${sectionId}-list2-embed`}>
+              LIST2_EMBED
+            </h3>
+            <ul className={styles.list}>
+              {(node.schema.list2Embed ?? []).map((list2Embed) => (
+                <List2EmbedItem
+                  activeSlotId={activeOutputInternalStructureId}
+                  canAdd={Boolean(onAppendList2EmbedCatalogItem) && list2Embed.internalStructures.length > 0}
+                  canRemove={(list2Embed.instances?.length ?? 0) > 0}
+                  canvasNodeId={canvasNodeId}
+                  key={list2Embed.id}
+                  list2Embed={list2Embed}
+                  onAddClick={() => {
+                    const first = list2Embed.internalStructures[0]
+                    if (first && onAppendList2EmbedCatalogItem) {
+                      onAppendList2EmbedCatalogItem(list2Embed.id, first)
+                    }
+                  }}
+                  onRemoveClick={() => {
+                    const last = list2Embed.instances.at(-1)
+                    if (last && onRemoveList2EmbedInstance) {
+                      onRemoveList2EmbedInstance(list2Embed.id, last.id)
+                    }
+                  }}
+                  onRemoveInstanceClick={(instanceId) =>
+                    onRemoveList2EmbedInstance?.(list2Embed.id, instanceId)
+                  }
+                  onOutputWireKeyboard={onOutputWireKeyboard}
+                  onOutputWirePointerCancel={onOutputWirePointerCancel}
+                  onOutputWirePointerDown={onOutputWirePointerDown}
+                  onOutputWirePointerMove={onOutputWirePointerMove}
+                  onOutputWirePointerUp={onOutputWirePointerUp}
+                />
+              ))}
+            </ul>
+          </section>
+        ) : null}
+
+        {(node.schema.list2Pointer?.length ?? 0) > 0 ? (
+          <section className={styles.section} aria-labelledby={`${sectionId}-list2-pointer`}>
+            <h3 className={styles.sectionTitle} id={`${sectionId}-list2-pointer`}>
+              LIST2_POINTER
+            </h3>
+            <ul className={styles.list}>
+              {(node.schema.list2Pointer ?? []).map((list2Pointer) => (
+                <List2PointerItem
+                  activeSlotId={activeOutputInternalStructureId}
+                  canAdd={Boolean(onAppendList2PointerCatalogItem) && list2Pointer.internalStructures.length > 0}
+                  canRemove={(list2Pointer.instances?.length ?? 0) > 0}
+                  canvasNodeId={canvasNodeId}
+                  key={list2Pointer.id}
+                  list2Pointer={list2Pointer}
+                  onAddClick={() => {
+                    const first = list2Pointer.internalStructures[0]
+                    if (first && onAppendList2PointerCatalogItem) {
+                      onAppendList2PointerCatalogItem(list2Pointer.id, first)
+                    }
+                  }}
+                  onRemoveClick={() => {
+                    const last = list2Pointer.instances.at(-1)
+                    if (last && onRemoveList2PointerInstance) {
+                      onRemoveList2PointerInstance(list2Pointer.id, last.id)
+                    }
+                  }}
+                  onRemoveInstanceClick={(instanceId) =>
+                    onRemoveList2PointerInstance?.(list2Pointer.id, instanceId)
+                  }
+                  onOutputWireKeyboard={onOutputWireKeyboard}
+                  onOutputWirePointerCancel={onOutputWirePointerCancel}
+                  onOutputWirePointerDown={onOutputWirePointerDown}
+                  onOutputWirePointerMove={onOutputWirePointerMove}
+                  onOutputWirePointerUp={onOutputWirePointerUp}
+                />
+              ))}
+            </ul>
+          </section>
+        ) : null}
 
         <section className={styles.section} aria-labelledby={`${sectionId}-internal-structures`}>
           <h3 className={styles.sectionTitle} id={`${sectionId}-internal-structures`}>
