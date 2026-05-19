@@ -9,7 +9,7 @@ Arquivo salvo em: `feature_md/feature/feature-list2-embed-pointer-class-group.md
 | Nome da Branch | `feature/list2-embed-pointer-class-group` |
 | Nome das Features | LIST2_EMBED e LIST2_POINTER no schema e conversor Class Group; secções no card; slots por instância; menus e histórico de cena |
 | Versão atual | `1.4.0` |
-| Hash do Commit | `PENDING` |
+| Hash do Commit | `83fa0da` |
 
 Base: `feature/pointer-class-group` (POINTER + LIST_POINTER).
 
