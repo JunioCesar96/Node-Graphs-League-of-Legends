@@ -139,6 +139,9 @@ export type MutableClassGroupSchema = Omit<
   list2Pointer: List2PointerDefinition[]
 }
 
+export const MAIN_SCHEMA_ID = 'main'
+export const MAIN_SCHEMA_TITLE = 'Main'
+
 type ScopeKind = 'entries' | 'entity' | 'internal' | 'listItem'
 
 type ScopeFrame = {
@@ -395,7 +398,9 @@ function emptyMutable(title: string, idFallback: string): MutableClassGroupSchem
   }
 }
 
-function findEntriesMapValueBraces(src: string): { openBrace: number; closeBrace: number } | null {
+function findEntriesMapRegion(
+  src: string,
+): { headerLineStart: number; openBrace: number; closeBrace: number } | null {
   const lines = src.split('\n')
   let lineStart = 0
   for (let i = 0; i < lines.length; i++) {
@@ -403,6 +408,7 @@ function findEntriesMapValueBraces(src: string): { openBrace: number; closeBrace
     const lineEnd = lineStart + line.length
 
     if (/entries:\s*map\[/i.test(line)) {
+      const headerLineStart = lineStart
       let openBrace = -1
       const eq = line.indexOf('=')
       if (eq >= 0) {
@@ -426,7 +432,7 @@ function findEntriesMapValueBraces(src: string): { openBrace: number; closeBrace
       if (openBrace >= 0) {
         const closeBrace = findClosingBrace(src, openBrace)
         if (closeBrace > openBrace) {
-          return { openBrace, closeBrace }
+          return { headerLineStart, openBrace, closeBrace }
         }
       }
       return null
@@ -436,13 +442,30 @@ function findEntriesMapValueBraces(src: string): { openBrace: number; closeBrace
   return null
 }
 
+function ensureMainSchema(ctx: ParseCtx): MutableClassGroupSchema {
+  let s = ctx.registry.get(MAIN_SCHEMA_ID)
+  if (!s) {
+    s = emptyMutable(MAIN_SCHEMA_TITLE, MAIN_SCHEMA_ID)
+    ctx.registry.set(MAIN_SCHEMA_ID, s)
+  } else {
+    s.title = MAIN_SCHEMA_TITLE
+  }
+  return s
+}
+
 function stepTypeForFrame(frame: ScopeFrame, stack: readonly ScopeFrame[]): string {
+  if (frame.schemaId === MAIN_SCHEMA_ID && frame.segmentId === 'main') {
+    return '#0 Root main'
+  }
+
   if (frame.kind === 'entries') {
     return '#1 Root Entry'
   }
 
-  const afterEntries = stack.filter((f) => f.kind !== 'entries')
-  const depth = afterEntries.findIndex((f) => f === frame)
+  const withoutMain = stack.filter(
+    (f) => !(f.schemaId === MAIN_SCHEMA_ID && f.segmentId === 'main') && f.kind !== 'entries',
+  )
+  const depth = withoutMain.findIndex((f) => f === frame)
 
   if (depth === 0) {
     return `#2 Root Entry (${frame.typeName})`
@@ -1616,7 +1639,25 @@ function parseBlockBody(ctx: ParseCtx, parentType: string, body: string): void {
 
     const classified = classifyRitualLine(lineRaw)
 
-    if (classified.kind === 'metadata' || classified.kind === 'unknown') {
+    if (classified.kind === 'unknown') {
+      continue
+    }
+
+    if (classified.kind === 'metadata') {
+      const parentSchemaMeta = schemaAtStackTop(ctx)
+      if (parentSchemaMeta?.id === MAIN_SCHEMA_ID) {
+        const scalar = FIELD_SCALAR_REGEX.exec(lineRaw)
+        if (scalar?.[1] && scalar[2]) {
+          pushScalarParameter(
+            ctx,
+            parentType,
+            parentSchemaMeta,
+            scalar[1]!,
+            scalar[2]!.trim(),
+            String(scalar[3]),
+          )
+        }
+      }
       continue
     }
 
@@ -1638,7 +1679,6 @@ function parseBlockBody(ctx: ParseCtx, parentType: string, body: string): void {
       idx += consumedHead.split('\n').length - 1
 
       const entitySchema = ensureSchema(ctx, typeName)
-      ctx.rootSchemaIds.add(entitySchema.id)
 
       pushScope(
         ctx,
@@ -2131,21 +2171,41 @@ export function parseClassGroupRitualWithStack(source: string): ClassGroupStackP
     scopeStack: [],
   }
 
-  const entriesBraces = findEntriesMapValueBraces(text)
+  const entriesRegion = findEntriesMapRegion(text)
 
-  if (entriesBraces) {
-    const mapBody = text.slice(entriesBraces.openBrace + 1, entriesBraces.closeBrace)
+  if (entriesRegion) {
+    const preamble = text.slice(0, entriesRegion.headerLineStart).trim()
+    const mapBody = text.slice(entriesRegion.openBrace + 1, entriesRegion.closeBrace)
+    const mainSchema = ensureMainSchema(ctx)
 
-    ctx.scopeStack.push({
-      segmentId: 'entries',
-      typeName: 'entries',
-      schemaId: '',
-      kind: 'entries',
-      openingLine: 'entries: map',
-    })
+    ctx.rootSchemaIds.add(MAIN_SCHEMA_ID)
 
-    parseBlockBody(ctx, 'entries', mapBody)
+    pushScope(
+      ctx,
+      {
+        segmentId: 'main',
+        typeName: MAIN_SCHEMA_TITLE,
+        kind: 'entity',
+        openingLine: 'Main',
+      },
+      mainSchema,
+    )
+
+    if (preamble.length > 0) {
+      parseBlockBody(ctx, MAIN_SCHEMA_TITLE, preamble)
+    }
+
+    parseMapHashEmbedBody(ctx, MAIN_SCHEMA_TITLE, mainSchema, 'entries', mapBody)
+
     popScope(ctx)
+
+    mainSchema.nomenclature = {
+      group: '#0 Entidades',
+      collection: '#0 Root main',
+      collectionType: 'main',
+      pathHierarchy: 'main',
+      pathHierarchySteps: [{ id: 'main', type: '#0 Root main' }],
+    }
   } else {
     parseStandaloneRoot(ctx, text)
   }

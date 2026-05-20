@@ -37,7 +37,7 @@ const LIST_STRUCTURAL_OPEN_REGEX =
   /^\s*([A-Za-z_]\w*)\s*:\s*(list2?\[[^\]]+\]|list\[[^\]]+\])\s*=\s*\{\s*$/
 /** Chave string `"path"` ou hash `0x1c1ea8de` em `entries: map[hash,embed]`. */
 const MAP_ENTRY_HEAD_REGEX = /^\s*(?:"([^"]+)"|(0x[0-9a-fA-F]+))\s*=\s*(\w+)\s*\{\s*$/
-const METADATA_LINE_REGEX = /^\s*(type|version|linked)\s*:/i
+const METADATA_LINE_REGEX = /^\s*(type|version)\s*:/i
 
 const PRIMITIVE_TYPE_REGEX =
   /\b(u8|u16|u32|u64|i8|i16|i32|i64|s8|s16|s32|s64|f32|f64|bool|string|hash|flag|symbol|keyword|vec[234]|rgb|rgba|mtx44|link)\b/i

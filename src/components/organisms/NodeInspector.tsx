@@ -473,6 +473,9 @@ export function NodeInspector({
 
   const { flyoutStyle, stripRef } = useDockedFloatingLayout(dockedFloating)
 
+  /** Acoplado à barra da vista: sem arrastar o painel (só desacoplar pelo ícone de pin). */
+  const panelDragHandleProps = viewportDocked ? {} : dragHandleProps
+
   const dockPinButton =
     onDockToViewport || onUndockFromViewportToolbar ? (
       <button
@@ -514,16 +517,26 @@ export function NodeInspector({
   if (!node) {
     if (minimized) {
       return (
-        <div className={styles.inspectorMinimizedDockRow}>
+        <div
+          className={[
+            styles.inspectorMinimizedDockRow,
+            viewportDocked ? styles.inspectorMinimizedDockRowDocked : '',
+          ]
+            .filter(Boolean)
+            .join(' ')}
+          data-inspector-viewport-docked={viewportDocked ? 'true' : undefined}
+        >
           <button
             aria-label="Expandir inspector (sem nó seleccionado)"
             className={[styles.minimized, styles.minimizedReveal].join(' ')}
             onClick={onToggleMinimized}
-            {...dragHandleProps}
+            {...panelDragHandleProps}
             type="button"
           >
             <span className={styles.minimizedIcon}>—</span>
-            <span className={styles.minimizedText}>Sem seleção</span>
+            <span className={styles.minimizedText} title="Sem seleção">
+              Sem seleção
+            </span>
           </button>
           {dockPinButton}
         </div>
@@ -537,7 +550,9 @@ export function NodeInspector({
           className={[styles.panel, styles.panelViewportFloatingBody].join(' ')}
           style={flyoutStyle}
         >
-          <h2 className={styles.title}>Nenhum nó seleccionado</h2>
+          <h2 className={styles.title} title="Nenhum nó seleccionado">
+            Nenhum nó seleccionado
+          </h2>
           <p className={styles.emptyMessage}>Clique num nó no canvas ou abra a paleta (add node).</p>
         </aside>
       )
@@ -549,10 +564,14 @@ export function NodeInspector({
             data-inspector-viewport-strip
             ref={stripRef}
           >
-            <span className={styles.chromeStripEyebrow} {...dragHandleProps}>
+            <span
+              className={[styles.chromeStripEyebrow, styles.chromeStripEyebrowDocked].join(' ')}
+            >
               Inspector
             </span>
-            <h2 className={styles.chromeStripTitle}>Sem nó seleccionado</h2>
+            <h2 className={styles.chromeStripTitle} title="Nenhum nó seleccionado">
+              Nenhum nó seleccionado
+            </h2>
             <div className={styles.headerActions}>{inspectorToolbarActions}</div>
           </div>
           {renderFloatingBodyToBody(flyoutAside)}
@@ -564,10 +583,12 @@ export function NodeInspector({
       <aside className={styles.panel} aria-label="Inspector sem seleção">
         <div className={styles.header}>
           <div>
-            <span className={styles.eyebrow} {...dragHandleProps}>
+            <span className={styles.eyebrow} {...panelDragHandleProps}>
               Inspector
             </span>
-            <h2 className={styles.title}>Nenhum nó seleccionado</h2>
+            <h2 className={styles.title} title="Nenhum nó seleccionado">
+              Nenhum nó seleccionado
+            </h2>
           </div>
           <div className={styles.headerActions}>{inspectorToolbarActions}</div>
         </div>
@@ -578,12 +599,20 @@ export function NodeInspector({
 
   if (minimized) {
     return (
-      <div className={styles.inspectorMinimizedDockRow}>
+      <div
+        className={[
+          styles.inspectorMinimizedDockRow,
+          viewportDocked ? styles.inspectorMinimizedDockRowDocked : '',
+        ]
+          .filter(Boolean)
+          .join(' ')}
+        data-inspector-viewport-docked={viewportDocked ? 'true' : undefined}
+      >
         <button
           aria-label="Expandir inspector do nó seleccionado"
           className={[styles.minimized, styles.minimizedReveal].join(' ')}
           onClick={onToggleMinimized}
-          {...dragHandleProps}
+          {...panelDragHandleProps}
           type="button"
         >
           <span className={styles.minimizedIcon}>N</span>
@@ -594,7 +623,9 @@ export function NodeInspector({
               onClick={onAddHashStringInNode}
             />
           ) : null}
-          <span className={styles.minimizedText}>{node.node.schema.title}</span>
+          <span className={styles.minimizedText} title={node.node.schema.title}>
+            {node.node.schema.title}
+          </span>
         </button>
         {dockPinButton}
       </div>
@@ -630,7 +661,9 @@ export function NodeInspector({
           data-inspector-viewport-strip
           ref={stripRef}
         >
-          <span className={styles.chromeStripEyebrow} {...dragHandleProps}>
+          <span
+            className={[styles.chromeStripEyebrow, styles.chromeStripEyebrowDocked].join(' ')}
+          >
             Nó
           </span>
           <div className={styles.chromeStripTitleRow}>
@@ -641,7 +674,9 @@ export function NodeInspector({
                 onClick={onAddHashStringInNode}
               />
             ) : null}
-            <h2 className={styles.chromeStripTitle}>{node.node.schema.title}</h2>
+            <h2 className={styles.chromeStripTitle} title={node.node.schema.title}>
+              {node.node.schema.title}
+            </h2>
           </div>
           <div className={styles.headerActions}>{inspectorToolbarActions}</div>
         </div>
@@ -654,14 +689,16 @@ export function NodeInspector({
     <aside className={styles.panel} aria-label={`Inspector: ${node.node.schema.title}`}>
       <div className={styles.header}>
         <div>
-          <span className={styles.eyebrow} {...dragHandleProps}>
+          <span className={styles.eyebrow} {...panelDragHandleProps}>
             Nó seleccionado
           </span>
           <div className={styles.titleRow}>
             {nodeConfigurationMode && onAddHashStringInNode ? (
               <HashStringInspectorButton active={hashBindingActive} onClick={onAddHashStringInNode} />
             ) : null}
-            <h2 className={styles.title}>{node.node.schema.title}</h2>
+            <h2 className={styles.title} title={node.node.schema.title}>
+              {node.node.schema.title}
+            </h2>
           </div>
         </div>
         <div className={styles.headerActions}>{inspectorToolbarActions}</div>

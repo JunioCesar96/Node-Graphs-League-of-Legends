@@ -131,7 +131,7 @@ entries: map[hash,embed] = {
     const audio = out.schemas.find((s) => s.title === 'SkinAudioProperties')
 
     expect(skin?.nomenclature?.group).toBe('#2 Entidades')
-    expect(skin?.nomenclature?.pathHierarchy).toBe('entries > Characters/Zac/Skins/Skin0')
+    expect(skin?.nomenclature?.pathHierarchy).toBe('main > entries:Characters/Zac/Skins/Skin0')
 
     const audioEmbed = skin!.embed?.find((block) => block.title === 'SkinAudioProperties')
     expect(audioEmbed).toBeDefined()

@@ -55,6 +55,10 @@
   text-transform: uppercase;
 }
 
+.chromeStripEyebrowDocked {
+  cursor: default;
+}
+
 .chromeStripTitleRow {
   display: flex;
   flex: 1 1 auto;
@@ -80,6 +84,7 @@
   display: flex;
   gap: var(--space-2);
   align-items: baseline;
+  min-width: 0;
 }
 
 .hashStringButton {
@@ -137,6 +142,13 @@
   gap: var(--space-2);
   align-items: center;
   justify-content: space-between;
+  min-width: 0;
+}
+
+.header > div:first-child {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .headerActions {
@@ -158,9 +170,17 @@
 
 .title {
   margin: 0;
+  overflow: hidden;
   color: var(--color-text-primary);
   font-size: 1.35rem;
   line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.titleRow .title {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .toggle,
@@ -311,6 +331,11 @@
 
 .inspectorMinimizedDockRow .dockToggle {
   flex-shrink: 0;
+}
+
+/* Minimizado + acoplado à barra da vista: sem arrastar a cápsula. */
+.inspectorMinimizedDockRowDocked .minimized {
+  cursor: pointer;
 }
 
 .meta {

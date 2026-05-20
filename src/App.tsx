@@ -187,6 +187,8 @@ function App() {
     createChildNode,
     createRootNode,
     deleteSelectedNodes,
+    deleteNodeIds,
+    toggleNodeBodyCollapsed,
     updateSelectedParameter,
     updateNodeParameter,
     setNodeParameterOrder,
@@ -871,6 +873,10 @@ function App() {
       return
     }
 
+    if (inspectorViewportDocked) {
+      return
+    }
+
     inspectorMovedDuringPointer.current = false
     inspectorDragGesture.current = {
       element: event.currentTarget,
@@ -1532,12 +1538,14 @@ function App() {
       selectedNodeIds[0] === ROOT_NODE_ID &&
       primarySelectedId === ROOT_NODE_ID
     )
-  const inspectorDragHandleProps = {
-    onPointerCancel: stopInspectorDrag,
-    onPointerDown: startInspectorDrag,
-    onPointerMove: moveInspectorDrag,
-    onPointerUp: stopInspectorDrag,
-  }
+  const inspectorDragHandleProps = inspectorViewportDocked
+    ? {}
+    : {
+        onPointerCancel: stopInspectorDrag,
+        onPointerDown: startInspectorDrag,
+        onPointerMove: moveInspectorDrag,
+        onPointerUp: stopInspectorDrag,
+      }
   const inspectorPickHandlers = useMemo(
     () => ({
       onDockToViewport: () => {
@@ -1655,6 +1663,8 @@ function App() {
             onRelinkInternalStructure={relinkInternalStructureSlot}
             onCreateChildNode={createChildNode}
             onCreateRootNode={createRootNode}
+            onDeleteNodeIds={deleteNodeIds}
+            onToggleNodeBodyCollapsed={toggleNodeBodyCollapsed}
             onCycleConnectionRouting={cycleConnectionRouting}
             onMarqueeCommit={commitMarqueeSelection}
             onMoveNode={moveNode}

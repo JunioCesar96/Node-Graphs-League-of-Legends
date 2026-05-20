@@ -160,11 +160,55 @@ entries: map[hash,embed] = {
     expect(skin).toBeDefined()
     expect(skin!.parameters.some((p) => p.name === 'armorMaterial')).toBe(true)
     expect(skin!.parameters.some((p) => p.name === 'flags')).toBe(true)
-    expect(parsed.rootSchemaIds.has('skin-character-data-properties')).toBe(true)
+    expect(parsed.rootSchemaIds.has('main')).toBe(true)
+    expect(parsed.rootSchemaIds.has('skin-character-data-properties')).toBe(false)
     expect(parsed.rootSchemaIds.has('bank-unit')).toBe(false)
 
     const schemas = schemasFromClassGroupStackParse(parsed)
-    expect(schemas.some((s) => s.id === 'main-node')).toBe(false)
+    expect(schemas.some((s) => s.id === 'main')).toBe(true)
+    expect(schemas.some((s) => s.id === 'skin-character-data-properties')).toBe(true)
+  })
+
+  it('preâmbulo PROP + entries: map → nó Main com type, version, linked e mapHashEmbed entries', () => {
+    const text = `
+#PROP_text
+type: string = "PROP"
+version: u32 = 3
+linked: list[string] = {
+    "DATA/Characters/Zac/Zac.bin"
+}
+entries: map[hash,embed] = {
+  "Characters/Zac/Skins/Skin0" = SkinCharacterDataProperties {
+    armorMaterial: string = "Flesh"
+  }
+}
+`.trim()
+
+    const parsed = parseClassGroupRitualWithStack(text)
+    const main = parsed.registry.get('main')
+    const skin = parsed.registry.get('skin-character-data-properties')
+
+    expect(main).toBeDefined()
+    expect(main!.title).toBe('Main')
+    expect(main!.parameters.some((p) => p.name === 'type' && p.defaultValue === 'PROP')).toBe(true)
+    expect(main!.parameters.some((p) => p.name === 'version' && p.defaultValue === '3')).toBe(true)
+    expect(main!.parameters.some((p) => p.name === 'linked')).toBe(true)
+
+    const entriesParam = main!.parameters.find((p) => p.name === 'entries')
+    expect(entriesParam?.type).toBe('mapHashEmbed')
+    expect(entriesParam?.defaultValue).toContain('skin-character-data-properties')
+
+    expect(parsed.rootSchemaIds.has('main')).toBe(true)
+    expect(parsed.rootSchemaIds.has('skin-character-data-properties')).toBe(false)
+    expect(skin).toBeDefined()
+
+    const path = parsed.classGroupPathBySchemaId.get('skin-character-data-properties')
+    expect(path?.[0]?.id).toBe('main')
+    expect(path?.[1]?.id).toBe('entries:Characters/Zac/Skins/Skin0')
+
+    const schemas = schemasFromClassGroupStackParse(parsed)
+    expect(schemas.some((s) => s.id === 'main')).toBe(true)
+    expect(schemas.some((s) => s.id === 'skin-character-data-properties')).toBe(true)
   })
 
   it('list2[embed]: BankUnits → list2Embed[] com instâncias, não listEmbed[]', () => {
@@ -333,7 +377,8 @@ entries: map[hash,embed] = {
 `.trim()
 
     const parsed = parseClassGroupRitualWithStack(text)
-    expect(parsed.rootSchemaIds.has('vfx-system-definition-data')).toBe(true)
+    expect(parsed.rootSchemaIds.has('main')).toBe(true)
+    expect(parsed.rootSchemaIds.has('vfx-system-definition-data')).toBe(false)
     const mesh = parsed.registry.get('vfx-mesh-definition-data')
     const sub = mesh?.parameters.find((p) => p.name === 'mSubmeshesToDraw')
     expect(sub?.type).toBe('listHash')
@@ -452,7 +497,7 @@ entries: map[hash,embed] = {
 })
 
 describe('convertRitobinStructureTextToNodeSchemas (stack)', () => {
-  it('expõe rootSchemaIds para entidades do mapa', () => {
+  it('expõe rootSchemaIds com Main como única raiz quando há entries: map', () => {
     const text = `
 entries: map[hash,embed] = {
   "A" = SkinCharacterDataProperties {
@@ -466,8 +511,10 @@ entries: map[hash,embed] = {
     if (!out.ok) {
       return
     }
-    expect(out.rootSchemaIds).toContain('skin-character-data-properties')
-    expect(out.schemas.length).toBeGreaterThanOrEqual(1)
+    expect(out.rootSchemaIds).toContain('main')
+    expect(out.rootSchemaIds).not.toContain('skin-character-data-properties')
+    expect(out.schemas.some((s) => s.id === 'main')).toBe(true)
+    expect(out.schemas.some((s) => s.id === 'skin-character-data-properties')).toBe(true)
   })
 })
 

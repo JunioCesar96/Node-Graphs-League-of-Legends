@@ -83,9 +83,10 @@ entries: map[hash,embed] = {
     expect(audio!.listEmbed?.find((block) => block.title === 'BankUnits')).toBeUndefined()
 
     expect(out.classGroupPathBySchemaId?.[skin!.id]?.length).toBe(2)
-    expect(out.classGroupPathBySchemaId?.[skin!.id]?.[0]!.id).toBe('entries')
-    expect(out.classGroupPathBySchemaId?.[skin!.id]?.[1]!.id).toBe('Characters/Zac/Skins/Skin0')
-    expect(out.rootSchemaIds).toContain(skin!.id)
+    expect(out.classGroupPathBySchemaId?.[skin!.id]?.[0]!.id).toBe('main')
+    expect(out.classGroupPathBySchemaId?.[skin!.id]?.[1]!.id).toBe('entries:Characters/Zac/Skins/Skin0')
+    expect(out.rootSchemaIds).toContain('main')
+    expect(out.rootSchemaIds).not.toContain(skin!.id)
     expect(out.rootSchemaIds).not.toContain(bank!.id)
 
     const voiceOver = bank!.parameters.find((p) => p.name === 'VoiceOver')

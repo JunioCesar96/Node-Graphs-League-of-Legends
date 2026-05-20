@@ -1,10 +1,12 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import type { CSSProperties, PointerEvent, ReactNode } from 'react'
+import type { CSSProperties, MouseEvent, PointerEvent, ReactNode } from 'react'
 
+import { CanvasContextMenu } from '@/components/molecules/CanvasContextMenu'
 import { CollectionTypeLinkMenu } from '@/components/molecules/CollectionTypeLinkMenu'
 import { AddNodePalette } from '@/components/organisms/AddNodePalette'
 import { NodeCard } from '@/components/organisms/NodeCard'
 import type { CanvasConnection, CanvasNode, CanvasPosition, CanvasScene } from '@/core/canvasScene'
+import { isCanvasNodeBodyCollapsed } from '@/core/canvasScene'
 import {
   buildWirelessDisplayByNode,
   type WirelessPortPulseTarget,
@@ -83,6 +85,7 @@ import {
   elementViewKeyForPointer,
   getElementViewState,
 } from '@/core/elementViewState'
+import { listRemovableNodeElements } from '@/core/listNodeElements'
 import { populatedSlotsForPointer } from '@/core/pointerSlots'
 import { populatedSlotsForListPointer } from '@/core/listPointerSlots'
 import type { NodeElementListItem } from '@/core/listNodeElements'
@@ -98,6 +101,20 @@ import {
 } from '@/core/canvasKeyboardGuard'
 import { schemaJsonRelativePathBySchemaId } from '@/core/nodeStructureRegistry'
 import { schemaRegistry } from '@/core/nodeStructureRegistry'
+import {
+  CANVAS_CONNECTION_ID_ATTR,
+  CANVAS_CONTEXT_ELEMENT_ID_ATTR,
+  CANVAS_CONTEXT_KIND_ATTR,
+  CANVAS_CONTEXT_NODE_ID_ATTR,
+  ELEMENT_MENU_TRIGGER_ATTR,
+} from '@/core/canvasContextMenuAttributes'
+import { buildContextMenuItems } from '@/core/canvasContextMenuItems'
+import { resolveContextTarget } from '@/core/canvasContextMenuResolve'
+import type {
+  CanvasContextMenuAnchor,
+  CanvasContextTarget,
+  ContextMenuItemId,
+} from '@/core/canvasContextMenuTypes'
 
 import styles from './GraphCanvas.module.css'
 
@@ -118,13 +135,13 @@ const SECTION_GAP = 20
 const PORT_OVERLAP = 6
 const RIGID_SEGMENT_LENGTH = 44
 const BUTTON_HEIGHT = 46
-const CANVAS_PADDING = 240
 const MIN_SCALE = 0.65
 const MAX_SCALE = 1.25
 const SCALE_STEP = 0.1
 const SNAP_GRID_PX = 24
 
 const DROP_TO_OPEN_LINK_PALETTE_PX = 12
+const NAVIGATE_MODE_RELEASE_PX = 4
 
 export type GraphCanvasHandle = {
   focusSelectionIntoView(nodeIds: string[]): void
@@ -159,7 +176,9 @@ type GraphCanvasProps = {
     structure: InternalStructureDefinition,
     position?: CanvasPosition,
   ) => void
-  onCreateRootNode: (schema: NodeSchemaDefinition) => void
+  onCreateRootNode: (schema: NodeSchemaDefinition, position?: CanvasPosition) => void
+  onDeleteNodeIds?: (nodeIds: string[]) => void
+  onToggleNodeBodyCollapsed?: (nodeId: string) => void
   onMarqueeCommit: (payload: { additive: boolean; nodeIds: string[] }) => void
   onMoveNode: (
     nodeId: string,
@@ -679,6 +698,10 @@ function getInternalStructureSectionHeight(node: CanvasNode) {
 }
 
 function getNodeCardHeight(node: CanvasNode, connections: readonly CanvasConnection[]) {
+  if (isCanvasNodeBodyCollapsed(node)) {
+    return HEADER_HEIGHT
+  }
+
   return (
     HEADER_HEIGHT +
     BODY_PADDING * 2 +
@@ -702,17 +725,12 @@ function getNodeCardHeight(node: CanvasNode, connections: readonly CanvasConnect
   )
 }
 
+/** Tamanho fixo da grade — não expande com nós grandes (usa `scene.width` / `scene.height` do layout). */
 function getCanvasBounds(scene: CanvasScene): CanvasBounds {
-  return scene.nodes.reduce(
-    (bounds, node) => ({
-      height: Math.max(bounds.height, node.position.y + getNodeCardHeight(node, scene.connections) + CANVAS_PADDING),
-      width: Math.max(bounds.width, node.position.x + CARD_WIDTH + RIGID_SEGMENT_LENGTH + CANVAS_PADDING),
-    }),
-    {
-      height: scene.height,
-      width: scene.width,
-    },
-  )
+  return {
+    width: scene.width,
+    height: scene.height,
+  }
 }
 
 function getEmbedPortY(node: CanvasNode, structureId: string) {
@@ -868,6 +886,10 @@ function getInternalStructurePortY(
   structureId: string,
   connections: readonly CanvasConnection[],
 ) {
+  if (isCanvasNodeBodyCollapsed(node)) {
+    return node.position.y + HEADER_HEIGHT - PORT_OVERLAP
+  }
+
   const mapHashStructureY = getMapHashStructurePortY(node, structureId)
   if (mapHashStructureY !== null) {
     return mapHashStructureY
@@ -1170,6 +1192,8 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     onCycleConnectionRouting,
     onCreateChildNode,
     onCreateRootNode,
+    onDeleteNodeIds,
+    onToggleNodeBodyCollapsed,
     onMarqueeCommit,
     onMoveNode,
     onRedo,
@@ -1211,6 +1235,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
   const canvasRef = useRef<HTMLDivElement | null>(null)
   const linkDraftClientRef = useRef<{ cx: number; cy: number } | null>(null)
   const outputWireDragRef = useRef<OutputWireDragSession | null>(null)
+  const outputWireWindowMoveRef = useRef<((event: PointerEvent) => void) | null>(null)
   const pendingLinkRef = useRef<PendingLink | null>(null)
   const [linkDropContext, setLinkDropContext] = useState<GraphDropLinkContext | null>(null)
   const [isPaletteOpen, setIsPaletteOpen] = useState(false)
@@ -1227,6 +1252,14 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
   )
   const [glueNodeId, setGlueNodeId] = useState<string | null>(null)
   const [wirelessHighlightNodeId, setWirelessHighlightNodeId] = useState<string | null>(null)
+  const [contextMenu, setContextMenu] = useState<{
+    anchor: CanvasContextMenuAnchor
+    target: CanvasContextTarget
+  } | null>(null)
+  const [viewportNavigateMode, setViewportNavigateMode] = useState(false)
+  const [canvasLegendVisible, setCanvasLegendVisible] = useState(false)
+  const [paletteSpawnPosition, setPaletteSpawnPosition] = useState<CanvasPosition | null>(null)
+  const navigatePanOriginRef = useRef<{ x: number; y: number } | null>(null)
   const [wirelessPortPulse, setWirelessPortPulse] = useState<WirelessPortPulseTarget | null>(null)
   const glueTargetId =
     selectedNodeIds.length > 0
@@ -1316,38 +1349,35 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     return availableSchemas.filter((schema) => schemaMatchesCollectionType(schema, collectionType))
   }, [availableSchemas, linkDropContext, scene.connections, scene.nodes])
 
-  const updateLinkDraftFromClient = useCallback(
-    (clientX: number, clientY: number) => {
-      const el = canvasRef.current
+  const updateLinkDraftFromClient = useCallback((clientX: number, clientY: number) => {
+    const el = canvasRef.current
 
-      if (!pendingLink) {
-        return
-      }
+    if (!pendingLinkRef.current) {
+      return
+    }
 
-      linkDraftClientRef.current = { cx: clientX, cy: clientY }
+    linkDraftClientRef.current = { cx: clientX, cy: clientY }
 
-      if (!el) {
-        return
-      }
+    if (!el) {
+      return
+    }
 
-      const rect = el.getBoundingClientRect()
-      const x = (clientX - rect.left) / scale
-      const y = (clientY - rect.top) / scale
+    const rect = el.getBoundingClientRect()
+    const x = (clientX - rect.left) / scale
+    const y = (clientY - rect.top) / scale
 
-      if (
-        clientX >= rect.left &&
-        clientX <= rect.right &&
-        clientY >= rect.top &&
-        clientY <= rect.bottom
-      ) {
-        setLinkDraftPoint({ x, y })
-        return
-      }
+    if (
+      clientX >= rect.left &&
+      clientX <= rect.right &&
+      clientY >= rect.top &&
+      clientY <= rect.bottom
+    ) {
+      setLinkDraftPoint({ x, y })
+      return
+    }
 
-      setLinkDraftPoint(null)
-    },
-    [pendingLink, scale],
-  )
+    setLinkDraftPoint(null)
+  }, [scale])
 
   useLayoutEffect(() => {
     if (!pendingLink) {
@@ -1364,6 +1394,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
 
   const endLinkDraft = useCallback(() => {
     linkDraftClientRef.current = null
+    pendingLinkRef.current = null
     setPendingLink(null)
     setLinkDraftPoint(null)
   }, [])
@@ -1513,15 +1544,18 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
                   ) ?? ''
                 : resolveCollectionTypeForInternalStructure(entity, schemaRegistry, connectedTarget) ?? ''
 
-      linkDraftClientRef.current = null
-      setLinkDraftPoint(null)
-      setPendingLink({
+      const nextPending: PendingLink = {
         draftAnchor: { sx, sy },
         fromInternalStructureId: entity.id,
         fromNodeId,
         targetCollectionType,
         targetSchemaId: entity.schemaId,
-      })
+      }
+
+      pendingLinkRef.current = nextPending
+      linkDraftClientRef.current = null
+      setLinkDraftPoint(null)
+      setPendingLink(nextPending)
     },
     [scale, scene.connections, scene.nodes],
   )
@@ -1572,13 +1606,16 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       }
 
       const control = el instanceof Element ? el.closest('[data-canvas-control="true"]') : null
-      const nodeWrapBlocking = el instanceof Element ? el.closest('[data-canvas-node="true"]') : null
+      const nodeWrap = el instanceof Element ? el.closest('[data-canvas-node="true"]') : null
+      const nodeWrapId = nodeWrap?.getAttribute('data-canvas-node-id') ?? null
+      const blocksLinkPalette =
+        nodeWrap !== null && nodeWrapId !== null && nodeWrapId !== drag.fromNodeId
       const inCanvas = el instanceof Node && canvasEl.contains(el)
 
       if (
         drag.maxScreenDelta >= DROP_TO_OPEN_LINK_PALETTE_PX &&
         inCanvas &&
-        !nodeWrapBlocking &&
+        !blocksLinkPalette &&
         !control
       ) {
         const position = graphClientToPosition(canvasEl, scale, clientX, clientY)
@@ -1723,6 +1760,35 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     [scene.connections, scene.nodes],
   )
 
+  const detachOutputWireWindowMove = useCallback(() => {
+    const handler = outputWireWindowMoveRef.current
+    if (handler) {
+      window.removeEventListener('pointermove', handler)
+      outputWireWindowMoveRef.current = null
+    }
+  }, [])
+
+  const attachOutputWireWindowMove = useCallback(
+    (pointerId: number) => {
+      detachOutputWireWindowMove()
+      const onWindowPointerMove = (event: PointerEvent) => {
+        const drag = outputWireDragRef.current
+        if (!drag || drag.pointerId !== pointerId) {
+          return
+        }
+
+        const delta = Math.hypot(event.clientX - drag.originClientX, event.clientY - drag.originClientY)
+        drag.maxScreenDelta = Math.max(drag.maxScreenDelta, delta)
+        updateLinkDraftFromClient(event.clientX, event.clientY)
+      }
+      outputWireWindowMoveRef.current = onWindowPointerMove
+      window.addEventListener('pointermove', onWindowPointerMove)
+    },
+    [detachOutputWireWindowMove, updateLinkDraftFromClient],
+  )
+
+  useEffect(() => () => detachOutputWireWindowMove(), [detachOutputWireWindowMove])
+
   const handleOutputWirePointerDown = useCallback(
     (fromNodeId: string, entity: InternalStructureDefinition, event: PointerEvent<HTMLButtonElement>) => {
       if (event.button !== 0) {
@@ -1739,9 +1805,11 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
         originClientY: event.clientY,
         pointerId: event.pointerId,
       }
+      updateLinkDraftFromClient(event.clientX, event.clientY)
+      attachOutputWireWindowMove(event.pointerId)
       event.currentTarget.setPointerCapture(event.pointerId)
     },
-    [beginPendingLink],
+    [attachOutputWireWindowMove, beginPendingLink, updateLinkDraftFromClient],
   )
 
   const handleOutputWirePointerMove = useCallback(
@@ -1768,6 +1836,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       }
 
       outputWireDragRef.current = null
+      detachOutputWireWindowMove()
 
       if (event.currentTarget.hasPointerCapture(event.pointerId)) {
         event.currentTarget.releasePointerCapture(event.pointerId)
@@ -1781,7 +1850,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
 
       resolveOutputWireDrop(drag, event.clientX, event.clientY)
     },
-    [endLinkDraft, openCollectionTypeLinkMenu, resolveOutputWireDrop],
+    [detachOutputWireWindowMove, endLinkDraft, openCollectionTypeLinkMenu, resolveOutputWireDrop],
   )
 
   const handleOutputWirePointerCancel = useCallback(
@@ -1793,6 +1862,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       }
 
       outputWireDragRef.current = null
+      detachOutputWireWindowMove()
 
       if (event.currentTarget.hasPointerCapture(event.pointerId)) {
         event.currentTarget.releasePointerCapture(event.pointerId)
@@ -1800,7 +1870,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
 
       endLinkDraft()
     },
-    [endLinkDraft],
+    [detachOutputWireWindowMove, endLinkDraft],
   )
 
   const handleOutputWireKeyboard = useCallback(
@@ -1838,14 +1908,20 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     onSelectNode(toNode.id)
   }
 
-  const openPalette = useCallback(() => {
+  const openPalette = useCallback((spawnPosition?: CanvasPosition) => {
     setLinkDropContext(null)
+    setPaletteSpawnPosition(spawnPosition ?? null)
     setIsPaletteOpen(true)
   }, [])
 
   const closePalette = useCallback(() => {
     setIsPaletteOpen(false)
     setLinkDropContext(null)
+    setPaletteSpawnPosition(null)
+  }, [])
+
+  const closeContextMenu = useCallback(() => {
+    setContextMenu(null)
   }, [])
 
   const handlePalettePick = useCallback(
@@ -1880,11 +1956,20 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
         return
       }
 
-      onCreateRootNode(schema)
+      onCreateRootNode(schema, paletteSpawnPosition ?? undefined)
       endLinkDraft()
       closePalette()
     },
-    [closePalette, endLinkDraft, linkDropContext, onCreateChildNode, onCreateRootNode, scene.connections, scene.nodes],
+    [
+      closePalette,
+      endLinkDraft,
+      linkDropContext,
+      onCreateChildNode,
+      onCreateRootNode,
+      paletteSpawnPosition,
+      scene.connections,
+      scene.nodes,
+    ],
   )
 
   useEffect(() => {
@@ -1930,6 +2015,8 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       return
     }
 
+    closeContextMenu()
+
     const target = event.target as HTMLElement
 
     if (
@@ -1966,6 +2053,18 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     const canvasEl = canvasRef.current
 
     if (!canvasEl) {
+      return
+    }
+
+    if (viewportNavigateMode) {
+      event.preventDefault()
+      navigatePanOriginRef.current = { x: event.clientX, y: event.clientY }
+      panGesture.current = {
+        origin: { x: event.clientX, y: event.clientY },
+        pan,
+        pointerId: event.pointerId,
+      }
+      event.currentTarget.setPointerCapture(event.pointerId)
       return
     }
 
@@ -2096,7 +2195,17 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       return
     }
 
+    const navigateOrigin = navigatePanOriginRef.current
     panGesture.current = null
+    navigatePanOriginRef.current = null
+
+    if (viewportNavigateMode && navigateOrigin) {
+      const delta = Math.hypot(event.clientX - navigateOrigin.x, event.clientY - navigateOrigin.y)
+
+      if (delta < NAVIGATE_MODE_RELEASE_PX) {
+        setViewportNavigateMode(false)
+      }
+    }
 
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId)
@@ -2274,6 +2383,307 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     openPalette,
   }))
 
+  const contextMenuItems = useMemo(() => {
+    if (!contextMenu) {
+      return []
+    }
+
+    const stubCatalogNodeId =
+      contextMenu.target.type === 'element' || contextMenu.target.type === 'node'
+        ? contextMenu.target.nodeId
+        : selectedNodeId
+    const stubCatalogSchemaId = scene.nodes.find((node) => node.id === stubCatalogNodeId)?.node.schema.id
+    const contextNode =
+      contextMenu.target.type === 'node'
+        ? scene.nodes.find((node) => node.id === contextMenu.target.nodeId)
+        : undefined
+
+    return buildContextMenuItems(contextMenu.target, {
+      canRedo,
+      canUndo,
+      glueNodeId,
+      hasSelectAll: scene.nodes.length > 0,
+      isNodeBodyCollapsed: contextNode ? isCanvasNodeBodyCollapsed(contextNode) : false,
+      onCycleConnectionRouting,
+      onRemoveConnection,
+      parameterStubCatalog: stubCatalogSchemaId
+        ? schemaBaseParameterCatalogBySchemaId?.[stubCatalogSchemaId]
+        : undefined,
+      scene,
+      selectedNodeIds,
+      viewportNavigateMode,
+      canvasLegendVisible,
+    })
+  }, [
+    canRedo,
+    canUndo,
+    canvasLegendVisible,
+    contextMenu,
+    glueNodeId,
+    onCycleConnectionRouting,
+    onRemoveConnection,
+    scene,
+    schemaBaseParameterCatalogBySchemaId,
+    selectedNodeId,
+    selectedNodeIds,
+    viewportNavigateMode,
+  ])
+
+  const runContextMenuAction = useCallback(
+    (actionId: ContextMenuItemId) => {
+      const target = contextMenu?.target
+
+      if (!target) {
+        return
+      }
+
+      switch (actionId) {
+        case 'canvas.addNode': {
+          const canvasEl = canvasRef.current
+          const anchor = contextMenu?.anchor
+
+          if (canvasEl && anchor) {
+            openPalette(graphClientToPosition(canvasEl, scale, anchor.left, anchor.top))
+          } else {
+            openPalette()
+          }
+          break
+        }
+        case 'canvas.zoomIn':
+          setScale((current) => Math.min(MAX_SCALE, Number((current + SCALE_STEP).toFixed(2))))
+          break
+        case 'canvas.zoomOut':
+          setScale((current) => Math.max(MIN_SCALE, Number((current - SCALE_STEP).toFixed(2))))
+          break
+        case 'canvas.resetViewport':
+          setPan({ x: 0, y: 0 })
+          setScale(1)
+          break
+        case 'canvas.undo':
+          onUndo()
+          break
+        case 'canvas.redo':
+          onRedo()
+          break
+        case 'canvas.focusSelection':
+          focusSelectionIntoView(selectedNodeIds)
+          break
+        case 'canvas.selectAll':
+          onSelectAllNodesShortcut?.()
+          break
+        case 'canvas.clearSelection':
+          onClearSelection?.()
+          break
+        case 'canvas.toggleNavigateMode':
+          setViewportNavigateMode((active) => !active)
+          break
+        case 'canvas.toggleLegend':
+          setCanvasLegendVisible((visible) => !visible)
+          break
+        case 'node.toggleBodyCollapse':
+          if (target.type === 'node') {
+            onToggleNodeBodyCollapsed?.(target.nodeId)
+          }
+          break
+        case 'node.focus':
+          if (target.type === 'node') {
+            focusSelectionIntoView([target.nodeId])
+          }
+          break
+        case 'node.select':
+          if (target.type === 'node') {
+            onSelectNode(target.nodeId)
+          }
+          break
+        case 'node.glue':
+          if (target.type === 'node') {
+            setGlueNodeId((existing) => (existing === target.nodeId ? null : target.nodeId))
+          }
+          break
+        case 'node.delete':
+          if (target.type === 'node') {
+            onDeleteNodeIds?.([target.nodeId])
+          }
+          break
+        case 'node.addNode':
+          openPalette()
+          break
+        case 'connection.cycleRouting':
+          if (target.type === 'connection') {
+            onCycleConnectionRouting?.(target.connectionId)
+          }
+          break
+        case 'connection.remove':
+          if (target.type === 'connection') {
+            onRemoveConnection?.(target.connectionId)
+          }
+          break
+        case 'element.toggleCompact': {
+          if (target.type !== 'element' || !onSetElementViewMode) {
+            break
+          }
+
+          const canvasNode = scene.nodes.find((node) => node.id === target.nodeId)
+
+          if (!canvasNode) {
+            break
+          }
+
+          const viewKey = (() => {
+            switch (target.kind) {
+              case 'parameter':
+                return elementViewKeyForParameter(target.elementId)
+              case 'embedBlock':
+              case 'embedSlot':
+                return target.embedId ? elementViewKeyForEmbed(target.embedId) : null
+              case 'pointerBlock':
+              case 'pointerSlot':
+                return target.pointerId ? elementViewKeyForPointer(target.pointerId) : null
+              case 'listEmbedBlock':
+              case 'listEmbedSlot':
+                return target.listEmbedId ? elementViewKeyForListEmbed(target.listEmbedId) : null
+              case 'listPointerBlock':
+              case 'listPointerSlot':
+                return target.listPointerId ? elementViewKeyForListPointer(target.listPointerId) : null
+              case 'list2EmbedBlock':
+              case 'list2EmbedInstance':
+                return target.list2EmbedId ? elementViewKeyForList2Embed(target.list2EmbedId) : null
+              case 'list2PointerBlock':
+              case 'list2PointerInstance':
+                return target.list2PointerId ? elementViewKeyForList2Pointer(target.list2PointerId) : null
+              default:
+                return null
+            }
+          })()
+
+          if (!viewKey) {
+            break
+          }
+
+          const currentMode = getElementViewState(canvasNode.node, viewKey).mode
+          onSetElementViewMode(target.nodeId, viewKey, currentMode === 'compact' ? 'list' : 'compact')
+          break
+        }
+        case 'element.relink': {
+          if (target.type !== 'element' || target.kind !== 'internalStructure') {
+            break
+          }
+
+          const fromNode = scene.nodes.find((node) => node.id === target.nodeId)
+          const structure = fromNode?.node.schema.internalStructures.find(
+            (entry) => entry.id === target.elementId,
+          )
+          const anchorEl = document.querySelector(
+            `[${CANVAS_CONTEXT_NODE_ID_ATTR}="${target.nodeId}"][${CANVAS_CONTEXT_KIND_ATTR}="internalStructure"][${CANVAS_CONTEXT_ELEMENT_ID_ATTR}="${target.elementId}"]`,
+          )
+
+          if (fromNode && structure && anchorEl instanceof HTMLElement) {
+            openCollectionTypeLinkMenu(target.nodeId, structure, anchorEl)
+          }
+          break
+        }
+        case 'element.removeConnections':
+          if (target.type === 'element' && target.kind === 'internalStructure') {
+            onRemoveConnectionsFromOutputSlot?.(target.nodeId, target.elementId)
+          }
+          break
+        case 'element.remove':
+          if (target.type === 'element' && onRequestRemoveElement) {
+            const canvasNode = scene.nodes.find((node) => node.id === target.nodeId)
+
+            if (!canvasNode) {
+              break
+            }
+
+            const stubCatalog = schemaBaseParameterCatalogBySchemaId?.[canvasNode.node.schema.id]
+            const removables = listRemovableNodeElements(canvasNode.node, stubCatalog, {
+              canvasNodeId: target.nodeId,
+              connections: scene.connections,
+            })
+            const item = removables.find(
+              (entry) => entry.kind === target.kind && entry.id === target.elementId,
+            )
+
+            if (item) {
+              onRequestRemoveElement(target.nodeId, item)
+            }
+          }
+          break
+        case 'element.removeInstance':
+          if (target.type === 'element' && target.instanceId) {
+            if (target.kind === 'list2EmbedInstance' && target.list2EmbedId) {
+              onRemoveList2EmbedInstance?.(target.nodeId, target.list2EmbedId, target.instanceId)
+            } else if (target.kind === 'list2PointerInstance' && target.list2PointerId) {
+              onRemoveList2PointerInstance?.(target.nodeId, target.list2PointerId, target.instanceId)
+            }
+          }
+          break
+        case 'element.openElementMenu': {
+          if (target.type !== 'element') {
+            break
+          }
+
+          const nodeWrap = document.querySelector(`[data-canvas-node-id="${target.nodeId}"]`)
+          const summary = nodeWrap?.querySelector(`[${ELEMENT_MENU_TRIGGER_ATTR}] summary`)
+
+          if (summary instanceof HTMLElement) {
+            summary.click()
+          }
+          break
+        }
+        default:
+          break
+      }
+    },
+    [
+      contextMenu,
+      focusSelectionIntoView,
+      onClearSelection,
+      onCycleConnectionRouting,
+      onDeleteNodeIds,
+      onToggleNodeBodyCollapsed,
+      onRedo,
+      onRemoveConnection,
+      onRemoveConnectionsFromOutputSlot,
+      onRemoveList2EmbedInstance,
+      onRemoveList2PointerInstance,
+      onRequestRemoveElement,
+      onSelectAllNodesShortcut,
+      onSelectNode,
+      onSetElementViewMode,
+      onUndo,
+      openCollectionTypeLinkMenu,
+      openPalette,
+      scale,
+      scene,
+      schemaBaseParameterCatalogBySchemaId,
+      selectedNodeIds,
+    ],
+  )
+
+  const handleContextMenu = useCallback(
+    (event: MouseEvent) => {
+      if (isParameterPickerOpen()) {
+        return
+      }
+
+      const resolved = resolveContextTarget(event)
+
+      if (!resolved) {
+        return
+      }
+
+      event.preventDefault()
+      event.stopPropagation()
+
+      setContextMenu({
+        anchor: { left: event.clientX, top: event.clientY },
+        target: resolved,
+      })
+    },
+    [],
+  )
+
   useEffect(() => {
     if (!paletteRequestSignal) {
       return
@@ -2386,6 +2796,11 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       }
 
       if (event.key === 'Escape') {
+        if (viewportNavigateMode) {
+          setViewportNavigateMode(false)
+          return
+        }
+
         onCloseCodePanelShortcut?.()
         setGlueNodeId(null)
       }
@@ -2404,6 +2819,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     onSelectAllNodesShortcut,
     selectedNodeId,
     selectedNodeIds,
+    viewportNavigateMode,
   ])
 
   return (
@@ -2413,21 +2829,23 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       ref={viewportRef}
     >
       <div className={styles.toolbar} data-canvas-control="true" data-canvas-toolbar="true">
-        <div className={styles.legend} aria-label="Canvas legend">
-          <span className={styles.legendItem}>
-            <span className={styles.inputDot} />
-            parent input
-          </span>
-          <span className={styles.legendItem}>
-            <span className={styles.outputDot} />
-            child output
-          </span>
-          <span className={styles.legendItem}>
-            <span aria-hidden className={styles.legendWireIcon} /> fio curvo · ortogonal · sem fio (corrente nos
-            ports) · clique no fio ou na corrente cicla estilo · Ctrl+clique remove · tecla A: seleccionar todos ou
-            limpar · clique na grade limpa
-          </span>
-        </div>
+        {canvasLegendVisible ? (
+          <div className={styles.legend} aria-label="Canvas legend">
+            <span className={styles.legendItem}>
+              <span className={styles.inputDot} />
+              parent input
+            </span>
+            <span className={styles.legendItem}>
+              <span className={styles.outputDot} />
+              child output
+            </span>
+            <span className={styles.legendItem}>
+              <span aria-hidden className={styles.legendWireIcon} /> fio curvo · ortogonal · sem fio (corrente nos
+              ports) · clique no fio ou na corrente cicla estilo · Ctrl+clique remove · tecla A: seleccionar todos ou
+              limpar · clique na grade limpa
+            </span>
+          </div>
+        ) : null}
 
         <div className={styles.controls} aria-label="Canvas viewport controls">
           {pendingLink ? (
@@ -2437,7 +2855,12 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
               {' · '}arrastar à grade vazia adiciona nó · vazio/Esc cancela
             </span>
           ) : null}
-          <button className={styles.primaryControl} type="button" onClick={openPalette}>
+          {viewportNavigateMode ? (
+            <span className={styles.linkStatus}>
+              modo mover na grade · arrastar para deslocar · clique vazio ou Esc para sair
+            </span>
+          ) : null}
+          <button className={styles.primaryControl} type="button" onClick={() => openPalette()}>
             add node
           </button>
           <button disabled={!canUndo} type="button" onClick={onUndo}>
@@ -2527,9 +2950,19 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
           })()
         : null}
 
+      {contextMenu && contextMenuItems.length > 0 ? (
+        <CanvasContextMenu
+          anchor={contextMenu.anchor}
+          items={contextMenuItems}
+          onClose={closeContextMenu}
+          onSelect={runContextMenuAction}
+        />
+      ) : null}
+
       <div
         aria-label="Graph viewport navigation area"
         className={styles.viewportBody}
+        onContextMenu={handleContextMenu}
         onPointerCancel={handleViewportPointerUp}
         onPointerDown={handleViewportPointerDown}
         onPointerMove={handleViewportPointerMove}
@@ -2566,6 +2999,8 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
                   className={styles.connectionHit}
                   d={connection.d}
                   data-canvas-wire="true"
+                  {...{ [CANVAS_CONNECTION_ID_ATTR]: connection.id }}
+                  onContextMenu={handleContextMenu}
                   onPointerDown={(event) => {
                     event.preventDefault()
                     event.stopPropagation()
@@ -2663,6 +3098,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
               data-canvas-node="true"
               data-canvas-node-id={canvasNode.id}
               key={canvasNode.id}
+              onContextMenu={handleContextMenu}
               onPointerCancel={stopNodeDrag}
               onPointerMove={moveNodeDrag}
               onPointerUp={stopNodeDrag}
@@ -2842,6 +3278,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
                   wirelessPortPulse?.nodeId === canvasNode.id ? wirelessPortPulse : undefined
                 }
                 parameterHints={hints}
+                bodyCollapsed={isCanvasNodeBodyCollapsed(canvasNode)}
                 selected={isSelected}
               />
             </div>

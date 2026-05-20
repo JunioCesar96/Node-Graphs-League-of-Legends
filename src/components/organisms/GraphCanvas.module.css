@@ -145,7 +145,7 @@
   flex-wrap: wrap;
   gap: var(--space-3);
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   width: 100%;
   margin-bottom: var(--space-4);
   pointer-events: none;
@@ -169,8 +169,10 @@
 
 .controls {
   display: inline-flex;
+  flex-wrap: wrap;
   gap: var(--space-1);
   align-items: center;
+  margin-left: auto;
   padding: var(--space-1);
   color: var(--color-text-secondary);
   font-family: var(--font-data);
