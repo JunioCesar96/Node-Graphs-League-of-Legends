@@ -67,6 +67,22 @@ import {
   resolveCollectionTypeForMapU64PointerSlot,
 } from '@/core/mapU64PointerSlots'
 import { parseMapU64PointerString } from '@/core/mapU64PointerValue'
+import {
+  isElementCompact,
+  listSlotsCompactHeight,
+  mapHashStructureCompactHeight,
+  parameterMapCompact,
+} from '@/core/elementViewLayout'
+import {
+  elementViewKeyForEmbed,
+  elementViewKeyForList2Embed,
+  elementViewKeyForList2Pointer,
+  elementViewKeyForListEmbed,
+  elementViewKeyForListPointer,
+  elementViewKeyForParameter,
+  elementViewKeyForPointer,
+  getElementViewState,
+} from '@/core/elementViewState'
 import { populatedSlotsForPointer } from '@/core/pointerSlots'
 import { populatedSlotsForListPointer } from '@/core/listPointerSlots'
 import type { NodeElementListItem } from '@/core/listNodeElements'
@@ -76,6 +92,10 @@ import {
   listInternalStructureCandidatesForBase,
 } from '@/core/pathHierarchyInternalStructures'
 import { isParameterPickerOpen } from '@/core/parameterPickerModal'
+import {
+  shouldIgnoreCanvasKeyboardShortcut,
+  shouldIgnoreCanvasWheelShortcut,
+} from '@/core/canvasKeyboardGuard'
 import { schemaJsonRelativePathBySchemaId } from '@/core/nodeStructureRegistry'
 import { schemaRegistry } from '@/core/nodeStructureRegistry'
 
@@ -203,6 +223,16 @@ type GraphCanvasProps = {
   onUndo: () => void
   /** Actualiza o valor de um parâmetro directamente no card do nó. */
   onUpdateNodeParameter?: (canvasNodeId: string, parameterId: string, value: string) => void
+  onSetElementViewMode?: (
+    canvasNodeId: string,
+    elementKey: import('@/core/nodeSchema').ElementViewKey,
+    mode: import('@/core/nodeSchema').ElementViewMode,
+  ) => void
+  onSetElementSelectedIndex?: (
+    canvasNodeId: string,
+    elementKey: import('@/core/nodeSchema').ElementViewKey,
+    index: number,
+  ) => void
   onRemoveConnectionsFromOutputSlot?: (canvasNodeId: string, structureId: string) => void
   /** Reordena parâmetros no card (índice 1-based na lista actual). */
   onSetNodeParameterOrder?: (
@@ -283,14 +313,6 @@ type CanvasBounds = {
   width: number
 }
 
-function isEditableTarget(target: EventTarget | null) {
-  if (!(target instanceof HTMLElement)) {
-    return false
-  }
-
-  return Boolean(target.closest('input, textarea, select, button, [contenteditable="true"]'))
-}
-
 function getParameterValueFromNode(
   node: CanvasNode,
   parameterId: string,
@@ -299,16 +321,58 @@ function getParameterValueFromNode(
   return node.node.values.find((entry) => entry.parameterId === parameterId)?.value ?? defaultValue
 }
 
+function mapParameterRowHeight(
+  node: CanvasNode,
+  parameter: NodeParameterDefinition,
+  stored: string,
+  estimateList: (parameter: NodeParameterDefinition, value: string) => number,
+  parseEntries: (raw: string) => Array<{ schemaId: string; typeName: string }>,
+  hasStructure: (entry: { schemaId: string; typeName: string }) => boolean,
+): number {
+  if (!parameterMapCompact(node.node, parameter)) {
+    return estimateList(parameter, stored)
+  }
+  const entries = parseEntries(stored)
+  const viewState = getElementViewState(node.node, elementViewKeyForParameter(parameter.id))
+  const index = Math.min(
+    Math.max(0, viewState.selectedIndex ?? 0),
+    Math.max(0, entries.length - 1),
+  )
+  const entry = entries[index]
+  return mapHashStructureCompactHeight(Boolean(entry && hasStructure(entry)))
+}
+
 function getParameterRowHeight(node: CanvasNode, parameter: NodeParameterDefinition): number {
   const stored = getParameterValueFromNode(node, parameter.id, parameter.defaultValue)
   if (parameter.type === 'mapHashPointer') {
-    return estimateMapHashPointerParameterHeight(parameter, stored)
+    return mapParameterRowHeight(
+      node,
+      parameter,
+      stored,
+      estimateMapHashPointerParameterHeight,
+      parseMapHashPointerString,
+      (entry) => Boolean(entry.schemaId?.trim() && entry.typeName?.trim()),
+    )
   }
   if (parameter.type === 'mapHashEmbed') {
-    return estimateMapHashEmbedParameterHeight(parameter, stored)
+    return mapParameterRowHeight(
+      node,
+      parameter,
+      stored,
+      estimateMapHashEmbedParameterHeight,
+      parseMapHashEmbedString,
+      (entry) => Boolean(entry.schemaId?.trim() && entry.typeName?.trim()),
+    )
   }
   if (parameter.type === 'mapU64Pointer') {
-    return estimateMapU64PointerParameterHeight(parameter, stored)
+    return mapParameterRowHeight(
+      node,
+      parameter,
+      stored,
+      estimateMapU64PointerParameterHeight,
+      parseMapU64PointerString,
+      (entry) => Boolean(entry.schemaId?.trim() && entry.typeName?.trim()),
+    )
   }
   return PARAMETER_ITEM_HEIGHT
 }
@@ -369,6 +433,13 @@ function getEmbedBlocksHeight(node: CanvasNode) {
   let height = 0
   for (let i = 0; i < blocks.length; i += 1) {
     const block = blocks[i]!
+    if (isElementCompact(node.node, elementViewKeyForEmbed(block.id))) {
+      height += listSlotsCompactHeight(EMBED_BLOCK_HEADER_HEIGHT)
+      if (i < blocks.length - 1) {
+        height += ITEM_GAP
+      }
+      continue
+    }
     const slots = populatedSlotsForEmbed(block)
     const slotsHeight =
       slots.length > 0
@@ -401,6 +472,13 @@ function getPointerBlocksHeight(node: CanvasNode) {
   let height = 0
   for (let i = 0; i < blocks.length; i += 1) {
     const block = blocks[i]!
+    if (isElementCompact(node.node, elementViewKeyForPointer(block.id))) {
+      height += listSlotsCompactHeight(EMBED_BLOCK_HEADER_HEIGHT)
+      if (i < blocks.length - 1) {
+        height += ITEM_GAP
+      }
+      continue
+    }
     const slots = populatedSlotsForPointer(block)
     const slotsHeight =
       slots.length > 0
@@ -433,6 +511,13 @@ function getListEmbedBlocksHeight(node: CanvasNode, connections: readonly Canvas
   let height = 0
   for (let i = 0; i < blocks.length; i += 1) {
     const block = blocks[i]!
+    if (isElementCompact(node.node, elementViewKeyForListEmbed(block.id))) {
+      height += listSlotsCompactHeight(LIST_EMBED_BLOCK_HEADER_HEIGHT)
+      if (i < blocks.length - 1) {
+        height += ITEM_GAP
+      }
+      continue
+    }
     const slots = populatedSlotsForListEmbed(block)
     const slotsHeight =
       slots.length > 0
@@ -465,6 +550,13 @@ function getListPointerBlocksHeight(node: CanvasNode) {
   let height = 0
   for (let i = 0; i < blocks.length; i += 1) {
     const block = blocks[i]!
+    if (isElementCompact(node.node, elementViewKeyForListPointer(block.id))) {
+      height += listSlotsCompactHeight(LIST_EMBED_BLOCK_HEADER_HEIGHT)
+      if (i < blocks.length - 1) {
+        height += ITEM_GAP
+      }
+      continue
+    }
     const slots = populatedSlotsForListPointer(block)
     const slotsHeight =
       slots.length > 0
@@ -497,6 +589,13 @@ function getList2EmbedBlocksHeight(node: CanvasNode) {
   let height = 0
   for (let i = 0; i < blocks.length; i += 1) {
     const block = blocks[i]!
+    if (isElementCompact(node.node, elementViewKeyForList2Embed(block.id))) {
+      height += listSlotsCompactHeight(LIST_EMBED_BLOCK_HEADER_HEIGHT)
+      if (i < blocks.length - 1) {
+        height += ITEM_GAP
+      }
+      continue
+    }
     let instancesHeight = 0
     for (const instance of block.instances) {
       const slots = instance.slots ?? []
@@ -535,6 +634,13 @@ function getList2PointerBlocksHeight(node: CanvasNode) {
   let height = 0
   for (let i = 0; i < blocks.length; i += 1) {
     const block = blocks[i]!
+    if (isElementCompact(node.node, elementViewKeyForList2Pointer(block.id))) {
+      height += listSlotsCompactHeight(LIST_EMBED_BLOCK_HEADER_HEIGHT)
+      if (i < blocks.length - 1) {
+        height += ITEM_GAP
+      }
+      continue
+    }
     let instancesHeight = 0
     for (const instance of block.instances) {
       const slots = instance.slots ?? []
@@ -1087,6 +1193,8 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     onSetNodeParameterOrder,
     onUndo,
     onUpdateNodeParameter,
+    onSetElementViewMode,
+    onSetElementSelectedIndex,
     onRemoveConnectionsFromOutputSlot,
     scene,
     selectedNodeIds,
@@ -1785,7 +1893,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     }
 
     const cancelLinkOnEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && !isEditableTarget(event.target)) {
+      if (event.key === 'Escape' && !shouldIgnoreCanvasKeyboardShortcut(event)) {
         event.preventDefault()
         endLinkDraft()
       }
@@ -1800,7 +1908,11 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
 
   useEffect(() => {
     const openPaletteOnShortcut = (event: KeyboardEvent) => {
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k' && !isEditableTarget(event.target)) {
+      if (
+        (event.ctrlKey || event.metaKey) &&
+        event.key.toLowerCase() === 'k' &&
+        !shouldIgnoreCanvasKeyboardShortcut(event)
+      ) {
         event.preventDefault()
         openPalette()
       }
@@ -2178,11 +2290,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     }
 
     const handleWheelPan = (event: WheelEvent) => {
-      if (isParameterPickerOpen()) {
-        return
-      }
-
-      if (isEditableTarget(event.target)) {
+      if (isParameterPickerOpen() || shouldIgnoreCanvasWheelShortcut(event.target)) {
         return
       }
 
@@ -2241,7 +2349,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
 
   useEffect(() => {
     const handleShortcut = (event: KeyboardEvent) => {
-      if (isEditableTarget(event.target)) {
+      if (shouldIgnoreCanvasKeyboardShortcut(event)) {
         return
       }
 
@@ -2707,6 +2815,17 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
                   onUpdateNodeParameter
                     ? (parameterId, nextValue) =>
                         onUpdateNodeParameter(canvasNode.id, parameterId, nextValue)
+                    : undefined
+                }
+                onSetElementViewMode={
+                  onSetElementViewMode
+                    ? (elementKey, mode) => onSetElementViewMode(canvasNode.id, elementKey, mode)
+                    : undefined
+                }
+                onSetElementSelectedIndex={
+                  onSetElementSelectedIndex
+                    ? (elementKey, index) =>
+                        onSetElementSelectedIndex(canvasNode.id, elementKey, index)
                     : undefined
                 }
                 onMapHashStructureSlotRemoved={

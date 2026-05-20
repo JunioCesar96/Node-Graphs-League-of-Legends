@@ -165,6 +165,17 @@ export type NodeParameterValue = {
   value: string
 }
 
+export type ElementViewMode = 'list' | 'compact'
+
+export type ElementViewState = {
+  mode: ElementViewMode
+  /** Índice visível no modo compacto (0-based). */
+  selectedIndex?: number
+}
+
+/** Chave estável: `param:<id>`, `embed:<id>`, `listEmbed:<id>`, etc. */
+export type ElementViewKey = string
+
 export type NodeInstance = {
   id: string
   schema: NodeSchemaDefinition
@@ -176,6 +187,8 @@ export type NodeInstance = {
   /** Espelho do valor string; `hashStringParameterId` usa o mesmo id de lista que no JSON do schema. */
   hashString?: string
   hashStringParameterId?: string
+  /** Preferências de visualização lista/compacto por bloco estrutural. */
+  elementView?: Partial<Record<ElementViewKey, ElementViewState>>
 }
 
 export const sampleNodeSchema = {

@@ -2,6 +2,7 @@ import type { PointerEvent as ReactPointerEvent } from 'react'
 import { useCallback, useMemo, useState } from 'react'
 
 import { Port } from '@/components/atoms/Port'
+import { StructureViewToggle } from '@/components/atoms/StructureViewToggle'
 import {
   isWirelessPortPulsing,
   toWirelessPortLinkProps,
@@ -10,6 +11,13 @@ import {
   type WirelessPortPulseTarget,
 } from '@/core/connectionDisplay'
 import { ElementRemovalPicker } from '@/components/molecules/ElementRemovalPicker'
+import { StructureIndexPager } from '@/components/molecules/StructureIndexPager'
+import {
+  StructureIndexPicker,
+  type StructureIndexPickerItem,
+} from '@/components/molecules/StructureIndexPicker'
+import type { ElementViewMode } from '@/core/nodeSchema'
+import { clampSelectedIndex } from '@/core/elementViewState'
 import {
   MapHashStructurePicker,
   type MapHashParameterKind,
@@ -69,6 +77,10 @@ type MapHashStructureBlockProps = MapHashStructureBlockConfig & {
   wirelessOutputLinks?: ReadonlyMap<string, WirelessPortLink>
   wirelessPortHandlers?: WirelessPortHandlers
   wirelessPortPulse?: WirelessPortPulseTarget
+  viewMode?: ElementViewMode
+  selectedIndex?: number
+  onViewModeChange?: (mode: ElementViewMode) => void
+  onSelectedIndexChange?: (index: number) => void
 }
 
 function slotForEntry(
@@ -116,11 +128,19 @@ export function MapHashStructureBlock({
   wirelessOutputLinks,
   wirelessPortHandlers,
   wirelessPortPulse,
+  viewMode = 'list',
+  selectedIndex = 0,
+  onViewModeChange,
+  onSelectedIndexChange,
 }: MapHashStructureBlockProps) {
   const entries = useMemo(() => parseEntries(value), [parseEntries, value])
   const [structurePickerTarget, setStructurePickerTarget] = useState<StructurePickerTarget | null>(null)
   const [hashRemovalOpen, setHashRemovalOpen] = useState(false)
   const [hashRemovalSelectedKey, setHashRemovalSelectedKey] = useState<string | null>(null)
+  const [indexPickerOpen, setIndexPickerOpen] = useState(false)
+
+  const isCompact = viewMode === 'compact'
+  const safeSelectedIndex = clampSelectedIndex(entries.length, selectedIndex)
 
   const catalog = useMemo((): MapHashStructureCatalogItem[] => {
     const fromEntries = catalogStructuresFromEntries(entries)
@@ -186,6 +206,110 @@ export function MapHashStructureBlock({
   const canMapAdd = catalog.length > 0
   const canMapRemove = entries.length > 0
 
+  const indexPickerItems = useMemo((): StructureIndexPickerItem[] => {
+    return entries.map((entry, index) => ({
+      index,
+      label: entry.key,
+      meta: hasMapHashStructure(entry) ? entry.typeName || entry.schemaId : undefined,
+    }))
+  }, [entries])
+
+  const renderEntryRow = (entry: MapHashStructureEntry, index: number) => {
+    const hasStructure = hasMapHashStructure(entry)
+    const slot = hasStructure ? slotForEntry(slotIdForKey, parameterId, entry) : null
+    return (
+      <li className={styles.entryGroup} key={`${entry.key}-${index}`}>
+        <div className={styles.hashRow}>
+          <div className={styles.hashField}>
+            <span className={styles.hashBracket}>{'{'}</span>
+            <input
+              aria-label={`${keyEntryLabel} entrada ${index}`}
+              className={styles.hashInput}
+              onChange={(event) => updateEntry(index, { key: normalizeKey(event.target.value) })}
+              type="text"
+              value={entry.key}
+            />
+            <span className={styles.hashBracket}>{'}'}</span>
+          </div>
+          <div className={styles.hashStructureActions}>
+            <button
+              aria-label="Remover estrutura desta entrada"
+              className={styles.removeButton}
+              disabled={!hasStructure}
+              onClick={() => clearStructureAt(index)}
+              title={hasStructure ? 'Remover estrutura interna' : 'Sem estrutura'}
+              type="button"
+            >
+              −
+            </button>
+            <button
+              aria-label="Adicionar estrutura nesta entrada"
+              className={styles.addButton}
+              disabled={hasStructure || !canMapAdd}
+              onClick={() => setStructurePickerTarget({ mode: 'hash', index })}
+              title={
+                hasStructure
+                  ? 'Já existe estrutura nesta entrada'
+                  : canMapAdd
+                    ? 'Adicionar estrutura interna'
+                    : 'Sem tipos no catálogo'
+              }
+              type="button"
+            >
+              +
+            </button>
+          </div>
+        </div>
+        {hasStructure && slot ? (
+          <div className={styles.structureSlot}>
+            <span className={styles.structureName} title={entry.typeName}>
+              {entry.typeName || entry.schemaId}
+            </span>
+            <Port
+              active={slot.id === activeSlotId}
+              direction="output"
+              graphInternalStructureId={slot.id}
+              graphNodeId={canvasNodeId}
+              graphPortKind="output"
+              label={`Ligar ${entry.typeName}`}
+              onWireActivateKeyboard={
+                onOutputWireKeyboard ? () => onOutputWireKeyboard(slot) : undefined
+              }
+              onWirePointerCancel={
+                onOutputWirePointerCancel
+                  ? (event) => onOutputWirePointerCancel(slot, event)
+                  : undefined
+              }
+              onWirePointerDown={
+                onOutputWirePointerDown
+                  ? (event) => onOutputWirePointerDown(slot, event)
+                  : undefined
+              }
+              onWirePointerMove={
+                onOutputWirePointerMove
+                  ? (event) => onOutputWirePointerMove(slot, event)
+                  : undefined
+              }
+              onWirePointerUp={
+                onOutputWirePointerUp ? (event) => onOutputWirePointerUp(slot, event) : undefined
+              }
+              wirelessLink={toWirelessPortLinkProps(
+                wirelessOutputLinks?.get(slot.id),
+                wirelessPortHandlers,
+                isWirelessPortPulsing(
+                  wirelessPortPulse,
+                  wirelessOutputLinks?.get(slot.id)?.connectionId ?? '',
+                  'output',
+                  slot.id,
+                ),
+              )}
+            />
+          </div>
+        ) : null}
+      </li>
+    )
+  }
+
   return (
     <div className={styles.block}>
       <div className={styles.blockHeader}>
@@ -193,6 +317,9 @@ export function MapHashStructureBlock({
           {parameterTitle}
         </h4>
         <div className={styles.mapActions}>
+          {onViewModeChange ? (
+            <StructureViewToggle mode={viewMode} onModeChange={onViewModeChange} />
+          ) : null}
           <button
             aria-label={`Remover entrada ${keyEntryLabel} de ${parameterTitle}`}
             className={styles.removeButton}
@@ -226,106 +353,31 @@ export function MapHashStructureBlock({
               Mapa vazio — use + no cabeçalho para adicionar {keyEntryLabel} → estrutura.
             </p>
           </li>
+        ) : isCompact ? (
+          <>{renderEntryRow(entries[safeSelectedIndex]!, safeSelectedIndex)}</>
         ) : (
-          entries.map((entry, index) => {
-            const hasStructure = hasMapHashStructure(entry)
-            const slot = hasStructure ? slotForEntry(slotIdForKey, parameterId, entry) : null
-            return (
-              <li className={styles.entryGroup} key={`${entry.key}-${index}`}>
-                <div className={styles.hashRow}>
-                  <div className={styles.hashField}>
-                    <span className={styles.hashBracket}>{'{'}</span>
-                    <input
-                      aria-label={`${keyEntryLabel} entrada ${index}`}
-                      className={styles.hashInput}
-                      onChange={(event) =>
-                        updateEntry(index, { key: normalizeKey(event.target.value) })
-                      }
-                      type="text"
-                      value={entry.key}
-                    />
-                    <span className={styles.hashBracket}>{'}'}</span>
-                  </div>
-                  <div className={styles.hashStructureActions}>
-                    <button
-                      aria-label="Remover estrutura desta entrada"
-                      className={styles.removeButton}
-                      disabled={!hasStructure}
-                      onClick={() => clearStructureAt(index)}
-                      title={hasStructure ? 'Remover estrutura interna' : 'Sem estrutura'}
-                      type="button"
-                    >
-                      −
-                    </button>
-                    <button
-                      aria-label="Adicionar estrutura nesta entrada"
-                      className={styles.addButton}
-                      disabled={hasStructure || !canMapAdd}
-                      onClick={() => setStructurePickerTarget({ mode: 'hash', index })}
-                      title={
-                        hasStructure
-                          ? 'Já existe estrutura nesta entrada'
-                          : canMapAdd
-                            ? 'Adicionar estrutura interna'
-                            : 'Sem tipos no catálogo'
-                      }
-                      type="button"
-                    >
-                      +
-                    </button>
-                  </div>
-                </div>
-                {hasStructure && slot ? (
-                  <div className={styles.structureSlot}>
-                    <span className={styles.structureName} title={entry.typeName}>
-                      {entry.typeName || entry.schemaId}
-                    </span>
-                    <Port
-                      active={slot.id === activeSlotId}
-                      direction="output"
-                      graphInternalStructureId={slot.id}
-                      graphNodeId={canvasNodeId}
-                      graphPortKind="output"
-                      label={`Ligar ${entry.typeName}`}
-                      onWireActivateKeyboard={
-                        onOutputWireKeyboard ? () => onOutputWireKeyboard(slot) : undefined
-                      }
-                      onWirePointerCancel={
-                        onOutputWirePointerCancel
-                          ? (event) => onOutputWirePointerCancel(slot, event)
-                          : undefined
-                      }
-                      onWirePointerDown={
-                        onOutputWirePointerDown
-                          ? (event) => onOutputWirePointerDown(slot, event)
-                          : undefined
-                      }
-                      onWirePointerMove={
-                        onOutputWirePointerMove
-                          ? (event) => onOutputWirePointerMove(slot, event)
-                          : undefined
-                      }
-                      onWirePointerUp={
-                        onOutputWirePointerUp ? (event) => onOutputWirePointerUp(slot, event) : undefined
-                      }
-                      wirelessLink={toWirelessPortLinkProps(
-                        wirelessOutputLinks?.get(slot.id),
-                        wirelessPortHandlers,
-                        isWirelessPortPulsing(
-                          wirelessPortPulse,
-                          wirelessOutputLinks?.get(slot.id)?.connectionId ?? '',
-                          'output',
-                          slot.id,
-                        ),
-                      )}
-                    />
-                  </div>
-                ) : null}
-              </li>
-            )
-          })
+          entries.map((entry, index) => renderEntryRow(entry, index))
         )}
       </ul>
+
+      {isCompact && entries.length > 0 && onSelectedIndexChange ? (
+        <StructureIndexPager
+          onCounterClick={() => setIndexPickerOpen(true)}
+          onSelectedIndexChange={onSelectedIndexChange}
+          selectedIndex={safeSelectedIndex}
+          total={entries.length}
+        />
+      ) : null}
+
+      <StructureIndexPicker
+        items={indexPickerItems}
+        onClose={() => setIndexPickerOpen(false)}
+        onSelect={(index) => onSelectedIndexChange?.(index)}
+        open={indexPickerOpen}
+        selectedIndex={safeSelectedIndex}
+        title={`Escolher índice — ${parameterTitle}`}
+      />
+
 
       <MapHashStructurePicker
         catalog={catalog}

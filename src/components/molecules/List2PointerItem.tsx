@@ -1,12 +1,21 @@
 import type { PointerEvent as ReactPointerEvent } from 'react'
+import { useState } from 'react'
 
 import { PointerItem } from '@/components/molecules/PointerItem'
+import { StructureViewToggle } from '@/components/atoms/StructureViewToggle'
 import type { InternalStructureDefinition, List2PointerDefinition } from '@/core/nodeSchema'
+import { clampSelectedIndex } from '@/core/elementViewState'
 import { populatedSlotsForList2PointerInstance } from '@/core/list2PointerSlots'
+import { StructureIndexPager } from '@/components/molecules/StructureIndexPager'
+import {
+  StructureIndexPicker,
+  type StructureIndexPickerItem,
+} from '@/components/molecules/StructureIndexPicker'
+import type { StructureBlockViewProps } from '@/components/molecules/structureBlockViewProps'
 
 import styles from './ListEmbedItem.module.css'
 
-type List2PointerItemProps = {
+type List2PointerItemProps = StructureBlockViewProps & {
   activeSlotId?: string
   canAdd?: boolean
   canRemove?: boolean
@@ -54,8 +63,26 @@ export function List2PointerItem({
   wirelessOutputLinks,
   wirelessPortHandlers,
   wirelessPortPulse,
+  viewMode = 'list',
+  selectedIndex = 0,
+  onViewModeChange,
+  onSelectedIndexChange,
 }: List2PointerItemProps) {
+  const [indexPickerOpen, setIndexPickerOpen] = useState(false)
   const isEmpty = list2Pointer.instances.length === 0
+  const isCompact = viewMode === 'compact'
+  const safeIndex = clampSelectedIndex(list2Pointer.instances.length, selectedIndex)
+  const visibleInstances =
+    isCompact && list2Pointer.instances.length > 0
+      ? [list2Pointer.instances[safeIndex]!]
+      : list2Pointer.instances
+
+  const indexPickerItems: StructureIndexPickerItem[] = list2Pointer.instances.map(
+    (instance, index) => ({
+      index,
+      label: instance.title,
+    }),
+  )
 
   return (
     <li className={`${styles.block} ${isEmpty ? styles.blockEmpty : ''}`}>
@@ -64,6 +91,9 @@ export function List2PointerItem({
           {list2Pointer.title}
         </h4>
         <div className={styles.blockActions}>
+          {onViewModeChange ? (
+            <StructureViewToggle mode={viewMode} onModeChange={onViewModeChange} />
+          ) : null}
           <button
             aria-label={`Remover instância de ${list2Pointer.title}`}
             className={styles.removeButton}
@@ -87,15 +117,15 @@ export function List2PointerItem({
         </div>
       </div>
 
-      {list2Pointer.instances.length > 0 ? (
+      {visibleInstances.length > 0 ? (
         <ul className={styles.slots}>
-          {list2Pointer.instances.map((instance) => (
+          {visibleInstances.map((instance) => (
             <PointerItem
               activeSlotId={activeSlotId}
               canAdd={false}
               canRemove={Boolean(onRemoveInstanceClick)}
               canvasNodeId={canvasNodeId}
-              key={instance.id}
+              nested
               onRemoveClick={
                 onRemoveInstanceClick ? () => onRemoveInstanceClick(instance.id) : undefined
               }
@@ -104,15 +134,34 @@ export function List2PointerItem({
               onOutputWirePointerDown={onOutputWirePointerDown}
               onOutputWirePointerMove={onOutputWirePointerMove}
               onOutputWirePointerUp={onOutputWirePointerUp}
+              pointer={instance}
+              key={instance.id}
               wirelessOutputLinks={wirelessOutputLinks}
               wirelessPortHandlers={wirelessPortHandlers}
               wirelessPortPulse={wirelessPortPulse}
-              pointer={instance}
               slots={populatedSlotsForList2PointerInstance(instance)}
             />
           ))}
         </ul>
       ) : null}
+
+      {isCompact && list2Pointer.instances.length > 0 && onSelectedIndexChange ? (
+        <StructureIndexPager
+          onCounterClick={() => setIndexPickerOpen(true)}
+          onSelectedIndexChange={onSelectedIndexChange}
+          selectedIndex={safeIndex}
+          total={list2Pointer.instances.length}
+        />
+      ) : null}
+
+      <StructureIndexPicker
+        items={indexPickerItems}
+        onClose={() => setIndexPickerOpen(false)}
+        onSelect={(index) => onSelectedIndexChange?.(index)}
+        open={indexPickerOpen}
+        selectedIndex={safeIndex}
+        title={`Escolher instância — ${list2Pointer.title}`}
+      />
     </li>
   )
 }

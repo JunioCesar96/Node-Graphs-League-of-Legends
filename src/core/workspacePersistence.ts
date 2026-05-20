@@ -1,6 +1,12 @@
-import type { CanvasConnection, CanvasScene } from '@/core/canvasScene'
+import type { CanvasConnection, CanvasScene, ConnectionRouting } from '@/core/canvasScene'
 import { hydrateScene } from '@/core/canvasScene'
-import type { NodeInstance, NodeParameterValue, NodeSchemaDefinition } from '@/core/nodeSchema'
+import type {
+  ElementViewKey,
+  ElementViewState,
+  NodeInstance,
+  NodeParameterValue,
+  NodeSchemaDefinition,
+} from '@/core/nodeSchema'
 
 export const WORKSPACE_FORMAT_VERSION = 1 as const
 
@@ -13,6 +19,7 @@ export type WorkspaceLogicNodePayload = {
   parameter_value_links?: Array<readonly [string, string]>
   hashString?: string
   hashStringParameterId?: string
+  elementView?: Partial<Record<ElementViewKey, ElementViewState>>
 }
 
 export type WorkspaceLogicFile = {
@@ -30,6 +37,7 @@ export type WorkspaceLayoutFile = {
 export type WorkspaceGraphFile = {
   version: typeof WORKSPACE_FORMAT_VERSION
   connections: CanvasConnection[]
+  compactRoutingBackups?: Record<string, ConnectionRouting | undefined>
 }
 
 export type WorkspaceBundle = {
@@ -73,6 +81,30 @@ function isNodeSchemaDefinition(value: unknown): value is NodeSchemaDefinition {
   )
 }
 
+function isElementViewState(value: unknown): value is ElementViewState {
+  if (!isRecord(value) || (value.mode !== 'list' && value.mode !== 'compact')) {
+    return false
+  }
+  if (value.selectedIndex !== undefined && typeof value.selectedIndex !== 'number') {
+    return false
+  }
+  return true
+}
+
+function parseElementView(raw: unknown): Partial<Record<ElementViewKey, ElementViewState>> | undefined {
+  if (!isRecord(raw)) {
+    return undefined
+  }
+  const out: Partial<Record<ElementViewKey, ElementViewState>> = {}
+  for (const [key, state] of Object.entries(raw)) {
+    if (typeof key !== 'string' || !isElementViewState(state)) {
+      return undefined
+    }
+    out[key] = state
+  }
+  return Object.keys(out).length > 0 ? out : undefined
+}
+
 function logicNodeFromInstance(node: NodeInstance): WorkspaceLogicNodePayload {
   return {
     id: node.id,
@@ -87,6 +119,9 @@ function logicNodeFromInstance(node: NodeInstance): WorkspaceLogicNodePayload {
     ...(typeof node.hashString === 'string' ? { hashString: node.hashString } : {}),
     ...(typeof node.hashStringParameterId === 'string'
       ? { hashStringParameterId: node.hashStringParameterId }
+      : {}),
+    ...(node.elementView && Object.keys(node.elementView).length > 0
+      ? { elementView: structuredClone(node.elementView) }
       : {}),
   }
 }
@@ -114,6 +149,9 @@ export function splitSceneToWorkspace(scene: CanvasScene): WorkspaceBundle {
     graph: {
       version: WORKSPACE_FORMAT_VERSION,
       connections: structuredClone(scene.connections),
+      ...(scene.compactRoutingBackups && Object.keys(scene.compactRoutingBackups).length > 0
+        ? { compactRoutingBackups: structuredClone(scene.compactRoutingBackups) }
+        : {}),
     },
   }
 }
@@ -169,6 +207,11 @@ function parseLogicNode(id: string, raw: unknown): WorkspaceLogicNodePayload | n
   }
   hashStringParameterId = hashPidRaw
 
+  const elementView = parseElementView(raw.elementView)
+  if (raw.elementView !== undefined && elementView === undefined) {
+    return null
+  }
+
   return {
     id,
     schema: structuredClone(raw.schema),
@@ -179,6 +222,7 @@ function parseLogicNode(id: string, raw: unknown): WorkspaceLogicNodePayload | n
       : {}),
     ...(hashString !== undefined ? { hashString } : {}),
     ...(hashStringParameterId !== undefined ? { hashStringParameterId } : {}),
+    ...(elementView ? { elementView: structuredClone(elementView) } : {}),
   }
 }
 
@@ -316,6 +360,7 @@ export function mergeWorkspaceToScene(bundle: WorkspaceBundle): CanvasScene | nu
         ...(logicNode.hashStringParameterId !== undefined
           ? { hashStringParameterId: logicNode.hashStringParameterId }
           : {}),
+        ...(logicNode.elementView ? { elementView: structuredClone(logicNode.elementView) } : {}),
       },
     })
   }
@@ -329,6 +374,26 @@ export function mergeWorkspaceToScene(bundle: WorkspaceBundle): CanvasScene | nu
     connections.push(connection)
   }
 
+  const backupsRaw = bundle.graph.compactRoutingBackups
+  let compactRoutingBackups: CanvasScene['compactRoutingBackups']
+  if (backupsRaw !== undefined) {
+    if (!isRecord(backupsRaw)) {
+      return null
+    }
+    compactRoutingBackups = {}
+    for (const [connectionId, routing] of Object.entries(backupsRaw)) {
+      if (
+        routing !== undefined &&
+        routing !== 'flex' &&
+        routing !== 'rigid' &&
+        routing !== 'wireless'
+      ) {
+        return null
+      }
+      compactRoutingBackups[connectionId] = routing
+    }
+  }
+
   if (nodes.length === 0) {
     return null
   }
@@ -338,5 +403,8 @@ export function mergeWorkspaceToScene(bundle: WorkspaceBundle): CanvasScene | nu
     height: bundle.layout.height,
     nodes,
     connections,
+    ...(compactRoutingBackups && Object.keys(compactRoutingBackups).length > 0
+      ? { compactRoutingBackups }
+      : {}),
   })
 }

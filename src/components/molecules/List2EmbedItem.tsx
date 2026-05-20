@@ -1,12 +1,21 @@
 import type { PointerEvent as ReactPointerEvent } from 'react'
+import { useState } from 'react'
 
 import { EmbedItem } from '@/components/molecules/EmbedItem'
+import { StructureViewToggle } from '@/components/atoms/StructureViewToggle'
 import type { InternalStructureDefinition, List2EmbedDefinition } from '@/core/nodeSchema'
+import { clampSelectedIndex } from '@/core/elementViewState'
 import { populatedSlotsForList2EmbedInstance } from '@/core/list2EmbedSlots'
+import { StructureIndexPager } from '@/components/molecules/StructureIndexPager'
+import {
+  StructureIndexPicker,
+  type StructureIndexPickerItem,
+} from '@/components/molecules/StructureIndexPicker'
+import type { StructureBlockViewProps } from '@/components/molecules/structureBlockViewProps'
 
 import styles from './ListEmbedItem.module.css'
 
-type List2EmbedItemProps = {
+type List2EmbedItemProps = StructureBlockViewProps & {
   activeSlotId?: string
   canAdd?: boolean
   canRemove?: boolean
@@ -54,8 +63,26 @@ export function List2EmbedItem({
   wirelessOutputLinks,
   wirelessPortHandlers,
   wirelessPortPulse,
+  viewMode = 'list',
+  selectedIndex = 0,
+  onViewModeChange,
+  onSelectedIndexChange,
 }: List2EmbedItemProps) {
+  const [indexPickerOpen, setIndexPickerOpen] = useState(false)
   const isEmpty = list2Embed.instances.length === 0
+  const isCompact = viewMode === 'compact'
+  const safeIndex = clampSelectedIndex(list2Embed.instances.length, selectedIndex)
+  const visibleInstances =
+    isCompact && list2Embed.instances.length > 0
+      ? [list2Embed.instances[safeIndex]!]
+      : list2Embed.instances
+
+  const indexPickerItems: StructureIndexPickerItem[] = list2Embed.instances.map(
+    (instance, index) => ({
+      index,
+      label: instance.title,
+    }),
+  )
 
   return (
     <li className={`${styles.block} ${isEmpty ? styles.blockEmpty : ''}`}>
@@ -64,6 +91,9 @@ export function List2EmbedItem({
           {list2Embed.title}
         </h4>
         <div className={styles.blockActions}>
+          {onViewModeChange ? (
+            <StructureViewToggle mode={viewMode} onModeChange={onViewModeChange} />
+          ) : null}
           <button
             aria-label={`Remover instância de ${list2Embed.title}`}
             className={styles.removeButton}
@@ -87,9 +117,9 @@ export function List2EmbedItem({
         </div>
       </div>
 
-      {list2Embed.instances.length > 0 ? (
+      {visibleInstances.length > 0 ? (
         <ul className={styles.slots}>
-          {list2Embed.instances.map((instance) => (
+          {visibleInstances.map((instance) => (
             <EmbedItem
               activeSlotId={activeSlotId}
               canAdd={false}
@@ -97,6 +127,7 @@ export function List2EmbedItem({
               canvasNodeId={canvasNodeId}
               embed={instance}
               key={instance.id}
+              nested
               onRemoveClick={
                 onRemoveInstanceClick ? () => onRemoveInstanceClick(instance.id) : undefined
               }
@@ -113,6 +144,24 @@ export function List2EmbedItem({
           ))}
         </ul>
       ) : null}
+
+      {isCompact && list2Embed.instances.length > 0 && onSelectedIndexChange ? (
+        <StructureIndexPager
+          onCounterClick={() => setIndexPickerOpen(true)}
+          onSelectedIndexChange={onSelectedIndexChange}
+          selectedIndex={safeIndex}
+          total={list2Embed.instances.length}
+        />
+      ) : null}
+
+      <StructureIndexPicker
+        items={indexPickerItems}
+        onClose={() => setIndexPickerOpen(false)}
+        onSelect={(index) => onSelectedIndexChange?.(index)}
+        open={indexPickerOpen}
+        selectedIndex={safeIndex}
+        title={`Escolher instância — ${list2Embed.title}`}
+      />
     </li>
   )
 }

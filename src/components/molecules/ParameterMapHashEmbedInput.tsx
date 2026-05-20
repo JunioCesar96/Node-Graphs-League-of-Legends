@@ -6,7 +6,7 @@ import type {
   WirelessPortLink,
   WirelessPortPulseTarget,
 } from '@/core/connectionDisplay'
-import type { InternalStructureDefinition } from '@/core/nodeSchema'
+import type { ElementViewMode, InternalStructureDefinition } from '@/core/nodeSchema'
 import { normalizeMapHashEmbedString } from '@/core/mapHashEmbedValue'
 
 type ParameterMapHashEmbedInputProps = {
@@ -39,6 +39,10 @@ type ParameterMapHashEmbedInputProps = {
   wirelessOutputLinks?: ReadonlyMap<string, WirelessPortLink>
   wirelessPortHandlers?: WirelessPortHandlers
   wirelessPortPulse?: WirelessPortPulseTarget
+  viewMode?: ElementViewMode
+  selectedIndex?: number
+  onViewModeChange?: (mode: ElementViewMode) => void
+  onSelectedIndexChange?: (index: number) => void
 }
 
 export function ParameterMapHashEmbedInput({
@@ -59,6 +63,10 @@ export function ParameterMapHashEmbedInput({
   wirelessOutputLinks,
   wirelessPortHandlers,
   wirelessPortPulse,
+  viewMode,
+  selectedIndex,
+  onViewModeChange,
+  onSelectedIndexChange,
 }: ParameterMapHashEmbedInputProps) {
   return (
     <div className={className} data-parameter-type="mapHashEmbed">
@@ -77,8 +85,12 @@ export function ParameterMapHashEmbedInput({
         wirelessOutputLinks={wirelessOutputLinks}
         wirelessPortHandlers={wirelessPortHandlers}
         wirelessPortPulse={wirelessPortPulse}
+        onSelectedIndexChange={onSelectedIndexChange}
+        onViewModeChange={onViewModeChange}
         parameterId={parameterId}
+        selectedIndex={selectedIndex}
         value={value}
+        viewMode={viewMode}
       />
     </div>
   )

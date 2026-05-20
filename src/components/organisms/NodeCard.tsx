@@ -64,15 +64,46 @@ import {
 } from '@/core/pointerElementMenu'
 import type { PointerAddBlockChoice } from '@/core/pointerElementMenu'
 import type {
+  ElementViewKey,
+  ElementViewMode,
   InternalStructureDefinition,
   NodeInstance,
   NodeParameterDefinition,
   NodeSchemaDefinition,
 } from '@/core/nodeSchema'
+import {
+  elementViewKeyForEmbed,
+  elementViewKeyForList2Embed,
+  elementViewKeyForList2Pointer,
+  elementViewKeyForListEmbed,
+  elementViewKeyForListPointer,
+  elementViewKeyForParameter,
+  elementViewKeyForPointer,
+  getElementViewState,
+} from '@/core/elementViewState'
 
 import styles from './NodeCard.module.css'
 
 const EMPTY_REMOVAL_ELEMENTS: NodeElementListItem[] = []
+
+function blockViewProps(
+  node: NodeInstance,
+  elementKey: ElementViewKey,
+  onSetElementViewMode?: (elementKey: ElementViewKey, mode: ElementViewMode) => void,
+  onSetElementSelectedIndex?: (elementKey: ElementViewKey, index: number) => void,
+) {
+  const state = getElementViewState(node, elementKey)
+  return {
+    viewMode: state.mode,
+    selectedIndex: state.selectedIndex ?? 0,
+    onViewModeChange: onSetElementViewMode
+      ? (mode: ElementViewMode) => onSetElementViewMode(elementKey, mode)
+      : undefined,
+    onSelectedIndexChange: onSetElementSelectedIndex
+      ? (index: number) => onSetElementSelectedIndex(elementKey, index)
+      : undefined,
+  }
+}
 
 function pointerAddBlocksAsEmbed(blocks: readonly PointerAddBlockChoice[]): EmbedAddBlockChoice[] {
   return blocks.map((block) => ({
@@ -140,6 +171,8 @@ type NodeCardProps = {
   onUpdateParameter?: (parameterId: string, value: string) => void
   /** Remove ligações de saída de um slot virtual map[hash,pointer]. */
   onMapHashStructureSlotRemoved?: (slotId: string) => void
+  onSetElementViewMode?: (elementKey: ElementViewKey, mode: ElementViewMode) => void
+  onSetElementSelectedIndex?: (elementKey: ElementViewKey, index: number) => void
   onCycleConnectionRouting?: (connectionId: string) => void
   onRemoveConnection?: (connectionId: string) => void
   onWirelessPeerHoverStart?: (peerNodeId: string) => void
@@ -194,6 +227,8 @@ export function NodeCard({
   onStartDrag,
   onUpdateParameter,
   onMapHashStructureSlotRemoved,
+  onSetElementViewMode,
+  onSetElementSelectedIndex,
   onCycleConnectionRouting,
   onRemoveConnection,
   onWirelessPeerHoverStart,
@@ -636,6 +671,17 @@ export function NodeCard({
                     }
                   : undefined
 
+              const isMapStructure =
+                parameter.type === 'mapHashPointer' ||
+                parameter.type === 'mapHashEmbed' ||
+                parameter.type === 'mapU64Pointer'
+              const paramViewKey = isMapStructure
+                ? elementViewKeyForParameter(parameter.id)
+                : undefined
+              const paramViewState = paramViewKey
+                ? getElementViewState(node, paramViewKey)
+                : undefined
+
               return (
                 <ParameterItem
                   activeOutputInternalStructureId={activeOutputInternalStructureId}
@@ -643,6 +689,19 @@ export function NodeCard({
                   hint={parameterHints?.[parameter.name]}
                   isParameterReorderDragSource={dragParameterId === parameter.id}
                   key={parameter.id}
+                  elementViewKey={paramViewKey}
+                  viewMode={paramViewState?.mode}
+                  selectedIndex={paramViewState?.selectedIndex ?? 0}
+                  onElementViewModeChange={
+                    paramViewKey && onSetElementViewMode
+                      ? (mode) => onSetElementViewMode(paramViewKey, mode)
+                      : undefined
+                  }
+                  onElementSelectedIndexChange={
+                    paramViewKey && onSetElementSelectedIndex
+                      ? (index) => onSetElementSelectedIndex(paramViewKey, index)
+                      : undefined
+                  }
                   onCommitValue={
                     onUpdateParameter
                       ? (nextValue) => onUpdateParameter(parameter.id, nextValue)
@@ -674,6 +733,12 @@ export function NodeCard({
           <ul className={styles.list}>
             {(node.schema.embed ?? []).map((embed) => (
               <EmbedItem
+                {...blockViewProps(
+                  node,
+                  elementViewKeyForEmbed(embed.id),
+                  onSetElementViewMode,
+                  onSetElementSelectedIndex,
+                )}
                 activeSlotId={activeOutputInternalStructureId}
                 canAdd={canAddToEmbedBlock(embed.id)}
                 canRemove={canRemoveFromEmbedBlock(embed.id)}
@@ -706,6 +771,12 @@ export function NodeCard({
           <ul className={styles.list}>
             {(node.schema.pointer ?? []).map((pointer) => (
               <PointerItem
+                {...blockViewProps(
+                  node,
+                  elementViewKeyForPointer(pointer.id),
+                  onSetElementViewMode,
+                  onSetElementSelectedIndex,
+                )}
                 activeSlotId={activeOutputInternalStructureId}
                 canAdd={canAddToPointerBlock(pointer.id)}
                 canRemove={canRemoveFromPointerBlock(pointer.id)}
@@ -738,6 +809,12 @@ export function NodeCard({
           <ul className={styles.list}>
             {(node.schema.listEmbed ?? []).map((listEmbed) => (
               <ListEmbedItem
+                {...blockViewProps(
+                  node,
+                  elementViewKeyForListEmbed(listEmbed.id),
+                  onSetElementViewMode,
+                  onSetElementSelectedIndex,
+                )}
                 activeSlotId={activeOutputInternalStructureId}
                 canAdd={canAddToListEmbedBlock(listEmbed.id)}
                 canRemove={canRemoveFromListEmbedBlock(listEmbed.id)}
@@ -770,6 +847,12 @@ export function NodeCard({
           <ul className={styles.list}>
             {(node.schema.listPointer ?? []).map((listPointer) => (
               <ListPointerItem
+                {...blockViewProps(
+                  node,
+                  elementViewKeyForListPointer(listPointer.id),
+                  onSetElementViewMode,
+                  onSetElementSelectedIndex,
+                )}
                 activeSlotId={activeOutputInternalStructureId}
                 canAdd={canAddToListPointerBlock(listPointer.id)}
                 canRemove={canRemoveFromListPointerBlock(listPointer.id)}
@@ -803,6 +886,12 @@ export function NodeCard({
             <ul className={styles.list}>
               {(node.schema.list2Embed ?? []).map((list2Embed) => (
                 <List2EmbedItem
+                  {...blockViewProps(
+                    node,
+                    elementViewKeyForList2Embed(list2Embed.id),
+                    onSetElementViewMode,
+                    onSetElementSelectedIndex,
+                  )}
                   activeSlotId={activeOutputInternalStructureId}
                   canAdd={Boolean(onAppendList2EmbedCatalogItem) && list2Embed.internalStructures.length > 0}
                   canRemove={(list2Embed.instances?.length ?? 0) > 0}
@@ -846,6 +935,12 @@ export function NodeCard({
             <ul className={styles.list}>
               {(node.schema.list2Pointer ?? []).map((list2Pointer) => (
                 <List2PointerItem
+                  {...blockViewProps(
+                    node,
+                    elementViewKeyForList2Pointer(list2Pointer.id),
+                    onSetElementViewMode,
+                    onSetElementSelectedIndex,
+                  )}
                   activeSlotId={activeOutputInternalStructureId}
                   canAdd={Boolean(onAppendList2PointerCatalogItem) && list2Pointer.internalStructures.length > 0}
                   canRemove={(list2Pointer.instances?.length ?? 0) > 0}

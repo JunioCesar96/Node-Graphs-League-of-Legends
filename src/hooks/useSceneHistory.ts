@@ -2,6 +2,14 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import type { CanvasConnection, CanvasPosition, CanvasScene } from '@/core/canvasScene'
 import { nextConnectionRouting } from '@/core/canvasScene'
+import { applyCompactWireless, restoreCompactWireless } from '@/core/compactConnectionRouting'
+import {
+  isSlotInCompactElementView,
+  patchElementSelectedIndex,
+  patchElementViewMode,
+  slotIdsForElement,
+} from '@/core/elementViewState'
+import type { ElementViewKey, ElementViewMode } from '@/core/nodeSchema'
 import { hydrateScene, schemaJsonRelativePathBySchemaId, staticCanvasScene } from '@/core/canvasScene'
 import { loadStoredScene, SCENE_STORAGE_KEY } from '@/core/sceneStorage'
 import { workspaceService } from '@/services/workspaceService'
@@ -523,14 +531,21 @@ export function useSceneHistory(options?: {
   const connectNodes = useCallback(
     (connection: CanvasConnection) => {
       updateScene((currentScene) => {
+        const sourceCanvasNode = currentScene.nodes.find((node) => node.id === connection.fromNodeId)
         const targetNode = currentScene.nodes.find((node) => node.id === connection.toNodeId)
+        const useWireless =
+          sourceCanvasNode &&
+          isSlotInCompactElementView(sourceCanvasNode.node, connection.fromInternalStructureId)
+        const normalizedConnection: CanvasConnection = useWireless
+          ? { ...connection, routing: 'wireless' }
+          : connection
         const nextConnections = [
           ...currentScene.connections.filter(
             (currentConnection) =>
               currentConnection.fromNodeId !== connection.fromNodeId ||
               currentConnection.fromInternalStructureId !== connection.fromInternalStructureId,
           ),
-          connection,
+          normalizedConnection,
         ]
 
         return {
@@ -599,6 +614,56 @@ export function useSceneHistory(options?: {
     [updateScene],
   )
 
+  const setElementViewMode = useCallback(
+    (canvasNodeId: string, elementKey: ElementViewKey, mode: ElementViewMode) => {
+      updateScene((currentScene) => {
+        const canvasNode = currentScene.nodes.find((n) => n.id === canvasNodeId)
+        if (!canvasNode) {
+          return currentScene
+        }
+
+        const slotIds = slotIdsForElement(canvasNode.node, elementKey)
+        let nextScene = currentScene
+
+        if (mode === 'compact') {
+          nextScene = applyCompactWireless(nextScene, canvasNodeId, slotIds)
+        } else {
+          nextScene = restoreCompactWireless(nextScene, canvasNodeId, slotIds)
+        }
+
+        return {
+          ...nextScene,
+          nodes: nextScene.nodes.map((n) =>
+            n.id === canvasNodeId
+              ? {
+                  ...n,
+                  node: patchElementViewMode(n.node, elementKey, mode),
+                }
+              : n,
+          ),
+        }
+      })
+    },
+    [updateScene],
+  )
+
+  const setElementSelectedIndex = useCallback(
+    (canvasNodeId: string, elementKey: ElementViewKey, selectedIndex: number) => {
+      updateScene((currentScene) => ({
+        ...currentScene,
+        nodes: currentScene.nodes.map((n) =>
+          n.id === canvasNodeId
+            ? {
+                ...n,
+                node: patchElementSelectedIndex(n.node, elementKey, selectedIndex),
+              }
+            : n,
+        ),
+      }))
+    },
+    [updateScene],
+  )
+
   const createChildNode = useCallback(
     (fromNodeId: string, slot: InternalStructureDefinition, placement?: CanvasPosition) => {
       updateScene((currentScene) => {
@@ -631,6 +696,9 @@ export function useSceneHistory(options?: {
           fromInternalStructureId: slot.id,
           fromNodeId,
           toNodeId: instanceId,
+          ...(isSlotInCompactElementView(sourceNode.node, slot.id)
+            ? { routing: 'wireless' as const }
+            : {}),
         }
 
         queueMicrotask(() =>
@@ -1970,6 +2038,8 @@ export function useSceneHistory(options?: {
 
   return {
     cycleConnectionRouting,
+    setElementViewMode,
+    setElementSelectedIndex,
     redoScene,
     resetScene,
     sceneHistory,

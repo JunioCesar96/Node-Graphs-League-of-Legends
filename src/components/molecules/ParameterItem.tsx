@@ -11,7 +11,12 @@ import type {
   WirelessPortLink,
   WirelessPortPulseTarget,
 } from '@/core/connectionDisplay'
-import type { InternalStructureDefinition, NodeParameterDefinition } from '@/core/nodeSchema'
+import type {
+  ElementViewKey,
+  ElementViewMode,
+  InternalStructureDefinition,
+  NodeParameterDefinition,
+} from '@/core/nodeSchema'
 
 import styles from './ParameterItem.module.css'
 
@@ -49,6 +54,11 @@ type ParameterItemProps = {
   wirelessOutputLinks?: ReadonlyMap<string, WirelessPortLink>
   wirelessPortHandlers?: WirelessPortHandlers
   wirelessPortPulse?: WirelessPortPulseTarget
+  elementViewKey?: ElementViewKey
+  viewMode?: ElementViewMode
+  selectedIndex?: number
+  onElementViewModeChange?: (mode: ElementViewMode) => void
+  onElementSelectedIndexChange?: (index: number) => void
   parameter: NodeParameterDefinition
   parameterNameReorderHandlers?: ParameterNameReorderHandlers
   registerParameterRowRef?: Ref<HTMLLIElement>
@@ -70,6 +80,11 @@ export function ParameterItem({
   wirelessOutputLinks,
   wirelessPortHandlers,
   wirelessPortPulse,
+  elementViewKey: _elementViewKey,
+  viewMode = 'list',
+  selectedIndex = 0,
+  onElementViewModeChange,
+  onElementSelectedIndexChange,
   parameter,
   parameterNameReorderHandlers,
   registerParameterRowRef,
@@ -101,8 +116,12 @@ export function ParameterItem({
         wirelessOutputLinks={wirelessOutputLinks}
         wirelessPortHandlers={wirelessPortHandlers}
         wirelessPortPulse={wirelessPortPulse}
+        onSelectedIndexChange={onElementSelectedIndexChange}
+        onViewModeChange={onElementViewModeChange}
         parameterId={parameter.id}
+        selectedIndex={selectedIndex}
         value={value}
+        viewMode={viewMode}
       />
     ) : isMapU64Pointer && onCommitValue && canvasNodeId ? (
       <ParameterMapU64PointerInput
@@ -121,8 +140,12 @@ export function ParameterItem({
         wirelessOutputLinks={wirelessOutputLinks}
         wirelessPortHandlers={wirelessPortHandlers}
         wirelessPortPulse={wirelessPortPulse}
+        onSelectedIndexChange={onElementSelectedIndexChange}
+        onViewModeChange={onElementViewModeChange}
         parameterId={parameter.id}
+        selectedIndex={selectedIndex}
         value={value}
+        viewMode={viewMode}
       />
     ) : isMapHashEmbed && onCommitValue && canvasNodeId ? (
       <ParameterMapHashEmbedInput
@@ -141,8 +164,12 @@ export function ParameterItem({
         wirelessOutputLinks={wirelessOutputLinks}
         wirelessPortHandlers={wirelessPortHandlers}
         wirelessPortPulse={wirelessPortPulse}
+        onSelectedIndexChange={onElementSelectedIndexChange}
+        onViewModeChange={onElementViewModeChange}
         parameterId={parameter.id}
+        selectedIndex={selectedIndex}
         value={value}
+        viewMode={viewMode}
       />
     ) : onCommitValue ? (
       <ParameterValueInput

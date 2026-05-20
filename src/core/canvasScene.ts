@@ -136,6 +136,8 @@ export type CanvasScene = {
   height: number
   nodes: CanvasNode[]
   connections: CanvasConnection[]
+  /** connectionId → routing antes de compactar (`undefined` = flex implícito). */
+  compactRoutingBackups?: Record<string, ConnectionRouting | undefined>
 }
 
 function hydrateNodeInstanceFromEmbeddedLinks(node: NodeInstance): NodeInstance {
@@ -183,6 +185,9 @@ export function hydrateScene(scene: CanvasScene): CanvasScene {
         ...(typeof n.node.hashStringParameterId === 'string'
           ? { hashStringParameterId: n.node.hashStringParameterId }
           : {}),
+        ...(n.node.elementView && Object.keys(n.node.elementView).length > 0
+          ? { elementView: structuredClone(n.node.elementView) }
+          : {}),
       }
 
     return {
@@ -193,6 +198,9 @@ export function hydrateScene(scene: CanvasScene): CanvasScene {
 
   return {
     ...scene,
+    ...(scene.compactRoutingBackups && Object.keys(scene.compactRoutingBackups).length > 0
+      ? { compactRoutingBackups: structuredClone(scene.compactRoutingBackups) }
+      : {}),
     connections: migrateSceneListEmbedConnections(
       nodes,
       scene.connections.map((c) =>

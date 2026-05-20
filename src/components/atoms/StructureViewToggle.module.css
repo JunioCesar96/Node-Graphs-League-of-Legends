@@ -1,0 +1,32 @@
+.toggle {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  background: transparent;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-control);
+}
+
+.toggle:hover {
+  color: var(--color-text-primary);
+  background: rgb(255 255 255 / 4%);
+  border-color: var(--syntax-property, #64b5f6);
+}
+
+.toggle[aria-pressed='true'] {
+  color: var(--syntax-property, #64b5f6);
+  background: rgb(100 181 246 / 10%);
+  border-color: var(--syntax-property, #64b5f6);
+  border-style: solid;
+}
+
+.icon {
+  width: 0.95rem;
+  height: 0.95rem;
+}

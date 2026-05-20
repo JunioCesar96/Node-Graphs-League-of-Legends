@@ -1,8 +1,8 @@
 import type { PointerEvent as ReactPointerEvent } from 'react'
-
-
+import { useState } from 'react'
 
 import { Port } from '@/components/atoms/Port'
+import { StructureViewToggle } from '@/components/atoms/StructureViewToggle'
 import {
   isWirelessPortPulsing,
   toWirelessPortLinkProps,
@@ -10,269 +10,178 @@ import {
   type WirelessPortLink,
   type WirelessPortPulseTarget,
 } from '@/core/connectionDisplay'
-
+import { clampSelectedIndex } from '@/core/elementViewState'
 import type { InternalStructureDefinition, ListPointerDefinition } from '@/core/nodeSchema'
-
-
+import { StructureIndexPager } from '@/components/molecules/StructureIndexPager'
+import {
+  StructureIndexPicker,
+  type StructureIndexPickerItem,
+} from '@/components/molecules/StructureIndexPicker'
+import type { StructureBlockViewProps } from '@/components/molecules/structureBlockViewProps'
 
 import styles from './ListPointerItem.module.css'
 
-
-
-type ListPointerItemProps = {
-
+type ListPointerItemProps = StructureBlockViewProps & {
   activeSlotId?: string
-
   canAdd?: boolean
-
   canRemove?: boolean
-
   canvasNodeId: string
-
   listPointer: ListPointerDefinition
-
   slots: InternalStructureDefinition[]
-
   onAddClick?: () => void
-
   onRemoveClick?: () => void
-
   onOutputWireKeyboard?: (slot: InternalStructureDefinition) => void
-
   onOutputWirePointerCancel?: (
-
     slot: InternalStructureDefinition,
-
     event: ReactPointerEvent<HTMLButtonElement>,
-
   ) => void
-
   onOutputWirePointerDown?: (
-
     slot: InternalStructureDefinition,
-
     event: ReactPointerEvent<HTMLButtonElement>,
-
   ) => void
-
   onOutputWirePointerMove?: (
-
     slot: InternalStructureDefinition,
-
     event: ReactPointerEvent<HTMLButtonElement>,
-
   ) => void
-
   onOutputWirePointerUp?: (
-
     slot: InternalStructureDefinition,
-
     event: ReactPointerEvent<HTMLButtonElement>,
-
   ) => void
-
   wirelessOutputLinks?: ReadonlyMap<string, WirelessPortLink>
-
   wirelessPortHandlers?: WirelessPortHandlers
-
   wirelessPortPulse?: WirelessPortPulseTarget
-
 }
 
-
-
 export function ListPointerItem({
-
   activeSlotId,
-
   canAdd = false,
-
   canRemove = false,
-
   canvasNodeId,
-
   listPointer,
-
   slots,
-
   onAddClick,
-
   onRemoveClick,
-
   onOutputWireKeyboard,
-
   onOutputWirePointerCancel,
-
   onOutputWirePointerDown,
-
   onOutputWirePointerMove,
-
   onOutputWirePointerUp,
-
   wirelessOutputLinks,
-
   wirelessPortHandlers,
-
   wirelessPortPulse,
-
+  viewMode = 'list',
+  selectedIndex = 0,
+  onViewModeChange,
+  onSelectedIndexChange,
 }: ListPointerItemProps) {
-
+  const [indexPickerOpen, setIndexPickerOpen] = useState(false)
   const isEmpty = slots.length === 0
+  const isCompact = viewMode === 'compact'
+  const safeIndex = clampSelectedIndex(slots.length, selectedIndex)
+  const visibleSlots = isCompact && slots.length > 0 ? [slots[safeIndex]!] : slots
 
-
+  const indexPickerItems: StructureIndexPickerItem[] = slots.map((slot, index) => ({
+    index,
+    label: slot.name,
+  }))
 
   return (
-
     <li className={`${styles.block} ${isEmpty ? styles.blockEmpty : ''}`}>
-
       <div className={styles.blockHeader}>
-
         <h4 className={styles.blockTitle} title={listPointer.title}>
-
           {listPointer.title}
-
         </h4>
-
         <div className={styles.blockActions}>
-
+          {onViewModeChange ? (
+            <StructureViewToggle mode={viewMode} onModeChange={onViewModeChange} />
+          ) : null}
           <button
-
             aria-label={`Remover ${listPointer.title}`}
-
             className={styles.removeButton}
-
             disabled={!canRemove}
-
             onClick={onRemoveClick}
-
             title={canRemove ? `Remover ${listPointer.title}` : 'Nenhum item para remover'}
-
             type="button"
-
           >
-
             −
-
           </button>
-
           <button
-
             aria-label={`Adicionar ${listPointer.title}`}
-
             className={styles.addButton}
-
             disabled={!canAdd}
-
             onClick={onAddClick}
-
             title={canAdd ? `Adicionar ${listPointer.title}` : 'Sem tipos disponíveis no catálogo'}
-
             type="button"
-
           >
-
             +
-
           </button>
-
         </div>
-
       </div>
 
-
-
-      {slots.length > 0 ? (
-
+      {visibleSlots.length > 0 ? (
         <ul className={styles.slots}>
-
-          {slots.map((slot) => (
-
+          {visibleSlots.map((slot) => (
             <li className={styles.slot} key={slot.id}>
-
               <span className={styles.slotName} title={slot.name}>
-
                 {slot.name}
-
               </span>
-
               <Port
-
                 active={slot.id === activeSlotId}
-
                 direction="output"
-
                 graphInternalStructureId={slot.id}
-
                 graphNodeId={canvasNodeId}
-
                 graphPortKind="output"
-
                 label={`Start link from ${listPointer.title} · ${slot.name}`}
-
                 onWireActivateKeyboard={
-
                   onOutputWireKeyboard ? () => onOutputWireKeyboard(slot) : undefined
-
                 }
-
                 onWirePointerCancel={
-
                   onOutputWirePointerCancel
-
                     ? (event) => onOutputWirePointerCancel(slot, event)
-
                     : undefined
-
                 }
-
                 onWirePointerDown={
-
                   onOutputWirePointerDown ? (event) => onOutputWirePointerDown(slot, event) : undefined
-
                 }
-
                 onWirePointerMove={
-
                   onOutputWirePointerMove ? (event) => onOutputWirePointerMove(slot, event) : undefined
-
                 }
-
                 onWirePointerUp={
-
                   onOutputWirePointerUp ? (event) => onOutputWirePointerUp(slot, event) : undefined
-
                 }
-
                 wirelessLink={toWirelessPortLinkProps(
-
                   wirelessOutputLinks?.get(slot.id),
-
                   wirelessPortHandlers,
-
                   isWirelessPortPulsing(
                     wirelessPortPulse,
                     wirelessOutputLinks?.get(slot.id)?.connectionId ?? '',
                     'output',
                     slot.id,
                   ),
-
                 )}
-
               />
-
             </li>
-
           ))}
-
         </ul>
-
       ) : null}
 
+      {isCompact && slots.length > 0 && onSelectedIndexChange ? (
+        <StructureIndexPager
+          onCounterClick={() => setIndexPickerOpen(true)}
+          onSelectedIndexChange={onSelectedIndexChange}
+          selectedIndex={safeIndex}
+          total={slots.length}
+        />
+      ) : null}
+
+      <StructureIndexPicker
+        items={indexPickerItems}
+        onClose={() => setIndexPickerOpen(false)}
+        onSelect={(index) => onSelectedIndexChange?.(index)}
+        open={indexPickerOpen}
+        selectedIndex={safeIndex}
+        title={`Escolher índice — ${listPointer.title}`}
+      />
     </li>
-
   )
-
 }
-
-
-

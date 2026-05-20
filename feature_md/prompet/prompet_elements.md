@@ -4,13 +4,13 @@ Atualmente um nó (`NodeSchemaDefinition` / instância no canvas) organiza-se em
 
 | Secção | Origem no ritual / schema | O que é |
 |--------|---------------------------|---------|
-| **Parameters** | Campos escalares (`string`, `f32`, `i8`/`i16`/`i32`/`i64`, `rgba`, `option[T]`, `map[hash,link]`, `map[hash,pointer]`, `map[hash,embed]`, `map[u64,pointer]`, etc.) | Parâmetros editáveis com valor; inteiros com sinal (`i8`…`i64`) usam clamp por tipo; `option[f32]` → `optionF32`, `option[string]` → `optionString`, `option[vec3]` → `optionVector3` (lista de no máximo 1 valor no ritual `{ … }`); `map[hash,link]` → `mapHashLink` (pares hash → valor; valores com `/` usam picker link); **`map[hash,pointer]` → `mapHashPointer`**, **`map[hash,embed]` → `mapHashEmbed`** e **`map[u64,pointer]` → `mapU64Pointer`** são tipos distintos com UI estruturada (bloco inline: `−`/`+` no cabeçalho; `−`/`+` na chave hash ou u64 para estrutura interna, máx. 1; porta na linha do tipo; catálogo derivado das entradas) |
-| **EMBED** | `Campo: embed = Tipo { … }` | Bloco com **no máximo 1** slot (estrutura interna ligável) |
-| **POINTER** | `Campo: pointer = Tipo { … }` | Bloco com **no máximo 1** slot (como EMBED; distinto de `link`) |
-| **LIST_EMBED** | `Campo: list[embed] = { … }` | Bloco de lista com **vários** slots |
-| **LIST_POINTER** | `Campo: list[pointer] = { … }` | Bloco de lista com **vários** slots |
-| **LIST2_EMBED** | `Campo: list2[embed] = { … }` | Lista de **instâncias** estilo EMBED (máx. 1 slot cada) |
-| **LIST2_POINTER** | `Campo: list2[pointer] = { … }` | Lista de **instâncias** estilo POINTER (máx. 1 slot cada) |
+| **Parameters** | Campos escalares (`string`, `f32`, `i8`/`i16`/`i32`/`i64`, `rgba`, `option[T]`, `map[hash,link]`, `map[hash,pointer]`, `map[hash,embed]`, `map[u64,pointer]`, etc.) | Parâmetros editáveis com valor; inteiros com sinal (`i8`…`i64`) usam clamp por tipo; `option[f32]` → `optionF32`, `option[string]` → `optionString`, `option[vec3]` → `optionVector3` (lista de no máximo 1 valor no ritual `{ … }`); `map[hash,link]` → `mapHashLink` (pares hash → valor; valores com `/` usam picker link); **`map[hash,pointer]` → `mapHashPointer`**, **`map[hash,embed]` → `mapHashEmbed`** e **`map[u64,pointer]` → `mapU64Pointer`** são tipos distintos com UI estruturada (bloco inline: toggle **lista/compacto** no cabeçalho; `−`/`+` no mapa; `−`/`+` na chave hash ou u64 para estrutura interna, máx. 1; porta na linha do tipo). **Modo compacto:** uma entrada + paginação `índice / total` + picker com pesquisa; ligações do bloco passam a **wireless** e restauram ao voltar à lista |
+| **EMBED** | `Campo: embed = Tipo { … }` | Bloco com **no máximo 1** slot; toggle lista/compacto no cabeçalho |
+| **POINTER** | `Campo: pointer = Tipo { … }` | Bloco com **no máximo 1** slot (como EMBED; distinto de `link`); toggle lista/compacto |
+| **LIST_EMBED** | `Campo: list[embed] = { … }` | Bloco de lista com **vários** slots; compacto = 1 slot visível + paginação |
+| **LIST_POINTER** | `Campo: list[pointer] = { … }` | Bloco de lista com **vários** slots; compacto = 1 slot visível + paginação |
+| **LIST2_EMBED** | `Campo: list2[embed] = { … }` | Lista de **instâncias** estilo EMBED; compacto = 1 instância visível + paginação |
+| **LIST2_POINTER** | `Campo: list2[pointer] = { … }` | Lista de **instâncias** estilo POINTER; compacto = 1 instância visível + paginação |
 | **Internal_Structures** | `link = Tipo { … }` e filhos estruturais genéricos | Portas de saída para ligar a outros nós |
 
 Definido em `nodeSchema.ts` e renderizado em `NodeCard.tsx`.

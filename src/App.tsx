@@ -112,6 +112,18 @@ function isEditableTarget(target: EventTarget | null) {
   return Boolean(target.closest('input, textarea, select, button, [contenteditable="true"]'))
 }
 
+function shouldIgnoreAppKeyboardShortcut(event: KeyboardEvent): boolean {
+  if (isEditableTarget(event.target)) {
+    return true
+  }
+  if (!(event.target instanceof HTMLElement)) {
+    return false
+  }
+  return Boolean(
+    event.target.closest('[data-structure-index-picker], [role="dialog"][aria-modal="true"]'),
+  )
+}
+
 const INSPECTOR_TOOLBAR_UNDOCK_DRAG_PX = 12
 
 const INSPECTOR_CHROME_STRIP_PX = 42
@@ -162,6 +174,8 @@ function App() {
 
   const {
     cycleConnectionRouting,
+    setElementViewMode,
+    setElementSelectedIndex,
     redoScene,
     resetScene,
     sceneHistory,
@@ -169,6 +183,7 @@ function App() {
     connectNodes,
     relinkInternalStructureSlot,
     removeConnection,
+    removeConnectionsFromOutputSlot,
     createChildNode,
     createRootNode,
     deleteSelectedNodes,
@@ -983,7 +998,7 @@ function App() {
 
   useEffect(() => {
     const handleKeyboardShortcut = (event: KeyboardEvent) => {
-      if (isEditableTarget(event.target)) {
+      if (shouldIgnoreAppKeyboardShortcut(event)) {
         return
       }
 
@@ -1651,6 +1666,9 @@ function App() {
             onSelectNode={(nodeId, options) => selectNode(nodeId, options)}
             onUndo={undoScene}
             onUpdateNodeParameter={updateNodeParameter}
+            onSetElementViewMode={setElementViewMode}
+            onSetElementSelectedIndex={setElementSelectedIndex}
+            onRemoveConnectionsFromOutputSlot={removeConnectionsFromOutputSlot}
             onSetNodeParameterOrder={setNodeParameterOrder}
             paletteRequestSignal={paletteSignal}
             scene={scene}
