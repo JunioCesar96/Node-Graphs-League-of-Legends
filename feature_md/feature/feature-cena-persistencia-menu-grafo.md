@@ -9,7 +9,7 @@ Arquivo salvo em: `feature_md/feature/feature-cena-persistencia-menu-grafo.md`
 | Nome da Branch | `feature/cena-persistencia-menu-grafo` |
 | Nome das Features | Persistência completa da cena; menu Grafo (Salvar / Auto Save / Export JSON); notificação de gravação na cápsula consola; correcção load-workspace HTML |
 | Versão atual | `1.4.0` |
-| Hash do Commit | _(preencher após commit)_ |
+| Hash do Commit | `25c1ef0` |
 
 ## 2. Definição e Resumo de Tags
 
