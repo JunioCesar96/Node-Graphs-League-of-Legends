@@ -45,6 +45,7 @@ type ParameterMapU64PointerInputProps = {
   onSelectedIndexChange?: (index: number) => void
   interactionLocked?: boolean
   onBlockedInteraction?: () => void
+  onRetractFromTitle?: () => void
 }
 
 export function ParameterMapU64PointerInput({
@@ -97,6 +98,7 @@ export function ParameterMapU64PointerInput({
         selectedIndex={selectedIndex}
         value={value}
         viewMode={viewMode}
+        onRetractFromTitle={onRetractFromTitle}
       />
     </div>
   )

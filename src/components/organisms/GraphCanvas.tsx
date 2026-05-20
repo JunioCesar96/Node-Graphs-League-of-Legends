@@ -312,6 +312,9 @@ type GraphCanvasProps = {
   onNodeLockedInteraction?: () => void
   /** Abre/expande o painel «Nodes em cena» (ex.: ao activar no submenu Exibir). */
   onSceneNodesPanelRequest?: () => void
+  /** Visibilidade dos botões da barra do canvas (persistida em `scene.sceneChrome`). */
+  toolbarVisibility?: CanvasToolbarVisibility
+  onToolbarVisibilityChange?: (next: CanvasToolbarVisibility) => void
 }
 
 type ConnectionPath = {
@@ -1411,6 +1414,8 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     sceneNodesControlsSlot,
     onNodeLockedInteraction,
     onSceneNodesPanelRequest,
+    toolbarVisibility: toolbarVisibilityProp,
+    onToolbarVisibilityChange,
   },
   ref,
 ) {
@@ -1444,8 +1449,21 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     target: CanvasContextTarget
   } | null>(null)
   const [viewportNavigateMode, setViewportNavigateMode] = useState(false)
-  const [toolbarVisibility, setToolbarVisibility] = useState<CanvasToolbarVisibility>(
+  const [localToolbarVisibility, setLocalToolbarVisibility] = useState<CanvasToolbarVisibility>(
     () => DEFAULT_CANVAS_TOOLBAR_VISIBILITY,
+  )
+  const toolbarVisibility = toolbarVisibilityProp ?? localToolbarVisibility
+  const setToolbarVisibility = useCallback(
+    (updater: CanvasToolbarVisibility | ((current: CanvasToolbarVisibility) => CanvasToolbarVisibility)) => {
+      const next =
+        typeof updater === 'function' ? updater(toolbarVisibility) : updater
+      if (onToolbarVisibilityChange) {
+        onToolbarVisibilityChange(next)
+      } else {
+        setLocalToolbarVisibility(next)
+      }
+    },
+    [onToolbarVisibilityChange, toolbarVisibility],
   )
   const [paletteSpawnPosition, setPaletteSpawnPosition] = useState<CanvasPosition | null>(null)
   const navigatePanOriginRef = useRef<{ x: number; y: number } | null>(null)

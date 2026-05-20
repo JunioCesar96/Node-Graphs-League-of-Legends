@@ -13,6 +13,7 @@ import {
   type WirelessPortPulseTarget,
 } from '@/core/connectionDisplay'
 import { clampSelectedIndex } from '@/core/elementViewState'
+import { elementTitleDoubleClickRetractProps } from '@/core/elementTitleInteraction'
 import { canvasContextElementProps } from '@/core/canvasContextMenuAttributes'
 import type { InternalStructureDefinition, PointerDefinition } from '@/core/nodeSchema'
 import { StructureIndexPager } from '@/components/molecules/StructureIndexPager'
@@ -84,6 +85,7 @@ export function PointerItem({
   nested = false,
   retracted = false,
   onExpandFromRetracted,
+  onRetractFromTitle,
   elementViewKey,
 }: PointerItemProps) {
   const [indexPickerOpen, setIndexPickerOpen] = useState(false)
@@ -130,7 +132,11 @@ export function PointerItem({
     >
       {!nested ? (
         <div className={styles.blockHeader}>
-          <h4 className={styles.blockTitle} title={pointer.title}>
+          <h4
+            className={styles.blockTitle}
+            title={pointer.title}
+            {...elementTitleDoubleClickRetractProps(onRetractFromTitle)}
+          >
             {pointer.title}
           </h4>
           <div className={styles.blockActions}>

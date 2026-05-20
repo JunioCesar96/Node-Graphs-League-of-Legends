@@ -9,23 +9,29 @@ import {
 import styles from './AppMenuBar.module.css'
 
 export type AppMenuBarProps = {
+  autoSaveEnabled: boolean
   nodeConfigurationMode: boolean
   onDeleteSelection: () => void
   onExportGraph: () => void
   onImportGraph: (file: File) => void
   onOpenStubBin: () => void
   onRequestAddNode: () => void
+  onSaveSceneGraph: () => void
+  onToggleAutoSave: () => void
   onToggleNodeConfigurationMode: () => void
   onToggleCodeDock: () => void
 }
 
 export function AppMenuBar({
+  autoSaveEnabled,
   nodeConfigurationMode,
   onDeleteSelection,
   onExportGraph,
   onImportGraph,
   onOpenStubBin,
   onRequestAddNode,
+  onSaveSceneGraph,
+  onToggleAutoSave,
   onToggleNodeConfigurationMode,
   onToggleCodeDock,
 }: AppMenuBarProps) {
@@ -185,9 +191,31 @@ export function AppMenuBar({
 
         <div className={styles.menu}>
           <button className={styles.menuButton} type="button">
-            Json
+            Grafo
           </button>
           <div className={styles.menuPanel} role="menu">
+            <button className={styles.menuItem} onClick={onSaveSceneGraph} type="button">
+              Salvar grafo cena
+            </button>
+            <button
+              aria-checked={autoSaveEnabled}
+              className={styles.menuItemConfig}
+              onClick={onToggleAutoSave}
+              role="menuitemcheckbox"
+              type="button"
+            >
+              <span
+                aria-hidden
+                className={[
+                  styles.menuCheckbox,
+                  autoSaveEnabled ? styles.menuCheckboxChecked : '',
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
+              />
+              <span>Auto Save</span>
+            </button>
+            <div aria-hidden className={styles.menuSeparator} />
             <button className={styles.menuItem} onClick={onExportGraph} type="button">
               Exportar grafo JSON
             </button>

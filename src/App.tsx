@@ -14,6 +14,7 @@ import {
   createDefaultFloatingCodeDockRect,
 } from '@/components/organisms/codeDockFloatingRect'
 import { GraphCanvas } from '@/components/organisms/GraphCanvas'
+import { DEFAULT_CANVAS_TOOLBAR_VISIBILITY } from '@/core/canvasToolbarVisibility'
 import { ParameterValueLinkPicker } from '@/components/molecules/ParameterValueLinkPicker'
 import { NodeInspector } from '@/components/organisms/NodeInspector'
 import { SceneNodesPanel } from '@/components/organisms/SceneNodesPanel'
@@ -81,7 +82,12 @@ import {
   MESSENGER_CONFIRM_TOGGLE_REQUIRED_PARAMETER,
 } from '@/messenger_popup/messengerCatalog'
 import { useMessengerPopup } from '@/messenger_popup/MessengerPopupProvider'
+import {
+  getSceneAutoSaveEnabled,
+  setSceneAutoSaveEnabled,
+} from '@/core/sceneAutoSavePreference'
 import { STORAGE_LAST_STRUCTURE_META, triggerJsonDownload } from '@/core/workspaceStorage'
+import { workspaceService } from '@/services/workspaceService'
 import {
   ROOT_NODE_ID,
   isCanvasScene,
@@ -93,6 +99,8 @@ import styles from './App.module.css'
 /** Notificação de teste ao carregar a app (cápsula consola / 3s). */
 const BOOT_CONSOLE_TEST_MESSAGE = 'Teste, console de notificação funcionado.'
 const BOOT_CONSOLE_TEST_SECONDS = 3
+
+const SAVE_STATUS_NOTICE_SECONDS = 10
 
 const HASH_STRING_EMPTY_NOTICE =
   'Você precisa adicionar um parâmetro do tipo string name em seu node, adicione para definir a hashString'
@@ -185,6 +193,8 @@ function App() {
     [dynamicStructurePacks],
   )
 
+  const [workspaceAutoSave, setWorkspaceAutoSave] = useState(() => getSceneAutoSaveEnabled())
+
   const {
     cycleConnectionRouting,
     setElementViewMode,
@@ -196,6 +206,7 @@ function App() {
     sceneHistory,
     moveNode,
     setSceneCamera,
+    patchSceneChrome,
     connectNodes,
     relinkInternalStructureSlot,
     removeConnection,
@@ -247,7 +258,7 @@ function App() {
     removeListEmbedBlock,
     removeListPointerSlot,
     removeListPointerBlock,
-  } = useSceneHistory({ extendSchemaLookup })
+  } = useSceneHistory({ extendSchemaLookup, workspaceAutoSave })
 
   const { showConfirmByCatalogId, showToastByCatalogId } = useMessengerPopup()
 
@@ -292,7 +303,8 @@ function App() {
   const [inspectorViewportDocked, setInspectorViewportDocked] = useState(true)
   const [inspectorGrabFollowActive, setInspectorGrabFollowActive] = useState(false)
   const [inspectorGrabFollowCoords, setInspectorGrabFollowCoords] = useState({ x: 0, y: 0 })
-  const [sceneNodesMinimized, setSceneNodesMinimized] = useState(true)
+  const sceneNodesMinimized = scene.sceneChrome?.sceneNodes?.minimized ?? true
+  const sceneNodesSortMode = scene.sceneChrome?.sceneNodes?.sortMode ?? 'name'
   const [sceneNodesOffset, setSceneNodesOffset] = useState<InspectorOffset>({ x: 0, y: 0 })
   const [sceneNodesViewportDocked, setSceneNodesViewportDocked] = useState(true)
   const [codeDockOpen, setCodeDockOpen] = useState(false)
@@ -310,6 +322,11 @@ function App() {
   const [paletteSignal, setPaletteSignal] = useState(0)
   const [tooltipHints, setTooltipHints] = useState<TooltipDictionary>({})
   const [bootConsoleTestStamp, setBootConsoleTestStamp] = useState<number | null>(() => Date.now())
+  const [saveStatusNotice, setSaveStatusNotice] = useState<{
+    lifetimeSeconds: number
+    message: string
+    stamp: number
+  } | null>(null)
 
   const dismissBootConsoleTest = useCallback(() => {
     setBootConsoleTestStamp(null)
@@ -318,6 +335,38 @@ function App() {
   const dismissHashStringNotice = useCallback(() => {
     setHashStringNoticeStamp(null)
   }, [])
+
+  const dismissSaveStatusNotice = useCallback(() => {
+    setSaveStatusNotice(null)
+  }, [])
+
+  const showSaveStatusNotice = useCallback(
+    (message: string, lifetimeSeconds = SAVE_STATUS_NOTICE_SECONDS) => {
+      setSaveStatusNotice({ message, stamp: Date.now(), lifetimeSeconds })
+    },
+    [],
+  )
+
+  useEffect(() => {
+    workspaceService.setSaveStatusListener((event) => {
+      if (event.trigger === 'migration' || event.trigger === 'auto') {
+        return
+      }
+
+      if (event.ok) {
+        showSaveStatusNotice(
+          'Cena gravada em src/data/workspace/ (logic.json, layout.json, graph.json).',
+        )
+        return
+      }
+
+      showSaveStatusNotice(event.detail ?? 'Falha ao gravar a cena no disco.')
+    })
+
+    return () => {
+      workspaceService.setSaveStatusListener(null)
+    }
+  }, [showSaveStatusNotice])
 
   const toggleNodeConfigurationMode = useCallback(() => {
     if (nodeConfigurationMode) {
@@ -842,7 +891,25 @@ function App() {
     const timestampLabel = Date.now()
 
     triggerJsonDownload(documentPayload, `node-structure-${timestampLabel}.json`)
+    showSaveStatusNotice('Grafo JSON exportado para download (node-graphs-lol v2).')
   }
+
+  const handleToggleWorkspaceAutoSave = useCallback(() => {
+    setWorkspaceAutoSave((current) => {
+      const next = !current
+      setSceneAutoSaveEnabled(next)
+      return next
+    })
+  }, [])
+
+  const handleSaveSceneGraph = useCallback(() => {
+    if (!import.meta.env.DEV) {
+      showSaveStatusNotice('Cena guardada no localStorage do browser (disco só em npm run dev).')
+      return
+    }
+
+    workspaceService.saveSceneNow(scene)
+  }, [scene, showSaveStatusNotice])
 
   const handleImportWorkspaceFile = async (file: File) => {
     if (file.name.toLowerCase().endsWith('.bin')) {
@@ -1075,7 +1142,7 @@ function App() {
       return
     }
 
-    setSceneNodesMinimized((isMinimized) => !isMinimized)
+    patchSceneChrome({ sceneNodes: { minimized: !sceneNodesMinimized } })
   }
 
   const inspectorDockClassName = [
@@ -1807,6 +1874,7 @@ function App() {
     canDeleteSelected: sceneNodesCanDelete,
     dragHandleProps: sceneNodesDragHandleProps,
     minimized: sceneNodesMinimized,
+    onSortModeChange: (sortMode) => patchSceneChrome({ sceneNodes: { sortMode } }),
     onDeleteSelected: handleSceneNodesDelete,
     onFocusNode: handleFocusSceneNode,
     onHideAll: () => setAllNodesSceneHidden(true),
@@ -1821,6 +1889,7 @@ function App() {
     primarySelectedId,
     scene,
     selectedNodeIds,
+    sortMode: sceneNodesSortMode,
   }
 
   if (!scene.nodes.length) {
@@ -1842,13 +1911,24 @@ function App() {
             onDismiss={dismissHashStringNotice}
           />
         ) : null}
+        {saveStatusNotice !== null ? (
+          <ConsoleNotificationCapsule
+            key={`save-${String(saveStatusNotice.stamp)}`}
+            lifetimeSeconds={saveStatusNotice.lifetimeSeconds}
+            message={saveStatusNotice.message}
+            onDismiss={dismissSaveStatusNotice}
+          />
+        ) : null}
         <AppMenuBar
+          autoSaveEnabled={workspaceAutoSave}
           nodeConfigurationMode={nodeConfigurationMode}
           onDeleteSelection={() => deleteSelectedNodes()}
           onExportGraph={handleExportGraph}
           onImportGraph={handleImportWorkspaceFile}
           onOpenStubBin={handleStubPipeline}
           onRequestAddNode={requestPalette}
+          onSaveSceneGraph={handleSaveSceneGraph}
+          onToggleAutoSave={handleToggleWorkspaceAutoSave}
           onToggleNodeConfigurationMode={toggleNodeConfigurationMode}
           onToggleCodeDock={() => setCodeDockOpen((isOpen) => !isOpen)}
         />
@@ -1875,13 +1955,24 @@ function App() {
           onDismiss={dismissHashStringNotice}
         />
       ) : null}
+      {saveStatusNotice !== null ? (
+        <ConsoleNotificationCapsule
+          key={`save-${String(saveStatusNotice.stamp)}`}
+          lifetimeSeconds={saveStatusNotice.lifetimeSeconds}
+          message={saveStatusNotice.message}
+          onDismiss={dismissSaveStatusNotice}
+        />
+      ) : null}
       <AppMenuBar
+        autoSaveEnabled={workspaceAutoSave}
         nodeConfigurationMode={nodeConfigurationMode}
         onDeleteSelection={() => deleteSelectedNodes()}
         onExportGraph={handleExportGraph}
         onImportGraph={handleImportWorkspaceFile}
         onOpenStubBin={handleStubPipeline}
         onRequestAddNode={requestPalette}
+        onSaveSceneGraph={handleSaveSceneGraph}
+        onToggleAutoSave={handleToggleWorkspaceAutoSave}
         onToggleNodeConfigurationMode={toggleNodeConfigurationMode}
         onToggleCodeDock={() => setCodeDockOpen((isOpen) => !isOpen)}
       />
@@ -1936,8 +2027,16 @@ function App() {
             onMarqueeCommit={commitMarqueeSelection}
             onMoveNode={moveNode}
             onSceneCameraChange={setSceneCamera}
+            onToolbarVisibilityChange={(toolbarVisibility) =>
+              patchSceneChrome({ toolbarVisibility })
+            }
+            toolbarVisibility={
+              scene.sceneChrome?.toolbarVisibility ?? DEFAULT_CANVAS_TOOLBAR_VISIBILITY
+            }
             onNodeLockedInteraction={() => showToastByCatalogId(MESSENGER_TOAST_NODE_LOCKED)}
-            onSceneNodesPanelRequest={() => setSceneNodesMinimized(false)}
+            onSceneNodesPanelRequest={() =>
+              patchSceneChrome({ sceneNodes: { minimized: false } })
+            }
             onRedo={redoScene}
             onRemoveConnection={removeConnection}
             onResetScene={resetScene}

@@ -8,6 +8,7 @@ import { canvasContextElementProps } from '@/core/canvasContextMenuAttributes'
 import type { InternalStructureDefinition, List2EmbedDefinition } from '@/core/nodeSchema'
 import { isRetractedElementPulsing } from '@/core/connectionDisplay'
 import { clampSelectedIndex } from '@/core/elementViewState'
+import { elementTitleDoubleClickRetractProps } from '@/core/elementTitleInteraction'
 import { populatedSlotsForList2EmbedInstance } from '@/core/list2EmbedSlots'
 import { StructureIndexPager } from '@/components/molecules/StructureIndexPager'
 import {
@@ -72,6 +73,7 @@ export function List2EmbedItem({
   onSelectedIndexChange,
   retracted = false,
   onExpandFromRetracted,
+  onRetractFromTitle,
   elementViewKey,
 }: List2EmbedItemProps) {
   const [indexPickerOpen, setIndexPickerOpen] = useState(false)
@@ -118,7 +120,11 @@ export function List2EmbedItem({
       {...contextProps}
     >
       <div className={styles.blockHeader}>
-        <h4 className={styles.blockTitle} title={list2Embed.title}>
+        <h4
+          className={styles.blockTitle}
+          title={list2Embed.title}
+          {...elementTitleDoubleClickRetractProps(onRetractFromTitle)}
+        >
           {list2Embed.title}
         </h4>
         <div className={styles.blockActions}>

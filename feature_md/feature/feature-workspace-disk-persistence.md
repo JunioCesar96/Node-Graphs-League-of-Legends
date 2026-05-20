@@ -134,6 +134,35 @@ A feature **Workspace Disk Persistence** migra a persistência do grafo do edito
 
 **Tratamento de erros:** falhas de rede ou HTTP no serviço registam `console.error` / `console.log` em dev e **não bloqueiam** a UI; o editor permanece utilizável via `localStorage`. Resposta 404 no load indica workspace ausente e o fluxo mantém o storage do browser. Fora de `import.meta.env.DEV`, todas as funções de disco são no-op; produção depende apenas de `localStorage` e export/import manual existentes.
 
+**Troubleshooting (404 em save/load):** a persistência em `src/data/workspace/` só existe com `pnpm dev` na raiz de `node-graphs-lol` (plugin `workspace-sync`). Se `POST /api/save-workspace` devolver 404, reinicia o dev server e confirma no terminal a linha `[workspace-sync] API /api/load-workspace e /api/save-workspace activas`. `pnpm run preview` e builds de produção não expõem estas rotas.
+
+**Troubleshooting (`Unexpected token '<'` no load):** o `GET /api/load-workspace` estava a ser interceptado pelo fallback HTML do Vite (`Accept: */*` no `fetch`). O plugin regista o middleware no pre-hook de `configureServer` (antes do `htmlFallback`); o cliente pede `Accept: application/json` e ignora respostas que não sejam JSON.
+
 **Tecnologias:** Vite middleware, `fetch`, TypeScript, Vitest, modelo `CanvasScene` / `LeagueBinGraphDocumentV1` existente.
 
 Não houve [REMOVIDO] nesta branch.
+
+## 7. Matriz de persistência da cena (apresentação + chrome)
+
+Fonte única de serialização de overlay: `src/core/scenePresentation.ts` (consumido por `workspacePersistence.ts` e `leagueBinScene.ts`).
+
+| Estado | Campo em `CanvasScene` | `logic.json` | `layout.json` | `graph.json` | `localStorage` | Export JSON v2 |
+| --- | --- | --- | --- | --- | --- | --- |
+| Valores, schema, `elementView` | `node.node` | Sim | — | — | Sim (cena inteira) | `node` + `elementView` |
+| Posição, overlay do card | `CanvasNode` (posição, `bodyCollapsed`, secções, cor, lock, hidden, label, `cardBodyLayout`) | — | Sim (`nodes[id]`) | — | Sim | `presentation` |
+| Organização corpo freeform / bySectionType | `cardBodyLayout` | — | Sim (sempre gravado) | — | Sim | `presentation.cardBodyLayout` |
+| Load sem `cardBodyLayout` | — | — | Default **freeform** + secções expandidas | — | — | v1 legado → freeform |
+| Cor desactivada | `bodyColorEnabled: false` | — | Sim (explícito) | — | Sim | `presentation.bodyColorEnabled` |
+| Tipo de ligação | `connection.routing` | — | — | Sim | Sim | `connections[].routing` |
+| Backup routing compacto | `compactRoutingBackups` | — | — | Sim | Sim | `compactRoutingBackups` |
+| Câmera pan/scale | `camera` | — | Sim | — | Sim | `camera` |
+| Painel Nodes minimizado | `sceneChrome.sceneNodes.minimized` | — | Sim (`sceneChrome`) | — | Sim | `sceneChrome` |
+| Ordenação lista (nome/posição/tipo) | `sceneChrome.sceneNodes.sortMode` | — | Sim | — | Sim | `sceneChrome` |
+| Toolbar Exibir (incl. `sceneNodes`) | `sceneChrome.toolbarVisibility` | — | Sim | — | Sim | `sceneChrome` |
+| Pesquisa no painel | `query` local React | — | Não (efémero) | — | Não | Não |
+
+**Export/import ficheiro:** `serializeScene` emite `version: 2` com apresentação completa; `parseSceneDocument` aceita v1 (só posição + defaults freeform) e v2.
+
+**UI:** `patchSceneChrome` em `useSceneHistory` (sem undo, como a câmera); `App`, `GraphCanvas` e `SceneNodesPanel` leem/escrevem `scene.sceneChrome`.
+
+**Menu Grafo (Auto Save):** o submenu **Grafo** inclui **Salvar grafo cena** (flush imediato via `workspaceService.saveSceneNow`) e **Auto Save** (preferência `node-graphs-lol:auto-save`, desligado por defeito). Com Auto Save activo em dev, cada alteração dispara o sync debounced actual; com Auto Save desligado, só grava no disco ao clicar Salvar. O `localStorage` da cena mantém-se sempre.

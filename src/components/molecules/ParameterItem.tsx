@@ -14,6 +14,7 @@ import {
   type WirelessPortPulseTarget,
 } from '@/core/connectionDisplay'
 import { canvasContextElementProps } from '@/core/canvasContextMenuAttributes'
+import { elementTitleDoubleClickRetractProps } from '@/core/elementTitleInteraction'
 import type {
   ElementViewKey,
   ElementViewMode,
@@ -66,6 +67,7 @@ type ParameterItemProps = {
   onElementSelectedIndexChange?: (index: number) => void
   retracted?: boolean
   onExpandFromRetracted?: () => void
+  onRetractFromTitle?: () => void
   parameter: NodeParameterDefinition
   parameterNameReorderHandlers?: ParameterNameReorderHandlers
   registerParameterRowRef?: Ref<HTMLLIElement>
@@ -96,6 +98,7 @@ export function ParameterItem({
   onElementSelectedIndexChange,
   retracted = false,
   onExpandFromRetracted,
+  onRetractFromTitle,
   parameter,
   parameterNameReorderHandlers,
   registerParameterRowRef,
@@ -135,6 +138,7 @@ export function ParameterItem({
         selectedIndex={selectedIndex}
         value={value}
         viewMode={viewMode}
+        onRetractFromTitle={onRetractFromTitle}
       />
     ) : isMapU64Pointer && canvasNodeId ? (
       <ParameterMapU64PointerInput
@@ -161,6 +165,7 @@ export function ParameterItem({
         selectedIndex={selectedIndex}
         value={value}
         viewMode={viewMode}
+        onRetractFromTitle={onRetractFromTitle}
       />
     ) : isMapHashEmbed && canvasNodeId ? (
       <ParameterMapHashEmbedInput
@@ -187,6 +192,7 @@ export function ParameterItem({
         selectedIndex={selectedIndex}
         value={value}
         viewMode={viewMode}
+        onRetractFromTitle={onRetractFromTitle}
       />
     ) : onCommitValue ? (
       <ParameterValueInput
@@ -228,6 +234,9 @@ export function ParameterItem({
           .filter(Boolean)
           .join(' ')}
         {...(parameterNameReorderHandlers ?? {})}
+        {...elementTitleDoubleClickRetractProps(
+          isMapStructure ? undefined : onRetractFromTitle,
+        )}
       >
         {isMapStructure ? null : parameter.name}
       </span>

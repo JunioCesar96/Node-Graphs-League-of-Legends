@@ -1,3 +1,5 @@
+import type { CanvasToolbarVisibility } from '@/core/canvasToolbarVisibility'
+import type { SceneNodesSortMode } from '@/core/sceneNodesListSort'
 import type {
   NodeCardBodyLayout,
   NodeCardSectionExpandedMap,
@@ -163,6 +165,17 @@ function migrateConnection(connection: CanvasConnection): CanvasConnection {
   }
 }
 
+/** Estado do painel «Nodes em cena». */
+export type SceneNodesChrome = {
+  minimized?: boolean
+  sortMode?: SceneNodesSortMode
+}
+
+export type SceneChromeState = {
+  sceneNodes?: SceneNodesChrome
+  toolbarVisibility?: CanvasToolbarVisibility
+}
+
 export type CanvasScene = {
   width: number
   height: number
@@ -172,6 +185,8 @@ export type CanvasScene = {
   compactRoutingBackups?: Record<string, ConnectionRouting | undefined>
   /** Câmera da cena (pan em px na vista, escala de zoom). */
   camera?: SceneCamera
+  /** UI global: painel Nodes em cena, visibilidade da toolbar, etc. */
+  sceneChrome?: SceneChromeState
 }
 
 function hydrateNodeInstanceFromEmbeddedLinks(node: NodeInstance): NodeInstance {

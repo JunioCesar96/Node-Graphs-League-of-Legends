@@ -24,6 +24,7 @@ import {
 } from '@/components/molecules/MapHashStructurePicker'
 import type { InternalStructureDefinition } from '@/core/nodeSchema'
 import type { NodeElementListItem } from '@/core/listNodeElements'
+import { elementTitleDoubleClickRetractProps } from '@/core/elementTitleInteraction'
 import {
   catalogStructuresFromEntries,
   entryWithStructure,
@@ -83,6 +84,7 @@ type MapHashStructureBlockProps = MapHashStructureBlockConfig & {
   onSelectedIndexChange?: (index: number) => void
   interactionLocked?: boolean
   onBlockedInteraction?: () => void
+  onRetractFromTitle?: () => void
 }
 
 function slotForEntry(
@@ -136,6 +138,7 @@ export function MapHashStructureBlock({
   onSelectedIndexChange,
   interactionLocked = false,
   onBlockedInteraction,
+  onRetractFromTitle,
 }: MapHashStructureBlockProps) {
   const blockInteraction = (action: () => void) => {
     if (interactionLocked) {
@@ -342,7 +345,11 @@ export function MapHashStructureBlock({
   return (
     <div className={styles.block}>
       <div className={styles.blockHeader}>
-        <h4 className={styles.blockTitle} title={parameterTitle}>
+        <h4
+          className={styles.blockTitle}
+          title={parameterTitle}
+          {...elementTitleDoubleClickRetractProps(onRetractFromTitle)}
+        >
           {parameterTitle}
         </h4>
         <div className={styles.mapActions}>

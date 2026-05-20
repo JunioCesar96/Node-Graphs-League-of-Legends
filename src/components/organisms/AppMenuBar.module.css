@@ -124,6 +124,12 @@
   border-radius: 2px;
 }
 
+.menuSeparator {
+  height: 1px;
+  margin: var(--space-1) 0;
+  background: var(--color-border-soft);
+}
+
 .hiddenInput {
   display: none;
 }

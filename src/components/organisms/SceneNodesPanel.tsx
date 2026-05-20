@@ -46,6 +46,8 @@ type SceneNodesPanelProps = {
   primarySelectedId: string
   scene: CanvasScene
   selectedNodeIds: string[]
+  sortMode: SceneNodesSortMode
+  onSortModeChange: (mode: SceneNodesSortMode) => void
   viewportDocked?: boolean
 }
 
@@ -363,10 +365,11 @@ export function SceneNodesPanel({
   primarySelectedId,
   scene,
   selectedNodeIds,
+  sortMode,
+  onSortModeChange,
   viewportDocked = false,
 }: SceneNodesPanelProps) {
   const [query, setQuery] = useState('')
-  const [sortMode, setSortMode] = useState<SceneNodesSortMode>('name')
   const [optionsOpen, setOptionsOpen] = useState(false)
   const optionsButtonRef = useRef<HTMLButtonElement>(null)
 
@@ -460,7 +463,7 @@ export function SceneNodesPanel({
       panelDragHandleProps={panelDragHandleProps}
       query={query}
       setQuery={setQuery}
-      setSortMode={setSortMode}
+      setSortMode={onSortModeChange}
       sortMode={sortMode}
       sortedNodes={sortedNodes}
       onSelectNode={onSelectNode}

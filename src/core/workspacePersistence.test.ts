@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { staticCanvasScene } from '@/core/canvasScene'
+import { DEFAULT_CANVAS_TOOLBAR_VISIBILITY } from '@/core/canvasToolbarVisibility'
 import { elementViewKeyForParameter, patchElementRetracted } from '@/core/elementViewState'
 import {
   isWorkspaceBundleEmpty,
@@ -95,6 +96,100 @@ describe('workspacePersistence', () => {
     const restored = mergeWorkspaceToScene(bundle)
     const restoredNode = restored?.nodes.find((node) => node.id === canvasNode.id)
     expect(restoredNode?.node.elementView?.[key]?.retracted).toBe(true)
+  })
+
+  it('persiste bodyCollapsed no layout', () => {
+    const withCollapsed = {
+      ...staticCanvasScene,
+      nodes: staticCanvasScene.nodes.map((node, index) =>
+        index === 0 ? { ...node, bodyCollapsed: true } : node,
+      ),
+    }
+    const bundle = splitSceneToWorkspace(withCollapsed)
+    expect(bundle.layout.nodes[withCollapsed.nodes[0]!.id]?.bodyCollapsed).toBe(true)
+
+    const restored = mergeWorkspaceToScene(bundle)
+    const restoredNode = restored?.nodes.find((node) => node.id === withCollapsed.nodes[0]!.id)
+    expect(restoredNode?.bodyCollapsed).toBe(true)
+  })
+
+  it('persiste bodyColorEnabled false no layout', () => {
+    const withColorOff = {
+      ...staticCanvasScene,
+      nodes: staticCanvasScene.nodes.map((node, index) =>
+        index === 0
+          ? { ...node, bodyColor: 'rgba(0,0,0,0.5)', bodyColorEnabled: false }
+          : node,
+      ),
+    }
+    const bundle = splitSceneToWorkspace(withColorOff)
+    expect(bundle.layout.nodes[withColorOff.nodes[0]!.id]?.bodyColorEnabled).toBe(false)
+
+    const restored = mergeWorkspaceToScene(bundle)
+    const restoredNode = restored?.nodes.find((node) => node.id === withColorOff.nodes[0]!.id)
+    expect(restoredNode?.bodyColorEnabled).toBe(false)
+  })
+
+  it('merge sem cardBodyLayout assume freeform', () => {
+    const nodeId = staticCanvasScene.nodes[0]!.id
+    const bundle = splitSceneToWorkspace(staticCanvasScene)
+    const entry = bundle.layout.nodes[nodeId]
+    if (!entry) {
+      throw new Error('layout entry em falta')
+    }
+    const { cardBodyLayout: _removed, ...entryWithoutLayout } = entry
+    bundle.layout.nodes[nodeId] = entryWithoutLayout
+
+    const restored = mergeWorkspaceToScene(bundle)
+    const restoredNode = restored?.nodes.find((node) => node.id === nodeId)
+    expect(restoredNode?.cardBodyLayout).toBe('freeform')
+    expect(restoredNode?.cardSectionExpanded?.parameters).toBe(true)
+  })
+
+  it('persiste connection.routing e compactRoutingBackups no graph', () => {
+    const connection = staticCanvasScene.connections[0]
+    if (!connection) {
+      return
+    }
+
+    const withRouting = {
+      ...staticCanvasScene,
+      connections: staticCanvasScene.connections.map((c) =>
+        c.id === connection.id ? { ...c, routing: 'wireless' as const } : c,
+      ),
+      compactRoutingBackups: { [connection.id]: 'flex' },
+    }
+    const bundle = splitSceneToWorkspace(withRouting)
+    const stored = bundle.graph.connections.find((c) => c.id === connection.id)
+    expect(stored?.routing).toBe('wireless')
+    expect(bundle.graph.compactRoutingBackups?.[connection.id]).toBe('flex')
+
+    const restored = mergeWorkspaceToScene(bundle)
+    const restoredConn = restored?.connections.find((c) => c.id === connection.id)
+    expect(restoredConn?.routing).toBe('wireless')
+    expect(restored?.compactRoutingBackups?.[connection.id]).toBe('flex')
+  })
+
+  it('persiste sceneChrome no layout', () => {
+    const withChrome = {
+      ...staticCanvasScene,
+      sceneChrome: {
+        sceneNodes: { minimized: false, sortMode: 'position' as const },
+        toolbarVisibility: {
+          ...DEFAULT_CANVAS_TOOLBAR_VISIBILITY,
+          sceneNodes: false,
+        },
+      },
+    }
+    const bundle = splitSceneToWorkspace(withChrome)
+    expect(bundle.layout.sceneChrome?.sceneNodes?.minimized).toBe(false)
+    expect(bundle.layout.sceneChrome?.sceneNodes?.sortMode).toBe('position')
+    expect(bundle.layout.sceneChrome?.toolbarVisibility?.sceneNodes).toBe(false)
+
+    const restored = mergeWorkspaceToScene(bundle)
+    expect(restored?.sceneChrome?.sceneNodes?.minimized).toBe(false)
+    expect(restored?.sceneChrome?.sceneNodes?.sortMode).toBe('position')
+    expect(restored?.sceneChrome?.toolbarVisibility?.sceneNodes).toBe(false)
   })
 
   it('persiste câmera da cena no layout', () => {

@@ -13,6 +13,7 @@ import {
   type WirelessPortPulseTarget,
 } from '@/core/connectionDisplay'
 import { clampSelectedIndex } from '@/core/elementViewState'
+import { elementTitleDoubleClickRetractProps } from '@/core/elementTitleInteraction'
 import { canvasContextElementProps } from '@/core/canvasContextMenuAttributes'
 import type { EmbedDefinition, InternalStructureDefinition } from '@/core/nodeSchema'
 import { StructureIndexPager } from '@/components/molecules/StructureIndexPager'
@@ -169,6 +170,7 @@ export function EmbedItem({
   nested = false,
   retracted = false,
   onExpandFromRetracted,
+  onRetractFromTitle,
   elementViewKey,
 }: EmbedItemProps) {
   const [indexPickerOpen, setIndexPickerOpen] = useState(false)
@@ -228,7 +230,11 @@ export function EmbedItem({
     >
       {!nested ? (
         <div className={styles.blockHeader}>
-          <h4 className={styles.blockTitle} title={embed.title}>
+          <h4
+            className={styles.blockTitle}
+            title={embed.title}
+            {...elementTitleDoubleClickRetractProps(onRetractFromTitle)}
+          >
             {embed.title}
           </h4>
           <div className={styles.blockActions}>

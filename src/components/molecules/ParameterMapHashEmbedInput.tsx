@@ -45,6 +45,7 @@ type ParameterMapHashEmbedInputProps = {
   onSelectedIndexChange?: (index: number) => void
   interactionLocked?: boolean
   onBlockedInteraction?: () => void
+  onRetractFromTitle?: () => void
 }
 
 export function ParameterMapHashEmbedInput({
@@ -71,6 +72,7 @@ export function ParameterMapHashEmbedInput({
   onSelectedIndexChange,
   interactionLocked,
   onBlockedInteraction,
+  onRetractFromTitle,
 }: ParameterMapHashEmbedInputProps) {
   return (
     <div className={className} data-parameter-type="mapHashEmbed">
@@ -97,6 +99,7 @@ export function ParameterMapHashEmbedInput({
         selectedIndex={selectedIndex}
         value={value}
         viewMode={viewMode}
+        onRetractFromTitle={onRetractFromTitle}
       />
     </div>
   )

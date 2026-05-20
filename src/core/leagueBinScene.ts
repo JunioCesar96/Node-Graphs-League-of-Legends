@@ -1,31 +1,68 @@
-import type { CanvasConnection, CanvasScene } from '@/core/canvasScene'
-import { defaultNewCanvasNodeLayout } from '@/core/nodeCardSections'
-import type { NodeInstance, NodeParameterValue, NodeSchemaDefinition } from '@/core/nodeSchema'
+import type { CanvasConnection, CanvasScene, ConnectionRouting, SceneCamera } from '@/core/canvasScene'
+import type { SceneChromeState } from '@/core/canvasScene'
+import {
+  canvasNodeOverlayFromPresentation,
+  canvasNodePresentationFromNode,
+  parseSceneCamera,
+  parseSceneChrome,
+  presentationEntryFromRawLayout,
+  type CanvasNodePresentationEntry,
+} from '@/core/scenePresentation'
+import type {
+  ElementViewKey,
+  ElementViewState,
+  NodeInstance,
+  NodeParameterValue,
+  NodeSchemaDefinition,
+} from '@/core/nodeSchema'
 
 export type LeagueBinGraphDocumentV1 = {
   connections: CanvasConnection[]
   format: 'node-graphs-lol'
   meta?: Record<string, string>
-  nodes: StoredCanvasNodePayload[]
+  nodes: StoredCanvasNodePayloadV1[]
   version: 1
   width: number
   height: number
 }
 
-/** Instância completa compatível com round-trip grafo atual (schemas isolados por nó). */
-export type StoredCanvasNodePayload = {
+export type StoredCanvasNodePayloadV1 = {
   id: string
-  node: {
-    id: string
-    schema: NodeSchemaDefinition
-    values: NodeParameterValue[]
-    required_parameter?: string[]
-    parameter_value_links?: Array<readonly [string, string]>
-    hashString?: string
-    hashStringParameterId?: string
-  }
+  node: StoredNodeBodyPayload
   position: { x: number; y: number }
 }
+
+export type LeagueBinGraphDocumentV2 = {
+  connections: CanvasConnection[]
+  format: 'node-graphs-lol'
+  meta?: Record<string, string>
+  nodes: StoredCanvasNodePayloadV2[]
+  version: 2
+  width: number
+  height: number
+  camera?: SceneCamera
+  compactRoutingBackups?: Record<string, ConnectionRouting | undefined>
+  sceneChrome?: SceneChromeState
+}
+
+export type StoredNodeBodyPayload = {
+  id: string
+  schema: NodeSchemaDefinition
+  values: NodeParameterValue[]
+  required_parameter?: string[]
+  parameter_value_links?: Array<readonly [string, string]>
+  hashString?: string
+  hashStringParameterId?: string
+  elementView?: Partial<Record<ElementViewKey, ElementViewState>>
+}
+
+export type StoredCanvasNodePayloadV2 = {
+  id: string
+  node: StoredNodeBodyPayload
+  presentation: CanvasNodePresentationEntry
+}
+
+export type LeagueBinGraphDocument = LeagueBinGraphDocumentV1 | LeagueBinGraphDocumentV2
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
@@ -62,19 +99,194 @@ function isNodeSchemaDefinition(value: unknown): value is NodeSchemaDefinition {
   )
 }
 
-export function serializeScene(scene: CanvasScene): LeagueBinGraphDocumentV1 {
+function isElementViewState(value: unknown): value is ElementViewState {
+  if (!isRecord(value) || (value.mode !== 'list' && value.mode !== 'compact')) {
+    return false
+  }
+  if (value.selectedIndex !== undefined && typeof value.selectedIndex !== 'number') {
+    return false
+  }
+  if (value.retracted !== undefined && typeof value.retracted !== 'boolean') {
+    return false
+  }
+  return true
+}
+
+function parseElementView(raw: unknown): Partial<Record<ElementViewKey, ElementViewState>> | undefined {
+  if (!isRecord(raw)) {
+    return undefined
+  }
+  const out: Partial<Record<ElementViewKey, ElementViewState>> = {}
+  for (const [key, state] of Object.entries(raw)) {
+    if (typeof key !== 'string' || !isElementViewState(state)) {
+      return undefined
+    }
+    out[key] = state
+  }
+  return Object.keys(out).length > 0 ? out : undefined
+}
+
+function storedNodeBodyFromRaw(raw: unknown): StoredNodeBodyPayload | null {
+  if (!isRecord(raw) || typeof raw.id !== 'string' || !Array.isArray(raw.values)) {
+    return null
+  }
+  if (!isNodeSchemaDefinition(raw.schema) || !raw.values.every(isNodeParameterValue)) {
+    return null
+  }
+
+  const requiredRaw = raw.required_parameter
+  let required_parameter: string[] | undefined
+  if (requiredRaw !== undefined) {
+    if (!Array.isArray(requiredRaw) || !requiredRaw.every((item) => typeof item === 'string')) {
+      return null
+    }
+    required_parameter = requiredRaw as string[]
+  }
+
+  const linksRaw = raw.parameter_value_links
+  let parameter_value_links: Array<readonly [string, string]> | undefined
+  if (linksRaw !== undefined) {
+    if (!Array.isArray(linksRaw)) {
+      return null
+    }
+    const pairs: Array<readonly [string, string]> = []
+    for (const entry of linksRaw) {
+      if (!Array.isArray(entry) || entry.length !== 2) {
+        return null
+      }
+      if (typeof entry[0] !== 'string' || typeof entry[1] !== 'string') {
+        return null
+      }
+      pairs.push([entry[0], entry[1]])
+    }
+    parameter_value_links = pairs.length > 0 ? pairs : undefined
+  }
+
+  const hashStringRaw = raw.hashString
+  let hashString: string | undefined
+  if (hashStringRaw !== undefined) {
+    if (typeof hashStringRaw !== 'string') {
+      return null
+    }
+    hashString = hashStringRaw
+  }
+
+  const hashPidRaw = raw.hashStringParameterId
+  let hashStringParameterId: string | undefined
+  if (hashPidRaw !== undefined) {
+    if (typeof hashPidRaw !== 'string') {
+      return null
+    }
+    hashStringParameterId = hashPidRaw
+  }
+
+  const elementView = parseElementView(raw.elementView)
+  if (raw.elementView !== undefined && elementView === undefined) {
+    return null
+  }
+
+  return {
+    id: raw.id,
+    schema: structuredClone(raw.schema),
+    values: structuredClone(raw.values as NodeParameterValue[]),
+    ...(required_parameter?.length ? { required_parameter: structuredClone(required_parameter) } : {}),
+    ...(parameter_value_links?.length
+      ? { parameter_value_links: structuredClone(parameter_value_links) }
+      : {}),
+    ...(hashString !== undefined ? { hashString } : {}),
+    ...(hashStringParameterId !== undefined ? { hashStringParameterId } : {}),
+    ...(elementView ? { elementView: structuredClone(elementView) } : {}),
+  }
+}
+
+function nodeInstanceFromStored(body: StoredNodeBodyPayload): NodeInstance {
+  return {
+    id: body.id,
+    schema: body.schema,
+    values: body.values,
+    ...(body.required_parameter?.length ? { required_parameter: body.required_parameter } : {}),
+    ...(body.parameter_value_links?.length
+      ? { parameter_value_links: body.parameter_value_links }
+      : {}),
+    ...(body.hashString !== undefined ? { hashString: body.hashString } : {}),
+    ...(body.hashStringParameterId !== undefined
+      ? { hashStringParameterId: body.hashStringParameterId }
+      : {}),
+    ...(body.elementView ? { elementView: structuredClone(body.elementView) } : {}),
+  }
+}
+
+function parseConnection(c: unknown): CanvasConnection | null {
+  if (!isRecord(c) || typeof c.id !== 'string') {
+    return null
+  }
+
+  const routing =
+    c.routing === 'flex' || c.routing === 'rigid' || c.routing === 'wireless' ? c.routing : undefined
+
+  const fromInternalStructureIdRaw =
+    typeof c.fromInternalStructureId === 'string'
+      ? c.fromInternalStructureId
+      : typeof c.fromEntityId === 'string'
+        ? c.fromEntityId
+        : null
+
+  if (
+    typeof c.fromNodeId !== 'string' ||
+    fromInternalStructureIdRaw === null ||
+    typeof c.toNodeId !== 'string'
+  ) {
+    return null
+  }
+
+  return {
+    id: c.id,
+    fromNodeId: c.fromNodeId,
+    fromInternalStructureId: fromInternalStructureIdRaw,
+    toNodeId: c.toNodeId,
+    ...(routing ? { routing } : {}),
+  }
+}
+
+function parseCompactRoutingBackups(
+  raw: unknown,
+): CanvasScene['compactRoutingBackups'] | undefined {
+  if (!isRecord(raw)) {
+    return undefined
+  }
+  const out: NonNullable<CanvasScene['compactRoutingBackups']> = {}
+  for (const [connectionId, routing] of Object.entries(raw)) {
+    if (
+      routing !== undefined &&
+      routing !== 'flex' &&
+      routing !== 'rigid' &&
+      routing !== 'wireless'
+    ) {
+      return undefined
+    }
+    out[connectionId] = routing
+  }
+  return Object.keys(out).length > 0 ? out : undefined
+}
+
+export function serializeScene(scene: CanvasScene): LeagueBinGraphDocumentV2 {
   return {
     format: 'node-graphs-lol',
-    version: 1,
+    version: 2,
     meta: {
       exportedAt: new Date().toISOString(),
     },
     width: scene.width,
     height: scene.height,
     connections: structuredClone(scene.connections),
+    ...(scene.camera ? { camera: structuredClone(scene.camera) } : {}),
+    ...(scene.compactRoutingBackups && Object.keys(scene.compactRoutingBackups).length > 0
+      ? { compactRoutingBackups: structuredClone(scene.compactRoutingBackups) }
+      : {}),
+    ...(scene.sceneChrome ? { sceneChrome: structuredClone(scene.sceneChrome) } : {}),
     nodes: scene.nodes.map((n) => ({
       id: n.id,
-      position: { ...n.position },
+      presentation: canvasNodePresentationFromNode(n),
       node: {
         id: n.node.id,
         schema: structuredClone(n.node.schema),
@@ -89,30 +301,19 @@ export function serializeScene(scene: CanvasScene): LeagueBinGraphDocumentV1 {
         ...(typeof n.node.hashStringParameterId === 'string'
           ? { hashStringParameterId: n.node.hashStringParameterId }
           : {}),
+        ...(n.node.elementView && Object.keys(n.node.elementView).length > 0
+          ? { elementView: structuredClone(n.node.elementView) }
+          : {}),
       },
     })),
   }
 }
 
-export function parseSceneDocument(data: unknown): CanvasScene | null {
-  if (!isRecord(data)) {
+function parseV1Document(data: Record<string, unknown>): CanvasScene | null {
+  if (data.version !== 1 || !Array.isArray(data.nodes) || !Array.isArray(data.connections)) {
     return null
   }
-
-  if (data.format !== 'node-graphs-lol') {
-    return null
-  }
-
-  if (data.version !== 1) {
-    return null
-  }
-
-  if (
-    typeof data.width !== 'number' ||
-    typeof data.height !== 'number' ||
-    !Array.isArray(data.nodes) ||
-    !Array.isArray(data.connections)
-  ) {
+  if (typeof data.width !== 'number' || typeof data.height !== 'number') {
     return null
   }
 
@@ -122,123 +323,33 @@ export function parseSceneDocument(data: unknown): CanvasScene | null {
     if (!isRecord(item) || typeof item.id !== 'string' || !isRecord(item.position)) {
       return null
     }
-
-    if (
-      typeof item.position.x !== 'number' ||
-      typeof item.position.y !== 'number' ||
-      !isRecord(item.node)
-    ) {
+    if (typeof item.position.x !== 'number' || typeof item.position.y !== 'number') {
       return null
     }
-
-    const nodeBody = item.node
-
-    if (typeof nodeBody.id !== 'string' || !Array.isArray(nodeBody.values)) {
+    const nodeBody = storedNodeBodyFromRaw(item.node)
+    if (!nodeBody) {
       return null
     }
-
-    if (!isNodeSchemaDefinition(nodeBody.schema)) {
-      return null
+    const nodeInstance = nodeInstanceFromStored(nodeBody)
+    const presentation: CanvasNodePresentationEntry = {
+      position: { x: item.position.x, y: item.position.y },
+      cardBodyLayout: 'freeform',
     }
-
-    if (!nodeBody.values.every(isNodeParameterValue)) {
-      return null
-    }
-
-    const requiredRaw = nodeBody.required_parameter
-    let required_parameter: string[] | undefined
-    if (requiredRaw !== undefined) {
-      if (!Array.isArray(requiredRaw) || !requiredRaw.every((item) => typeof item === 'string')) {
-        return null
-      }
-      required_parameter = requiredRaw as string[]
-    }
-
-    const linksRaw = nodeBody.parameter_value_links
-    let parameter_value_links: Array<readonly [string, string]> | undefined
-    if (linksRaw !== undefined) {
-      if (!Array.isArray(linksRaw)) {
-        return null
-      }
-      const pairs: Array<readonly [string, string]> = []
-      for (const entry of linksRaw) {
-        if (!Array.isArray(entry) || entry.length !== 2) {
-          return null
-        }
-        if (typeof entry[0] !== 'string' || typeof entry[1] !== 'string') {
-          return null
-        }
-        pairs.push([entry[0], entry[1]])
-      }
-      parameter_value_links = pairs.length > 0 ? pairs : undefined
-    }
-
-    const hashStringRaw = nodeBody.hashString
-    let hashString: string | undefined
-    if (hashStringRaw !== undefined) {
-      if (typeof hashStringRaw !== 'string') {
-        return null
-      }
-      hashString = hashStringRaw
-    }
-
-    const hashPidRaw = nodeBody.hashStringParameterId
-    let hashStringParameterId: string | undefined
-    if (hashPidRaw !== undefined) {
-      if (typeof hashPidRaw !== 'string') {
-        return null
-      }
-      hashStringParameterId = hashPidRaw
-    }
-
-    const nodeInstance: NodeInstance = {
-      id: nodeBody.id,
-      schema: structuredClone(nodeBody.schema),
-      values: structuredClone(nodeBody.values as NodeParameterValue[]),
-      ...(required_parameter?.length ? { required_parameter: structuredClone(required_parameter) } : {}),
-      ...(parameter_value_links?.length
-        ? { parameter_value_links: structuredClone(parameter_value_links) }
-        : {}),
-      ...(hashString !== undefined ? { hashString } : {}),
-      ...(hashStringParameterId !== undefined ? { hashStringParameterId } : {}),
-    }
-
     nodes.push({
       id: item.id,
-      position: { x: item.position.x, y: item.position.y },
-      ...defaultNewCanvasNodeLayout(nodeInstance),
+      position: presentation.position,
+      ...canvasNodeOverlayFromPresentation(presentation, nodeInstance),
       node: nodeInstance,
     })
   }
 
   const connections: CanvasConnection[] = []
-
   for (const c of data.connections) {
-    if (!isRecord(c) || typeof c.id !== 'string') {
+    const connection = parseConnection(c)
+    if (!connection) {
       return null
     }
-
-    const routing =
-      c.routing === 'flex' || c.routing === 'rigid' || c.routing === 'wireless'
-        ? c.routing
-        : undefined
-
-    const fromInternalStructureIdRaw =
-      typeof c.fromInternalStructureId === 'string'
-        ? c.fromInternalStructureId
-        : typeof c.fromEntityId === 'string'
-          ? c.fromEntityId
-          : null
-
-    if (typeof c.fromNodeId === 'string' && fromInternalStructureIdRaw !== null && typeof c.toNodeId === 'string') {
-      connections.push({
-        id: c.id,
-        fromNodeId: c.fromNodeId,
-        fromInternalStructureId: fromInternalStructureIdRaw,
-        toNodeId: c.toNodeId,
-        ...(routing ? { routing } : {}),
-      })
-    }
+    connections.push(connection)
   }
 
   return {
@@ -247,4 +358,91 @@ export function parseSceneDocument(data: unknown): CanvasScene | null {
     connections,
     nodes,
   }
+}
+
+function parseV2Document(data: Record<string, unknown>): CanvasScene | null {
+  if (data.version !== 2 || !Array.isArray(data.nodes) || !Array.isArray(data.connections)) {
+    return null
+  }
+  if (typeof data.width !== 'number' || typeof data.height !== 'number') {
+    return null
+  }
+
+  const nodes: CanvasScene['nodes'] = []
+
+  for (const item of data.nodes) {
+    if (!isRecord(item) || typeof item.id !== 'string' || !isRecord(item.presentation)) {
+      return null
+    }
+    const presentation = presentationEntryFromRawLayout(item.presentation)
+    if (!presentation) {
+      return null
+    }
+    const nodeBody = storedNodeBodyFromRaw(item.node)
+    if (!nodeBody) {
+      return null
+    }
+    const nodeInstance = nodeInstanceFromStored(nodeBody)
+    nodes.push({
+      id: item.id,
+      position: presentation.position,
+      ...(presentation.bodyCollapsed ? { bodyCollapsed: true } : {}),
+      ...canvasNodeOverlayFromPresentation(presentation, nodeInstance),
+      node: nodeInstance,
+    })
+  }
+
+  const connections: CanvasConnection[] = []
+  for (const c of data.connections) {
+    const connection = parseConnection(c)
+    if (!connection) {
+      return null
+    }
+    connections.push(connection)
+  }
+
+  const camera = data.camera !== undefined ? parseSceneCamera(data.camera) : undefined
+  if (data.camera !== undefined && camera === undefined) {
+    return null
+  }
+
+  const sceneChrome =
+    data.sceneChrome !== undefined ? parseSceneChrome(data.sceneChrome) : undefined
+  if (data.sceneChrome !== undefined && sceneChrome === undefined) {
+    return null
+  }
+
+  const compactRoutingBackups =
+    data.compactRoutingBackups !== undefined
+      ? parseCompactRoutingBackups(data.compactRoutingBackups)
+      : undefined
+  if (data.compactRoutingBackups !== undefined && compactRoutingBackups === undefined) {
+    return null
+  }
+
+  return {
+    width: data.width,
+    height: data.height,
+    connections,
+    nodes,
+    ...(camera ? { camera } : {}),
+    ...(sceneChrome ? { sceneChrome } : {}),
+    ...(compactRoutingBackups ? { compactRoutingBackups } : {}),
+  }
+}
+
+export function parseSceneDocument(data: unknown): CanvasScene | null {
+  if (!isRecord(data) || data.format !== 'node-graphs-lol') {
+    return null
+  }
+
+  if (data.version === 2) {
+    return parseV2Document(data)
+  }
+
+  if (data.version === 1) {
+    return parseV1Document(data)
+  }
+
+  return null
 }

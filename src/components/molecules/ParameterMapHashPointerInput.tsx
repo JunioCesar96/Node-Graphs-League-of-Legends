@@ -45,6 +45,7 @@ type ParameterMapHashPointerInputProps = {
   onSelectedIndexChange?: (index: number) => void
   interactionLocked?: boolean
   onBlockedInteraction?: () => void
+  onRetractFromTitle?: () => void
 }
 
 export function ParameterMapHashPointerInput({
@@ -71,6 +72,7 @@ export function ParameterMapHashPointerInput({
   onSelectedIndexChange,
   interactionLocked,
   onBlockedInteraction,
+  onRetractFromTitle,
 }: ParameterMapHashPointerInputProps) {
   return (
     <div className={className} data-parameter-type="mapHashPointer">
@@ -97,6 +99,7 @@ export function ParameterMapHashPointerInput({
         selectedIndex={selectedIndex}
         value={value}
         viewMode={viewMode}
+        onRetractFromTitle={onRetractFromTitle}
       />
     </div>
   )

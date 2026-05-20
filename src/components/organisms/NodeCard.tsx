@@ -112,6 +112,10 @@ function blockViewProps(
     onExpandFromRetracted: onSetElementRetracted
       ? () => onSetElementRetracted(elementKey, false)
       : undefined,
+    onRetractFromTitle:
+      onSetElementRetracted && !state.retracted
+        ? () => onSetElementRetracted(elementKey, true)
+        : undefined,
     onViewModeChange: onSetElementViewMode
       ? (mode: ElementViewMode) => onSetElementViewMode(elementKey, mode)
       : undefined,
@@ -889,6 +893,11 @@ export function NodeCard({
                   onExpandFromRetracted={
                     onSetElementRetracted
                       ? () => onSetElementRetracted(paramViewKey, false)
+                      : undefined
+                  }
+                  onRetractFromTitle={
+                    onSetElementRetracted && !paramViewState.retracted
+                      ? () => onSetElementRetracted(paramViewKey, true)
                       : undefined
                   }
                   onElementViewModeChange={

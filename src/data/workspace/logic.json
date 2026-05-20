@@ -6,633 +6,6 @@
       "schema": {
         "id": "particle-root",
         "title": "ParticleSystem",
-        "parameters": [],
-        "internalStructures": [],
-        "linked_parameter_values": []
-      },
-      "values": []
-    },
-    "main-01": {
-      "id": "main-01",
-      "schema": {
-        "id": "main",
-        "title": "Main",
-        "parameters": [
-          {
-            "id": "Main_parameter_type",
-            "name": "type",
-            "type": "string",
-            "defaultValue": "PROP"
-          },
-          {
-            "id": "Main_parameter_linked",
-            "name": "linked",
-            "type": "listString",
-            "defaultValue": "DATA/Zac_Skins_Skin0_Skins_Skin1_Skins_Skin10_Skins_Skin11_Skins_Skin12_Skins_Skin13_Skins_Skin14_Skins_Skin15_Skins_Skin16_Skins_Skin17_Skins_Skin18_Skins_Skin19_Skins_Skin2_Skins_Skin20_Skins_Skin21_Skins_Skin22_Skins_Skin23_Skins_Skin3_Skins_Skin4_Skins_Skin5_Skins_Skin7_Skins_Skin8_Skins_Skin9.bin\nDATA/Characters/Zac/Zac.bin\nDATA/Zac_Skins_Skin0_Skins_Skin1_Skins_Skin14_Skins_Skin15_Skins_Skin16_Skins_Skin17_Skins_Skin18_Skins_Skin19_Skins_Skin2_Skins_Skin20_Skins_Skin…"
-          },
-          {
-            "id": "Main_parameter_entries",
-            "name": "entries",
-            "type": "mapHashEmbed",
-            "defaultValue": "Characters/Zac/Skins/Skin0\tskin-character-data-properties\tSkinCharacterDataProperties\nCharacters/Zac/Skins/Skin0/Particles/Zac_Base_Q_tar\tvfx-system-definition-data\tVfxSystemDefinitionData\nCharacters/Zac/Skins/Skin0/Particles/Zac_Base_Q_Beam_Pull_Left\tvfx-system-definition-data\tVfxSystemDefinitionData\nCharacters/Zac/Skins/Skin0/Particles/Zac_Base_Q_Beam_Pull_Right\tvfx-system-definition-data\tVfxSystemDefinitionData\nCharacters/Zac/Skins/Skin0/Particles/Zac_Base_E_Moving\tvfx-system-definition-data\tVfxSystemDefinitionData\nCharacters/Zac/Skins/Skin0/Particles/Zac_Base_E_tar\tvfx-system-definition-data\tVfxSystemDefinitionData\nCharacters/Zac/Skins/Skin0/Particles/Zac_Base_W_cas\tvfx-system-definition-data\tVfxSystemDefinitionData\nCharacters/Zac/Skins/Skin0/Particles/Zac_Base_Q_Beam_Disconnect\tvfx-system-definition-data\tVfxSystemDefinitionData\nCharacters/Zac/Skins/Skin0/Particles/Zac_Base_Q_Beam_Target1\tvfx-system-definition-data\tVfxSystemDefinitionData\nCharacters/Zac/Skins/Skin0/Particles/Zac_Base_R_SmallerSlam\tvfx-system-definition-data\tVfxSystemDefinitionData\nCharacters/Zac/Skins/Skin0/Particles/Zac_Base_R_tar\tvfx-system-definition-data\tVfxSystemDefinitionData\nCharacters/Zac/Skins/Skin0/Particles/Zac_Base_W_tar\tvfx-system-definition-data\tVfxSystemDefinitionData\nCharacters/Zac/Skins/Skin0/Particles/Zac_Base_P_Chunk_SelfHighlight\tvfx-system-definition-data\tVfxSystemDefinitionData\nCharacters/Zac/Skins/Skin0/Particles/Zac_Base_E_LandSplash\tvfx-system-definition-data\tVfxSystemDefinitionData\n0x1c1ea8de\tvfx-system-definition-data\tVfxSystemDefinitionData\n0xa55ad994\tvfx-system-definition-data\tVfxSystemDefinitionData\n0xffbf2a72\tvfx-system-definition-data\tVfxSystemDefinitionData\n0x750697cc\tvfx-system-definition-data\tVfxSystemDefinitionData\n0x9071bd64\tvfx-system-definition-data\tVfxSystemDefinitionData\n0x04ff5c13\tvfx-system-definition-data\tVfxSystemDefinitionData\n0x7b3a4b5f\tvfx-system-definition-data\tVfxSystemDefinitionData\n0xa2fa6a01\tvfx-system-definition-data\tVfxSystemDefinitionData\nCharacters/Zac/Skins/Skin0/Resources\tresource-resolver\tResourceResolver\nCharacters/Zac/Animations/Skin0\tanimation-graph-data\tAnimationGraphData"
-          }
-        ],
-        "internalStructures": [],
-        "nomenclature": {
-          "group": "",
-          "collection": "#0 Root main",
-          "collectionType": "main",
-          "pathHierarchy": "main",
-          "pathHierarchySteps": [
-            {
-              "id": "main",
-              "type": "#0 Root main"
-            }
-          ]
-        },
-        "linked_parameter_values": []
-      },
-      "values": [
-        {
-          "parameterId": "Main_parameter_type",
-          "value": "PROP"
-        },
-        {
-          "parameterId": "Main_parameter_linked",
-          "value": "DATA/Zac_Skins_Skin0_Skins_Skin1_Skins_Skin10_Skins_Skin11_Skins_Skin12_Skins_Skin13_Skins_Skin14_Skins_Skin15_Skins_Skin16_Skins_Skin17_Skins_Skin18_Skins_Skin19_Skins_Skin2_Skins_Skin20_Skins_Skin21_Skins_Skin22_Skins_Skin23_Skins_Skin3_Skins_Skin4_Skins_Skin5_Skins_Skin7_Skins_Skin8_Skins_Skin9.bin\nDATA/Characters/Zac/Zac.bin\nDATA/Zac_Skins_Skin0_Skins_Skin1_Skins_Skin14_Skins_Skin15_Skins_Skin16_Skins_Skin17_Skins_Skin18_Skins_Skin19_Skins_Skin2_Skins_Skin20_Skins_Skin…"
-        },
-        {
-          "parameterId": "Main_parameter_entries",
-          "value": "Characters/Zac/Skins/Skin0\t\t\nCharacters/Zac/Skins/Skin0/Particles/Zac_Base_Q_tar\tvfx-system-definition-data\tVfxSystemDefinitionData\nCharacters/Zac/Skins/Skin0/Particles/Zac_Base_Q_Beam_Pull_Left\tvfx-system-definition-data\tVfxSystemDefinitionData\nCharacters/Zac/Skins/Skin0/Particles/Zac_Base_Q_Beam_Pull_Right\tvfx-system-definition-data\tVfxSystemDefinitionData\nCharacters/Zac/Skins/Skin0/Particles/Zac_Base_E_Moving\tvfx-system-definition-data\tVfxSystemDefinitionData\nCharacters/Zac/Skins/Skin0/Particles/Zac_Base_E_tar\tvfx-system-definition-data\tVfxSystemDefinitionData\nCharacters/Zac/Skins/Skin0/Particles/Zac_Base_W_cas\tvfx-system-definition-data\tVfxSystemDefinitionData\nCharacters/Zac/Skins/Skin0/Particles/Zac_Base_Q_Beam_Disconnect\tvfx-system-definition-data\tVfxSystemDefinitionData\nCharacters/Zac/Skins/Skin0/Particles/Zac_Base_Q_Beam_Target1\tvfx-system-definition-data\tVfxSystemDefinitionData\nCharacters/Zac/Skins/Skin0/Particles/Zac_Base_R_SmallerSlam\tvfx-system-definition-data\tVfxSystemDefinitionData\nCharacters/Zac/Skins/Skin0/Particles/Zac_Base_R_tar\tvfx-system-definition-data\tVfxSystemDefinitionData\nCharacters/Zac/Skins/Skin0/Particles/Zac_Base_W_tar\tvfx-system-definition-data\tVfxSystemDefinitionData\nCharacters/Zac/Skins/Skin0/Particles/Zac_Base_P_Chunk_SelfHighlight\tvfx-system-definition-data\tVfxSystemDefinitionData\nCharacters/Zac/Skins/Skin0/Particles/Zac_Base_E_LandSplash\tvfx-system-definition-data\tVfxSystemDefinitionData\n0x1c1ea8de\tvfx-system-definition-data\tVfxSystemDefinitionData\n0xa55ad994\tvfx-system-definition-data\tVfxSystemDefinitionData\n0xffbf2a72\tvfx-system-definition-data\tVfxSystemDefinitionData\n0x750697cc\tvfx-system-definition-data\tVfxSystemDefinitionData\n0x9071bd64\tvfx-system-definition-data\tVfxSystemDefinitionData\n0x04ff5c13\tvfx-system-definition-data\tVfxSystemDefinitionData\n0x7b3a4b5f\tvfx-system-definition-data\tVfxSystemDefinitionData\n0xa2fa6a01\tvfx-system-definition-data\tVfxSystemDefinitionData\nCharacters/Zac/Skins/Skin0/Resources\tresource-resolver\tResourceResolver\nCharacters/Zac/Animations/Skin0\tanimation-graph-data\tAnimationGraphData"
-        }
-      ],
-      "elementView": {
-        "param:Main_parameter_entries": {
-          "mode": "compact",
-          "selectedIndex": 1,
-          "retracted": true
-        },
-        "param:Main_parameter_type": {
-          "mode": "list",
-          "selectedIndex": 0,
-          "retracted": true
-        },
-        "param:Main_parameter_linked": {
-          "mode": "list",
-          "retracted": true
-        }
-      }
-    },
-    "skin-character-data-properties-01": {
-      "id": "skin-character-data-properties-01",
-      "schema": {
-        "id": "skin-character-data-properties",
-        "title": "SkinCharacterDataProperties",
-        "parameters": [
-          {
-            "id": "SkinCharacterDataProperties_parameter_armorMaterial",
-            "name": "armorMaterial",
-            "type": "string",
-            "defaultValue": "Flesh"
-          },
-          {
-            "id": "SkinCharacterDataProperties_parameter_championSkinName",
-            "name": "championSkinName",
-            "type": "string",
-            "defaultValue": "Zac"
-          },
-          {
-            "id": "SkinCharacterDataProperties_parameter_emoteBuffbone",
-            "name": "emoteBuffbone",
-            "type": "string",
-            "defaultValue": ""
-          },
-          {
-            "id": "SkinCharacterDataProperties_parameter_godrayFXbone",
-            "name": "godrayFXbone",
-            "type": "string",
-            "defaultValue": ""
-          },
-          {
-            "id": "SkinCharacterDataProperties_parameter_iconCircle",
-            "name": "iconCircle",
-            "type": "optionString",
-            "defaultValue": "ASSETS/Characters/Zac/HUD/Zac_Circle.tex"
-          },
-          {
-            "id": "SkinCharacterDataProperties_parameter_iconSquare",
-            "name": "iconSquare",
-            "type": "optionString",
-            "defaultValue": "ASSETS/Characters/Zac/HUD/Zac_Square.tex"
-          },
-          {
-            "id": "SkinCharacterDataProperties_parameter_mContextualActionData",
-            "name": "mContextualActionData",
-            "type": "link",
-            "defaultValue": "Characters/Zac/CAC/Zac_Base"
-          },
-          {
-            "id": "SkinCharacterDataProperties_parameter_metaDataTags",
-            "name": "metaDataTags",
-            "type": "string",
-            "defaultValue": "faction:zaun,gender:male"
-          },
-          {
-            "id": "SkinCharacterDataProperties_parameter_mResourceResolver",
-            "name": "mResourceResolver",
-            "type": "link",
-            "defaultValue": "Characters/Zac/Skins/Skin0/Resources"
-          },
-          {
-            "id": "SkinCharacterDataProperties_parameter_skinClassification",
-            "name": "skinClassification",
-            "type": "u32",
-            "defaultValue": "1"
-          }
-        ],
-        "internalStructures": [],
-        "embed": [
-          {
-            "id": "SkinCharacterDataProperties_embed_loadscreen",
-            "title": "loadscreen",
-            "internalStructures": [
-              {
-                "id": "skin-character-data-properties-loadscreen",
-                "name": "CensoredImage",
-                "schemaId": "censored-image"
-              }
-            ],
-            "slots": [
-              {
-                "id": "SkinCharacterDataProperties_embed_loadscreen__slot__0",
-                "name": "CensoredImage",
-                "schemaId": "censored-image"
-              }
-            ]
-          },
-          {
-            "id": "SkinCharacterDataProperties_embed_SkinAudioProperties",
-            "title": "SkinAudioProperties",
-            "internalStructures": [
-              {
-                "id": "skin-character-data-properties-skin-audio-properties",
-                "name": "SkinAudioProperties",
-                "schemaId": "skin-audio-properties"
-              }
-            ],
-            "slots": [
-              {
-                "id": "SkinCharacterDataProperties_embed_SkinAudioProperties__slot__0",
-                "name": "SkinAudioProperties",
-                "schemaId": "skin-audio-properties"
-              }
-            ]
-          },
-          {
-            "id": "SkinCharacterDataProperties_embed_SkinAnimationProperties",
-            "title": "SkinAnimationProperties",
-            "internalStructures": [
-              {
-                "id": "skin-character-data-properties-skin-animation-properties",
-                "name": "SkinAnimationProperties",
-                "schemaId": "skin-animation-properties"
-              }
-            ],
-            "slots": [
-              {
-                "id": "SkinCharacterDataProperties_embed_SkinAnimationProperties__slot__0",
-                "name": "SkinAnimationProperties",
-                "schemaId": "skin-animation-properties"
-              }
-            ]
-          },
-          {
-            "id": "SkinCharacterDataProperties_embed_skinMeshProperties",
-            "title": "skinMeshProperties",
-            "internalStructures": [
-              {
-                "id": "skin-character-data-properties-skin-mesh-properties",
-                "name": "SkinMeshDataProperties",
-                "schemaId": "skin-mesh-data-properties"
-              }
-            ],
-            "slots": [
-              {
-                "id": "SkinCharacterDataProperties_embed_skinMeshProperties__slot__0",
-                "name": "SkinMeshDataProperties",
-                "schemaId": "skin-mesh-data-properties"
-              }
-            ]
-          },
-          {
-            "id": "SkinCharacterDataProperties_embed_HealthBarData",
-            "title": "HealthBarData",
-            "internalStructures": [
-              {
-                "id": "skin-character-data-properties-health-bar-data",
-                "name": "CharacterHealthBarDataRecord",
-                "schemaId": "character-health-bar-data-record"
-              }
-            ],
-            "slots": [
-              {
-                "id": "SkinCharacterDataProperties_embed_HealthBarData__slot__0",
-                "name": "CharacterHealthBarDataRecord",
-                "schemaId": "character-health-bar-data-record"
-              }
-            ]
-          }
-        ],
-        "listEmbed": [
-          {
-            "id": "SkinCharacterDataProperties_listEmbed_idleParticlesEffects",
-            "title": "idleParticlesEffects",
-            "internalStructures": [
-              {
-                "id": "skin-character-data-properties-idle-particles-effects-0",
-                "name": "SkinCharacterDataProperties_CharacterIdleEffect",
-                "schemaId": "skin-character-data-properties-character-idle-effect"
-              }
-            ],
-            "slots": []
-          }
-        ],
-        "list2Pointer": [
-          {
-            "id": "SkinCharacterDataProperties_list2Pointer_PersistentEffectConditions",
-            "title": "PersistentEffectConditions",
-            "internalStructures": [
-              {
-                "id": "skin-character-data-properties-persistent-effect-conditions-0",
-                "name": "PersistentEffectConditionData",
-                "schemaId": "persistent-effect-condition-data"
-              }
-            ],
-            "instances": [
-              {
-                "id": "SkinCharacterDataProperties_list2Pointer_PersistentEffectConditions-inst-0",
-                "title": "PersistentEffectConditionData",
-                "internalStructures": [
-                  {
-                    "id": "skin-character-data-properties-persistent-effect-conditions-0",
-                    "name": "PersistentEffectConditionData",
-                    "schemaId": "persistent-effect-condition-data"
-                  }
-                ],
-                "slots": [
-                  {
-                    "id": "SkinCharacterDataProperties_list2Pointer_PersistentEffectConditions-inst-0__slot__0",
-                    "name": "PersistentEffectConditionData",
-                    "schemaId": "persistent-effect-condition-data"
-                  }
-                ]
-              },
-              {
-                "id": "SkinCharacterDataProperties_list2Pointer_PersistentEffectConditions-inst-1",
-                "title": "PersistentEffectConditionData",
-                "internalStructures": [
-                  {
-                    "id": "skin-character-data-properties-persistent-effect-conditions-0",
-                    "name": "PersistentEffectConditionData",
-                    "schemaId": "persistent-effect-condition-data"
-                  }
-                ],
-                "slots": [
-                  {
-                    "id": "SkinCharacterDataProperties_list2Pointer_PersistentEffectConditions-inst-1__slot__0",
-                    "name": "PersistentEffectConditionData",
-                    "schemaId": "persistent-effect-condition-data"
-                  }
-                ]
-              },
-              {
-                "id": "SkinCharacterDataProperties_list2Pointer_PersistentEffectConditions-inst-2",
-                "title": "PersistentEffectConditionData",
-                "internalStructures": [
-                  {
-                    "id": "skin-character-data-properties-persistent-effect-conditions-0",
-                    "name": "PersistentEffectConditionData",
-                    "schemaId": "persistent-effect-condition-data"
-                  }
-                ],
-                "slots": [
-                  {
-                    "id": "SkinCharacterDataProperties_list2Pointer_PersistentEffectConditions-inst-2__slot__0",
-                    "name": "PersistentEffectConditionData",
-                    "schemaId": "persistent-effect-condition-data"
-                  }
-                ]
-              },
-              {
-                "id": "SkinCharacterDataProperties_list2Pointer_PersistentEffectConditions-inst-3",
-                "title": "PersistentEffectConditionData",
-                "internalStructures": [
-                  {
-                    "id": "skin-character-data-properties-persistent-effect-conditions-0",
-                    "name": "PersistentEffectConditionData",
-                    "schemaId": "persistent-effect-condition-data"
-                  }
-                ],
-                "slots": [
-                  {
-                    "id": "SkinCharacterDataProperties_list2Pointer_PersistentEffectConditions-inst-3__slot__0",
-                    "name": "PersistentEffectConditionData",
-                    "schemaId": "persistent-effect-condition-data"
-                  }
-                ]
-              }
-            ]
-          }
-        ],
-        "nomenclature": {
-          "group": "#2 Entidades",
-          "collection": "#2 Root Entry (SkinCharacterDataProperties)",
-          "collectionType": "SkinCharacterDataProperties",
-          "pathHierarchy": "main > entries:Characters/Zac/Skins/Skin0",
-          "pathHierarchySteps": [
-            {
-              "id": "main",
-              "type": "#0 Root main"
-            },
-            {
-              "id": "entries:Characters/Zac/Skins/Skin0",
-              "type": "#2 Root Entry (SkinCharacterDataProperties)"
-            }
-          ]
-        }
-      },
-      "values": [
-        {
-          "parameterId": "SkinCharacterDataProperties_parameter_armorMaterial",
-          "value": "Flesh"
-        },
-        {
-          "parameterId": "SkinCharacterDataProperties_parameter_championSkinName",
-          "value": "Zac"
-        },
-        {
-          "parameterId": "SkinCharacterDataProperties_parameter_emoteBuffbone",
-          "value": ""
-        },
-        {
-          "parameterId": "SkinCharacterDataProperties_parameter_godrayFXbone",
-          "value": ""
-        },
-        {
-          "parameterId": "SkinCharacterDataProperties_parameter_iconCircle",
-          "value": "ASSETS/Characters/Zac/HUD/Zac_Circle.tex"
-        },
-        {
-          "parameterId": "SkinCharacterDataProperties_parameter_iconSquare",
-          "value": "ASSETS/Characters/Zac/HUD/Zac_Square.tex"
-        },
-        {
-          "parameterId": "SkinCharacterDataProperties_parameter_mContextualActionData",
-          "value": "Characters/Zac/CAC/Zac_Base"
-        },
-        {
-          "parameterId": "SkinCharacterDataProperties_parameter_metaDataTags",
-          "value": "faction:zaun,gender:male"
-        },
-        {
-          "parameterId": "SkinCharacterDataProperties_parameter_mResourceResolver",
-          "value": "Characters/Zac/Skins/Skin0/Resources"
-        },
-        {
-          "parameterId": "SkinCharacterDataProperties_parameter_skinClassification",
-          "value": "1"
-        }
-      ],
-      "elementView": {
-        "embed:SkinCharacterDataProperties_embed_loadscreen": {
-          "mode": "compact",
-          "selectedIndex": 0
-        },
-        "embed:SkinCharacterDataProperties_embed_SkinAudioProperties": {
-          "mode": "compact",
-          "selectedIndex": 0
-        },
-        "embed:SkinCharacterDataProperties_embed_SkinAnimationProperties": {
-          "mode": "compact",
-          "selectedIndex": 0
-        },
-        "embed:SkinCharacterDataProperties_embed_skinMeshProperties": {
-          "mode": "compact",
-          "selectedIndex": 0
-        },
-        "embed:SkinCharacterDataProperties_embed_HealthBarData": {
-          "mode": "compact",
-          "selectedIndex": 0
-        },
-        "listEmbed:SkinCharacterDataProperties_listEmbed_idleParticlesEffects": {
-          "mode": "compact",
-          "selectedIndex": 0
-        },
-        "list2Pointer:SkinCharacterDataProperties_list2Pointer_PersistentEffectConditions": {
-          "mode": "compact",
-          "selectedIndex": 0
-        }
-      }
-    },
-    "vfx-system-definition-data-01": {
-      "id": "vfx-system-definition-data-01",
-      "schema": {
-        "id": "vfx-system-definition-data",
-        "title": "VfxSystemDefinitionData",
-        "parameters": [
-          {
-            "id": "VfxSystemDefinitionData_parameter_flags",
-            "name": "flags",
-            "type": "u16",
-            "defaultValue": "198"
-          },
-          {
-            "id": "VfxSystemDefinitionData_parameter_particleName",
-            "name": "particleName",
-            "type": "string",
-            "defaultValue": "Zac_Base_Q_tar"
-          },
-          {
-            "id": "VfxSystemDefinitionData_parameter_particlePath",
-            "name": "particlePath",
-            "type": "string",
-            "defaultValue": "Characters/Zac/Skins/Skin0/Particles/Zac_Base_Q_tar"
-          },
-          {
-            "id": "VfxSystemDefinitionData_parameter_soundOnCreateDefault",
-            "name": "soundOnCreateDefault",
-            "type": "string",
-            "defaultValue": "Play_sfx_Zac_ZacQHit_hit"
-          },
-          {
-            "id": "VfxSystemDefinitionData_parameter_soundPersistentDefault",
-            "name": "soundPersistentDefault",
-            "type": "string",
-            "defaultValue": "Play_sfx_Zac_ZacR_hit_splat"
-          },
-          {
-            "id": "VfxSystemDefinitionData_parameter_Transform",
-            "name": "Transform",
-            "type": "mtx44",
-            "defaultValue": "1, 0, 0, 0 0, 1, 0, 0 0, 0, 1, 0 0, 0, 0, 1"
-          },
-          {
-            "id": "VfxSystemDefinitionData_parameter_visibilityRadius",
-            "name": "visibilityRadius",
-            "type": "f32",
-            "defaultValue": "25000"
-          },
-          {
-            "id": "VfxSystemDefinitionData_parameter_voiceOverOnCreateDefault",
-            "name": "voiceOverOnCreateDefault",
-            "type": "string",
-            "defaultValue": "Play_vo_Zac_ZacR_buffactivate"
-          }
-        ],
-        "internalStructures": [],
-        "listPointer": [
-          {
-            "id": "VfxSystemDefinitionData_listPointer_complexEmitterDefinitionData",
-            "title": "complexEmitterDefinitionData",
-            "internalStructures": [
-              {
-                "id": "vfx-system-definition-data-complex-emitter-definition-data-0",
-                "name": "VfxEmitterDefinitionData",
-                "schemaId": "vfx-emitter-definition-data"
-              },
-              {
-                "id": "vfx-system-definition-data-complex-emitter-definition-data-1",
-                "name": "VfxEmitterDefinitionData",
-                "schemaId": "vfx-emitter-definition-data"
-              },
-              {
-                "id": "vfx-system-definition-data-complex-emitter-definition-data-2",
-                "name": "VfxEmitterDefinitionData",
-                "schemaId": "vfx-emitter-definition-data"
-              },
-              {
-                "id": "vfx-system-definition-data-complex-emitter-definition-data-3",
-                "name": "VfxEmitterDefinitionData",
-                "schemaId": "vfx-emitter-definition-data"
-              },
-              {
-                "id": "vfx-system-definition-data-complex-emitter-definition-data-4",
-                "name": "VfxEmitterDefinitionData",
-                "schemaId": "vfx-emitter-definition-data"
-              },
-              {
-                "id": "vfx-system-definition-data-complex-emitter-definition-data-5",
-                "name": "VfxEmitterDefinitionData",
-                "schemaId": "vfx-emitter-definition-data"
-              },
-              {
-                "id": "vfx-system-definition-data-complex-emitter-definition-data-6",
-                "name": "VfxEmitterDefinitionData",
-                "schemaId": "vfx-emitter-definition-data"
-              },
-              {
-                "id": "vfx-system-definition-data-complex-emitter-definition-data-7",
-                "name": "VfxEmitterDefinitionData",
-                "schemaId": "vfx-emitter-definition-data"
-              },
-              {
-                "id": "vfx-system-definition-data-complex-emitter-definition-data-8",
-                "name": "VfxEmitterDefinitionData",
-                "schemaId": "vfx-emitter-definition-data"
-              },
-              {
-                "id": "vfx-system-definition-data-complex-emitter-definition-data-9",
-                "name": "VfxEmitterDefinitionData",
-                "schemaId": "vfx-emitter-definition-data"
-              },
-              {
-                "id": "vfx-system-definition-data-complex-emitter-definition-data-10",
-                "name": "VfxEmitterDefinitionData",
-                "schemaId": "vfx-emitter-definition-data"
-              }
-            ],
-            "slots": []
-          },
-          {
-            "id": "VfxSystemDefinitionData_listPointer_simpleEmitterDefinitionData",
-            "title": "simpleEmitterDefinitionData",
-            "internalStructures": [
-              {
-                "id": "vfx-system-definition-data-simple-emitter-definition-data-0",
-                "name": "VfxEmitterDefinitionData",
-                "schemaId": "vfx-emitter-definition-data"
-              }
-            ],
-            "slots": []
-          }
-        ],
-        "nomenclature": {
-          "group": "#2 Entidades",
-          "collection": "#2 Root Entry (VfxSystemDefinitionData)",
-          "collectionType": "VfxSystemDefinitionData",
-          "pathHierarchy": "main > entries:Characters/Zac/Skins/Skin0/Particles/Zac_Base_Q_tar",
-          "pathHierarchySteps": [
-            {
-              "id": "main",
-              "type": "#0 Root main"
-            },
-            {
-              "id": "entries:Characters/Zac/Skins/Skin0/Particles/Zac_Base_Q_tar",
-              "type": "#2 Root Entry (VfxSystemDefinitionData)"
-            }
-          ]
-        }
-      },
-      "values": [
-        {
-          "parameterId": "VfxSystemDefinitionData_parameter_flags",
-          "value": "198"
-        },
-        {
-          "parameterId": "VfxSystemDefinitionData_parameter_particleName",
-          "value": "Zac_Base_Q_tar"
-        },
-        {
-          "parameterId": "VfxSystemDefinitionData_parameter_particlePath",
-          "value": "Characters/Zac/Skins/Skin0/Particles/Zac_Base_Q_tar"
-        },
-        {
-          "parameterId": "VfxSystemDefinitionData_parameter_soundOnCreateDefault",
-          "value": "Play_sfx_Zac_ZacQHit_hit"
-        },
-        {
-          "parameterId": "VfxSystemDefinitionData_parameter_soundPersistentDefault",
-          "value": "Play_sfx_Zac_ZacR_hit_splat"
-        },
-        {
-          "parameterId": "VfxSystemDefinitionData_parameter_Transform",
-          "value": "1, 0, 0, 0 0, 1, 0, 0 0, 0, 1, 0 0, 0, 0, 1"
-        },
-        {
-          "parameterId": "VfxSystemDefinitionData_parameter_visibilityRadius",
-          "value": "25000"
-        },
-        {
-          "parameterId": "VfxSystemDefinitionData_parameter_voiceOverOnCreateDefault",
-          "value": "Play_vo_Zac_ZacR_buffactivate"
-        }
-      ],
-      "elementView": {
-        "listPointer:VfxSystemDefinitionData_listPointer_complexEmitterDefinitionData": {
-          "mode": "compact",
-          "selectedIndex": 0
-        },
-        "listPointer:VfxSystemDefinitionData_listPointer_simpleEmitterDefinitionData": {
-          "mode": "compact",
-          "selectedIndex": 0
-        }
-      }
-    },
-    "particle-root-02": {
-      "id": "particle-root-02",
-      "schema": {
-        "id": "particle-root",
-        "title": "ParticleSystem",
         "parameters": [
           {
             "id": "spawn-rate",
@@ -679,20 +52,7 @@
           "parameterId": "tint",
           "value": "1, 0.58, 0.1, 1"
         }
-      ],
-      "elementView": {
-        "param:spawn-rate": {
-          "mode": "list"
-        },
-        "param:lifetime": {
-          "mode": "list",
-          "retracted": true
-        },
-        "param:tint": {
-          "mode": "list",
-          "retracted": true
-        }
-      }
+      ]
     },
     "animation-graph-data-01": {
       "id": "animation-graph-data-01",
@@ -700,12 +60,6 @@
         "id": "animation-graph-data",
         "title": "AnimationGraphData",
         "parameters": [
-          {
-            "id": "AnimationGraphData_parameter_mBlendDataTable",
-            "name": "mBlendDataTable",
-            "type": "mapU64Pointer",
-            "defaultValue": "574043308619688281\ttime-blend-data\tTimeBlendData\n574043311659597133\ttime-blend-data\tTimeBlendData\n893241262338305586\ttime-blend-data\tTimeBlendData\n893241265303895373\ttime-blend-data\tTimeBlendData\n1095220852623081872\ttime-blend-data\tTimeBlendData\n1095220855541644621\ttime-blend-data\tTimeBlendData\n1439271205109059977\ttime-blend-data\tTimeBlendData\n1439271207947517261\ttime-blend-data\tTimeBlendData\n1509293448521455205\ttime-blend-data\tTimeBlendData\n1509293451343609165\ttime-blend-data\tTimeBlendData\n1802462465901175312\ttime-blend-data\tTimeBlendData\n1802462468655070541\ttime-blend-data\tTimeBlendData\n1953208035545133148\ttime-blend-data\tTimeBlendData\n1953208038263930189\ttime-blend-data\tTimeBlendData\n2372166788104036640\ttime-blend-data\tTimeBlendData\n2372166790725287245\ttime-blend-data\tTimeBlendData\n2432597616235167053\ttime-blend-data\tTimeBlendData\n2786235694625501850\ttime-blend-data\tTimeBlendData\n2786235697150344525\ttime-blend-data\tTimeBlendData\n3084207950027116234\ttime-blend-data\tTimeBlendData\n3084207952482581837\ttime-blend-data\tTimeBlendData\n3335977651178880333\ttime-blend-data\tTimeBlendData\n4326130931166970153\ttime-blend-data\tTimeBlendData\n4326130933333278029\ttime-blend-data\tTimeBlendData\n4642027631287192457\ttime-blend-data\tTimeBlendData\n4642027633379949901\ttime-blend-data\tTimeBlendData\n4703778291671575919\ttime-blend-data\tTimeBlendData\n4703778293749955917\ttime-blend-data\tTimeBlendData\n4757530672747822413\ttime-blend-data\tTimeBlendData\n5606506801761505339\ttime-blend-data\tTimeBlendData\n5606506803629702477\ttime-blend-data\tTimeBlendData\n6247030502141246797\ttime-blend-data\tTimeBlendData\n6463208476870491469\ttime-blend-data\tTimeBlendData\n6521702302194646349\ttime-blend-data\tTimeBlendData\n7591081627721724037\ttime-blend-data\tTimeBlendData\n7591081629127851341\ttime-blend-data\tTimeBlendData\n7794375147286900454\ttime-blend-data\tTimeBlendData\n7794375148645694797\ttime-blend-data\tTimeBlendData\n7893826270395138347\ttime-blend-data\tTimeBlendData\n7893826271730777421\ttime-blend-data\tTimeBlendData\n8170100522811000611\ttime-blend-data\tTimeBlendData\n8170100524082314573\ttime-blend-data\tTimeBlendData\n8555650309609473696\ttime-blend-data\tTimeBlendData\n8555650310791019853\ttime-blend-data\tTimeBlendData\n3813979866528610939\ttime-blend-data\tTimeBlendData\n3813979868814163277\ttime-blend-data\tTimeBlendData\n9938095950027865421\ttime-blend-data\tTimeBlendData\n10058776078549826893\ttime-blend-data\tTimeBlendData\n10255012752051977549\ttime-blend-data\tTimeBlendData\n10832289109403501965\ttime-blend-data\tTimeBlendData\n10832289110054976845\ttime-blend-data\tTimeBlendData\n11332972177567174182\ttime-blend-data\tTimeBlendData\n11332972178102074701\ttime-blend-data\tTimeBlendData\n11374364255402376525\ttime-blend-data\tTimeBlendData\n11409204720352731966\ttime-blend-data\tTimeBlendData\n11409204720869883213\ttime-blend-data\tTimeBlendData\n11490697228480724301\ttime-blend-data\tTimeBlendData\n11831733634831269197\ttime-blend-data\tTimeBlendData\n12030939629306149849\ttime-blend-data\tTimeBlendData\n12030939629678542157\ttime-blend-data\tTimeBlendData\n12098794301507997008\ttime-blend-data\tTimeBlendData\n12098794301628572504\ttime-blend-data\tTimeBlendData\n12098794301864590669\ttime-blend-data\tTimeBlendData\n12167572168680979789\ttime-blend-data\tTimeBlendData\n12377962515773479763\ttime-blend-data\tTimeBlendData\n12377962516065074509\ttime-blend-data\tTimeBlendData\n12616662113647551320\ttime-blend-data\tTimeBlendData\n12616662113883569485\ttime-blend-data\tTimeBlendData\n12616662114670559028\ttime-blend-data\tTimeBlendData\n12895556605523311949\ttime-blend-data\tTimeBlendData\n13039675255205280654\ttime-blend-data\tTimeBlendData\n13039675255342808397\ttime-blend-data\tTimeBlendData\n13111734580131806497\ttime-blend-data\tTimeBlendData\n13111734580252556621\ttime-blend-data\tTimeBlendData\n13156647006022188365\ttime-blend-data\tTimeBlendData\n13590883339398317155\ttime-blend-data\tTimeBlendData\n13590883339407506765\ttime-blend-data\tTimeBlendData\n13630352413820501325\ttime-blend-data\tTimeBlendData\n13880690441003253069\ttime-blend-data\tTimeBlendData\n13880690441061539433\ttime-blend-data\tTimeBlendData\n13987674971085258061\ttime-blend-data\tTimeBlendData\n15401350653266148685\ttime-blend-data\tTimeBlendData\n15553353716284833101\ttime-blend-data\tTimeBlendData\n15553353716732566732\ttime-blend-data\tTimeBlendData\n15712871490307800397\ttime-blend-data\tTimeBlendData\n15712871490792674654\ttime-blend-data\tTimeBlendData\n16132709916495887693\ttime-blend-data\tTimeBlendData\n16132709917078513201\ttime-blend-data\tTimeBlendData\n16496135648058064205\ttime-blend-data\tTimeBlendData\n16496135648725306360\ttime-blend-data\tTimeBlendData\n16508922229554724173\ttime-blend-data\tTimeBlendData\n16508922230224943436\ttime-blend-data\tTimeBlendData\n16725689280523451725\ttime-blend-data\tTimeBlendData\n16725689281244141000\ttime-blend-data\tTimeBlendData\n17010446763299487053\ttime-blend-data\tTimeBlendData\n17010446764086476596\ttime-blend-data\tTimeBlendData\n17117702851278716237\ttime-blend-data\tTimeBlendData\n17117702852090678284\ttime-blend-data\tTimeBlendData\n17371216860747971917\ttime-blend-data\tTimeBlendData\n17371216861618959794\ttime-blend-data\tTimeBlendData\n17876238949570624845\ttime-blend-data\tTimeBlendData\n17876238950559197340\ttime-blend-data\tTimeBlendData\n18256824853596781901\ttime-blend-data\tTimeBlendData\n18256824854673966457\ttime-blend-data\tTimeBlendData\n10058776077718254476\ttime-blend-data\tTimeBlendData\n10058776078378743912\ttime-blend-data\tTimeBlendData\n10255012751266095043\ttime-blend-data\tTimeBlendData\n10255012751880894568\ttime-blend-data\tTimeBlendData\n10832289109883893864\ttime-blend-data\tTimeBlendData\n10863445266032408041\ttime-blend-data\tTimeBlendData\n10863445266505545832\ttime-blend-data\tTimeBlendData\n10863445266676628813\ttime-blend-data\tTimeBlendData\n10927452931731365003\ttime-blend-data\tTimeBlendData\n10927452932189599848\ttime-blend-data\tTimeBlendData\n10927452932360682829\ttime-blend-data\tTimeBlendData\n1095220855370561640\ttime-blend-data\tTimeBlendData\n11332972177930991720\ttime-blend-data\tTimeBlendData\n11409204720698800232\ttime-blend-data\tTimeBlendData\n12030939629507459176\ttime-blend-data\tTimeBlendData\n12098794301693507688\ttime-blend-data\tTimeBlendData\n12377962515893991528\ttime-blend-data\tTimeBlendData\n12616662110710005760\ttime-blend-data\tTimeBlendData\n12616662110824161516\ttime-blend-data\tTimeBlendData\n12616662110843660633\ttime-blend-data\tTimeBlendData\n12616662110857716754\ttime-blend-data\tTimeBlendData\n12616662110874494373\ttime-blend-data\tTimeBlendData\n12616662110917979698\ttime-blend-data\tTimeBlendData\n12616662110918962241\ttime-blend-data\tTimeBlendData\n12616662110965006736\ttime-blend-data\tTimeBlendData\n12616662111045112201\ttime-blend-data\tTimeBlendData\n12616662111061415525\ttime-blend-data\tTimeBlendData\n12616662111129674256\ttime-blend-data\tTimeBlendData\n12616662111164772444\ttime-blend-data\tTimeBlendData\n12616662111358726810\ttime-blend-data\tTimeBlendData\n12616662111428103882\ttime-blend-data\tTimeBlendData\n12616662111486723583\ttime-blend-data\tTimeBlendData\n12616662111717261609\ttime-blend-data\tTimeBlendData\n12616662111790812041\ttime-blend-data\tTimeBlendData\n12616662111817704688\ttime-blend-data\tTimeBlendData\n12616662111935484516\ttime-blend-data\tTimeBlendData\n12616662112015372347\ttime-blend-data\tTimeBlendData\n12616662112477442181\ttime-blend-data\tTimeBlendData\n12616662112524775142\ttime-blend-data\tTimeBlendData\n12616662112547930411\ttime-blend-data\tTimeBlendData\n12616662112612255523\ttime-blend-data\tTimeBlendData\n12616662112693208492\ttime-blend-data\tTimeBlendData\n12616662112702023328\ttime-blend-data\tTimeBlendData\n12616662112743123120\ttime-blend-data\tTimeBlendData\n12616662112764613304\ttime-blend-data\tTimeBlendData\n12616662112875463672\ttime-blend-data\tTimeBlendData\n12616662113006857334\ttime-blend-data\tTimeBlendData\n12616662113051997068\ttime-blend-data\tTimeBlendData\n12616662113097686979\ttime-blend-data\tTimeBlendData\n12616662113232094605\ttime-blend-data\tTimeBlendData\n12616662113239348713\ttime-blend-data\tTimeBlendData\n12616662113254251659\ttime-blend-data\tTimeBlendData\n12616662113348668966\ttime-blend-data\tTimeBlendData\n12616662113366418238\ttime-blend-data\tTimeBlendData\n12616662113511177177\ttime-blend-data\tTimeBlendData\n12616662113591974739\ttime-blend-data\tTimeBlendData\n12616662113712486504\ttime-blend-data\tTimeBlendData\n12616662113728818345\ttime-blend-data\tTimeBlendData\n12616662113746041742\ttime-blend-data\tTimeBlendData\n12616662113762819361\ttime-blend-data\tTimeBlendData\n12616662113860783259\ttime-blend-data\tTimeBlendData\n12616662113941855849\ttime-blend-data\tTimeBlendData\n12616662114029535559\ttime-blend-data\tTimeBlendData\n12616662114331303116\ttime-blend-data\tTimeBlendData\n12616662114368443742\ttime-blend-data\tTimeBlendData\n12616662114466194993\ttime-blend-data\tTimeBlendData\n12616662114550811640\ttime-blend-data\tTimeBlendData\n12616662114553788748\ttime-blend-data\tTimeBlendData\n12616662114604258760\ttime-blend-data\tTimeBlendData\n12616662114695531532\ttime-blend-data\tTimeBlendData\n12616662114860709750\ttime-blend-data\tTimeBlendData\n12616662114872141980\ttime-blend-data\tTimeBlendData\n12616662114960754041\ttime-blend-data\tTimeBlendData\n12895556602463903980\ttime-blend-data\tTimeBlendData\n12895556602483403097\ttime-blend-data\tTimeBlendData\n12895556602497459218\ttime-blend-data\tTimeBlendData\n12895556602514236837\ttime-blend-data\tTimeBlendData\n12895556602557722162\ttime-blend-data\tTimeBlendData\n12895556602558704705\ttime-blend-data\tTimeBlendData\n12895556602604749200\ttime-blend-data\tTimeBlendData\n12895556602684854665\ttime-blend-data\tTimeBlendData\n12895556602701157989\ttime-blend-data\tTimeBlendData\n12895556602769416720\ttime-blend-data\tTimeBlendData\n12895556602804514908\ttime-blend-data\tTimeBlendData\n12895556602998469274\ttime-blend-data\tTimeBlendData\n12895556603067846346\ttime-blend-data\tTimeBlendData\n12895556603126466047\ttime-blend-data\tTimeBlendData\n12895556603357004073\ttime-blend-data\tTimeBlendData\n12895556603430554505\ttime-blend-data\tTimeBlendData\n12895556603457447152\ttime-blend-data\tTimeBlendData\n12895556603575226980\ttime-blend-data\tTimeBlendData\n12895556603655114811\ttime-blend-data\tTimeBlendData\n12895556604117184645\ttime-blend-data\tTimeBlendData\n12895556604164517606\ttime-blend-data\tTimeBlendData\n12895556604187672875\ttime-blend-data\tTimeBlendData\n12895556604251997987\ttime-blend-data\tTimeBlendData\n12895556604332950956\ttime-blend-data\tTimeBlendData\n12895556604341765792\ttime-blend-data\tTimeBlendData\n12895556604404355768\ttime-blend-data\tTimeBlendData\n12895556604515206136\ttime-blend-data\tTimeBlendData\n12895556604646599798\ttime-blend-data\tTimeBlendData\n12895556604691739532\ttime-blend-data\tTimeBlendData\n12895556604737429443\ttime-blend-data\tTimeBlendData\n12895556604871837069\ttime-blend-data\tTimeBlendData\n12895556604879091177\ttime-blend-data\tTimeBlendData\n12895556604893994123\ttime-blend-data\tTimeBlendData\n12895556604988411430\ttime-blend-data\tTimeBlendData\n12895556605006160702\ttime-blend-data\tTimeBlendData\n12895556605150919641\ttime-blend-data\tTimeBlendData\n12895556605231717203\ttime-blend-data\tTimeBlendData\n12895556605287293784\ttime-blend-data\tTimeBlendData\n12895556605352228968\ttime-blend-data\tTimeBlendData\n12895556605368560809\ttime-blend-data\tTimeBlendData\n12895556605385784206\ttime-blend-data\tTimeBlendData\n12895556605402561825\ttime-blend-data\tTimeBlendData\n12895556605500525723\ttime-blend-data\tTimeBlendData\n12895556605500656514\ttime-blend-data\tTimeBlendData\n12895556605581598313\ttime-blend-data\tTimeBlendData\n12895556605669278023\ttime-blend-data\tTimeBlendData\n12895556605693762823\ttime-blend-data\tTimeBlendData\n12895556605971045580\ttime-blend-data\tTimeBlendData\n12895556606008186206\ttime-blend-data\tTimeBlendData\n12895556606105937457\ttime-blend-data\tTimeBlendData\n12895556606190554104\ttime-blend-data\tTimeBlendData\n12895556606193531212\ttime-blend-data\tTimeBlendData\n12895556606244001224\ttime-blend-data\tTimeBlendData\n12895556606335273996\ttime-blend-data\tTimeBlendData\n12895556606500452214\ttime-blend-data\tTimeBlendData\n12895556606511884444\ttime-blend-data\tTimeBlendData\n12895556606600496505\ttime-blend-data\tTimeBlendData\n12965701327625071734\ttime-blend-data\tTimeBlendData\n12965701327857563113\ttime-blend-data\tTimeBlendData\n12965701328330700904\ttime-blend-data\tTimeBlendData\n12965701328347032745\ttime-blend-data\tTimeBlendData\n12965701328479128450\ttime-blend-data\tTimeBlendData\n12965701328501783885\ttime-blend-data\tTimeBlendData\n12965701328672234759\ttime-blend-data\tTimeBlendData\n13039675255171725416\ttime-blend-data\tTimeBlendData\n13111734580081473640\ttime-blend-data\tTimeBlendData\n13222943558562528589\ttime-blend-data\tTimeBlendData\n13532486318180153448\ttime-blend-data\tTimeBlendData\n13532486318328450203\ttime-blend-data\tTimeBlendData\n13532486318351236429\ttime-blend-data\tTimeBlendData\n13533048061247764584\ttime-blend-data\tTimeBlendData\n13533048061418847565\ttime-blend-data\tTimeBlendData\n13590883339236423784\ttime-blend-data\tTimeBlendData\n13630352413649418344\ttime-blend-data\tTimeBlendData\n13880690440832170088\ttime-blend-data\tTimeBlendData\n14257271927099305078\ttime-blend-data\tTimeBlendData\n14257271927331796457\ttime-blend-data\tTimeBlendData\n14257271927804934248\ttime-blend-data\tTimeBlendData\n14257271927953361794\ttime-blend-data\tTimeBlendData\n14257271927976017229\ttime-blend-data\tTimeBlendData\n14257271928121983303\ttime-blend-data\tTimeBlendData\n14257271928146468103\ttime-blend-data\tTimeBlendData\n14362433343054035048\ttime-blend-data\tTimeBlendData\n14362433343225118029\ttime-blend-data\tTimeBlendData\n1439271207776434280\ttime-blend-data\tTimeBlendData\n1509293451172526184\ttime-blend-data\tTimeBlendData\n15553353716113750120\ttime-blend-data\tTimeBlendData\n15712871490136717416\ttime-blend-data\tTimeBlendData\n15909112510316854605\ttime-blend-data\tTimeBlendData\n16132709916324804712\ttime-blend-data\tTimeBlendData\n16496135647886981224\ttime-blend-data\tTimeBlendData\n16508922229383641192\ttime-blend-data\tTimeBlendData\n16672170423192436045\ttime-blend-data\tTimeBlendData\n16725689280352368744\ttime-blend-data\tTimeBlendData\n17010446763128404072\ttime-blend-data\tTimeBlendData\n17117702851107633256\ttime-blend-data\tTimeBlendData\n17371216859389177574\ttransition-clip-blend-data\tTransitionClipBlendData\n17371216859566425760\ttransition-clip-blend-data\tTransitionClipBlendData\n17371216860456377171\ttransition-clip-blend-data\tTransitionClipBlendData\n17371216860576888936\ttime-blend-data\tTimeBlendData\n17371216861330597425\ttransition-clip-blend-data\tTransitionClipBlendData\n17827137895429191784\ttime-blend-data\tTimeBlendData\n17827137895600274765\ttime-blend-data\tTimeBlendData\n17827137896577415030\ttime-blend-data\tTimeBlendData\n17876238949399541864\ttime-blend-data\tTimeBlendData\n1802462468483987560\ttime-blend-data\tTimeBlendData\n18256824853425698920\ttime-blend-data\tTimeBlendData\n1953208038092847208\ttime-blend-data\tTimeBlendData\n2372166789366492902\ttransition-clip-blend-data\tTransitionClipBlendData\n2372166789543741088\ttransition-clip-blend-data\tTransitionClipBlendData\n2372166790433692499\ttransition-clip-blend-data\tTransitionClipBlendData\n2372166790554204264\ttime-blend-data\tTimeBlendData\n2372166791307912753\ttransition-clip-blend-data\tTransitionClipBlendData\n2786235696979261544\ttime-blend-data\tTimeBlendData\n3084207952311498856\ttime-blend-data\tTimeBlendData\n3335977648782034431\ttime-blend-data\tTimeBlendData\n3335977651007797352\ttime-blend-data\tTimeBlendData\n3969349000781937997\ttime-blend-data\tTimeBlendData\n4326130933162195048\ttime-blend-data\tTimeBlendData\n4642027633208866920\ttime-blend-data\tTimeBlendData\n4703778292391161574\ttransition-clip-blend-data\tTransitionClipBlendData\n4703778292568409760\ttransition-clip-blend-data\tTransitionClipBlendData\n4703778293458361171\ttransition-clip-blend-data\tTransitionClipBlendData\n4703778293578872936\ttime-blend-data\tTimeBlendData\n4703778294332581425\ttransition-clip-blend-data\tTransitionClipBlendData\n4757530670681957616\ttime-blend-data\tTimeBlendData\n4757530672511804248\ttime-blend-data\tTimeBlendData\n4757530672576739432\ttime-blend-data\tTimeBlendData\n490295238784311532\ttime-blend-data\tTimeBlendData\n490295241672636520\ttime-blend-data\tTimeBlendData\n490295241843719501\ttime-blend-data\tTimeBlendData\n5231338579940654413\ttime-blend-data\tTimeBlendData\n5263391179076919532\ttime-blend-data\tTimeBlendData\n5263391179110474770\ttime-blend-data\tTimeBlendData\n5263391179127252389\ttime-blend-data\tTimeBlendData\n5263391180188242532\ttime-blend-data\tTimeBlendData\n5263391180945966508\ttime-blend-data\tTimeBlendData\n5263391181017371320\ttime-blend-data\tTimeBlendData\n5263391181128221688\ttime-blend-data\tTimeBlendData\n5263391181965244520\ttime-blend-data\tTimeBlendData\n5263391182136327501\ttime-blend-data\tTimeBlendData\n5606506803458619496\ttime-blend-data\tTimeBlendData\n574043311488514152\ttime-blend-data\tTimeBlendData\n634413888637363218\ttime-blend-data\tTimeBlendData\n634413891492132968\ttime-blend-data\tTimeBlendData\n634413891663215949\ttime-blend-data\tTimeBlendData\n706473213563889061\ttime-blend-data\tTimeBlendData\n706473216401881192\ttime-blend-data\tTimeBlendData\n706473216572964173\ttime-blend-data\tTimeBlendData\n7591081628956768360\ttime-blend-data\tTimeBlendData\n7794375148474611816\ttime-blend-data\tTimeBlendData\n7893826271559694440\ttime-blend-data\tTimeBlendData\n8170100523911231592\ttime-blend-data\tTimeBlendData\n8517790877261055404\ttime-blend-data\tTimeBlendData\n8517790878280333416\ttime-blend-data\tTimeBlendData\n8517790878451416397\ttime-blend-data\tTimeBlendData\n8555650310619936872\ttime-blend-data\tTimeBlendData\n8732172572162975920\ttime-blend-data\tTimeBlendData\n8732172573132339304\ttime-blend-data\tTimeBlendData\n8732172573303422285\ttime-blend-data\tTimeBlendData\n8824472209649488568\ttime-blend-data\tTimeBlendData\n8824472210597361768\ttime-blend-data\tTimeBlendData\n8824472210768444749\ttime-blend-data\tTimeBlendData\n893241265132812392\ttime-blend-data\tTimeBlendData\n897461252391201857\ttime-blend-data\tTimeBlendData\n897461255184726120\ttime-blend-data\tTimeBlendData\n897461255355809101\ttime-blend-data\tTimeBlendData\n9300570915069903864\ttime-blend-data\tTimeBlendData\n9300570915906926696\ttime-blend-data\tTimeBlendData\n9300570916078009677\ttime-blend-data\tTimeBlendData\n9864902396392975478\ttime-blend-data\tTimeBlendData\n9864902397098604648\ttime-blend-data\tTimeBlendData\n9864902397269687629\ttime-blend-data\tTimeBlendData"
-          },
           {
             "id": "AnimationGraphData_parameter_mCascadeBlendValue",
             "name": "mCascadeBlendValue",
@@ -719,10 +73,22 @@
             "defaultValue": "Death_Passive\tatomic-clip-data\tAtomicClipData\nAttack1_BASE\tatomic-clip-data\tAtomicClipData\nAttack2_BASE\tatomic-clip-data\tAtomicClipData\n0x4dce503b\tatomic-clip-data\tAtomicClipData\nCrit\tatomic-clip-data\tAtomicClipData\nIdle2_Base\tatomic-clip-data\tAtomicClipData\n0x76bbc6a0\tatomic-clip-data\tAtomicClipData\n0xabc75b53\tatomic-clip-data\tAtomicClipData\nSpell3\tatomic-clip-data\tAtomicClipData\nIdle1_Base\tatomic-clip-data\tAtomicClipData\nSpell3_Flying\tatomic-clip-data\tAtomicClipData\n0xda0f555e\tatomic-clip-data\tAtomicClipData\nIdle1\tsequencer-clip-data\tSequencerClipData\n0xc0a21e69\tatomic-clip-data\tAtomicClipData\n0x0c656e32\tatomic-clip-data\tAtomicClipData\n0x406bcb89\tatomic-clip-data\tAtomicClipData\nAttack1\tselector-clip-data\tSelectorClipData\n0xe4ee0bf8\tatomic-clip-data\tAtomicClipData\nChannel_Base\tatomic-clip-data\tAtomicClipData\nRespawn_Base\tatomic-clip-data\tAtomicClipData\nRecall_Base\tatomic-clip-data\tAtomicClipData\nRecall_LeadIn\tatomic-clip-data\tAtomicClipData\n0x13f95189\tatomic-clip-data\tAtomicClipData\nRecall_Leadout\tatomic-clip-data\tAtomicClipData\n0x9e55a33e\tatomic-clip-data\tAtomicClipData\n0x9d46ce26\tatomic-clip-data\tAtomicClipData\nDeath\tatomic-clip-data\tAtomicClipData\nDance\tatomic-clip-data\tAtomicClipData\nRecall\tsequencer-clip-data\tSequencerClipData\nAttack2\tselector-clip-data\tSelectorClipData\nRespawn\tsequencer-clip-data\tSequencerClipData\nChannel_Wndup\tsequencer-clip-data\tSequencerClipData\n0x0f330190\tatomic-clip-data\tAtomicClipData\nChannel_WUp_LeadIn\tatomic-clip-data\tAtomicClipData\nChannel\tsequencer-clip-data\tSequencerClipData\n0xed8e4c0c\tatomic-clip-data\tAtomicClipData\nLaugh\tsequencer-clip-data\tSequencerClipData\nSpell2\tatomic-clip-data\tAtomicClipData\nPickup\tatomic-clip-data\tAtomicClipData\nJoke_Loop\tatomic-clip-data\tAtomicClipData\nJoke_Windup\tatomic-clip-data\tAtomicClipData\nJoke\tsequencer-clip-data\tSequencerClipData\nRun_Fast\tatomic-clip-data\tAtomicClipData\nRun\tatomic-clip-data\tAtomicClipData\nRun_Haste\tatomic-clip-data\tAtomicClipData\nRecall_Winddown\tsequencer-clip-data\tSequencerClipData\nSpell1\tparametric-clip-data\tParametricClipData\nDeath_Unite\tatomic-clip-data\tAtomicClipData\n0x8e511fc3\tatomic-clip-data\tAtomicClipData\nSpell3_Windup\tatomic-clip-data\tAtomicClipData\n0x792ee8b0\tatomic-clip-data\tAtomicClipData\n0xe75f72aa\tselector-clip-data\tSelectorClipData\n0x97a61c8b\tatomic-clip-data\tAtomicClipData\n0xdcc88589\tselector-clip-data\tSelectorClipData\n0x3715f5e2\tselector-clip-data\tSelectorClipData\nSpell1_B1\tatomic-clip-data\tAtomicClipData\nSpell1_B2\tatomic-clip-data\tAtomicClipData\nSpell1_B3\tatomic-clip-data\tAtomicClipData\n0x7a76d2b8\tparametric-clip-data\tParametricClipData\n0x763545ac\tparametric-clip-data\tParametricClipData\n0x811243f8\tparametric-clip-data\tParametricClipData\nSpell1_Max\tatomic-clip-data\tAtomicClipData\nSpell1_Min\tatomic-clip-data\tAtomicClipData\n0xbbcd0c9b\tparametric-clip-data\tParametricClipData\nSpell1_Regrow_Idle\tatomic-clip-data\tAtomicClipData\nSpell1_Regrow_Run\tatomic-clip-data\tAtomicClipData\nSpell1_Slam\tatomic-clip-data\tAtomicClipData\nSpell3_Back\tparametric-clip-data\tParametricClipData\nSpell3_BackRun\tatomic-clip-data\tAtomicClipData\n0xf766b776\tatomic-clip-data\tAtomicClipData\nTaunt\tsequencer-clip-data\tSequencerClipData\nTaunt_Base\tatomic-clip-data\tAtomicClipData\nSpell4\tatomic-clip-data\tAtomicClipData\n0xda949924\tatomic-clip-data\tAtomicClipData\n0x4f25d6ab\tatomic-clip-data\tAtomicClipData\nSpell4_Windup\tatomic-clip-data\tAtomicClipData\nSpell4_ToRun\tatomic-clip-data\tAtomicClipData\nSpell4_ToIdle\tatomic-clip-data\tAtomicClipData\n0x11da97ed\tcondition-bool-clip-data\tConditionBoolClipData\n0x4bb8c551\tsequencer-clip-data\tSequencerClipData"
           },
           {
+            "id": "AnimationGraphData_parameter_mClipName",
+            "name": "mClipName",
+            "type": "integer",
+            "defaultValue": "0xda0f555e"
+          },
+          {
             "id": "AnimationGraphData_parameter_mMaskDataMap",
             "name": "mMaskDataMap",
             "type": "mapHashEmbed",
             "defaultValue": "ScaleBody\tmask-data\tMaskData\n0x5ad57b83\tmask-data\tMaskData"
+          },
+          {
+            "id": "AnimationGraphData_parameter_mTime",
+            "name": "mTime",
+            "type": "f32",
+            "defaultValue": "0"
           },
           {
             "id": "AnimationGraphData_parameter_mTrackDataMap",
@@ -736,14 +102,14 @@
           "group": "#2 Entidades",
           "collection": "#2 Root Entry (AnimationGraphData)",
           "collectionType": "AnimationGraphData",
-          "pathHierarchy": "main > entries:Characters/Zac/Animations/Skin0",
+          "pathHierarchy": "entries > Characters/Zac/Animations/Skin0",
           "pathHierarchySteps": [
             {
-              "id": "main",
-              "type": "#0 Root main"
+              "id": "entries",
+              "type": "#1 Root Entry"
             },
             {
-              "id": "entries:Characters/Zac/Animations/Skin0",
+              "id": "Characters/Zac/Animations/Skin0",
               "type": "#2 Root Entry (AnimationGraphData)"
             }
           ]
@@ -751,20 +117,24 @@
       },
       "values": [
         {
-          "parameterId": "AnimationGraphData_parameter_mBlendDataTable",
-          "value": "574043308619688281\ttime-blend-data\tTimeBlendData\n574043311659597133\ttime-blend-data\tTimeBlendData\n893241262338305586\ttime-blend-data\tTimeBlendData\n893241265303895373\ttime-blend-data\tTimeBlendData\n1095220852623081872\ttime-blend-data\tTimeBlendData\n1095220855541644621\ttime-blend-data\tTimeBlendData\n1439271205109059977\ttime-blend-data\tTimeBlendData\n1439271207947517261\ttime-blend-data\tTimeBlendData\n1509293448521455205\ttime-blend-data\tTimeBlendData\n1509293451343609165\ttime-blend-data\tTimeBlendData\n1802462465901175312\ttime-blend-data\tTimeBlendData\n1802462468655070541\ttime-blend-data\tTimeBlendData\n1953208035545133148\ttime-blend-data\tTimeBlendData\n1953208038263930189\ttime-blend-data\tTimeBlendData\n2372166788104036640\ttime-blend-data\tTimeBlendData\n2372166790725287245\ttime-blend-data\tTimeBlendData\n2432597616235167053\ttime-blend-data\tTimeBlendData\n2786235694625501850\ttime-blend-data\tTimeBlendData\n2786235697150344525\ttime-blend-data\tTimeBlendData\n3084207950027116234\ttime-blend-data\tTimeBlendData\n3084207952482581837\ttime-blend-data\tTimeBlendData\n3335977651178880333\ttime-blend-data\tTimeBlendData\n4326130931166970153\ttime-blend-data\tTimeBlendData\n4326130933333278029\ttime-blend-data\tTimeBlendData\n4642027631287192457\ttime-blend-data\tTimeBlendData\n4642027633379949901\ttime-blend-data\tTimeBlendData\n4703778291671575919\ttime-blend-data\tTimeBlendData\n4703778293749955917\ttime-blend-data\tTimeBlendData\n4757530672747822413\ttime-blend-data\tTimeBlendData\n5606506801761505339\ttime-blend-data\tTimeBlendData\n5606506803629702477\ttime-blend-data\tTimeBlendData\n6247030502141246797\ttime-blend-data\tTimeBlendData\n6463208476870491469\ttime-blend-data\tTimeBlendData\n6521702302194646349\ttime-blend-data\tTimeBlendData\n7591081627721724037\ttime-blend-data\tTimeBlendData\n7591081629127851341\ttime-blend-data\tTimeBlendData\n7794375147286900454\ttime-blend-data\tTimeBlendData\n7794375148645694797\ttime-blend-data\tTimeBlendData\n7893826270395138347\ttime-blend-data\tTimeBlendData\n7893826271730777421\ttime-blend-data\tTimeBlendData\n8170100522811000611\ttime-blend-data\tTimeBlendData\n8170100524082314573\ttime-blend-data\tTimeBlendData\n8555650309609473696\ttime-blend-data\tTimeBlendData\n8555650310791019853\ttime-blend-data\tTimeBlendData\n3813979866528610939\ttime-blend-data\tTimeBlendData\n3813979868814163277\ttime-blend-data\tTimeBlendData\n9938095950027865421\ttime-blend-data\tTimeBlendData\n10058776078549826893\ttime-blend-data\tTimeBlendData\n10255012752051977549\ttime-blend-data\tTimeBlendData\n10832289109403501965\ttime-blend-data\tTimeBlendData\n10832289110054976845\ttime-blend-data\tTimeBlendData\n11332972177567174182\ttime-blend-data\tTimeBlendData\n11332972178102074701\ttime-blend-data\tTimeBlendData\n11374364255402376525\ttime-blend-data\tTimeBlendData\n11409204720352731966\ttime-blend-data\tTimeBlendData\n11409204720869883213\ttime-blend-data\tTimeBlendData\n11490697228480724301\ttime-blend-data\tTimeBlendData\n11831733634831269197\ttime-blend-data\tTimeBlendData\n12030939629306149849\ttime-blend-data\tTimeBlendData\n12030939629678542157\ttime-blend-data\tTimeBlendData\n12098794301507997008\ttime-blend-data\tTimeBlendData\n12098794301628572504\ttime-blend-data\tTimeBlendData\n12098794301864590669\ttime-blend-data\tTimeBlendData\n12167572168680979789\ttime-blend-data\tTimeBlendData\n12377962515773479763\ttime-blend-data\tTimeBlendData\n12377962516065074509\ttime-blend-data\tTimeBlendData\n12616662113647551320\ttime-blend-data\tTimeBlendData\n12616662113883569485\ttime-blend-data\tTimeBlendData\n12616662114670559028\ttime-blend-data\tTimeBlendData\n12895556605523311949\ttime-blend-data\tTimeBlendData\n13039675255205280654\ttime-blend-data\tTimeBlendData\n13039675255342808397\ttime-blend-data\tTimeBlendData\n13111734580131806497\ttime-blend-data\tTimeBlendData\n13111734580252556621\ttime-blend-data\tTimeBlendData\n13156647006022188365\ttime-blend-data\tTimeBlendData\n13590883339398317155\ttime-blend-data\tTimeBlendData\n13590883339407506765\ttime-blend-data\tTimeBlendData\n13630352413820501325\ttime-blend-data\tTimeBlendData\n13880690441003253069\ttime-blend-data\tTimeBlendData\n13880690441061539433\ttime-blend-data\tTimeBlendData\n13987674971085258061\ttime-blend-data\tTimeBlendData\n15401350653266148685\ttime-blend-data\tTimeBlendData\n15553353716284833101\ttime-blend-data\tTimeBlendData\n15553353716732566732\ttime-blend-data\tTimeBlendData\n15712871490307800397\ttime-blend-data\tTimeBlendData\n15712871490792674654\ttime-blend-data\tTimeBlendData\n16132709916495887693\ttime-blend-data\tTimeBlendData\n16132709917078513201\ttime-blend-data\tTimeBlendData\n16496135648058064205\ttime-blend-data\tTimeBlendData\n16496135648725306360\ttime-blend-data\tTimeBlendData\n16508922229554724173\ttime-blend-data\tTimeBlendData\n16508922230224943436\ttime-blend-data\tTimeBlendData\n16725689280523451725\ttime-blend-data\tTimeBlendData\n16725689281244141000\ttime-blend-data\tTimeBlendData\n17010446763299487053\ttime-blend-data\tTimeBlendData\n17010446764086476596\ttime-blend-data\tTimeBlendData\n17117702851278716237\ttime-blend-data\tTimeBlendData\n17117702852090678284\ttime-blend-data\tTimeBlendData\n17371216860747971917\ttime-blend-data\tTimeBlendData\n17371216861618959794\ttime-blend-data\tTimeBlendData\n17876238949570624845\ttime-blend-data\tTimeBlendData\n17876238950559197340\ttime-blend-data\tTimeBlendData\n18256824853596781901\ttime-blend-data\tTimeBlendData\n18256824854673966457\ttime-blend-data\tTimeBlendData\n10058776077718254476\ttime-blend-data\tTimeBlendData\n10058776078378743912\ttime-blend-data\tTimeBlendData\n10255012751266095043\ttime-blend-data\tTimeBlendData\n10255012751880894568\ttime-blend-data\tTimeBlendData\n10832289109883893864\ttime-blend-data\tTimeBlendData\n10863445266032408041\ttime-blend-data\tTimeBlendData\n10863445266505545832\ttime-blend-data\tTimeBlendData\n10863445266676628813\ttime-blend-data\tTimeBlendData\n10927452931731365003\ttime-blend-data\tTimeBlendData\n10927452932189599848\ttime-blend-data\tTimeBlendData\n10927452932360682829\ttime-blend-data\tTimeBlendData\n1095220855370561640\ttime-blend-data\tTimeBlendData\n11332972177930991720\ttime-blend-data\tTimeBlendData\n11409204720698800232\ttime-blend-data\tTimeBlendData\n12030939629507459176\ttime-blend-data\tTimeBlendData\n12098794301693507688\ttime-blend-data\tTimeBlendData\n12377962515893991528\ttime-blend-data\tTimeBlendData\n12616662110710005760\ttime-blend-data\tTimeBlendData\n12616662110824161516\ttime-blend-data\tTimeBlendData\n12616662110843660633\ttime-blend-data\tTimeBlendData\n12616662110857716754\ttime-blend-data\tTimeBlendData\n12616662110874494373\ttime-blend-data\tTimeBlendData\n12616662110917979698\ttime-blend-data\tTimeBlendData\n12616662110918962241\ttime-blend-data\tTimeBlendData\n12616662110965006736\ttime-blend-data\tTimeBlendData\n12616662111045112201\ttime-blend-data\tTimeBlendData\n12616662111061415525\ttime-blend-data\tTimeBlendData\n12616662111129674256\ttime-blend-data\tTimeBlendData\n12616662111164772444\ttime-blend-data\tTimeBlendData\n12616662111358726810\ttime-blend-data\tTimeBlendData\n12616662111428103882\ttime-blend-data\tTimeBlendData\n12616662111486723583\ttime-blend-data\tTimeBlendData\n12616662111717261609\ttime-blend-data\tTimeBlendData\n12616662111790812041\ttime-blend-data\tTimeBlendData\n12616662111817704688\ttime-blend-data\tTimeBlendData\n12616662111935484516\ttime-blend-data\tTimeBlendData\n12616662112015372347\ttime-blend-data\tTimeBlendData\n12616662112477442181\ttime-blend-data\tTimeBlendData\n12616662112524775142\ttime-blend-data\tTimeBlendData\n12616662112547930411\ttime-blend-data\tTimeBlendData\n12616662112612255523\ttime-blend-data\tTimeBlendData\n12616662112693208492\ttime-blend-data\tTimeBlendData\n12616662112702023328\ttime-blend-data\tTimeBlendData\n12616662112743123120\ttime-blend-data\tTimeBlendData\n12616662112764613304\ttime-blend-data\tTimeBlendData\n12616662112875463672\ttime-blend-data\tTimeBlendData\n12616662113006857334\ttime-blend-data\tTimeBlendData\n12616662113051997068\ttime-blend-data\tTimeBlendData\n12616662113097686979\ttime-blend-data\tTimeBlendData\n12616662113232094605\ttime-blend-data\tTimeBlendData\n12616662113239348713\ttime-blend-data\tTimeBlendData\n12616662113254251659\ttime-blend-data\tTimeBlendData\n12616662113348668966\ttime-blend-data\tTimeBlendData\n12616662113366418238\ttime-blend-data\tTimeBlendData\n12616662113511177177\ttime-blend-data\tTimeBlendData\n12616662113591974739\ttime-blend-data\tTimeBlendData\n12616662113712486504\ttime-blend-data\tTimeBlendData\n12616662113728818345\ttime-blend-data\tTimeBlendData\n12616662113746041742\ttime-blend-data\tTimeBlendData\n12616662113762819361\ttime-blend-data\tTimeBlendData\n12616662113860783259\ttime-blend-data\tTimeBlendData\n12616662113941855849\ttime-blend-data\tTimeBlendData\n12616662114029535559\ttime-blend-data\tTimeBlendData\n12616662114331303116\ttime-blend-data\tTimeBlendData\n12616662114368443742\ttime-blend-data\tTimeBlendData\n12616662114466194993\ttime-blend-data\tTimeBlendData\n12616662114550811640\ttime-blend-data\tTimeBlendData\n12616662114553788748\ttime-blend-data\tTimeBlendData\n12616662114604258760\ttime-blend-data\tTimeBlendData\n12616662114695531532\ttime-blend-data\tTimeBlendData\n12616662114860709750\ttime-blend-data\tTimeBlendData\n12616662114872141980\ttime-blend-data\tTimeBlendData\n12616662114960754041\ttime-blend-data\tTimeBlendData\n12895556602463903980\ttime-blend-data\tTimeBlendData\n12895556602483403097\ttime-blend-data\tTimeBlendData\n12895556602497459218\ttime-blend-data\tTimeBlendData\n12895556602514236837\ttime-blend-data\tTimeBlendData\n12895556602557722162\ttime-blend-data\tTimeBlendData\n12895556602558704705\ttime-blend-data\tTimeBlendData\n12895556602604749200\ttime-blend-data\tTimeBlendData\n12895556602684854665\ttime-blend-data\tTimeBlendData\n12895556602701157989\ttime-blend-data\tTimeBlendData\n12895556602769416720\ttime-blend-data\tTimeBlendData\n12895556602804514908\ttime-blend-data\tTimeBlendData\n12895556602998469274\ttime-blend-data\tTimeBlendData\n12895556603067846346\ttime-blend-data\tTimeBlendData\n12895556603126466047\ttime-blend-data\tTimeBlendData\n12895556603357004073\ttime-blend-data\tTimeBlendData\n12895556603430554505\ttime-blend-data\tTimeBlendData\n12895556603457447152\ttime-blend-data\tTimeBlendData\n12895556603575226980\ttime-blend-data\tTimeBlendData\n12895556603655114811\ttime-blend-data\tTimeBlendData\n12895556604117184645\ttime-blend-data\tTimeBlendData\n12895556604164517606\ttime-blend-data\tTimeBlendData\n12895556604187672875\ttime-blend-data\tTimeBlendData\n12895556604251997987\ttime-blend-data\tTimeBlendData\n12895556604332950956\ttime-blend-data\tTimeBlendData\n12895556604341765792\ttime-blend-data\tTimeBlendData\n12895556604404355768\ttime-blend-data\tTimeBlendData\n12895556604515206136\ttime-blend-data\tTimeBlendData\n12895556604646599798\ttime-blend-data\tTimeBlendData\n12895556604691739532\ttime-blend-data\tTimeBlendData\n12895556604737429443\ttime-blend-data\tTimeBlendData\n12895556604871837069\ttime-blend-data\tTimeBlendData\n12895556604879091177\ttime-blend-data\tTimeBlendData\n12895556604893994123\ttime-blend-data\tTimeBlendData\n12895556604988411430\ttime-blend-data\tTimeBlendData\n12895556605006160702\ttime-blend-data\tTimeBlendData\n12895556605150919641\ttime-blend-data\tTimeBlendData\n12895556605231717203\ttime-blend-data\tTimeBlendData\n12895556605287293784\ttime-blend-data\tTimeBlendData\n12895556605352228968\ttime-blend-data\tTimeBlendData\n12895556605368560809\ttime-blend-data\tTimeBlendData\n12895556605385784206\ttime-blend-data\tTimeBlendData\n12895556605402561825\ttime-blend-data\tTimeBlendData\n12895556605500525723\ttime-blend-data\tTimeBlendData\n12895556605500656514\ttime-blend-data\tTimeBlendData\n12895556605581598313\ttime-blend-data\tTimeBlendData\n12895556605669278023\ttime-blend-data\tTimeBlendData\n12895556605693762823\ttime-blend-data\tTimeBlendData\n12895556605971045580\ttime-blend-data\tTimeBlendData\n12895556606008186206\ttime-blend-data\tTimeBlendData\n12895556606105937457\ttime-blend-data\tTimeBlendData\n12895556606190554104\ttime-blend-data\tTimeBlendData\n12895556606193531212\ttime-blend-data\tTimeBlendData\n12895556606244001224\ttime-blend-data\tTimeBlendData\n12895556606335273996\ttime-blend-data\tTimeBlendData\n12895556606500452214\ttime-blend-data\tTimeBlendData\n12895556606511884444\ttime-blend-data\tTimeBlendData\n12895556606600496505\ttime-blend-data\tTimeBlendData\n12965701327625071734\ttime-blend-data\tTimeBlendData\n12965701327857563113\ttime-blend-data\tTimeBlendData\n12965701328330700904\ttime-blend-data\tTimeBlendData\n12965701328347032745\ttime-blend-data\tTimeBlendData\n12965701328479128450\ttime-blend-data\tTimeBlendData\n12965701328501783885\ttime-blend-data\tTimeBlendData\n12965701328672234759\ttime-blend-data\tTimeBlendData\n13039675255171725416\ttime-blend-data\tTimeBlendData\n13111734580081473640\ttime-blend-data\tTimeBlendData\n13222943558562528589\ttime-blend-data\tTimeBlendData\n13532486318180153448\ttime-blend-data\tTimeBlendData\n13532486318328450203\ttime-blend-data\tTimeBlendData\n13532486318351236429\ttime-blend-data\tTimeBlendData\n13533048061247764584\ttime-blend-data\tTimeBlendData\n13533048061418847565\ttime-blend-data\tTimeBlendData\n13590883339236423784\ttime-blend-data\tTimeBlendData\n13630352413649418344\ttime-blend-data\tTimeBlendData\n13880690440832170088\ttime-blend-data\tTimeBlendData\n14257271927099305078\ttime-blend-data\tTimeBlendData\n14257271927331796457\ttime-blend-data\tTimeBlendData\n14257271927804934248\ttime-blend-data\tTimeBlendData\n14257271927953361794\ttime-blend-data\tTimeBlendData\n14257271927976017229\ttime-blend-data\tTimeBlendData\n14257271928121983303\ttime-blend-data\tTimeBlendData\n14257271928146468103\ttime-blend-data\tTimeBlendData\n14362433343054035048\ttime-blend-data\tTimeBlendData\n14362433343225118029\ttime-blend-data\tTimeBlendData\n1439271207776434280\ttime-blend-data\tTimeBlendData\n1509293451172526184\ttime-blend-data\tTimeBlendData\n15553353716113750120\ttime-blend-data\tTimeBlendData\n15712871490136717416\ttime-blend-data\tTimeBlendData\n15909112510316854605\ttime-blend-data\tTimeBlendData\n16132709916324804712\ttime-blend-data\tTimeBlendData\n16496135647886981224\ttime-blend-data\tTimeBlendData\n16508922229383641192\ttime-blend-data\tTimeBlendData\n16672170423192436045\ttime-blend-data\tTimeBlendData\n16725689280352368744\ttime-blend-data\tTimeBlendData\n17010446763128404072\ttime-blend-data\tTimeBlendData\n17117702851107633256\ttime-blend-data\tTimeBlendData\n17371216859389177574\ttransition-clip-blend-data\tTransitionClipBlendData\n17371216859566425760\ttransition-clip-blend-data\tTransitionClipBlendData\n17371216860456377171\ttransition-clip-blend-data\tTransitionClipBlendData\n17371216860576888936\ttime-blend-data\tTimeBlendData\n17371216861330597425\ttransition-clip-blend-data\tTransitionClipBlendData\n17827137895429191784\ttime-blend-data\tTimeBlendData\n17827137895600274765\ttime-blend-data\tTimeBlendData\n17827137896577415030\ttime-blend-data\tTimeBlendData\n17876238949399541864\ttime-blend-data\tTimeBlendData\n1802462468483987560\ttime-blend-data\tTimeBlendData\n18256824853425698920\ttime-blend-data\tTimeBlendData\n1953208038092847208\ttime-blend-data\tTimeBlendData\n2372166789366492902\ttransition-clip-blend-data\tTransitionClipBlendData\n2372166789543741088\ttransition-clip-blend-data\tTransitionClipBlendData\n2372166790433692499\ttransition-clip-blend-data\tTransitionClipBlendData\n2372166790554204264\ttime-blend-data\tTimeBlendData\n2372166791307912753\ttransition-clip-blend-data\tTransitionClipBlendData\n2786235696979261544\ttime-blend-data\tTimeBlendData\n3084207952311498856\ttime-blend-data\tTimeBlendData\n3335977648782034431\ttime-blend-data\tTimeBlendData\n3335977651007797352\ttime-blend-data\tTimeBlendData\n3969349000781937997\ttime-blend-data\tTimeBlendData\n4326130933162195048\ttime-blend-data\tTimeBlendData\n4642027633208866920\ttime-blend-data\tTimeBlendData\n4703778292391161574\ttransition-clip-blend-data\tTransitionClipBlendData\n4703778292568409760\ttransition-clip-blend-data\tTransitionClipBlendData\n4703778293458361171\ttransition-clip-blend-data\tTransitionClipBlendData\n4703778293578872936\ttime-blend-data\tTimeBlendData\n4703778294332581425\ttransition-clip-blend-data\tTransitionClipBlendData\n4757530670681957616\ttime-blend-data\tTimeBlendData\n4757530672511804248\ttime-blend-data\tTimeBlendData\n4757530672576739432\ttime-blend-data\tTimeBlendData\n490295238784311532\ttime-blend-data\tTimeBlendData\n490295241672636520\ttime-blend-data\tTimeBlendData\n490295241843719501\ttime-blend-data\tTimeBlendData\n5231338579940654413\ttime-blend-data\tTimeBlendData\n5263391179076919532\ttime-blend-data\tTimeBlendData\n5263391179110474770\ttime-blend-data\tTimeBlendData\n5263391179127252389\ttime-blend-data\tTimeBlendData\n5263391180188242532\ttime-blend-data\tTimeBlendData\n5263391180945966508\ttime-blend-data\tTimeBlendData\n5263391181017371320\ttime-blend-data\tTimeBlendData\n5263391181128221688\ttime-blend-data\tTimeBlendData\n5263391181965244520\ttime-blend-data\tTimeBlendData\n5263391182136327501\ttime-blend-data\tTimeBlendData\n5606506803458619496\ttime-blend-data\tTimeBlendData\n574043311488514152\ttime-blend-data\tTimeBlendData\n634413888637363218\ttime-blend-data\tTimeBlendData\n634413891492132968\ttime-blend-data\tTimeBlendData\n634413891663215949\ttime-blend-data\tTimeBlendData\n706473213563889061\ttime-blend-data\tTimeBlendData\n706473216401881192\ttime-blend-data\tTimeBlendData\n706473216572964173\ttime-blend-data\tTimeBlendData\n7591081628956768360\ttime-blend-data\tTimeBlendData\n7794375148474611816\ttime-blend-data\tTimeBlendData\n7893826271559694440\ttime-blend-data\tTimeBlendData\n8170100523911231592\ttime-blend-data\tTimeBlendData\n8517790877261055404\ttime-blend-data\tTimeBlendData\n8517790878280333416\ttime-blend-data\tTimeBlendData\n8517790878451416397\ttime-blend-data\tTimeBlendData\n8555650310619936872\ttime-blend-data\tTimeBlendData\n8732172572162975920\ttime-blend-data\tTimeBlendData\n8732172573132339304\ttime-blend-data\tTimeBlendData\n8732172573303422285\ttime-blend-data\tTimeBlendData\n8824472209649488568\ttime-blend-data\tTimeBlendData\n8824472210597361768\ttime-blend-data\tTimeBlendData\n8824472210768444749\ttime-blend-data\tTimeBlendData\n893241265132812392\ttime-blend-data\tTimeBlendData\n897461252391201857\ttime-blend-data\tTimeBlendData\n897461255184726120\ttime-blend-data\tTimeBlendData\n897461255355809101\ttime-blend-data\tTimeBlendData\n9300570915069903864\ttime-blend-data\tTimeBlendData\n9300570915906926696\ttime-blend-data\tTimeBlendData\n9300570916078009677\ttime-blend-data\tTimeBlendData\n9864902396392975478\ttime-blend-data\tTimeBlendData\n9864902397098604648\ttime-blend-data\tTimeBlendData\n9864902397269687629\ttime-blend-data\tTimeBlendData"
-        },
-        {
           "parameterId": "AnimationGraphData_parameter_mCascadeBlendValue",
-          "value": "0"
+          "value": "10"
         },
         {
           "parameterId": "AnimationGraphData_parameter_mClipDataMap",
           "value": "Death_Passive\tatomic-clip-data\tAtomicClipData\nAttack1_BASE\tatomic-clip-data\tAtomicClipData\nAttack2_BASE\tatomic-clip-data\tAtomicClipData\n0x4dce503b\tatomic-clip-data\tAtomicClipData\nCrit\tatomic-clip-data\tAtomicClipData\nIdle2_Base\tatomic-clip-data\tAtomicClipData\n0x76bbc6a0\tatomic-clip-data\tAtomicClipData\n0xabc75b53\tatomic-clip-data\tAtomicClipData\nSpell3\tatomic-clip-data\tAtomicClipData\nIdle1_Base\tatomic-clip-data\tAtomicClipData\nSpell3_Flying\tatomic-clip-data\tAtomicClipData\n0xda0f555e\tatomic-clip-data\tAtomicClipData\nIdle1\tsequencer-clip-data\tSequencerClipData\n0xc0a21e69\tatomic-clip-data\tAtomicClipData\n0x0c656e32\tatomic-clip-data\tAtomicClipData\n0x406bcb89\tatomic-clip-data\tAtomicClipData\nAttack1\tselector-clip-data\tSelectorClipData\n0xe4ee0bf8\tatomic-clip-data\tAtomicClipData\nChannel_Base\tatomic-clip-data\tAtomicClipData\nRespawn_Base\tatomic-clip-data\tAtomicClipData\nRecall_Base\tatomic-clip-data\tAtomicClipData\nRecall_LeadIn\tatomic-clip-data\tAtomicClipData\n0x13f95189\tatomic-clip-data\tAtomicClipData\nRecall_Leadout\tatomic-clip-data\tAtomicClipData\n0x9e55a33e\tatomic-clip-data\tAtomicClipData\n0x9d46ce26\tatomic-clip-data\tAtomicClipData\nDeath\tatomic-clip-data\tAtomicClipData\nDance\tatomic-clip-data\tAtomicClipData\nRecall\tsequencer-clip-data\tSequencerClipData\nAttack2\tselector-clip-data\tSelectorClipData\nRespawn\tsequencer-clip-data\tSequencerClipData\nChannel_Wndup\tsequencer-clip-data\tSequencerClipData\n0x0f330190\tatomic-clip-data\tAtomicClipData\nChannel_WUp_LeadIn\tatomic-clip-data\tAtomicClipData\nChannel\tsequencer-clip-data\tSequencerClipData\n0xed8e4c0c\tatomic-clip-data\tAtomicClipData\nLaugh\tsequencer-clip-data\tSequencerClipData\nSpell2\tatomic-clip-data\tAtomicClipData\nPickup\tatomic-clip-data\tAtomicClipData\nJoke_Loop\tatomic-clip-data\tAtomicClipData\nJoke_Windup\tatomic-clip-data\tAtomicClipData\nJoke\tsequencer-clip-data\tSequencerClipData\nRun_Fast\tatomic-clip-data\tAtomicClipData\nRun\tatomic-clip-data\tAtomicClipData\nRun_Haste\tatomic-clip-data\tAtomicClipData\nRecall_Winddown\tsequencer-clip-data\tSequencerClipData\nSpell1\tparametric-clip-data\tParametricClipData\nDeath_Unite\tatomic-clip-data\tAtomicClipData\n0x8e511fc3\tatomic-clip-data\tAtomicClipData\nSpell3_Windup\tatomic-clip-data\tAtomicClipData\n0x792ee8b0\tatomic-clip-data\tAtomicClipData\n0xe75f72aa\tselector-clip-data\tSelectorClipData\n0x97a61c8b\tatomic-clip-data\tAtomicClipData\n0xdcc88589\tselector-clip-data\tSelectorClipData\n0x3715f5e2\tselector-clip-data\tSelectorClipData\nSpell1_B1\tatomic-clip-data\tAtomicClipData\nSpell1_B2\tatomic-clip-data\tAtomicClipData\nSpell1_B3\tatomic-clip-data\tAtomicClipData\n0x7a76d2b8\tparametric-clip-data\tParametricClipData\n0x763545ac\tparametric-clip-data\tParametricClipData\n0x811243f8\tparametric-clip-data\tParametricClipData\nSpell1_Max\tatomic-clip-data\tAtomicClipData\nSpell1_Min\tatomic-clip-data\tAtomicClipData\n0xbbcd0c9b\tparametric-clip-data\tParametricClipData\nSpell1_Regrow_Idle\tatomic-clip-data\tAtomicClipData\nSpell1_Regrow_Run\tatomic-clip-data\tAtomicClipData\nSpell1_Slam\tatomic-clip-data\tAtomicClipData\nSpell3_Back\tparametric-clip-data\tParametricClipData\nSpell3_BackRun\tatomic-clip-data\tAtomicClipData\n0xf766b776\tatomic-clip-data\tAtomicClipData\nTaunt\tsequencer-clip-data\tSequencerClipData\nTaunt_Base\tatomic-clip-data\tAtomicClipData\nSpell4\tatomic-clip-data\tAtomicClipData\n0xda949924\tatomic-clip-data\tAtomicClipData\n0x4f25d6ab\tatomic-clip-data\tAtomicClipData\nSpell4_Windup\tatomic-clip-data\tAtomicClipData\nSpell4_ToRun\tatomic-clip-data\tAtomicClipData\nSpell4_ToIdle\tatomic-clip-data\tAtomicClipData\n0x11da97ed\tcondition-bool-clip-data\tConditionBoolClipData\n0x4bb8c551\tsequencer-clip-data\tSequencerClipData"
         },
         {
+          "parameterId": "AnimationGraphData_parameter_mClipName",
+          "value": "0xda0f555e"
+        },
+        {
           "parameterId": "AnimationGraphData_parameter_mMaskDataMap",
           "value": "ScaleBody\tmask-data\tMaskData\n0x5ad57b83\tmask-data\tMaskData"
+        },
+        {
+          "parameterId": "AnimationGraphData_parameter_mTime",
+          "value": "0"
         },
         {
           "parameterId": "AnimationGraphData_parameter_mTrackDataMap",
@@ -772,75 +142,164 @@
         }
       ],
       "elementView": {
-        "param:AnimationGraphData_parameter_mBlendDataTable": {
-          "mode": "compact",
-          "selectedIndex": 0,
-          "retracted": true
-        },
         "param:AnimationGraphData_parameter_mClipDataMap": {
           "mode": "compact",
-          "selectedIndex": 0,
-          "retracted": true
+          "selectedIndex": 0
         },
         "param:AnimationGraphData_parameter_mMaskDataMap": {
           "mode": "compact",
-          "selectedIndex": 0,
-          "retracted": true
+          "selectedIndex": 0
         },
         "param:AnimationGraphData_parameter_mTrackDataMap": {
+          "mode": "compact",
+          "selectedIndex": 0
+        }
+      }
+    },
+    "atomic-clip-data-01": {
+      "id": "atomic-clip-data-01",
+      "schema": {
+        "id": "atomic-clip-data",
+        "title": "AtomicClipData",
+        "parameters": [
+          {
+            "id": "AtomicClipData_parameter_mEventDataMap",
+            "name": "mEventDataMap",
+            "type": "mapHashPointer",
+            "defaultValue": "0x831fa58e\tsubmesh-visibility-event-data\tSubmeshVisibilityEventData"
+          },
+          {
+            "id": "AtomicClipData_parameter_mFlags",
+            "name": "mFlags",
+            "type": "u32",
+            "defaultValue": "1"
+          },
+          {
+            "id": "AtomicClipData_parameter_mMaskDataName",
+            "name": "mMaskDataName",
+            "type": "integer",
+            "defaultValue": "0x5ad57b83"
+          },
+          {
+            "id": "AtomicClipData_parameter_mTickDuration",
+            "name": "mTickDuration",
+            "type": "f32",
+            "defaultValue": "0.03333334"
+          },
+          {
+            "id": "AtomicClipData_parameter_mTrackDataName",
+            "name": "mTrackDataName",
+            "type": "integer",
+            "defaultValue": "Default"
+          }
+        ],
+        "internalStructures": [],
+        "embed": [
+          {
+            "id": "AtomicClipData_embed_mAnimationResourceData",
+            "title": "mAnimationResourceData",
+            "internalStructures": [
+              {
+                "id": "atomic-clip-data-m-animation-resource-data",
+                "name": "AnimationResourceData",
+                "schemaId": "animation-resource-data"
+              }
+            ],
+            "slots": [
+              {
+                "id": "AtomicClipData_embed_mAnimationResourceData__slot__0",
+                "name": "AnimationResourceData",
+                "schemaId": "animation-resource-data"
+              }
+            ]
+          }
+        ],
+        "nomenclature": {
+          "group": "#3 Internal Structures",
+          "collection": "#3 Collection Block",
+          "collectionType": "AtomicClipData",
+          "pathHierarchy": "entries > Characters/Zac/Animations/Skin0 > mClipDataMap:Death_Passive",
+          "pathHierarchySteps": [
+            {
+              "id": "entries",
+              "type": "#1 Root Entry"
+            },
+            {
+              "id": "Characters/Zac/Animations/Skin0",
+              "type": "#2 Root Entry (AnimationGraphData)"
+            },
+            {
+              "id": "mClipDataMap:Death_Passive",
+              "type": "#3 Collection Block"
+            }
+          ]
+        },
+        "listEmbed": [
+          {
+            "id": "AtomicClipData_listEmbed_mAnimationResourceData",
+            "title": "mAnimationResourceData",
+            "internalStructures": [
+              {
+                "id": "AtomicClipData_listEmbed_mAnimationResourceData-catalog-0",
+                "name": "AnimationResourceData",
+                "schemaId": "animation-resource-data"
+              }
+            ],
+            "slots": []
+          }
+        ]
+      },
+      "values": [
+        {
+          "parameterId": "AtomicClipData_parameter_mEventDataMap",
+          "value": "0x831fa58e\tsubmesh-visibility-event-data\tSubmeshVisibilityEventData"
+        },
+        {
+          "parameterId": "AtomicClipData_parameter_mFlags",
+          "value": "1"
+        },
+        {
+          "parameterId": "AtomicClipData_parameter_mMaskDataName",
+          "value": "0x5ad57b83"
+        },
+        {
+          "parameterId": "AtomicClipData_parameter_mTickDuration",
+          "value": "0.03333334"
+        },
+        {
+          "parameterId": "AtomicClipData_parameter_mTrackDataName",
+          "value": "Default"
+        }
+      ],
+      "elementView": {
+        "param:AtomicClipData_parameter_mEventDataMap": {
           "mode": "compact",
           "selectedIndex": 0,
           "retracted": true
         },
-        "param:AnimationGraphData_parameter_mCascadeBlendValue": {
+        "embed:AtomicClipData_embed_mAnimationResourceData": {
+          "mode": "compact",
+          "selectedIndex": 0,
+          "retracted": true
+        },
+        "listEmbed:AtomicClipData_listEmbed_mAnimationResourceData": {
+          "mode": "compact",
+          "selectedIndex": 0,
+          "retracted": true
+        },
+        "param:AtomicClipData_parameter_mFlags": {
           "mode": "list",
           "retracted": true
-        }
-      }
-    },
-    "time-blend-data-01": {
-      "id": "time-blend-data-01",
-      "schema": {
-        "id": "time-blend-data",
-        "title": "TimeBlendData",
-        "parameters": [
-          {
-            "id": "TimeBlendData_parameter_mTime",
-            "name": "mTime",
-            "type": "f32",
-            "defaultValue": "0"
-          }
-        ],
-        "internalStructures": [],
-        "nomenclature": {
-          "group": "#3 Internal Structures",
-          "collection": "#3 Collection Block",
-          "collectionType": "TimeBlendData",
-          "pathHierarchy": "main > entries:Characters/Zac/Animations/Skin0 > mBlendDataTable:574043308619688281",
-          "pathHierarchySteps": [
-            {
-              "id": "main",
-              "type": "#0 Root main"
-            },
-            {
-              "id": "entries:Characters/Zac/Animations/Skin0",
-              "type": "#2 Root Entry (AnimationGraphData)"
-            },
-            {
-              "id": "mBlendDataTable:574043308619688281",
-              "type": "#3 Collection Block"
-            }
-          ]
-        }
-      },
-      "values": [
-        {
-          "parameterId": "TimeBlendData_parameter_mTime",
-          "value": "0"
-        }
-      ],
-      "elementView": {
-        "param:TimeBlendData_parameter_mTime": {
+        },
+        "param:AtomicClipData_parameter_mMaskDataName": {
+          "mode": "list",
+          "retracted": true
+        },
+        "param:AtomicClipData_parameter_mTickDuration": {
+          "mode": "list",
+          "retracted": true
+        },
+        "param:AtomicClipData_parameter_mTrackDataName": {
           "mode": "list",
           "retracted": true
         }

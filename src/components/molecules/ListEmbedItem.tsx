@@ -13,6 +13,7 @@ import {
   type WirelessPortPulseTarget,
 } from '@/core/connectionDisplay'
 import { clampSelectedIndex } from '@/core/elementViewState'
+import { elementTitleDoubleClickRetractProps } from '@/core/elementTitleInteraction'
 import { canvasContextElementProps } from '@/core/canvasContextMenuAttributes'
 import type { InternalStructureDefinition, ListEmbedDefinition } from '@/core/nodeSchema'
 import { StructureIndexPager } from '@/components/molecules/StructureIndexPager'
@@ -78,6 +79,7 @@ export function ListEmbedItem({
   onSelectedIndexChange,
   retracted = false,
   onExpandFromRetracted,
+  onRetractFromTitle,
   elementViewKey,
 }: ListEmbedItemProps) {
   const [indexPickerOpen, setIndexPickerOpen] = useState(false)
@@ -119,7 +121,11 @@ export function ListEmbedItem({
       {...contextProps}
     >
       <div className={styles.blockHeader}>
-        <h4 className={styles.blockTitle} title={listEmbed.title}>
+        <h4
+          className={styles.blockTitle}
+          title={listEmbed.title}
+          {...elementTitleDoubleClickRetractProps(onRetractFromTitle)}
+        >
           {listEmbed.title}
         </h4>
         <div className={styles.blockActions}>

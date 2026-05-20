@@ -1,6 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
-import type { CanvasConnection, CanvasNode, CanvasPosition, CanvasScene, SceneCamera } from '@/core/canvasScene'
+import type {
+  CanvasConnection,
+  CanvasNode,
+  CanvasPosition,
+  CanvasScene,
+  SceneCamera,
+  SceneChromeState,
+  SceneNodesChrome,
+} from '@/core/canvasScene'
 import { nextConnectionRouting } from '@/core/canvasScene'
 import {
   applyCollapsedBodyWireless,
@@ -198,8 +206,11 @@ function getInitialPresent(): CanvasScene {
 export function useSceneHistory(options?: {
   /** Registo efectivo `{ ...schemaRegistryEstático, ...convertidosLocal }`; omite só estático */
   extendSchemaLookup?: Record<string, NodeSchemaDefinition>
+  /** Sync debounced para `src/data/workspace/` em dev (menu Grafo → Auto Save). */
+  workspaceAutoSave?: boolean
 }) {
   const schemaLookup = options?.extendSchemaLookup ?? schemaRegistry
+  const workspaceAutoSave = options?.workspaceAutoSave === true
   const [sceneHistory, setSceneHistory] = useState(() => ({
     future: [] as CanvasScene[],
     past: [] as CanvasScene[],
@@ -260,11 +271,11 @@ export function useSceneHistory(options?: {
   }, [scene])
 
   useEffect(() => {
-    if (!import.meta.env.DEV) {
+    if (!import.meta.env.DEV || !workspaceAutoSave) {
       return
     }
     workspaceService.syncSceneToDisk(scene)
-  }, [scene])
+  }, [scene, workspaceAutoSave])
 
   useEffect(() => {
     if (!import.meta.env.DEV) {
@@ -629,6 +640,43 @@ export function useSceneHistory(options?: {
       }
     })
   }, [])
+
+  const patchSceneChrome = useCallback(
+    (patch: {
+      sceneNodes?: Partial<SceneNodesChrome>
+      toolbarVisibility?: SceneChromeState['toolbarVisibility']
+    }) => {
+      setSceneHistory((currentHistory) => {
+        const present = currentHistory.present
+        const prev = present.sceneChrome ?? {}
+        const nextSceneNodes =
+          patch.sceneNodes !== undefined
+            ? { ...prev.sceneNodes, ...patch.sceneNodes }
+            : prev.sceneNodes
+        const nextToolbar =
+          patch.toolbarVisibility !== undefined ? patch.toolbarVisibility : prev.toolbarVisibility
+
+        if (
+          prev.sceneNodes?.minimized === nextSceneNodes?.minimized &&
+          prev.sceneNodes?.sortMode === nextSceneNodes?.sortMode &&
+          prev.toolbarVisibility === nextToolbar
+        ) {
+          return currentHistory
+        }
+
+        const nextChrome: SceneChromeState = {
+          ...(nextSceneNodes !== undefined ? { sceneNodes: nextSceneNodes } : {}),
+          ...(nextToolbar !== undefined ? { toolbarVisibility: nextToolbar } : {}),
+        }
+
+        return {
+          ...currentHistory,
+          present: { ...present, sceneChrome: nextChrome },
+        }
+      })
+    },
+    [],
+  )
 
   const connectNodes = useCallback(
     (connection: CanvasConnection) => {
@@ -2332,8 +2380,10 @@ export function useSceneHistory(options?: {
       present: staticCanvasScene,
     })
     setSelectionState({ ids: emptySelection, primaryId: ROOT_NODE_ID })
-    workspaceService.syncSceneToDisk(staticCanvasScene)
-  }, [])
+    if (workspaceAutoSave) {
+      workspaceService.syncSceneToDisk(staticCanvasScene)
+    }
+  }, [workspaceAutoSave])
 
   return {
     cycleConnectionRouting,
@@ -2346,6 +2396,7 @@ export function useSceneHistory(options?: {
     sceneHistory,
     moveNode,
     setSceneCamera,
+    patchSceneChrome,
     patchNodeSceneOverlay,
     setAllNodesSceneHidden,
     setAllNodesLocked,

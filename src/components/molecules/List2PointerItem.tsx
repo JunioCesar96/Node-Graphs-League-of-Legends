@@ -8,6 +8,7 @@ import { canvasContextElementProps } from '@/core/canvasContextMenuAttributes'
 import type { InternalStructureDefinition, List2PointerDefinition } from '@/core/nodeSchema'
 import { isRetractedElementPulsing } from '@/core/connectionDisplay'
 import { clampSelectedIndex } from '@/core/elementViewState'
+import { elementTitleDoubleClickRetractProps } from '@/core/elementTitleInteraction'
 import { populatedSlotsForList2PointerInstance } from '@/core/list2PointerSlots'
 import { StructureIndexPager } from '@/components/molecules/StructureIndexPager'
 import {
@@ -72,6 +73,7 @@ export function List2PointerItem({
   onSelectedIndexChange,
   retracted = false,
   onExpandFromRetracted,
+  onRetractFromTitle,
   elementViewKey,
 }: List2PointerItemProps) {
   const [indexPickerOpen, setIndexPickerOpen] = useState(false)
@@ -118,7 +120,11 @@ export function List2PointerItem({
       {...contextProps}
     >
       <div className={styles.blockHeader}>
-        <h4 className={styles.blockTitle} title={list2Pointer.title}>
+        <h4
+          className={styles.blockTitle}
+          title={list2Pointer.title}
+          {...elementTitleDoubleClickRetractProps(onRetractFromTitle)}
+        >
           {list2Pointer.title}
         </h4>
         <div className={styles.blockActions}>
