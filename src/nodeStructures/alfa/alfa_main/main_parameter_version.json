@@ -1,0 +1,6 @@
+{
+  "id": "main_parameter_version",
+  "name": "version",
+  "type": "u32",
+  "defaultValue": "0"
+}

@@ -6,6 +6,7 @@ import { StructureViewToggle } from '@/components/atoms/StructureViewToggle'
 import { ElementRetractedBar } from '@/components/molecules/ElementRetractedBar'
 import { canvasContextElementProps } from '@/core/canvasContextMenuAttributes'
 import type { InternalStructureDefinition, List2PointerDefinition } from '@/core/nodeSchema'
+import { isRetractedElementPulsing } from '@/core/connectionDisplay'
 import { clampSelectedIndex } from '@/core/elementViewState'
 import { populatedSlotsForList2PointerInstance } from '@/core/list2PointerSlots'
 import { StructureIndexPager } from '@/components/molecules/StructureIndexPager'
@@ -71,6 +72,7 @@ export function List2PointerItem({
   onSelectedIndexChange,
   retracted = false,
   onExpandFromRetracted,
+  elementViewKey,
 }: List2PointerItemProps) {
   const [indexPickerOpen, setIndexPickerOpen] = useState(false)
   const isEmpty = list2Pointer.instances.length === 0
@@ -102,6 +104,9 @@ export function List2PointerItem({
           title={list2Pointer.title}
           typeLabel="list2Pointer"
           onExpand={onExpandFromRetracted}
+          wirelessPulse={
+            elementViewKey ? isRetractedElementPulsing(wirelessPortPulse, elementViewKey) : false
+          }
         />
       </li>
     )

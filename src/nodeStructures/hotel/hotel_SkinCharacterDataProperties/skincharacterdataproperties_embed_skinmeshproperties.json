@@ -1,0 +1,11 @@
+{
+  "id": "SkinCharacterDataProperties_embed_skinMeshProperties",
+  "title": "skinMeshProperties",
+  "internalStructures": [
+    {
+      "id": "SkinCharacterDataProperties_embed_skinMeshProperties-catalog-0",
+      "name": "SkinMeshDataProperties",
+      "schemaId": "skin-mesh-data-properties"
+    }
+  ]
+}

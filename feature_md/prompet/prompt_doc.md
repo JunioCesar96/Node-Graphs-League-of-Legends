@@ -58,3 +58,5 @@ O documento gerado deve conter as seguintes seções, nesta ordem exata:
 
 **Observações / Regras de Negócio Específicas:**
 - `[INSERIR_REGRAS_DE_TRATAMENTO_DE_ERRO_OU_TECNOLOGIAS_USADAS_AQUI]`
+
+**Quando terminar faz o push e todos processoces.

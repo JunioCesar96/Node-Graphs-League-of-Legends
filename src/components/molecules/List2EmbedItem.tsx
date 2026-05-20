@@ -6,6 +6,7 @@ import { StructureViewToggle } from '@/components/atoms/StructureViewToggle'
 import { ElementRetractedBar } from '@/components/molecules/ElementRetractedBar'
 import { canvasContextElementProps } from '@/core/canvasContextMenuAttributes'
 import type { InternalStructureDefinition, List2EmbedDefinition } from '@/core/nodeSchema'
+import { isRetractedElementPulsing } from '@/core/connectionDisplay'
 import { clampSelectedIndex } from '@/core/elementViewState'
 import { populatedSlotsForList2EmbedInstance } from '@/core/list2EmbedSlots'
 import { StructureIndexPager } from '@/components/molecules/StructureIndexPager'
@@ -71,6 +72,7 @@ export function List2EmbedItem({
   onSelectedIndexChange,
   retracted = false,
   onExpandFromRetracted,
+  elementViewKey,
 }: List2EmbedItemProps) {
   const [indexPickerOpen, setIndexPickerOpen] = useState(false)
   const isEmpty = list2Embed.instances.length === 0
@@ -102,6 +104,9 @@ export function List2EmbedItem({
           title={list2Embed.title}
           typeLabel="list2Embed"
           onExpand={onExpandFromRetracted}
+          wirelessPulse={
+            elementViewKey ? isRetractedElementPulsing(wirelessPortPulse, elementViewKey) : false
+          }
         />
       </li>
     )

@@ -1,5 +1,6 @@
 import type { CanvasConnection, CanvasScene } from '@/core/canvasScene'
-import type { NodeParameterValue, NodeSchemaDefinition } from '@/core/nodeSchema'
+import { defaultNewCanvasNodeLayout } from '@/core/nodeCardSections'
+import type { NodeInstance, NodeParameterValue, NodeSchemaDefinition } from '@/core/nodeSchema'
 
 export type LeagueBinGraphDocumentV1 = {
   connections: CanvasConnection[]
@@ -190,20 +191,23 @@ export function parseSceneDocument(data: unknown): CanvasScene | null {
       hashStringParameterId = hashPidRaw
     }
 
+    const nodeInstance: NodeInstance = {
+      id: nodeBody.id,
+      schema: structuredClone(nodeBody.schema),
+      values: structuredClone(nodeBody.values as NodeParameterValue[]),
+      ...(required_parameter?.length ? { required_parameter: structuredClone(required_parameter) } : {}),
+      ...(parameter_value_links?.length
+        ? { parameter_value_links: structuredClone(parameter_value_links) }
+        : {}),
+      ...(hashString !== undefined ? { hashString } : {}),
+      ...(hashStringParameterId !== undefined ? { hashStringParameterId } : {}),
+    }
+
     nodes.push({
       id: item.id,
       position: { x: item.position.x, y: item.position.y },
-      node: {
-        id: nodeBody.id,
-        schema: structuredClone(nodeBody.schema),
-        values: structuredClone(nodeBody.values as NodeParameterValue[]),
-        ...(required_parameter?.length ? { required_parameter: structuredClone(required_parameter) } : {}),
-        ...(parameter_value_links?.length
-          ? { parameter_value_links: structuredClone(parameter_value_links) }
-          : {}),
-        ...(hashString !== undefined ? { hashString } : {}),
-        ...(hashStringParameterId !== undefined ? { hashStringParameterId } : {}),
-      },
+      ...defaultNewCanvasNodeLayout(nodeInstance),
+      node: nodeInstance,
     })
   }
 

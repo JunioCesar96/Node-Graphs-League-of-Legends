@@ -1,0 +1,6 @@
+{
+  "id": "ParametricPairData_parameter_mClipName",
+  "name": "mClipName",
+  "type": "integer",
+  "defaultValue": "0"
+}

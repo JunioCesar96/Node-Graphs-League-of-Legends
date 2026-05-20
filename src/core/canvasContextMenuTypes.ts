@@ -57,6 +57,8 @@ export type ContextMenuItemId =
   | 'node.organization'
   | 'node.organization.bySectionType'
   | 'node.organization.freeform'
+  | 'node.retractAllElements'
+  | 'node.expandAllElements'
   | 'connection.cycleRouting'
   | 'connection.remove'
   | 'element.toggleCompact'

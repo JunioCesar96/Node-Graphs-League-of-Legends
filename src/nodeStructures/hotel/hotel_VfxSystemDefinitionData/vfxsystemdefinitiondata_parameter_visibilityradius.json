@@ -1,0 +1,6 @@
+{
+  "id": "VfxSystemDefinitionData_parameter_visibilityRadius",
+  "name": "visibilityRadius",
+  "type": "f32",
+  "defaultValue": "0"
+}

@@ -1,0 +1,122 @@
+{
+  "id": "vfx-alpha-erosion-definition-data",
+  "title": "VfxAlphaErosionDefinitionData",
+  "parameters": [
+    {
+      "id": "VfxAlphaErosionDefinitionData_parameter_erosionFeatherIn",
+      "name": "erosionFeatherIn",
+      "type": "f32",
+      "defaultValue": "0.2"
+    },
+    {
+      "id": "VfxAlphaErosionDefinitionData_parameter_erosionFeatherOut",
+      "name": "erosionFeatherOut",
+      "type": "f32",
+      "defaultValue": "0.2"
+    },
+    {
+      "id": "VfxAlphaErosionDefinitionData_parameter_erosionMapName",
+      "name": "erosionMapName",
+      "type": "string",
+      "defaultValue": "ASSETS/Characters/Zac/Skins/base/Particles/Vladimir_Skin14_W_MagicCircle03.tex"
+    },
+    {
+      "id": "VfxAlphaErosionDefinitionData_parameter_erosionSliceWidth",
+      "name": "erosionSliceWidth",
+      "type": "f32",
+      "defaultValue": "1"
+    },
+    {
+      "id": "VfxAlphaErosionDefinitionData_parameter_UseLingerErosionDriveCurve",
+      "name": "UseLingerErosionDriveCurve",
+      "type": "bool",
+      "defaultValue": "true"
+    }
+  ],
+  "embed": [
+    {
+      "id": "VfxAlphaErosionDefinitionData_embed_erosionDriveCurve",
+      "title": "erosionDriveCurve",
+      "internalStructures": [
+        {
+          "id": "vfx-alpha-erosion-definition-data-erosion-drive-curve",
+          "name": "ValueFloat",
+          "schemaId": "value-float"
+        }
+      ],
+      "slots": [
+        {
+          "id": "VfxAlphaErosionDefinitionData_embed_erosionDriveCurve__slot__0",
+          "name": "ValueFloat",
+          "schemaId": "value-float"
+        }
+      ]
+    },
+    {
+      "id": "VfxAlphaErosionDefinitionData_embed_erosionMapChannelMixer",
+      "title": "erosionMapChannelMixer",
+      "internalStructures": [
+        {
+          "id": "vfx-alpha-erosion-definition-data-erosion-map-channel-mixer",
+          "name": "ValueColor",
+          "schemaId": "value-color"
+        }
+      ],
+      "slots": [
+        {
+          "id": "VfxAlphaErosionDefinitionData_embed_erosionMapChannelMixer__slot__0",
+          "name": "ValueColor",
+          "schemaId": "value-color"
+        }
+      ]
+    },
+    {
+      "id": "VfxAlphaErosionDefinitionData_embed_LingerErosionDriveCurve",
+      "title": "LingerErosionDriveCurve",
+      "internalStructures": [
+        {
+          "id": "vfx-alpha-erosion-definition-data-linger-erosion-drive-curve",
+          "name": "ValueFloat",
+          "schemaId": "value-float"
+        }
+      ],
+      "slots": [
+        {
+          "id": "VfxAlphaErosionDefinitionData_embed_LingerErosionDriveCurve__slot__0",
+          "name": "ValueFloat",
+          "schemaId": "value-float"
+        }
+      ]
+    }
+  ],
+  "pointer": [],
+  "listEmbed": [],
+  "listPointer": [],
+  "list2Embed": [],
+  "list2Pointer": [],
+  "internalStructures": [],
+  "nomenclature": {
+    "group": "#3 Internal Structures",
+    "collection": "#3 Pointer Node",
+    "collectionType": "VfxAlphaErosionDefinitionData",
+    "pathHierarchy": "entries > 0x7b3a4b5f > complexEmitterDefinitionData:2 > alphaErosionDefinition",
+    "pathHierarchySteps": [
+      {
+        "id": "entries",
+        "type": "#1 Root Entry"
+      },
+      {
+        "id": "0x7b3a4b5f",
+        "type": "#2 Root Entry (VfxSystemDefinitionData)"
+      },
+      {
+        "id": "complexEmitterDefinitionData:2",
+        "type": "#3 Collection Block"
+      },
+      {
+        "id": "alphaErosionDefinition",
+        "type": "#3 Pointer Node"
+      }
+    ]
+  }
+}

@@ -1,0 +1,85 @@
+{
+  "id": "parametric-clip-data",
+  "title": "ParametricClipData",
+  "parameters": [
+    {
+      "id": "ParametricClipData_parameter_mTrackDataName",
+      "name": "mTrackDataName",
+      "type": "integer",
+      "defaultValue": "Default"
+    }
+  ],
+  "embed": [],
+  "pointer": [
+    {
+      "id": "ParametricClipData_pointer_Updater",
+      "title": "Updater",
+      "internalStructures": [
+        {
+          "id": "parametric-clip-data-updater",
+          "name": "SkinScaleParametricUpdater",
+          "schemaId": "skin-scale-parametric-updater"
+        },
+        {
+          "id": "parametric-clip-data-updater",
+          "name": "LookAtSpellTargetDistanceParametricUpdater",
+          "schemaId": "look-at-spell-target-distance-parametric-updater"
+        },
+        {
+          "id": "parametric-clip-data-updater",
+          "name": "IsMovingParametricUpdater",
+          "schemaId": "is-moving-parametric-updater"
+        }
+      ],
+      "slots": [
+        {
+          "id": "ParametricClipData_pointer_Updater__slot__0",
+          "name": "SkinScaleParametricUpdater",
+          "schemaId": "skin-scale-parametric-updater"
+        }
+      ]
+    }
+  ],
+  "listEmbed": [
+    {
+      "id": "ParametricClipData_listEmbed_mParametricPairDataList",
+      "title": "mParametricPairDataList",
+      "internalStructures": [
+        {
+          "id": "parametric-clip-data-m-parametric-pair-data-list-0",
+          "name": "ParametricPairData",
+          "schemaId": "parametric-pair-data"
+        },
+        {
+          "id": "parametric-clip-data-m-parametric-pair-data-list-1",
+          "name": "ParametricPairData",
+          "schemaId": "parametric-pair-data"
+        }
+      ]
+    }
+  ],
+  "listPointer": [],
+  "list2Embed": [],
+  "list2Pointer": [],
+  "internalStructures": [],
+  "nomenclature": {
+    "group": "#3 Internal Structures",
+    "collection": "#3 Collection Block",
+    "collectionType": "ParametricClipData",
+    "pathHierarchy": "main > entries:Characters/Zac/Animations/Skin0 > mClipDataMap:Spell1",
+    "pathHierarchySteps": [
+      {
+        "id": "main",
+        "type": "#0 Root main"
+      },
+      {
+        "id": "entries:Characters/Zac/Animations/Skin0",
+        "type": "#2 Root Entry (AnimationGraphData)"
+      },
+      {
+        "id": "mClipDataMap:Spell1",
+        "type": "#3 Collection Block"
+      }
+    ]
+  }
+}

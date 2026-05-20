@@ -15,6 +15,7 @@ const OPTIONS = [
 type ParameterBoolInputProps = {
   ariaLabel: string
   className?: string
+  parameterType?: 'bool' | 'flag'
   value: string
   onCommit: (value: string) => void
   onFocusChange?: (focused: boolean) => void
@@ -23,6 +24,7 @@ type ParameterBoolInputProps = {
 export function ParameterBoolInput({
   ariaLabel,
   className,
+  parameterType = 'bool',
   value,
   onCommit,
   onFocusChange,
@@ -91,7 +93,7 @@ export function ParameterBoolInput({
         aria-haspopup="listbox"
         aria-label={ariaLabel}
         className={styles.trigger}
-        data-parameter-type="bool"
+        data-parameter-type={parameterType}
         onClick={() => (open ? closeMenu() : openMenu())}
         onKeyDown={(event: KeyboardEvent<HTMLButtonElement>) => {
           if (event.key === 'Enter' || event.key === ' ') {

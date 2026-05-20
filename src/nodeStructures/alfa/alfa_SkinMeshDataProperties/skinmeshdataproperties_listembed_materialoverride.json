@@ -1,0 +1,11 @@
+{
+  "id": "SkinMeshDataProperties_listEmbed_materialOverride",
+  "title": "materialOverride",
+  "internalStructures": [
+    {
+      "id": "SkinMeshDataProperties_listEmbed_materialOverride-catalog-0",
+      "name": "SkinMeshDataProperties_MaterialOverride",
+      "schemaId": "skin-mesh-data-properties-material-override"
+    }
+  ]
+}

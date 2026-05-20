@@ -1,6 +1,0 @@
-{
-  "id": "VfxMeshDefinitionData_parameter_mMeshName",
-  "name": "mMeshName",
-  "type": "string",
-  "defaultValue": "ASSETS/Characters/Zac/Skins/Base/Particles/Zac_Q_Arm.skn"
-}

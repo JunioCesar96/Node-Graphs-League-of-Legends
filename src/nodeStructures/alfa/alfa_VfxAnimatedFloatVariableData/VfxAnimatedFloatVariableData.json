@@ -1,0 +1,65 @@
+{
+  "id": "vfx-animated-float-variable-data",
+  "title": "VfxAnimatedFloatVariableData",
+  "parameters": [
+    {
+      "id": "VfxAnimatedFloatVariableData_parameter_times",
+      "name": "times",
+      "type": "listF32",
+      "defaultValue": "0"
+    },
+    {
+      "id": "VfxAnimatedFloatVariableData_parameter_values",
+      "name": "values",
+      "type": "listF32",
+      "defaultValue": "0.6"
+    }
+  ],
+  "embed": [],
+  "pointer": [],
+  "listEmbed": [],
+  "listPointer": [
+    {
+      "id": "VfxAnimatedFloatVariableData_listPointer_probabilityTables",
+      "title": "probabilityTables",
+      "internalStructures": [
+        {
+          "id": "vfx-animated-float-variable-data-probability-tables-0",
+          "name": "VfxProbabilityTableData",
+          "schemaId": "vfx-probability-table-data"
+        }
+      ]
+    }
+  ],
+  "list2Embed": [],
+  "list2Pointer": [],
+  "internalStructures": [],
+  "nomenclature": {
+    "group": "#3 Internal Structures",
+    "collection": "#3 Pointer Node",
+    "collectionType": "VfxAnimatedFloatVariableData",
+    "pathHierarchy": "main > entries:Characters/Zac/Skins/Skin0/Particles/Zac_Base_Q_tar > complexEmitterDefinitionData:0 > particleLifetime > dynamics",
+    "pathHierarchySteps": [
+      {
+        "id": "main",
+        "type": "#0 Root main"
+      },
+      {
+        "id": "entries:Characters/Zac/Skins/Skin0/Particles/Zac_Base_Q_tar",
+        "type": "#2 Root Entry (VfxSystemDefinitionData)"
+      },
+      {
+        "id": "complexEmitterDefinitionData:0",
+        "type": "#3 Collection Block"
+      },
+      {
+        "id": "particleLifetime",
+        "type": "#3 Embed Block"
+      },
+      {
+        "id": "dynamics",
+        "type": "#3 Pointer Node"
+      }
+    ]
+  }
+}

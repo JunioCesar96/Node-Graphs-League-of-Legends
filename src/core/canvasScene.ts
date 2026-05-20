@@ -1,4 +1,9 @@
 import type {
+  NodeCardBodyLayout,
+  NodeCardSectionExpandedMap,
+  NodeCardSectionId,
+} from './nodeCardSections'
+import type {
   InternalStructureDefinition,
   NodeInstance,
   NodeSchemaDefinition,
@@ -78,6 +83,12 @@ export type CanvasNode = {
   position: CanvasPosition
   /** Quando true, o corpo do card fica oculto (só cabeçalho visível). */
   bodyCollapsed?: boolean
+  /** Secções do card expandidas (omitido = só Parameters expandido). */
+  cardSectionExpanded?: NodeCardSectionExpandedMap
+  /** Ordem das secções colapsáveis no corpo do card. */
+  cardSectionOrder?: NodeCardSectionId[]
+  /** Organização do corpo: secções por tipo (default) ou lista livre sem painéis. */
+  cardBodyLayout?: NodeCardBodyLayout
   /** Oculto no canvas (continua na lista «Nodes em cena»). */
   sceneHidden?: boolean
   /** Título fictício no cabeçalho; vazio/ausente usa `schema.title`. */

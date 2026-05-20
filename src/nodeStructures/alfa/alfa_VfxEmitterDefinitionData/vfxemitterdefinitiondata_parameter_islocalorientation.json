@@ -1,0 +1,6 @@
+{
+  "id": "VfxEmitterDefinitionData_parameter_isLocalOrientation",
+  "name": "isLocalOrientation",
+  "type": "flag",
+  "defaultValue": "false"
+}

@@ -1,0 +1,53 @@
+{
+  "id": "vfx-animated-color-variable-data",
+  "title": "VfxAnimatedColorVariableData",
+  "parameters": [
+    {
+      "id": "VfxAnimatedColorVariableData_parameter_times",
+      "name": "times",
+      "type": "listF32",
+      "defaultValue": "0\n0.8\n1"
+    },
+    {
+      "id": "VfxAnimatedColorVariableData_parameter_values",
+      "name": "values",
+      "type": "listVector4",
+      "defaultValue": "1, 1, 1, 0.5\n1, 1, 1, 0.5\n1, 1, 1, 0"
+    }
+  ],
+  "embed": [],
+  "pointer": [],
+  "listEmbed": [],
+  "listPointer": [],
+  "list2Embed": [],
+  "list2Pointer": [],
+  "internalStructures": [],
+  "nomenclature": {
+    "group": "#3 Internal Structures",
+    "collection": "#3 Pointer Node",
+    "collectionType": "VfxAnimatedColorVariableData",
+    "pathHierarchy": "entries > Characters/Zac/Skins/Skin0/Particles/Zac_Base_Q_tar > complexEmitterDefinitionData:0 > Color > dynamics",
+    "pathHierarchySteps": [
+      {
+        "id": "entries",
+        "type": "#1 Root Entry"
+      },
+      {
+        "id": "Characters/Zac/Skins/Skin0/Particles/Zac_Base_Q_tar",
+        "type": "#2 Root Entry (VfxSystemDefinitionData)"
+      },
+      {
+        "id": "complexEmitterDefinitionData:0",
+        "type": "#3 Collection Block"
+      },
+      {
+        "id": "Color",
+        "type": "#3 Embed Block"
+      },
+      {
+        "id": "dynamics",
+        "type": "#3 Pointer Node"
+      }
+    ]
+  }
+}

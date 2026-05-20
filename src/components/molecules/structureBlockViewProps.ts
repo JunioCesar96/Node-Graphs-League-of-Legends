@@ -1,4 +1,4 @@
-import type { ElementViewMode } from '@/core/nodeSchema'
+import type { ElementViewKey, ElementViewMode } from '@/core/nodeSchema'
 
 export type StructureBlockViewProps = {
   viewMode?: ElementViewMode
@@ -7,4 +7,5 @@ export type StructureBlockViewProps = {
   onSelectedIndexChange?: (index: number) => void
   retracted?: boolean
   onExpandFromRetracted?: () => void
+  elementViewKey?: ElementViewKey
 }

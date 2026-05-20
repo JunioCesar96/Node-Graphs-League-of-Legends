@@ -1,0 +1,11 @@
+{
+  "id": "VfxEmitterLegacySimple_listEmbed_birthRotationalVelocity",
+  "title": "birthRotationalVelocity",
+  "internalStructures": [
+    {
+      "id": "VfxEmitterLegacySimple_listEmbed_birthRotationalVelocity-catalog-0",
+      "name": "ValueFloat",
+      "schemaId": "value-float"
+    }
+  ]
+}

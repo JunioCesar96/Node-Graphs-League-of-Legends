@@ -1,6 +1,0 @@
-{
-  "id": "BankUnit_parameter_BankPath",
-  "name": "BankPath",
-  "type": "listString",
-  "defaultValue": "ASSETS/Sounds/Wwise2016/VO/en_US/Characters/Zac/Skins/Base/Zac_Base_VO_audio.bnk\nASSETS/Sounds/Wwise2016/VO/en_US/Characters/Zac/Skins/Base/Zac_Base_VO_events.bnk\nASSETS/Sounds/Wwise2016/VO/en_US/Characters/Zac/Skins/Base/Zac_Base_VO_audio.wpk"
-}

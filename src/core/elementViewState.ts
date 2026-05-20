@@ -348,6 +348,98 @@ export function isSlotInCompactElementView(
   return false
 }
 
+/** Chave do elemento do card que contém o slot de saída (qualquer modo de visualização). */
+export function elementViewKeyForOutputSlot(
+  node: NodeInstance,
+  fromInternalStructureId: string,
+): ElementViewKey | null {
+  const schema = node.schema
+
+  for (const parameter of schema.parameters) {
+    if (
+      parameter.type === 'mapHashPointer' ||
+      parameter.type === 'mapHashEmbed' ||
+      parameter.type === 'mapU64Pointer'
+    ) {
+      const value = parameterValue(node, parameter.id, parameter.defaultValue)
+      const slots = mapSlotsForParameter(parameter, value)
+      if (slots.some((s) => s.id === fromInternalStructureId)) {
+        return elementViewKeyForParameter(parameter.id)
+      }
+    }
+  }
+
+  for (const block of schema.embed ?? []) {
+    if (populatedSlotsForEmbed(block).some((s) => s.id === fromInternalStructureId)) {
+      return elementViewKeyForEmbed(block.id)
+    }
+  }
+
+  for (const block of schema.pointer ?? []) {
+    if (populatedSlotsForPointer(block).some((s) => s.id === fromInternalStructureId)) {
+      return elementViewKeyForPointer(block.id)
+    }
+  }
+
+  for (const block of schema.listEmbed ?? []) {
+    if (populatedSlotsForListEmbed(block).some((s) => s.id === fromInternalStructureId)) {
+      return elementViewKeyForListEmbed(block.id)
+    }
+  }
+
+  for (const block of schema.listPointer ?? []) {
+    if (populatedSlotsForListPointer(block).some((s) => s.id === fromInternalStructureId)) {
+      return elementViewKeyForListPointer(block.id)
+    }
+  }
+
+  for (const block of schema.list2Embed ?? []) {
+    for (const instance of block.instances) {
+      if (
+        populatedSlotsForList2EmbedInstance(instance).some(
+          (s) => s.id === fromInternalStructureId,
+        )
+      ) {
+        return elementViewKeyForList2Embed(block.id)
+      }
+    }
+  }
+
+  for (const block of schema.list2Pointer ?? []) {
+    for (const instance of block.instances) {
+      if (
+        populatedSlotsForList2PointerInstance(instance).some(
+          (s) => s.id === fromInternalStructureId,
+        )
+      ) {
+        return elementViewKeyForList2Pointer(block.id)
+      }
+    }
+  }
+
+  return null
+}
+
+/** True se o slot de saída pertence a um elemento retraído no card. */
+export function isSlotInRetractedElementView(
+  node: NodeInstance,
+  fromInternalStructureId: string,
+): boolean {
+  const key = elementViewKeyForOutputSlot(node, fromInternalStructureId)
+  return key !== null && isElementRetracted(node, key)
+}
+
+/** True se o slot deve usar ligação sem fio (elemento compacto ou retraído). */
+export function isSlotInWirelessElementView(
+  node: NodeInstance,
+  fromInternalStructureId: string,
+): boolean {
+  return (
+    isSlotInCompactElementView(node, fromInternalStructureId) ||
+    isSlotInRetractedElementView(node, fromInternalStructureId)
+  )
+}
+
 export function patchElementViewMode(
   node: NodeInstance,
   key: ElementViewKey,
@@ -410,4 +502,51 @@ export function patchElementRetracted(
       [key]: nextState,
     },
   }
+}
+
+/** Chaves de todos os elementos do card com estado de visualização (parâmetros + blocos). */
+export function collectCardElementViewKeys(node: NodeInstance): ElementViewKey[] {
+  const keys: ElementViewKey[] = []
+
+  for (const parameter of node.schema.parameters) {
+    keys.push(elementViewKeyForParameter(parameter.id))
+  }
+
+  for (const block of node.schema.embed ?? []) {
+    keys.push(elementViewKeyForEmbed(block.id))
+  }
+  for (const block of node.schema.pointer ?? []) {
+    keys.push(elementViewKeyForPointer(block.id))
+  }
+  for (const block of node.schema.listEmbed ?? []) {
+    keys.push(elementViewKeyForListEmbed(block.id))
+  }
+  for (const block of node.schema.listPointer ?? []) {
+    keys.push(elementViewKeyForListPointer(block.id))
+  }
+  for (const block of node.schema.list2Embed ?? []) {
+    keys.push(elementViewKeyForList2Embed(block.id))
+  }
+  for (const block of node.schema.list2Pointer ?? []) {
+    keys.push(elementViewKeyForList2Pointer(block.id))
+  }
+
+  return keys
+}
+
+export function areAllCardElementsRetracted(node: NodeInstance): boolean {
+  const keys = collectCardElementViewKeys(node)
+  return keys.length > 0 && keys.every((key) => isElementRetracted(node, key))
+}
+
+export function isAnyCardElementRetracted(node: NodeInstance): boolean {
+  return collectCardElementViewKeys(node).some((key) => isElementRetracted(node, key))
+}
+
+export function patchAllCardElementsRetracted(node: NodeInstance, retracted: boolean): NodeInstance {
+  let next = node
+  for (const key of collectCardElementViewKeys(node)) {
+    next = patchElementRetracted(next, key, retracted)
+  }
+  return next
 }

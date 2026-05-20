@@ -1,0 +1,11 @@
+{
+  "id": "VfxEmitterLegacySimple_listEmbed_birthRotation",
+  "title": "birthRotation",
+  "internalStructures": [
+    {
+      "id": "VfxEmitterLegacySimple_listEmbed_birthRotation-catalog-0",
+      "name": "ValueFloat",
+      "schemaId": "value-float"
+    }
+  ]
+}

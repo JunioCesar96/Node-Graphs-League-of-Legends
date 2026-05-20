@@ -5,6 +5,7 @@ import { Port } from '@/components/atoms/Port'
 import { ElementRetractedBar } from '@/components/molecules/ElementRetractedBar'
 import { StructureViewToggle } from '@/components/atoms/StructureViewToggle'
 import {
+  isRetractedElementPulsing,
   isWirelessPortPulsing,
   toWirelessPortLinkProps,
   type WirelessPortHandlers,
@@ -77,6 +78,7 @@ export function ListPointerItem({
   onSelectedIndexChange,
   retracted = false,
   onExpandFromRetracted,
+  elementViewKey,
 }: ListPointerItemProps) {
   const [indexPickerOpen, setIndexPickerOpen] = useState(false)
   const isEmpty = slots.length === 0
@@ -103,6 +105,9 @@ export function ListPointerItem({
           title={listPointer.title}
           typeLabel="listPointer"
           onExpand={onExpandFromRetracted}
+          wirelessPulse={
+            elementViewKey ? isRetractedElementPulsing(wirelessPortPulse, elementViewKey) : false
+          }
         />
       </li>
     )

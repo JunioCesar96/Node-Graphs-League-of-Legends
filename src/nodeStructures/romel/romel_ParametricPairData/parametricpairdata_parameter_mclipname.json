@@ -1,6 +1,0 @@
-{
-  "id": "ParametricPairData_parameter_mClipName",
-  "name": "mClipName",
-  "type": "integer",
-  "defaultValue": "Spell1_Max"
-}

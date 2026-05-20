@@ -21,6 +21,7 @@ type ElementRetractedBarProps = {
   onExpand: () => void
   reorderHandlers?: ElementRetractedReorderHandlers
   expandAriaLabel?: string
+  wirelessPulse?: boolean
 }
 
 export function ElementRetractedBar({
@@ -30,9 +31,12 @@ export function ElementRetractedBar({
   onExpand,
   reorderHandlers,
   expandAriaLabel,
+  wirelessPulse = false,
 }: ElementRetractedBarProps) {
   return (
-    <div className={styles.bar}>
+    <div
+      className={[styles.bar, wirelessPulse ? styles.barWirelessPulse : ''].filter(Boolean).join(' ')}
+    >
       <button
         aria-label={expandAriaLabel ?? `Expandir ${title}`}
         className={styles.expandButton}

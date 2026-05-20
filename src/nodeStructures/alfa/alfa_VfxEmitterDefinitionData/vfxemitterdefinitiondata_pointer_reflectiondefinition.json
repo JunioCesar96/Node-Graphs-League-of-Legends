@@ -1,0 +1,11 @@
+{
+  "id": "VfxEmitterDefinitionData_pointer_reflectionDefinition",
+  "title": "reflectionDefinition",
+  "internalStructures": [
+    {
+      "id": "VfxEmitterDefinitionData_pointer_reflectionDefinition-catalog-0",
+      "name": "VfxReflectionDefinitionData",
+      "schemaId": "vfx-reflection-definition-data"
+    }
+  ]
+}

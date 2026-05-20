@@ -1,0 +1,11 @@
+{
+  "id": "VfxEmitterDefinitionData_pointer_textureMult",
+  "title": "textureMult",
+  "internalStructures": [
+    {
+      "id": "VfxEmitterDefinitionData_pointer_textureMult-catalog-0",
+      "name": "VfxTextureMultDefinitionData",
+      "schemaId": "vfx-texture-mult-definition-data"
+    }
+  ]
+}

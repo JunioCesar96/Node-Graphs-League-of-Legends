@@ -1,0 +1,6 @@
+{
+  "id": "VfxEmitterFiltering_parameter_keywordsExcluded",
+  "name": "keywordsExcluded",
+  "type": "liststring",
+  "defaultValue": ""
+}

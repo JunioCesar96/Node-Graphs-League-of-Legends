@@ -1,0 +1,43 @@
+{
+  "id": "is-animation-playing-dynamic-material-bool-driver",
+  "title": "IsAnimationPlayingDynamicMaterialBoolDriver",
+  "parameters": [
+    {
+      "id": "IsAnimationPlayingDynamicMaterialBoolDriver_parameter_mAnimationNames",
+      "name": "mAnimationNames",
+      "type": "listHash",
+      "defaultValue": "Spell4\n0x792ee8b0\n0xda949924\n0x4f25d6ab"
+    }
+  ],
+  "embed": [],
+  "pointer": [],
+  "listEmbed": [],
+  "listPointer": [],
+  "list2Embed": [],
+  "list2Pointer": [],
+  "internalStructures": [],
+  "nomenclature": {
+    "group": "#3 Internal Structures",
+    "collection": "#3 Pointer Node",
+    "collectionType": "IsAnimationPlayingDynamicMaterialBoolDriver",
+    "pathHierarchy": "main > entries:Characters/Zac/Skins/Skin0 > PersistentEffectConditions:0 > OwnerCondition",
+    "pathHierarchySteps": [
+      {
+        "id": "main",
+        "type": "#0 Root main"
+      },
+      {
+        "id": "entries:Characters/Zac/Skins/Skin0",
+        "type": "#2 Root Entry (SkinCharacterDataProperties)"
+      },
+      {
+        "id": "PersistentEffectConditions:0",
+        "type": "#3 Collection Block"
+      },
+      {
+        "id": "OwnerCondition",
+        "type": "#3 Pointer Node"
+      }
+    ]
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "id": "VfxEmitterDefinitionData_listEmbed_EmitterPosition",
+  "title": "EmitterPosition",
+  "internalStructures": [
+    {
+      "id": "VfxEmitterDefinitionData_listEmbed_EmitterPosition-catalog-0",
+      "name": "ValueVector3",
+      "schemaId": "value-vector3"
+    }
+  ]
+}

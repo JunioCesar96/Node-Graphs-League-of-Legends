@@ -1,6 +1,0 @@
-{
-  "id": "BankUnit_parameter_VoiceOver",
-  "name": "VoiceOver",
-  "type": "bool",
-  "defaultValue": "true"
-}

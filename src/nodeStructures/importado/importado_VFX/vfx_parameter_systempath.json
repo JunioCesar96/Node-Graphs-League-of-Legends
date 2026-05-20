@@ -1,0 +1,6 @@
+{
+  "id": "VFX_parameter_systemPath",
+  "name": "systemPath",
+  "type": "string",
+  "defaultValue": ""
+}

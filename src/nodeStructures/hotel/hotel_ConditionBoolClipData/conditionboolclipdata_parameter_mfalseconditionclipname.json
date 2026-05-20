@@ -1,0 +1,6 @@
+{
+  "id": "ConditionBoolClipData_parameter_mFalseConditionClipName",
+  "name": "mFalseConditionClipName",
+  "type": "integer",
+  "defaultValue": "0"
+}

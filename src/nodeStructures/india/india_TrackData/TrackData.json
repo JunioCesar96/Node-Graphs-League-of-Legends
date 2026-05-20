@@ -1,0 +1,45 @@
+{
+  "id": "track-data",
+  "title": "TrackData",
+  "parameters": [
+    {
+      "id": "TrackData_parameter_mBlendMode",
+      "name": "mBlendMode",
+      "type": "u8",
+      "defaultValue": "1"
+    },
+    {
+      "id": "TrackData_parameter_mPriority",
+      "name": "mPriority",
+      "type": "u8",
+      "defaultValue": "1"
+    }
+  ],
+  "embed": [],
+  "pointer": [],
+  "listEmbed": [],
+  "listPointer": [],
+  "list2Embed": [],
+  "list2Pointer": [],
+  "internalStructures": [],
+  "nomenclature": {
+    "group": "#3 Internal Structures",
+    "collection": "#3 Collection Block",
+    "collectionType": "TrackData",
+    "pathHierarchy": "entries > Characters/Zac/Animations/Skin0 > mTrackDataMap:ScaleTrack",
+    "pathHierarchySteps": [
+      {
+        "id": "entries",
+        "type": "#1 Root Entry"
+      },
+      {
+        "id": "Characters/Zac/Animations/Skin0",
+        "type": "#2 Root Entry (AnimationGraphData)"
+      },
+      {
+        "id": "mTrackDataMap:ScaleTrack",
+        "type": "#3 Collection Block"
+      }
+    ]
+  }
+}

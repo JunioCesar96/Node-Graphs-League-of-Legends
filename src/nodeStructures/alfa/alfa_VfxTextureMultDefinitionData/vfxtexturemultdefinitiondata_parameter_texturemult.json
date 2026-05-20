@@ -1,0 +1,6 @@
+{
+  "id": "VfxTextureMultDefinitionData_parameter_textureMult",
+  "name": "textureMult",
+  "type": "string",
+  "defaultValue": ""
+}

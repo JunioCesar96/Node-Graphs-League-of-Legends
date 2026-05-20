@@ -1,0 +1,6 @@
+{
+  "id": "VfxEmitterDefinitionData_parameter_texture",
+  "name": "texture",
+  "type": "string",
+  "defaultValue": ""
+}

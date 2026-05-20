@@ -1,0 +1,6 @@
+{
+  "id": "VfxEmitterDefinitionData_parameter_isUniformScale",
+  "name": "isUniformScale",
+  "type": "flag",
+  "defaultValue": "false"
+}

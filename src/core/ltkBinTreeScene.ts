@@ -1,5 +1,6 @@
 import type { CanvasConnection, CanvasNode, CanvasScene } from '@/core/canvasScene'
-import type { NodeParameterValue, NodeSchemaDefinition } from '@/core/nodeSchema'
+import { defaultNewCanvasNodeLayout } from '@/core/nodeCardSections'
+import type { NodeInstance, NodeParameterValue, NodeSchemaDefinition } from '@/core/nodeSchema'
 import { parseOptionalPathLabelsFromBinTreePayload } from '@/core/ltkBinTreeLabels'
 import {
   type JadeLinkSemantic,
@@ -417,12 +418,10 @@ export function binTreeJsonToCanvasScene(treeUnknown: unknown): CanvasScene | nu
     versionLabel,
   })
 
-  nodes.push({
+  const metaNodeInstance: NodeInstance = {
     id: 'ltk-bin-meta-file',
-    node: {
-      id: 'ltk-bin-meta-file',
-      schema: metaSchema,
-      values: metaSchema.parameters.map((parameter) => {
+    schema: metaSchema,
+    values: metaSchema.parameters.map((parameter) => {
         switch (parameter.id) {
           case 'tree-version':
             return { parameterId: parameter.id, value: versionLabel }
@@ -468,11 +467,16 @@ export function binTreeJsonToCanvasScene(treeUnknown: unknown): CanvasScene | nu
             return { parameterId: parameter.id, value: parameter.defaultValue }
         }
       }),
-    },
+  }
+
+  nodes.push({
+    id: 'ltk-bin-meta-file',
+    node: metaNodeInstance,
     position: {
       x: originX + (layoutIndex % cols) * gapX,
       y: originY + Math.floor(layoutIndex / cols) * gapY,
     },
+    ...defaultNewCanvasNodeLayout(metaNodeInstance),
   })
 
   layoutIndex += 1
@@ -502,17 +506,20 @@ export function binTreeJsonToCanvasScene(treeUnknown: unknown): CanvasScene | nu
       }
     })
 
+    const objectNodeInstance: NodeInstance = {
+      id: nodeId,
+      schema: built.schema,
+      values,
+    }
+
     nodes.push({
       id: nodeId,
-      node: {
-        id: nodeId,
-        schema: built.schema,
-        values,
-      },
+      node: objectNodeInstance,
       position: {
         x: originX + (layoutIndex % cols) * gapX,
         y: originY + Math.floor(layoutIndex / cols) * gapY,
       },
+      ...defaultNewCanvasNodeLayout(objectNodeInstance),
     })
 
     for (const draft of stableLinks) {

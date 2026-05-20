@@ -1,0 +1,11 @@
+{
+  "id": "VfxSystemDefinitionData_listPointer_complexEmitterDefinitionData",
+  "title": "complexEmitterDefinitionData",
+  "internalStructures": [
+    {
+      "id": "VfxSystemDefinitionData_listPointer_complexEmitterDefinitionData-catalog-0",
+      "name": "VfxEmitterDefinitionData",
+      "schemaId": "vfx-emitter-definition-data"
+    }
+  ]
+}

@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest'
 import {
   buildAutomaticTypeTags,
   buildElementMenuEntries,
-  catalogStructureAppendName,
   catalogStructureMenuLabel,
   ELEMENT_MENU_ALL_TYPE_TAG_ID,
   filterAndSortElementMenuEntries,
@@ -12,17 +11,13 @@ import {
   matchesElementMenuQuery,
   sortElementMenuEntries,
 } from './elementMenuCatalogUtils'
-import type { ElementMenuCatalogScope } from './elementMenuScopeCatalog'
 
 describe('elementMenuCatalogUtils', () => {
   const entries = buildElementMenuEntries({
-    presetStructures: [{ id: 'slot-a', name: 'Zeta Slot', schemaId: 'z-type' }],
-    catalogStructures: [{ id: 'cat-is', name: 'Beta IS', schemaId: 'beta-schema' }],
     catalogParameters: [
       { id: 'p1', name: 'rate', type: 'float', defaultValue: '1' },
       { id: 'p2', name: 'count', type: 'integer', defaultValue: '0' },
     ],
-    includeCatalogStructures: true,
     includeCatalogParameters: true,
   })
 
@@ -42,26 +37,24 @@ describe('elementMenuCatalogUtils', () => {
     ).toBe('SequencerClipData')
   })
 
-  it('matchesElementMenuQuery filtra por nome e schemaId', () => {
-    const beta = entries.find((entry) => entry.label === 'Beta IS')
+  it('matchesElementMenuQuery filtra por nome e tipo', () => {
+    const rate = entries.find((entry) => entry.label === 'rate')
 
-    expect(beta).toBeDefined()
-    expect(matchesElementMenuQuery(beta!, 'beta-schema')).toBe(true)
-    expect(matchesElementMenuQuery(beta!, 'inexistente')).toBe(false)
+    expect(rate).toBeDefined()
+    expect(matchesElementMenuQuery(rate!, 'float')).toBe(true)
+    expect(matchesElementMenuQuery(rate!, 'inexistente')).toBe(false)
   })
 
   it('sortElementMenuEntries ordena A-Z por label', () => {
     const sorted = sortElementMenuEntries(entries, 'az').map((entry) => entry.label)
 
-    expect(sorted).toEqual(['Beta IS', 'count', 'rate', 'Zeta Slot'])
+    expect(sorted).toEqual(['count', 'rate'])
   })
 
   it('sortElementMenuEntries ordena por tipo', () => {
     const sorted = sortElementMenuEntries(entries, 'tipo').map((entry) => entry.sortTipo)
 
-    expect(sorted[0]).toBe('Internal_Structure')
-    expect(sorted.filter((tipo) => tipo === 'Parâmetro').length).toBe(2)
-    expect(sorted[sorted.length - 1]).toBe('Slot')
+    expect(sorted.every((tipo) => tipo === 'Parâmetro')).toBe(true)
   })
 
   it('sortElementMenuEntries agrupa parâmetros por tipo de parâmetro', () => {
@@ -71,16 +64,15 @@ describe('elementMenuCatalogUtils', () => {
       .map((entry) => entry.label)
 
     expect(paramLabels).toEqual(['rate', 'count'])
-    expect(sorted[sorted.length - 1].kind).not.toBe('catalog-parameter')
   })
 
   it('filterAndSortElementMenuEntries devolve vazio para query sem match', () => {
     expect(filterAndSortElementMenuEntries(entries, 'zzzz', 'az')).toEqual([])
   })
 
-  it('identifyElementEntryTypeTag resolve collectionType do registry', () => {
+  it('identifyElementEntryTypeTag resolve collectionType do registry para embed', () => {
     expect(
-      identifyElementEntryTypeTag('catalog-structure', {
+      identifyElementEntryTypeTag('catalog-embed', {
         schemaId: 'Emitter',
         schemaRegistry: {
           Emitter: {
@@ -109,143 +101,8 @@ describe('elementMenuCatalogUtils', () => {
     expect(onlyFloat).toHaveLength(1)
   })
 
-  it('Todos oculta rotulo pathHierarchy; tipo especifico mostra base e path', () => {
-    const sequencerRegistry = {
-      SequencerClipData: {
-        id: 'SequencerClipData',
-        title: 'SequencerClipData',
-        parameters: [],
-        internalStructures: [],
-        nomenclature: {
-          group: '#3 Internal Structures',
-          collection: '#3 Collection Block',
-          collectionType: 'SequencerClipData',
-          pathHierarchySteps: [
-            { id: 'entries', type: '#1 Root Entry' },
-            { id: 'Characters/Zac/Animations/Skin0', type: '#2 Root Entry (AnimationGraphData)' },
-            { id: 'Idle1', type: '#3 Collection Block' },
-          ],
-        },
-      },
-    }
-    const dualEntries = buildElementMenuEntries({
-      presetStructures: [],
-      catalogStructures: [{ id: 'cat-is', name: 'Idle1', schemaId: 'SequencerClipData' }],
-      includeCatalogStructures: true,
-      includeCatalogParameters: false,
-      schemaRegistry: sequencerRegistry,
-    })
-
-    const allVisible = filterElementMenuEntriesByTypeTag(dualEntries, ELEMENT_MENU_ALL_TYPE_TAG_ID)
-    expect(allVisible.map((e) => e.label)).toEqual(['SequencerClipData'])
-
-    const byType = filterElementMenuEntriesByTypeTag(dualEntries, 'type:SequencerClipData')
-    expect(byType.map((e) => e.label).sort()).toEqual(['Idle1', 'SequencerClipData'])
-
-    const pathEntry = byType.find((e) => e.catalogLabelMode === 'path-hierarchy')!
-    expect(catalogStructureAppendName(pathEntry, sequencerRegistry)).toBe('Idle1')
-    const baseEntry = byType.find((e) => e.catalogLabelMode === 'base')!
-    expect(catalogStructureAppendName(baseEntry, sequencerRegistry)).toBe('SequencerClipData')
-  })
-
-  it('module scope com Todos mostra rotulo pathHierarchySteps.id como filtro por tipo', () => {
-    const sequencerRegistry = {
-      SequencerClipData: {
-        id: 'SequencerClipData',
-        title: 'SequencerClipData',
-        parameters: [],
-        internalStructures: [],
-        nomenclature: {
-          group: '#3 Internal Structures',
-          collection: '#3 Collection Block',
-          collectionType: 'SequencerClipData',
-          pathHierarchySteps: [
-            { id: 'entries', type: '#1 Root Entry' },
-            { id: 'Characters/Zac/Animations/Skin0', type: '#2 Root Entry (AnimationGraphData)' },
-            { id: 'Idle1', type: '#3 Collection Block' },
-          ],
-        },
-      },
-    }
-    const moduleScoped = buildElementMenuEntries({
-      presetStructures: [],
-      catalogStructures: [{ id: 'cat-is', name: 'Idle1', schemaId: 'SequencerClipData' }],
-      includeCatalogStructures: true,
-      includeCatalogParameters: false,
-      schemaRegistry: sequencerRegistry,
-      catalogScope: 'module',
-    })
-    const moduleAll = filterElementMenuEntriesByTypeTag(
-      moduleScoped,
-      ELEMENT_MENU_ALL_TYPE_TAG_ID,
-      'module',
-    )
-    expect(moduleAll.map((e) => e.label)).toEqual(['Idle1'])
-
-    const baseScoped = buildElementMenuEntries({
-      presetStructures: [],
-      catalogStructures: [{ id: 'cat-is', name: 'Idle1', schemaId: 'SequencerClipData' }],
-      includeCatalogStructures: true,
-      includeCatalogParameters: false,
-      schemaRegistry: sequencerRegistry,
-      catalogScope: 'base',
-    })
-    const baseAll = filterElementMenuEntriesByTypeTag(
-      baseScoped,
-      ELEMENT_MENU_ALL_TYPE_TAG_ID,
-      'base',
-    )
-    expect(baseAll.map((e) => e.label)).toEqual(['SequencerClipData'])
-  })
-
-  it('filterAndSortElementMenuEntries repassa catalogScope ao filtro de tipo', () => {
-    const idleEffectRegistry = {
-      'skin-character-data-properties-character-idle-effect': {
-        id: 'skin-character-data-properties-character-idle-effect',
-        title: 'SkinCharacterDataProperties_CharacterIdleEffect',
-        parameters: [],
-        internalStructures: [],
-        nomenclature: {
-          group: '#3 Internal Structures',
-          collection: '#3 Collection Block',
-          collectionType: 'SkinCharacterDataProperties_CharacterIdleEffect',
-          pathHierarchySteps: [
-            { id: 'entries', type: '#1 Root Entry' },
-            { id: 'Characters/Zac/Skins/Skin0', type: '#2 Root Entry (SkinCharacterDataProperties)' },
-            { id: 'idleParticlesEffects:0', type: '#3 Collection Block' },
-          ],
-        },
-      },
-    }
-    const entries = buildElementMenuEntries({
-      presetStructures: [],
-      catalogStructures: [
-        {
-          id: 'cat',
-          name: 'idleParticlesEffects:0',
-          schemaId: 'skin-character-data-properties-character-idle-effect',
-        },
-      ],
-      includeCatalogStructures: true,
-      includeCatalogParameters: false,
-      schemaRegistry: idleEffectRegistry,
-      catalogScope: 'module',
-    })
-
-    const sorted = filterAndSortElementMenuEntries(
-      entries,
-      '',
-      'az',
-      ELEMENT_MENU_ALL_TYPE_TAG_ID,
-      'module' satisfies ElementMenuCatalogScope,
-    )
-    expect(sorted.map((e) => e.label)).toEqual(['idleParticlesEffects:0'])
-  })
-
   it('entrada LIST_EMBED no menu usa título do campo e estrutura interna na meta', () => {
-    const entries = buildElementMenuEntries({
-      presetStructures: [],
-      includeCatalogStructures: false,
+    const listEntries = buildElementMenuEntries({
       includeCatalogParameters: false,
       includeListEmbedCatalog: true,
       listEmbedCatalog: [
@@ -261,7 +118,7 @@ describe('elementMenuCatalogUtils', () => {
       ],
     })
 
-    const listEmbedEntry = entries.find((entry) => entry.kind === 'catalog-list-embed')
+    const listEmbedEntry = listEntries.find((entry) => entry.kind === 'catalog-list-embed')
     expect(listEmbedEntry?.label).toBe('idleParticlesEffects')
     expect(listEmbedEntry?.meta).toContain('LIST_EMBED')
     expect(listEmbedEntry?.meta).toContain('SkinCharacterDataProperties_CharacterIdleEffect')
@@ -269,9 +126,7 @@ describe('elementMenuCatalogUtils', () => {
   })
 
   it('entrada catalog-embed usa título do campo e meta com tipo filho', () => {
-    const entries = buildElementMenuEntries({
-      presetStructures: [],
-      includeCatalogStructures: false,
+    const embedEntries = buildElementMenuEntries({
       includeCatalogParameters: false,
       includeEmbedCatalog: true,
       embedCatalog: [
@@ -283,11 +138,19 @@ describe('elementMenuCatalogUtils', () => {
       ],
     })
 
-    const embedEntry = entries.find((entry) => entry.kind === 'catalog-embed')
+    const embedEntry = embedEntries.find((entry) => entry.kind === 'catalog-embed')
     expect(embedEntry?.label).toBe('Loadscreen')
     expect(embedEntry?.meta).toContain('EMBED')
     expect(embedEntry?.meta).toContain('CensoredImage')
     expect(embedEntry?.sortTipo).toBe('EMBED')
     expect(embedEntry?.onPick).toBe('append-embed-catalog')
+  })
+
+  it('não gera entradas preset-slot nem catalog-structure', () => {
+    const all = buildElementMenuEntries({
+      includeCatalogParameters: true,
+      catalogParameters: [{ id: 'p', name: 'x', type: 'string', defaultValue: '' }],
+    })
+    expect(all.some((e) => e.kind === 'preset-slot' || e.kind === 'catalog-structure')).toBe(false)
   })
 })

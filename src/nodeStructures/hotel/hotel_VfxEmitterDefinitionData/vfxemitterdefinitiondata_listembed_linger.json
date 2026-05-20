@@ -1,0 +1,11 @@
+{
+  "id": "VfxEmitterDefinitionData_listEmbed_Linger",
+  "title": "Linger",
+  "internalStructures": [
+    {
+      "id": "VfxEmitterDefinitionData_listEmbed_Linger-catalog-0",
+      "name": "VfxLingerDefinitionData",
+      "schemaId": "vfx-linger-definition-data"
+    }
+  ]
+}

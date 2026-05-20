@@ -1,0 +1,39 @@
+{
+  "id": "skin-animation-properties",
+  "title": "SkinAnimationProperties",
+  "parameters": [
+    {
+      "id": "SkinAnimationProperties_parameter_AnimationGraphData",
+      "name": "AnimationGraphData",
+      "type": "link",
+      "defaultValue": "Characters/Zac/Animations/Skin0"
+    }
+  ],
+  "embed": [],
+  "pointer": [],
+  "listEmbed": [],
+  "listPointer": [],
+  "list2Embed": [],
+  "list2Pointer": [],
+  "internalStructures": [],
+  "nomenclature": {
+    "group": "#3 Internal Structures",
+    "collection": "#3 Embed Block",
+    "collectionType": "SkinAnimationProperties",
+    "pathHierarchy": "entries > Characters/Zac/Skins/Skin0 > SkinAnimationProperties",
+    "pathHierarchySteps": [
+      {
+        "id": "entries",
+        "type": "#1 Root Entry"
+      },
+      {
+        "id": "Characters/Zac/Skins/Skin0",
+        "type": "#2 Root Entry (SkinCharacterDataProperties)"
+      },
+      {
+        "id": "SkinAnimationProperties",
+        "type": "#3 Embed Block"
+      }
+    ]
+  }
+}

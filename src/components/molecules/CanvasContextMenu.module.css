@@ -1,0 +1,242 @@
+.menu {
+  position: fixed;
+  z-index: 45;
+  display: grid;
+  gap: var(--space-1);
+  min-width: 220px;
+  max-width: 300px;
+  padding: var(--space-2);
+  background: rgb(37 37 38 / 96%);
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-control);
+  box-shadow: 0 18px 50px rgb(0 0 0 / 32%);
+  backdrop-filter: blur(12px);
+}
+
+.separator {
+  height: 1px;
+  margin: var(--space-1) 0;
+  background: var(--color-border-soft);
+}
+
+.menu button {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  color: var(--color-text-secondary);
+  text-align: left;
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  transition:
+    color 140ms ease,
+    background 140ms ease,
+    border-color 140ms ease,
+    opacity 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.menu button:hover:not(:disabled) {
+  color: var(--color-text-primary);
+  background: rgb(255 255 255 / 5%);
+  border-color: var(--color-border-soft);
+}
+
+.menu button:focus-visible {
+  outline: 2px solid var(--port-child);
+  outline-offset: 2px;
+}
+
+.menu button:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.menu button[data-danger='true']:not(:disabled) {
+  color: rgb(255 140 140);
+}
+
+.menu button[data-danger='true']:hover:not(:disabled) {
+  color: rgb(255 180 180);
+  background: rgb(180 40 40 / 18%);
+}
+
+.menu small {
+  color: var(--color-text-muted);
+  font-family: var(--font-data);
+  font-size: 0.66rem;
+  white-space: nowrap;
+}
+
+/* —— Submenu Exibir: ferramentas visíveis (destaque) vs ocultas (esmaecido) —— */
+
+.toolbarVisibilityButton {
+  justify-content: flex-start;
+}
+
+.itemMain {
+  display: flex;
+  flex: 1 1 auto;
+  gap: var(--space-2);
+  align-items: center;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.selectedMark {
+  flex-shrink: 0;
+  width: 1rem;
+  color: var(--syntax-keyword);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.itemLabel {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 0.8rem;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.menu button[data-selected='true'] .itemLabel {
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
+
+.visibilityTag {
+  flex-shrink: 0;
+  padding: 2px var(--space-2);
+  font-family: var(--font-data);
+  font-size: 0.58rem;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  line-height: 1.2;
+  text-transform: uppercase;
+  border: 1px solid transparent;
+  border-radius: 999px;
+}
+
+/* Mostrando: destaque (alinhado a instanceAction / syntax-keyword) */
+.menu button[data-toolbar-visible='true'] {
+  color: var(--color-text-primary);
+  background: color-mix(in srgb, var(--syntax-keyword) 11%, transparent);
+  border-color: color-mix(in srgb, var(--syntax-keyword) 26%, var(--color-border-soft));
+  box-shadow: inset 2px 0 0 0 var(--syntax-keyword);
+}
+
+.menu button[data-toolbar-visible='true'] .itemLabel {
+  color: var(--color-text-primary);
+}
+
+.menu button[data-toolbar-visible='true'] .visibilityTag[data-state='visible'] {
+  color: var(--syntax-keyword);
+  background: color-mix(in srgb, var(--syntax-keyword) 16%, transparent);
+  border-color: color-mix(in srgb, var(--syntax-keyword) 32%, transparent);
+}
+
+.menu button[data-toolbar-visible='true']:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--syntax-keyword) 16%, transparent);
+  border-color: color-mix(in srgb, var(--syntax-keyword) 42%, var(--color-border-soft));
+}
+
+/* Oculto: esmaecido */
+.menu button[data-toolbar-visible='false'] {
+  color: var(--color-text-muted);
+  background: rgb(0 0 0 / 10%);
+  border-color: transparent;
+  box-shadow: none;
+  opacity: 0.5;
+  filter: saturate(0.55);
+}
+
+.menu button[data-toolbar-visible='false'] .itemLabel {
+  color: var(--color-text-muted);
+}
+
+.menu button[data-toolbar-visible='false'] .visibilityTag[data-state='hidden'] {
+  color: var(--color-text-muted);
+  background: rgb(255 255 255 / 4%);
+  border-color: var(--color-border-soft);
+  opacity: 0.85;
+}
+
+.menu button[data-toolbar-visible='false']:hover:not(:disabled) {
+  opacity: 0.68;
+  background: rgb(255 255 255 / 4%);
+  border-color: var(--color-border-soft);
+  filter: saturate(0.7);
+}
+
+/* Contexto inactivo: mantém destaque/esmaecido da visibilidade, atenua só o nome */
+.menu button[data-context-limited='true'][data-toolbar-visible='true'] .itemLabel {
+  color: var(--color-text-secondary);
+}
+
+.menu button[data-context-limited='true'][data-toolbar-visible='false'] {
+  opacity: 0.42;
+}
+
+/* —— Submenu lateral —— */
+
+.submenuRow {
+  position: relative;
+}
+
+.submenuTrigger {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.exibirTrigger {
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
+
+.submenuCaret {
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+  line-height: 1;
+}
+
+.submenuFlyout {
+  position: absolute;
+  top: 0;
+  left: calc(100% + 4px);
+  z-index: 1;
+  display: none;
+  gap: var(--space-1);
+  min-width: 260px;
+  max-width: 320px;
+  padding: var(--space-2);
+  background: rgb(37 37 38 / 98%);
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-control);
+  box-shadow: 0 14px 40px rgb(0 0 0 / 36%);
+  backdrop-filter: blur(12px);
+}
+
+.exibirFlyout {
+  border-color: color-mix(in srgb, var(--syntax-keyword) 18%, var(--color-border-soft));
+}
+
+.submenuRow[data-open='true'] .submenuFlyout,
+.submenuRow:focus-within .submenuFlyout {
+  display: grid;
+}
+
+.submenuRow:hover .exibirTrigger {
+  color: var(--color-text-primary);
+  background: rgb(255 255 255 / 5%);
+  border-color: var(--color-border-soft);
+}

@@ -1,0 +1,11 @@
+{
+  "id": "VfxShapeLegacy_listEmbed_emitRotationAngles",
+  "title": "emitRotationAngles",
+  "internalStructures": [
+    {
+      "id": "VfxShapeLegacy_listEmbed_emitRotationAngles-catalog-0",
+      "name": "ValueFloat",
+      "schemaId": "value-float"
+    }
+  ]
+}

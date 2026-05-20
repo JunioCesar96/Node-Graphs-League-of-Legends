@@ -1,6 +1,7 @@
 import type { PointerEvent as ReactPointerEvent } from 'react'
 
 import { Port, type WirelessPortLinkProps } from '@/components/atoms/Port'
+import { canvasContextElementProps } from '@/core/canvasContextMenuAttributes'
 import type { InternalStructureDefinition } from '@/core/nodeSchema'
 
 import styles from './InternalStructureItem.module.css'
@@ -41,7 +42,14 @@ export function InternalStructureItem({
   wirelessLink,
 }: InternalStructureItemProps) {
   return (
-    <li className={styles.item}>
+    <li
+      className={styles.item}
+      {...canvasContextElementProps({
+        nodeId: canvasNodeId,
+        kind: 'internalStructure',
+        elementId: structure.id,
+      })}
+    >
       <span className={styles.name} title={structure.name}>
         {structure.name}
       </span>

@@ -1,0 +1,24 @@
+{
+  "internalStructures": [],
+  "embed": [],
+  "pointer": [],
+  "listEmbed": [],
+  "listPointer": [],
+  "list2Embed": [],
+  "list2Pointer": [],
+  "id": "main",
+  "title": "main",
+  "nomenclature": {
+    "group": "",
+    "collection": "#0 Root main",
+    "collectionType": "main",
+    "pathHierarchy": "main",
+    "pathHierarchySteps": [
+      {
+        "id": "main",
+        "type": "#0 Root main"
+      }
+    ]
+  },
+  "parameters": []
+}

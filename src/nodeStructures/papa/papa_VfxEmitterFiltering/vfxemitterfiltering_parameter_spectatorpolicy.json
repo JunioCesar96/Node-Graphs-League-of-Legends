@@ -1,6 +1,0 @@
-{
-  "id": "VfxEmitterFiltering_parameter_SpectatorPolicy",
-  "name": "SpectatorPolicy",
-  "type": "u8",
-  "defaultValue": "1"
-}

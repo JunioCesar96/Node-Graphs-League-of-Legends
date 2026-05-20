@@ -1,6 +1,0 @@
-{
-  "id": "ValueFloat_parameter_ConstantValue",
-  "name": "ConstantValue",
-  "type": "f32",
-  "defaultValue": "3"
-}

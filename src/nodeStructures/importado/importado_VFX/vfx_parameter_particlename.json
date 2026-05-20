@@ -1,0 +1,6 @@
+{
+  "id": "VFX_parameter_particleName",
+  "name": "particleName",
+  "type": "string",
+  "defaultValue": ""
+}

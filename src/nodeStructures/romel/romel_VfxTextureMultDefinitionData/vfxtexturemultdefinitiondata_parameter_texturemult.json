@@ -1,6 +1,0 @@
-{
-  "id": "VfxTextureMultDefinitionData_parameter_TextureMult",
-  "name": "TextureMult",
-  "type": "string",
-  "defaultValue": "ASSETS/Characters/Zac/Skins/base/Particles/Vladimir_Skin14_W_MagicCircle04.tex"
-}

@@ -1,0 +1,6 @@
+{
+  "id": "BankUnit_parameter_bankPath",
+  "name": "bankPath",
+  "type": "liststring",
+  "defaultValue": ""
+}

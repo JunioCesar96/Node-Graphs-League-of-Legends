@@ -1,10 +1,6 @@
 import { resolveCollectionTypeForSlot } from '@/core/collectionTypeLinking'
 import type { ElementMenuCatalogScope } from '@/core/elementMenuScopeCatalog'
-import {
-  internalStructureDisplayNameFromChildSchema,
-  internalStructureMenuLabelFromPathHierarchySteps,
-  internalStructurePathHierarchyLabelFromChildSchema,
-} from '@/core/pathHierarchyInternalStructures'
+import { internalStructureDisplayNameFromChildSchema } from '@/core/pathHierarchyInternalStructures'
 import type { InternalStructureDefinition, NodeParameterDefinition, NodeSchemaDefinition } from '@/core/nodeSchema'
 
 export type ElementMenuOrganizationMode = 'az' | 'tipo' | 'parameter-type'
@@ -17,8 +13,6 @@ export type ElementMenuTypeTag = {
 }
 
 export type ElementMenuEntryKind =
-  | 'preset-slot'
-  | 'catalog-structure'
   | 'catalog-parameter'
   | 'catalog-list-embed'
   | 'catalog-embed'
@@ -26,8 +20,6 @@ export type ElementMenuEntryKind =
   | 'catalog-pointer'
 
 export type ElementMenuPickAction =
-  | 'create-element'
-  | 'append-structure'
   | 'append-parameter'
   | 'append-list-embed-catalog'
   | 'append-embed-catalog'
@@ -60,8 +52,6 @@ export type ElementMenuEntry = {
 }
 
 export type BuildElementMenuEntriesInput = {
-  presetStructures: readonly InternalStructureDefinition[]
-  catalogStructures?: readonly InternalStructureDefinition[]
   catalogParameters?: readonly NodeParameterDefinition[]
   listEmbedCatalog?: readonly {
     listEmbedId: string
@@ -83,7 +73,6 @@ export type BuildElementMenuEntriesInput = {
     listPointerTitle: string
     structure: InternalStructureDefinition
   }[]
-  includeCatalogStructures: boolean
   includeCatalogParameters: boolean
   includeListEmbedCatalog?: boolean
   includeEmbedCatalog?: boolean
@@ -105,10 +94,6 @@ export function identifyElementEntryTypeTag(
     return options.parameterType
   }
 
-  if (kind === 'preset-slot') {
-    return 'Slot'
-  }
-
   const schemaId = options.schemaId?.trim()
   if (schemaId && options.schemaRegistry) {
     const collectionType = resolveCollectionTypeForSlot(schemaId, options.schemaRegistry)
@@ -121,7 +106,7 @@ export function identifyElementEntryTypeTag(
     return schemaId
   }
 
-  return kind === 'catalog-structure' ? 'Internal_Structure' : 'Outro'
+  return 'Outro'
 }
 
 export function buildAutomaticTypeTags(entries: readonly ElementMenuEntry[]): ElementMenuTypeTag[] {
@@ -156,26 +141,11 @@ function isAllTypeTagFilter(activeTypeTagId: string | null): boolean {
   return !activeTypeTagId || activeTypeTagId === ELEMENT_MENU_ALL_TYPE_TAG_ID
 }
 
-/** Em âmbito module, lista como filtro por tipo: inclui rótulos pathHierarchySteps.id. */
-function shouldHidePathHierarchyCatalogEntries(
-  activeTypeTagId: string | null,
-  catalogScope?: ElementMenuCatalogScope,
-): boolean {
-  return isAllTypeTagFilter(activeTypeTagId) && catalogScope !== 'module'
-}
-
 export function filterElementMenuEntriesByTypeTag(
   entries: readonly ElementMenuEntry[],
   activeTypeTagId: string | null,
-  catalogScope?: ElementMenuCatalogScope,
+  _catalogScope?: ElementMenuCatalogScope,
 ): ElementMenuEntry[] {
-  if (shouldHidePathHierarchyCatalogEntries(activeTypeTagId, catalogScope)) {
-    return entries.filter(
-      (entry) =>
-        entry.kind !== 'catalog-structure' || entry.catalogLabelMode !== 'path-hierarchy',
-    )
-  }
-
   if (isAllTypeTagFilter(activeTypeTagId)) {
     return [...entries]
   }
@@ -189,14 +159,6 @@ export function filterElementMenuEntriesByTypeTag(
 }
 
 function sortTipoForKind(kind: ElementMenuEntryKind): string {
-  if (kind === 'preset-slot') {
-    return 'Slot'
-  }
-
-  if (kind === 'catalog-structure') {
-    return 'Internal_Structure'
-  }
-
   if (kind === 'catalog-list-embed') {
     return 'LIST_EMBED'
   }
@@ -232,113 +194,10 @@ export function catalogStructureMenuLabel(
   return schemaId || structure.name
 }
 
-/** Nome ao acrescentar slot dinâmico conforme a variante escolhida no menu. */
-export function catalogStructureAppendName(
-  entry: ElementMenuEntry,
-  schemaRegistry?: Record<string, NodeSchemaDefinition>,
-): string {
-  if (!entry.structure) {
-    return entry.label
-  }
-  if (entry.catalogLabelMode === 'path-hierarchy') {
-    return entry.label
-  }
-  return catalogStructureMenuLabel(entry.structure, schemaRegistry)
-}
-
 export function buildElementMenuEntries(input: BuildElementMenuEntriesInput): ElementMenuEntry[] {
   const entries: ElementMenuEntry[] = []
   const registry = input.schemaRegistry
   const scope = input.catalogScope
-
-  for (const structure of input.presetStructures) {
-    const meta = structure.schemaId
-    const typeTag = identifyElementEntryTypeTag('preset-slot', {
-      schemaId: structure.schemaId,
-      schemaRegistry: registry,
-    })
-    entries.push({
-      id: `preset:${structure.id}`,
-      kind: 'preset-slot',
-      label: structure.name,
-      meta,
-      searchText: `${structure.name} ${meta} ${typeTag} Slot`.toLowerCase(),
-      sortTipo: sortTipoForKind('preset-slot'),
-      typeTag,
-      catalogScope: scope,
-      onPick: 'create-element',
-      structure,
-    })
-  }
-
-  if (input.includeCatalogStructures && input.catalogStructures) {
-    for (const structure of input.catalogStructures) {
-      const schemaId = structure.schemaId.trim()
-      const childSchema = schemaId && registry?.[schemaId]
-      const baseLabel = catalogStructureMenuLabel(structure, registry)
-      const pathLabel = childSchema
-        ? internalStructurePathHierarchyLabelFromChildSchema(childSchema)
-        : null
-      const moduleLabel = childSchema
-        ? internalStructureMenuLabelFromPathHierarchySteps(childSchema)
-        : structure.name.trim() || baseLabel
-      const meta = `Internal_Structure · ${structure.schemaId}`
-      const typeTag = identifyElementEntryTypeTag('catalog-structure', {
-        schemaId: structure.schemaId,
-        schemaRegistry: registry,
-      })
-
-      if (scope === 'module') {
-        entries.push({
-          id: `catalog-is:module:${schemaId}`,
-          kind: 'catalog-structure',
-          label: moduleLabel,
-          meta,
-          searchText:
-            `${moduleLabel} ${baseLabel} ${structure.schemaId} ${typeTag} Internal_Structure pathHierarchy`.toLowerCase(),
-          sortTipo: sortTipoForKind('catalog-structure'),
-          typeTag,
-          catalogLabelMode: 'path-hierarchy',
-          catalogScope: scope,
-          onPick: 'append-structure',
-          structure: { ...structure, name: moduleLabel },
-        })
-        continue
-      }
-
-      entries.push({
-        id: `catalog-is:base:${schemaId}`,
-        kind: 'catalog-structure',
-        label: baseLabel,
-        meta,
-        searchText:
-          `${baseLabel} ${pathLabel ?? ''} ${structure.schemaId} ${typeTag} Internal_Structure`.toLowerCase(),
-        sortTipo: sortTipoForKind('catalog-structure'),
-        typeTag,
-        catalogLabelMode: 'base',
-        catalogScope: scope,
-        onPick: 'append-structure',
-        structure,
-      })
-
-      if (pathLabel) {
-        entries.push({
-          id: `catalog-is:path:${schemaId}:${pathLabel}`,
-          kind: 'catalog-structure',
-          label: pathLabel,
-          meta,
-          searchText:
-            `${pathLabel} ${baseLabel} ${structure.schemaId} ${typeTag} Internal_Structure pathHierarchy`.toLowerCase(),
-          sortTipo: sortTipoForKind('catalog-structure'),
-          typeTag,
-          catalogLabelMode: 'path-hierarchy',
-          catalogScope: scope,
-          onPick: 'append-structure',
-          structure,
-        })
-      }
-    }
-  }
 
   if (input.includeEmbedCatalog && input.embedCatalog) {
     for (const pick of input.embedCatalog) {

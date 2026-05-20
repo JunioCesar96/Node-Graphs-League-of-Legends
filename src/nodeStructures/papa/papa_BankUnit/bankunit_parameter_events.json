@@ -1,6 +1,0 @@
-{
-  "id": "BankUnit_parameter_Events",
-  "name": "Events",
-  "type": "listString",
-  "defaultValue": "Play_vo_Zac_Attack2DGeneral\nPlay_vo_Zac_Death3D\nPlay_vo_Zac_Laugh3DGeneral\nPlay_vo_Zac_Move2DStandard\nPlay_vo_Zac_Spell3DE2Cast\nPlay_vo_Zac_Spell3DE2End\nPlay_vo_Zac_Spell3DPReviveStart\nPlay_vo_Zac_Taunt3DGeneral\nPlay_vo_Zac_ZacBasicAttack2_cast3D\nPlay_vo_Zac_ZacBasicAttack_cast3D\nPlay_vo_Zac_ZacCritAttack_cast3D\nPlay_vo_Zac_ZacE_cast3D\nPlay_vo_Zac_ZacQ_cast3D\nPlay_vo_Zac_ZacR_buffactivate\nPlay_vo_Zac_ZacR_cast3D\nPlay_vo_Zac_ZacW_cast3D"
-}

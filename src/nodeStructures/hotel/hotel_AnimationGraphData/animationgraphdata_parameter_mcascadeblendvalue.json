@@ -1,0 +1,6 @@
+{
+  "id": "AnimationGraphData_parameter_mCascadeBlendValue",
+  "name": "mCascadeBlendValue",
+  "type": "f32",
+  "defaultValue": "0"
+}

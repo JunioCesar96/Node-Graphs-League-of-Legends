@@ -1,0 +1,11 @@
+{
+  "id": "VfxTextureMultDefinitionData_listEmbed_birthUVOffsetMult",
+  "title": "birthUVOffsetMult",
+  "internalStructures": [
+    {
+      "id": "VfxTextureMultDefinitionData_listEmbed_birthUVOffsetMult-catalog-0",
+      "name": "ValueVector2",
+      "schemaId": "value-vector2"
+    }
+  ]
+}

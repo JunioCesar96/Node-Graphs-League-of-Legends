@@ -1,0 +1,11 @@
+{
+  "id": "VfxEmitterDefinitionData_pointer_Audio",
+  "title": "Audio",
+  "internalStructures": [
+    {
+      "id": "VfxEmitterDefinitionData_pointer_Audio-catalog-0",
+      "name": "VfxEmitterAudio",
+      "schemaId": "vfx-emitter-audio"
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "id": "VfxEmitterDefinitionData_embed_birthUVOffset",
+  "title": "birthUVOffset",
+  "internalStructures": [
+    {
+      "id": "VfxEmitterDefinitionData_embed_birthUVOffset-catalog-0",
+      "name": "ValueVector2",
+      "schemaId": "value-vector2"
+    }
+  ]
+}

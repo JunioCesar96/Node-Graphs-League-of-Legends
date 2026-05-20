@@ -1,6 +1,0 @@
-{
-  "id": "VfxEmitterDefinitionData_parameter_ParticleIsLocalOrientation",
-  "name": "ParticleIsLocalOrientation",
-  "type": "bool",
-  "defaultValue": "true"
-}

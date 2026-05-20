@@ -1,6 +1,0 @@
-{
-  "id": "SkinMeshDataProperties_parameter_SimpleSkin",
-  "name": "SimpleSkin",
-  "type": "string",
-  "defaultValue": "ASSETS/Characters/Zac/Skins/Base/Zac_Base.skn"
-}

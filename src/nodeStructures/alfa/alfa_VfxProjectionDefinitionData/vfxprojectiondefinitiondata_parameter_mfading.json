@@ -1,0 +1,6 @@
+{
+  "id": "VfxProjectionDefinitionData_parameter_mFading",
+  "name": "mFading",
+  "type": "f32",
+  "defaultValue": "0"
+}

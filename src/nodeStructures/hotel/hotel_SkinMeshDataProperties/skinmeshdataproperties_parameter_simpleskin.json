@@ -1,0 +1,6 @@
+{
+  "id": "SkinMeshDataProperties_parameter_simpleSkin",
+  "name": "simpleSkin",
+  "type": "string",
+  "defaultValue": ""
+}

@@ -1,6 +1,0 @@
-{
-  "id": "VfxMeshDefinitionData_parameter_mSimpleMeshName",
-  "name": "mSimpleMeshName",
-  "type": "string",
-  "defaultValue": "ASSETS/Characters/Zac/Skins/Base/Particles/Zac_Ult_Slam_Cyl.scb"
-}

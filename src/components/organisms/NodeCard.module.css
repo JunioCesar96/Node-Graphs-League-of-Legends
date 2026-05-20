@@ -1,6 +1,9 @@
 .card {
   position: relative;
-  width: min(360px, 100%);
+  box-sizing: border-box;
+  width: var(--node-card-width);
+  min-width: var(--node-card-width);
+  max-width: var(--node-card-width);
   cursor: default;
   background: var(--color-node-surface);
   border: 1px solid var(--color-border);
@@ -8,15 +11,38 @@
   box-shadow: 0 24px 80px var(--color-shadow);
 }
 
-
 .body {
-  display: grid;
-  gap: var(--space-5);
-  padding: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--node-card-section-gap);
+  padding: var(--node-card-body-padding-y) var(--node-card-body-padding-x);
+  box-sizing: border-box;
+}
+
+.bodyFooter {
+  order: 100;
+  box-sizing: border-box;
+  width: 100%;
 }
 
 .bodyCollapsed {
   display: none;
+}
+
+.bodyFreeformActive {
+  gap: var(--node-card-list-gap);
+}
+
+.bodyFreeform {
+  display: flex;
+  flex-direction: column;
+  gap: var(--node-card-list-gap);
+  width: 100%;
+}
+
+.freeformGroup {
+  display: block;
+  width: 100%;
 }
 
 .section {
@@ -36,7 +62,10 @@
 
 .list {
   display: grid;
-  gap: var(--space-2);
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  gap: var(--node-card-list-gap);
   padding: 0;
   margin: 0;
   list-style: none;

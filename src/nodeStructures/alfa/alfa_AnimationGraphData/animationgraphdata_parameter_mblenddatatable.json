@@ -1,0 +1,6 @@
+{
+  "id": "AnimationGraphData_parameter_mBlendDataTable",
+  "name": "mBlendDataTable",
+  "type": "mapu64pointer",
+  "defaultValue": ""
+}

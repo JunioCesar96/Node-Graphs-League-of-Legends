@@ -1,0 +1,6 @@
+{
+  "id": "AnimationGraphData_parameter_mTime",
+  "name": "mTime",
+  "type": "f32",
+  "defaultValue": "0"
+}

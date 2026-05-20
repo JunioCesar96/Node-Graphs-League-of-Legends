@@ -1,6 +1,0 @@
-{
-  "id": "VfxEmitterDefinitionData_parameter_ParticleColorTexture",
-  "name": "ParticleColorTexture",
-  "type": "string",
-  "defaultValue": "ASSETS/Characters/Zac/Skins/Base/Particles/Zac_Goo_RGB.tex"
-}

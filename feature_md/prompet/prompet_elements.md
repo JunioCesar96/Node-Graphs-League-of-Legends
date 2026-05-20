@@ -17,7 +17,7 @@ Definido em `nodeSchema.ts`; ligações via `GraphCanvas` (portas calculadas jun
 
 **Card do nó:** cada família (Parameters, EMBED, POINTER, …) é um painel colapsável estilo Blender — **recluso** mostra só o título com chevron; **expandido** mostra o conteúdo actual. Por defeito só **Parameters** inicia expandido; o estado persiste em `layout.json` (`cardSectionExpanded`).
 
-**Retrair elemento (por linha):** independente da secção e da vista **lista/compacta**, cada parâmetro e cada bloco EMBED/POINTER/LIST/LIST2 pode estar **retraído** — barra com chevron, título, tipo e grip (parâmetros); menu de contexto «Retrair / Expandir elemento»; estado em `elementView[key].retracted` no logic JSON. Expandido = UI completa actual.
+**Retrair elemento (por linha):** independente da secção e da vista **lista/compacta**, cada parâmetro e cada bloco EMBED/POINTER/LIST/LIST2 pode estar **retraído** — barra com chevron, título, tipo e grip (parâmetros); menu de contexto «Retrair / Expandir elemento»; estado em `elementView[key].retracted` no logic JSON. Expandido = UI completa actual. Com estruturas internas ligadas, o retraído usa ligações **wireless** (como o modo compacto); ao passar o rato na porta de **entrada** do nó filho, a borda da barra retraída do elemento pai no card pisca.
 
 **Nota:** `link = Tipo { }` permanece em **Internal_Structures**; `pointer = Tipo { }` vai para **POINTER**.
 

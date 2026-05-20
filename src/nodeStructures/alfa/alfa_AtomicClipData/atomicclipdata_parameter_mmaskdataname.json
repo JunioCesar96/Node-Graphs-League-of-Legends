@@ -1,0 +1,6 @@
+{
+  "id": "AtomicClipData_parameter_mMaskDataName",
+  "name": "mMaskDataName",
+  "type": "integer",
+  "defaultValue": "0"
+}

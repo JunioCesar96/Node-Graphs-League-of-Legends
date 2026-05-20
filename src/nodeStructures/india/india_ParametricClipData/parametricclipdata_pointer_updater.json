@@ -1,0 +1,21 @@
+{
+  "id": "ParametricClipData_pointer_Updater",
+  "title": "Updater",
+  "internalStructures": [
+    {
+      "id": "ParametricClipData_pointer_Updater-catalog-0",
+      "name": "SkinScaleParametricUpdater",
+      "schemaId": "skin-scale-parametric-updater"
+    },
+    {
+      "id": "ParametricClipData_pointer_Updater-catalog-1",
+      "name": "LookAtSpellTargetDistanceParametricUpdater",
+      "schemaId": "look-at-spell-target-distance-parametric-updater"
+    },
+    {
+      "id": "ParametricClipData_pointer_Updater-catalog-2",
+      "name": "IsMovingParametricUpdater",
+      "schemaId": "is-moving-parametric-updater"
+    }
+  ]
+}

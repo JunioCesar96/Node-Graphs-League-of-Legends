@@ -1,0 +1,11 @@
+{
+  "id": "VfxEmitterLegacySimple_embed_Scale",
+  "title": "Scale",
+  "internalStructures": [
+    {
+      "id": "VfxEmitterLegacySimple_embed_Scale-catalog-0",
+      "name": "ValueFloat",
+      "schemaId": "value-float"
+    }
+  ]
+}

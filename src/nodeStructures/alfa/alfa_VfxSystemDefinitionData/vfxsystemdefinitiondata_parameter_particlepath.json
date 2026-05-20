@@ -1,0 +1,6 @@
+{
+  "id": "VfxSystemDefinitionData_parameter_particlePath",
+  "name": "particlePath",
+  "type": "string",
+  "defaultValue": ""
+}

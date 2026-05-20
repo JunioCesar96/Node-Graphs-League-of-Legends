@@ -1,0 +1,6 @@
+{
+  "id": "SkinAudioProperties_parameter_tagEventList",
+  "name": "tagEventList",
+  "type": "liststring",
+  "defaultValue": ""
+}

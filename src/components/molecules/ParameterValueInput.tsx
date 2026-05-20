@@ -6,11 +6,17 @@ import { ParameterRgbaInput } from '@/components/molecules/ParameterRgbaInput'
 import { ParameterVector2Input } from '@/components/molecules/ParameterVector2Input'
 import { ParameterVector3Input } from '@/components/molecules/ParameterVector3Input'
 import { ParameterListF32Input } from '@/components/molecules/ParameterListF32Input'
+import { ParameterOptionF32Input } from '@/components/molecules/ParameterOptionF32Input'
+import { ParameterOptionStringInput } from '@/components/molecules/ParameterOptionStringInput'
+import { ParameterOptionVector3Input } from '@/components/molecules/ParameterOptionVector3Input'
+import { ParameterMapHashLinkInput } from '@/components/molecules/ParameterMapHashLinkInput'
 import { ParameterListHashInput } from '@/components/molecules/ParameterListHashInput'
 import { ParameterListStringInput } from '@/components/molecules/ParameterListStringInput'
 import { ParameterListVector2Input } from '@/components/molecules/ParameterListVector2Input'
 import { ParameterListVector3Input } from '@/components/molecules/ParameterListVector3Input'
 import { ParameterListVector4Input } from '@/components/molecules/ParameterListVector4Input'
+import { ParameterLinkInput } from '@/components/molecules/ParameterLinkInput'
+import { ParameterMtx44Input } from '@/components/molecules/ParameterMtx44Input'
 import { ParameterVector4Input } from '@/components/molecules/ParameterVector4Input'
 import {
   getParameterInputHint,
@@ -71,9 +77,22 @@ export function ParameterValueInput({
     }
   }
 
-  if (dataType === 'bool') {
+  if (dataType === 'bool' || dataType === 'flag') {
     return (
       <ParameterBoolInput
+        ariaLabel={ariaLabel}
+        className={className}
+        onCommit={onCommit}
+        onFocusChange={onFocusChange}
+        parameterType={dataType}
+        value={value}
+      />
+    )
+  }
+
+  if (dataType === 'rgba') {
+    return (
+      <ParameterRgbaInput
         ariaLabel={ariaLabel}
         className={className}
         onCommit={onCommit}
@@ -83,9 +102,45 @@ export function ParameterValueInput({
     )
   }
 
-  if (dataType === 'rgba') {
+  if (dataType === 'mapHashLink') {
     return (
-      <ParameterRgbaInput
+      <ParameterMapHashLinkInput
+        ariaLabel={ariaLabel}
+        className={className}
+        onCommit={onCommit}
+        onFocusChange={onFocusChange}
+        value={value}
+      />
+    )
+  }
+
+  if (dataType === 'optionF32') {
+    return (
+      <ParameterOptionF32Input
+        ariaLabel={ariaLabel}
+        className={className}
+        onCommit={onCommit}
+        onFocusChange={onFocusChange}
+        value={value}
+      />
+    )
+  }
+
+  if (dataType === 'optionString') {
+    return (
+      <ParameterOptionStringInput
+        ariaLabel={ariaLabel}
+        className={className}
+        onCommit={onCommit}
+        onFocusChange={onFocusChange}
+        value={value}
+      />
+    )
+  }
+
+  if (dataType === 'optionVector3') {
+    return (
+      <ParameterOptionVector3Input
         ariaLabel={ariaLabel}
         className={className}
         onCommit={onCommit}
@@ -158,6 +213,30 @@ export function ParameterValueInput({
   if (dataType === 'vector4') {
     return (
       <ParameterVector4Input
+        ariaLabel={ariaLabel}
+        className={className}
+        onCommit={onCommit}
+        onFocusChange={onFocusChange}
+        value={value}
+      />
+    )
+  }
+
+  if (dataType === 'mtx44') {
+    return (
+      <ParameterMtx44Input
+        ariaLabel={ariaLabel}
+        className={className}
+        onCommit={onCommit}
+        onFocusChange={onFocusChange}
+        value={value}
+      />
+    )
+  }
+
+  if (dataType === 'link') {
+    return (
+      <ParameterLinkInput
         ariaLabel={ariaLabel}
         className={className}
         onCommit={onCommit}

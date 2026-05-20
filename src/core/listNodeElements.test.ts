@@ -78,6 +78,23 @@ describe('listNodeElements', () => {
     expect(countElementDependencies(scene, emitter.id, 'tint', 'parameter')).toBe(0)
   })
 
+  it('exclui internal structures top-level da lista removível', () => {
+    const emitter = staticCanvasScene.nodes.find((n) => n.id === 'emitter-01')
+    if (!emitter) {
+      throw new Error('demo sem emitter-01')
+    }
+
+    const removable = listRemovableNodeElements(emitter.node)
+    expect(removable.some((item) => item.kind === 'internalStructure')).toBe(false)
+    if (emitter.node.schema.internalStructures.length > 0) {
+      expect(
+        removable.length,
+      ).toBeLessThan(
+        emitter.node.schema.parameters.length + emitter.node.schema.internalStructures.length,
+      )
+    }
+  })
+
   it('exclui parâmetros obrigatórios da lista removível', () => {
     const emitter = staticCanvasScene.nodes.find((n) => n.id === 'emitter-01')
     if (!emitter) {

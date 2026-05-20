@@ -1,0 +1,6 @@
+{
+  "id": "SequencerClipData_parameter_mFlags",
+  "name": "mFlags",
+  "type": "u32",
+  "defaultValue": "0"
+}

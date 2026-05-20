@@ -554,6 +554,44 @@
   white-space: nowrap;
 }
 
+.positionFields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.positionField {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.positionField span {
+  color: var(--color-text-muted);
+  font-family: var(--font-data);
+  font-size: 0.62rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.positionField input {
+  width: 100%;
+  min-width: 0;
+  padding: var(--space-1) var(--space-2);
+  color: var(--color-text-primary);
+  font-family: var(--font-data);
+  font-size: 0.76rem;
+  background: rgb(0 0 0 / 18%);
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-control);
+}
+
+.positionField input:focus {
+  border-color: var(--syntax-property);
+  outline: none;
+  box-shadow: 0 0 0 2px rgb(156 220 254 / 14%);
+}
+
 .section {
   display: grid;
   gap: var(--space-2);

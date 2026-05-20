@@ -189,6 +189,7 @@ function App() {
     cycleConnectionRouting,
     setElementViewMode,
     setElementRetracted,
+    setAllNodeElementsRetracted,
     setElementSelectedIndex,
     redoScene,
     resetScene,
@@ -1947,6 +1948,7 @@ function App() {
             onUpdateNodeParameter={updateNodeParameter}
             onSetElementViewMode={setElementViewMode}
             onSetElementRetracted={setElementRetracted}
+            onSetAllNodeElementsRetracted={setAllNodeElementsRetracted}
             onSetElementSelectedIndex={setElementSelectedIndex}
             onRemoveConnectionsFromOutputSlot={removeConnectionsFromOutputSlot}
             onSetNodeParameterOrder={setNodeParameterOrder}

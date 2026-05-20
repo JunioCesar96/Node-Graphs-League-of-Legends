@@ -20,6 +20,8 @@ type ListPrimitivePickerProps = {
   defaultItem: string
   inputMode: 'decimal' | 'text'
   removalTitleDomId: string
+  /** Limite de entradas (ex.: 1 para option[T]). */
+  maxItems?: number
 }
 
 export function ListPrimitivePicker({
@@ -35,6 +37,7 @@ export function ListPrimitivePicker({
   defaultItem,
   inputMode,
   removalTitleDomId,
+  maxItems,
 }: ListPrimitivePickerProps) {
   const items = useMemo(() => parseList(value), [parseList, value])
   const [selectedIndex, setSelectedIndex] = useState(-1)
@@ -81,7 +84,12 @@ export function ListPrimitivePicker({
     })
   }
 
+  const atMaxItems = maxItems !== undefined && items.length >= maxItems
+
   const addItem = () => {
+    if (atMaxItems) {
+      return
+    }
     onChange(formatList([...items, defaultItem]))
     closeItemMenu()
   }
@@ -221,7 +229,13 @@ export function ListPrimitivePicker({
         </button>
         {itemMenuOpen ? (
           <div aria-label={`Ações ${itemLabel}`} className={styles.itemSubmenu} role="menu">
-            <button className={styles.itemSubmenuEntry} onClick={addItem} role="menuitem" type="button">
+            <button
+              className={styles.itemSubmenuEntry}
+              disabled={atMaxItems}
+              onClick={addItem}
+              role="menuitem"
+              type="button"
+            >
               + {itemLabel}
             </button>
             <button

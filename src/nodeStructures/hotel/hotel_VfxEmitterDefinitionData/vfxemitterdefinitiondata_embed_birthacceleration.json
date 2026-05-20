@@ -1,0 +1,11 @@
+{
+  "id": "VfxEmitterDefinitionData_embed_birthAcceleration",
+  "title": "birthAcceleration",
+  "internalStructures": [
+    {
+      "id": "VfxEmitterDefinitionData_embed_birthAcceleration-catalog-0",
+      "name": "ValueVector3",
+      "schemaId": "value-vector3"
+    }
+  ]
+}

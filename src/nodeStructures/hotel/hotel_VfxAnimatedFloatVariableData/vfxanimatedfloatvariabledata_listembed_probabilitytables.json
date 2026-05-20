@@ -1,0 +1,11 @@
+{
+  "id": "VfxAnimatedFloatVariableData_listEmbed_probabilityTables",
+  "title": "probabilityTables",
+  "internalStructures": [
+    {
+      "id": "VfxAnimatedFloatVariableData_listEmbed_probabilityTables-catalog-0",
+      "name": "VfxProbabilityTableData",
+      "schemaId": "vfx-probability-table-data"
+    }
+  ]
+}

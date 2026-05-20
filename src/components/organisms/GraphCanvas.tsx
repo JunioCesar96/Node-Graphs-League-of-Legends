@@ -88,6 +88,7 @@ import {
   elementViewKeyForList2Pointer,
   elementViewKeyForListEmbed,
   elementViewKeyForListPointer,
+  elementViewKeyForOutputSlot,
   elementViewKeyForParameter,
   elementViewKeyForPointer,
   getElementViewState,
@@ -276,6 +277,7 @@ type GraphCanvasProps = {
     elementKey: import('@/core/nodeSchema').ElementViewKey,
     retracted: boolean,
   ) => void
+  onSetAllNodeElementsRetracted?: (canvasNodeId: string, retracted: boolean) => void
   onSetElementSelectedIndex?: (
     canvasNodeId: string,
     elementKey: import('@/core/nodeSchema').ElementViewKey,
@@ -1398,6 +1400,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     onUpdateNodeParameter,
     onSetElementViewMode,
     onSetElementRetracted,
+    onSetAllNodeElementsRetracted,
     onSetElementSelectedIndex,
     onRemoveConnectionsFromOutputSlot,
     scene,
@@ -1531,15 +1534,37 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     [scene.connections, scene.nodes],
   )
 
-  const handleWirelessPeerHoverStart = useCallback((payload: WirelessPeerHoverPayload) => {
-    setWirelessHighlightNodeId(payload.peerNodeId)
-    setWirelessPortPulse({
-      connectionId: payload.pulseOnPeer.connectionId,
-      nodeId: payload.peerNodeId,
-      portKind: payload.pulseOnPeer.portKind,
-      outputSlotId: payload.pulseOnPeer.outputSlotId,
-    })
-  }, [])
+  const handleWirelessPeerHoverStart = useCallback(
+    (payload: WirelessPeerHoverPayload) => {
+      setWirelessHighlightNodeId(payload.peerNodeId)
+
+      const peerNode = scene.nodes.find((node) => node.id === payload.peerNodeId)
+      let retractedElementViewKey: ElementViewKey | undefined
+
+      if (
+        peerNode &&
+        payload.pulseOnPeer.portKind === 'output' &&
+        payload.pulseOnPeer.outputSlotId
+      ) {
+        const elementKey = elementViewKeyForOutputSlot(
+          peerNode.node,
+          payload.pulseOnPeer.outputSlotId,
+        )
+        if (elementKey && isElementRetracted(peerNode.node, elementKey)) {
+          retractedElementViewKey = elementKey
+        }
+      }
+
+      setWirelessPortPulse({
+        connectionId: payload.pulseOnPeer.connectionId,
+        nodeId: payload.peerNodeId,
+        portKind: payload.pulseOnPeer.portKind,
+        outputSlotId: payload.pulseOnPeer.outputSlotId,
+        retractedElementViewKey,
+      })
+    },
+    [scene.nodes],
+  )
 
   const handleWirelessPeerHoverEnd = useCallback(() => {
     setWirelessHighlightNodeId(null)
@@ -2822,6 +2847,16 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
             onSetNodeCardBodyLayout?.(target.nodeId, 'freeform')
           }
           break
+        case 'node.retractAllElements':
+          if (target.type === 'node') {
+            onSetAllNodeElementsRetracted?.(target.nodeId, true)
+          }
+          break
+        case 'node.expandAllElements':
+          if (target.type === 'node') {
+            onSetAllNodeElementsRetracted?.(target.nodeId, false)
+          }
+          break
         case 'connection.cycleRouting':
           if (target.type === 'connection') {
             onCycleConnectionRouting?.(target.connectionId)
@@ -2966,6 +3001,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       onSelectNode,
       onSetElementViewMode,
       onSetElementRetracted,
+      onSetAllNodeElementsRetracted,
       onUndo,
       openCollectionTypeLinkMenu,
       openPalette,

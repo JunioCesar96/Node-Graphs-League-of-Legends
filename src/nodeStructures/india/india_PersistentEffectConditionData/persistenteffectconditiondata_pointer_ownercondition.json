@@ -1,0 +1,11 @@
+{
+  "id": "PersistentEffectConditionData_pointer_OwnerCondition",
+  "title": "OwnerCondition",
+  "internalStructures": [
+    {
+      "id": "PersistentEffectConditionData_pointer_OwnerCondition-catalog-0",
+      "name": "IsAnimationPlayingDynamicMaterialBoolDriver",
+      "schemaId": "is-animation-playing-dynamic-material-bool-driver"
+    }
+  ]
+}

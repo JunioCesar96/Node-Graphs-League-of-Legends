@@ -1,0 +1,11 @@
+{
+  "id": "AtomicClipData_listEmbed_mAnimationResourceData",
+  "title": "mAnimationResourceData",
+  "internalStructures": [
+    {
+      "id": "AtomicClipData_listEmbed_mAnimationResourceData-catalog-0",
+      "name": "AnimationResourceData",
+      "schemaId": "animation-resource-data"
+    }
+  ]
+}

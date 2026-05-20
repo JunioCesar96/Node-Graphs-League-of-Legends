@@ -1,0 +1,11 @@
+{
+  "id": "VfxEmitterDefinitionData_pointer_Filtering",
+  "title": "Filtering",
+  "internalStructures": [
+    {
+      "id": "VfxEmitterDefinitionData_pointer_Filtering-catalog-0",
+      "name": "VfxEmitterFiltering",
+      "schemaId": "vfx-emitter-filtering"
+    }
+  ]
+}

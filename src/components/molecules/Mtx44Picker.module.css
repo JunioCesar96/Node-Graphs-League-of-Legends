@@ -1,0 +1,118 @@
+.picker {
+  display: grid;
+  gap: var(--space-4);
+  width: min(320px, 92vw);
+  padding: var(--space-3);
+  font-family: var(--font-ui);
+  background: rgb(18 20 24 / 98%);
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-leaf);
+  box-shadow: 0 12px 40px var(--color-shadow);
+}
+
+.section {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.sectionHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.sectionTitle {
+  flex: 1;
+  margin: 0;
+  color: var(--color-text-primary);
+  font-family: var(--font-ui);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.resetBtn {
+  padding: 2px var(--space-2);
+  color: var(--color-text-secondary);
+  font-family: var(--font-ui);
+  font-size: 0.68rem;
+  background: transparent;
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.resetBtn:hover {
+  color: var(--color-text-primary);
+  border-color: rgb(255 255 255 / 22%);
+}
+
+.uniformToggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  cursor: pointer;
+}
+
+.uniformLabel {
+  color: var(--color-text-secondary);
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.uniformCheckbox {
+  width: 0.9rem;
+  height: 0.9rem;
+  accent-color: var(--syntax-mtx44, var(--syntax-vector4));
+  cursor: pointer;
+}
+
+.axisList {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.uniformField {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  background: rgb(255 255 255 / 4%);
+  border: 1px solid rgb(255 255 255 / 10%);
+  border-radius: 6px;
+}
+
+.uniformInput {
+  flex: 1;
+  min-width: 0;
+  max-width: 8rem;
+  padding: var(--space-2);
+  color: var(--color-text-primary);
+  font-family: var(--font-data);
+  font-size: 0.88rem;
+  text-align: center;
+  background: rgb(0 0 0 / 20%);
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 4px;
+}
+
+.stepBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  color: var(--color-text-secondary);
+  font-size: 1rem;
+  background: rgb(255 255 255 / 4%);
+  border: 1px solid rgb(255 255 255 / 10%);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.stepBtn:hover {
+  color: var(--color-text-primary);
+}

@@ -1,5 +1,6 @@
 import type { CanvasScene } from '@/core/canvasScene'
 import { hydrateScene, staticCanvasScene } from '@/core/canvasScene'
+import { syncSceneCollapsedBodyWireless } from '@/core/compactConnectionRouting'
 
 export const SCENE_STORAGE_KEY = 'node-graphs-lol:scene'
 
@@ -34,7 +35,7 @@ export function loadStoredScene(): CanvasScene {
       return staticCanvasScene
     }
 
-    const hydrated = hydrateScene(parsedScene)
+    const hydrated = syncSceneCollapsedBodyWireless(hydrateScene(parsedScene))
 
     if (hydrated.nodes.length === 0) {
       return staticCanvasScene

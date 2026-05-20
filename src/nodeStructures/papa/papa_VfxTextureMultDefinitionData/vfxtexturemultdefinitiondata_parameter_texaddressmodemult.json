@@ -1,6 +1,0 @@
-{
-  "id": "VfxTextureMultDefinitionData_parameter_TexAddressModeMult",
-  "name": "TexAddressModeMult",
-  "type": "u8",
-  "defaultValue": "2"
-}

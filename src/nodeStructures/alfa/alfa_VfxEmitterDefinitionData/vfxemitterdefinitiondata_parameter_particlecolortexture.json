@@ -1,0 +1,6 @@
+{
+  "id": "VfxEmitterDefinitionData_parameter_particleColorTexture",
+  "name": "particleColorTexture",
+  "type": "string",
+  "defaultValue": ""
+}

@@ -104,17 +104,19 @@ sequenceDiagram
 | `[NOVO]` | `confirm_remove_node_element` | Remoção | Entrada Messenger com `{elementName}` e `{connectionWarning}`. | Catálogo JSON + constante `MESSENGER_CONFIRM_REMOVE_NODE_ELEMENT` |
 | `[ATUALIZADO]` | `NodeCard.tsx` | Element Menu | Substitui `+ Elemento` por `ElementMenu` + `ElementRemovalPicker`; estado `removalSelectedKey`. | `parameterStubCatalog`, `onRequestRemoveElement` |
 | `[ATUALIZADO]` | `GraphCanvas.tsx` | Element Menu | Repassa `onRequestRemoveElement` e `parameterStubCatalog` do schema base. | `(canvasNodeId, item) => void` |
-| `[ATUALIZADO]` | `App.tsx` | Remoção | `handleRequestRemoveNodeElement` com guard de parâmetro obrigatório, confirmação Messenger e remoção via hook. | Usa `removeCanvasParameter` / `removeCanvasInternalStructure` |
-| `[ATUALIZADO]` | `useSceneHistory.ts` | Remoção | Export e uso de `removeCanvasParameter` e `removeCanvasInternalStructure` (limpeza de schema, values, links e conexões de IS). | `(nodeId, elementId) => void` |
+| `[ATUALIZADO]` | `App.tsx` | Remoção | `handleRequestRemoveNodeElement` com guard de parâmetro obrigatório, confirmação Messenger e remoção via hook. | Usa `removeCanvasParameter` e remoção de blocos/slots compostos |
+| `[ATUALIZADO]` | `useSceneHistory.ts` | Remoção | Export de `removeCanvasParameter` e remoções EMBED/POINTER/LIST_*; `removeCanvasInternalStructure` permanece no hook sem UI Element. | `(nodeId, elementId) => void` |
 | `[REMOVIDO]` | Botão `+ Elemento` | Element Menu | Label e menu flat único substituídos pelo menu em dois níveis **Element**. | — |
 
 ## 6. Descrição Detalhada de Funcionamento
 
-A gestão de elementos internos do nó deixou de usar o botão estático **+ Elemento** (lista única de adição) e passou ao componente **ElementMenu**, com menu em dois níveis: **+ Element** mantém o fluxo anterior (criar filho a partir de internal structure existente, acrescentar IS ou parâmetro do catálogo) e **- Element** abre o **ElementRemovalPicker**.
+A gestão de elementos internos do nó deixou de usar o botão estático **+ Elemento** (lista única de adição) e passou ao componente **ElementMenu**, com menu em dois níveis: **+ Element** acrescenta parâmetros do catálogo e itens EMBED/POINTER/LIST_*; **- Element** abre o **ElementRemovalPicker**.
 
-O picker lista apenas elementos removíveis via `listRemovableNodeElements`, que omite parâmetros marcados como obrigatórios em `required_parameter` / `schema.required_parameter`, resolvendo ids dinâmicos (`dyn-param-*`) com o catálogo base do schema (`fx_required_parameter_isMarked`). Internal structures continuam sempre listáveis. O utilizador seleciona um item (destaque visual), activa **Confirmar** no rodapé do modal (ao lado de **Fechar**) e só então o **App** valida novamente se o parâmetro não é obrigatório, calcula dependências (`countElementDependencies`: conexões de grafo para IS, `parameter_value_links` para parâmetros) e mostra confirmação **Messenger**. Após confirmar, `removeCanvasInternalStructure` remove o slot e filtra conexões órfãs em `graph.json`; `removeCanvasParameter` remove parâmetro, valores e vínculos. Em desenvolvimento, `workspaceService.syncSceneToDisk` persiste `logic.json`, `layout.json` e `graph.json` automaticamente quando a cena muda.
+**Internal_Structures top-level** (`link = Tipo` em `schema.internalStructures[]`) **não** entram no menu Element: não há `preset-slot`, `catalog-structure` nem remoção global de slots IS. A secção permanece no card com portas; criar/ligar filhos é por drag da porta. Slots dentro de EMBED/POINTER/LIST_* mantêm `+`/`−` nos respetivos blocos.
 
-**Regras de negócio:** nós `module` mantêm **Element** desabilitado; **- Element** desabilitado se não houver itens removíveis; parâmetros obrigatórios nunca aparecem na lista nem podem ser removidos pelo handler; confirmação Messenger obrigatória antes de excluir; aviso textual quando existem conexões ou vínculos activos.
+O picker lista apenas elementos removíveis via `listRemovableNodeElements`, que omite parâmetros obrigatórios e **exclui** internal structures top-level. O utilizador seleciona um item, confirma, e o **App** valida obrigatoriedade, calcula dependências e mostra **Messenger**. Remoção: `removeCanvasParameter` ou blocos/slots compostos.
+
+**Regras de negócio:** **Element** desactivado quando não há catálogo removível/acrescentável (parâmetros, EMBED, POINTER, LIST_*); **- Element** desabilitado se não houver itens removíveis; parâmetros obrigatórios nunca listáveis; confirmação Messenger obrigatória; aviso de dependências activas.
 
 **Tratamento de erros:** tentativa de remover parâmetro obrigatório no `App` é ignorada (defesa em profundidade); picker com `z-index` elevado e `stopPropagation` em `pointerdown` para não conflitar com o `mousedown` do `ElementMenu`.
 

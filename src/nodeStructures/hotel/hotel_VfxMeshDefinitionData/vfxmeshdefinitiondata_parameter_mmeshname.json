@@ -1,0 +1,6 @@
+{
+  "id": "VfxMeshDefinitionData_parameter_mMeshName",
+  "name": "mMeshName",
+  "type": "string",
+  "defaultValue": ""
+}

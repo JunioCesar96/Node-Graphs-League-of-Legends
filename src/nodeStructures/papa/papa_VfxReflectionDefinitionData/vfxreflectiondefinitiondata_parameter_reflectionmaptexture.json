@@ -1,6 +1,0 @@
-{
-  "id": "VfxReflectionDefinitionData_parameter_ReflectionMapTexture",
-  "name": "ReflectionMapTexture",
-  "type": "string",
-  "defaultValue": "ASSETS/Characters/Zac/Skins/Base/particles/Samira_CubeMap.dds"
-}

@@ -1,6 +1,0 @@
-{
-  "id": "VfxAlphaErosionDefinitionData_parameter_ErosionSliceWidth",
-  "name": "ErosionSliceWidth",
-  "type": "f32",
-  "defaultValue": "1"
-}

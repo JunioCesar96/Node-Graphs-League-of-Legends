@@ -1,0 +1,11 @@
+{
+  "id": "SkinCharacterDataProperties_embed_loadscreen",
+  "title": "loadscreen",
+  "internalStructures": [
+    {
+      "id": "SkinCharacterDataProperties_embed_loadscreen-catalog-0",
+      "name": "CensoredImage",
+      "schemaId": "censored-image"
+    }
+  ]
+}

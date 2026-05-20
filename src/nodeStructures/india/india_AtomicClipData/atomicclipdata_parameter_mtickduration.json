@@ -1,0 +1,6 @@
+{
+  "id": "AtomicClipData_parameter_mTickDuration",
+  "name": "mTickDuration",
+  "type": "f32",
+  "defaultValue": "0"
+}

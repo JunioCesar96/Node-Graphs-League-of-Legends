@@ -1,0 +1,6 @@
+{
+  "id": "VfxDistortionDefinitionData_parameter_normalMapTexture",
+  "name": "normalMapTexture",
+  "type": "string",
+  "defaultValue": ""
+}

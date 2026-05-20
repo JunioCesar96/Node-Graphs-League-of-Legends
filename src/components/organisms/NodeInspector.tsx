@@ -1,10 +1,10 @@
 import type { CSSProperties, HTMLAttributes, ReactNode } from 'react'
-import { useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 
 import { ViewportDockPinIcon } from '@/components/atoms/ViewportDockPinIcon'
 import { ParameterValueInput } from '@/components/molecules/ParameterValueInput'
-import type { CanvasNode } from '@/core/canvasScene'
+import type { CanvasNode, CanvasPosition } from '@/core/canvasScene'
 import { fx_required_parameter_isMarked } from '@/core/fx_required_parameter'
 import { link_parameter_value_is_linked } from '@/core/link_parameter_value'
 import { parameterMatchesHashStringSource } from '@/core/hashString'
@@ -24,6 +24,8 @@ type NodeInspectorProps = {
   onToggleMinimized: () => void
   onUndockFromViewportToolbar?: () => void
   onUpdateParameter: (parameterId: string, value: string) => void
+  /** Actualiza a posição do nó no canvas (coordenadas em px). */
+  onUpdatePosition: (position: CanvasPosition) => void
   /** Troca de posição entre o parâmetro arrastado e o parâmetro alvo (mesma lista). */
   onSwapParameterPositions: (draggedParameterId: string, targetParameterId: string) => void
   /** Confirmação: em dev grava `required_parameter` no JSON do schema sob `nodeStructures/` e actualiza a instância. */
@@ -42,6 +44,83 @@ type NodeInspectorProps = {
 type DockedFloatingPlacement = null | 'toolbarAnchoredFloating'
 
 const PARAMETER_DRAG_MIME = 'application/x-node-graph-parameter-id'
+
+function parsePositionChannel(raw: string): number | null {
+  const parsed = Number.parseFloat(raw.trim())
+
+  if (!Number.isFinite(parsed)) {
+    return null
+  }
+
+  return Math.round(parsed)
+}
+
+function NodePositionEditor({
+  position,
+  onCommit,
+}: {
+  position: CanvasPosition
+  onCommit: (position: CanvasPosition) => void
+}) {
+  const [draftX, setDraftX] = useState(String(position.x))
+  const [draftY, setDraftY] = useState(String(position.y))
+
+  useEffect(() => {
+    setDraftX(String(position.x))
+    setDraftY(String(position.y))
+  }, [position.x, position.y])
+
+  const handleXChange = (raw: string) => {
+    setDraftX(raw)
+
+    const x = parsePositionChannel(raw)
+
+    if (x === null) {
+      return
+    }
+
+    const y = parsePositionChannel(draftY) ?? position.y
+    onCommit({ x, y })
+  }
+
+  const handleYChange = (raw: string) => {
+    setDraftY(raw)
+
+    const y = parsePositionChannel(raw)
+
+    if (y === null) {
+      return
+    }
+
+    const x = parsePositionChannel(draftX) ?? position.x
+    onCommit({ x, y })
+  }
+
+  return (
+    <div className={styles.positionFields}>
+      <label className={styles.positionField}>
+        <input
+          aria-label="Posição X"
+          inputMode="numeric"
+          onChange={(event) => handleXChange(event.target.value)}
+          type="number"
+          value={draftX}
+        />
+        <span>X</span>
+      </label>
+      <label className={styles.positionField}>
+        <input
+          aria-label="Posição Y"
+          inputMode="numeric"
+          onChange={(event) => handleYChange(event.target.value)}
+          type="number"
+          value={draftY}
+        />
+        <span>Y</span>
+      </label>
+    </div>
+  )
+}
 
 function HashStringInspectorButton({
   active,
@@ -122,6 +201,7 @@ type BodyProps = {
   onCreateInstance?: () => void
   onDelete: () => void
   onSwapParameterPositions: (draggedParameterId: string, targetParameterId: string) => void
+  onUpdatePosition: (position: CanvasPosition) => void
   onPromptToggleRequiredParameter?: (parameterId: string) => void
   onOpenParameterValueLinkPicker?: (parameterId: string) => void
   parameterStubCatalog?: readonly NodeParameterDefinition[]
@@ -135,6 +215,7 @@ function SelectedNodeInspectorBody({
   onCreateInstance,
   onDelete,
   onSwapParameterPositions,
+  onUpdatePosition,
   onPromptToggleRequiredParameter,
   onOpenParameterValueLinkPicker,
   parameterStubCatalog,
@@ -152,9 +233,7 @@ function SelectedNodeInspectorBody({
         </span>
         <span className={styles.metaItem}>
           <span className={styles.label}>position</span>
-          <span className={styles.value}>
-            {node.position.x}, {node.position.y}
-          </span>
+          <NodePositionEditor onCommit={onUpdatePosition} position={node.position} />
         </span>
       </div>
 
@@ -453,6 +532,7 @@ export function NodeInspector({
   onToggleMinimized,
   onUndockFromViewportToolbar,
   onUpdateParameter,
+  onUpdatePosition,
   onSwapParameterPositions,
   onPromptToggleRequiredParameter,
   onOpenParameterValueLinkPicker,
@@ -650,6 +730,7 @@ export function NodeInspector({
           onPromptToggleRequiredParameter={onPromptToggleRequiredParameter}
           parameterStubCatalog={parameterStubCatalog}
           onSwapParameterPositions={onSwapParameterPositions}
+          onUpdatePosition={onUpdatePosition}
         />
       </aside>
     )
@@ -715,6 +796,7 @@ export function NodeInspector({
         onPromptToggleRequiredParameter={onPromptToggleRequiredParameter}
         parameterStubCatalog={parameterStubCatalog}
         onSwapParameterPositions={onSwapParameterPositions}
+        onUpdatePosition={onUpdatePosition}
       />
     </aside>
   )

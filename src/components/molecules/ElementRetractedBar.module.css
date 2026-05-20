@@ -122,3 +122,24 @@
 .nameDraggable:active {
   cursor: grabbing;
 }
+
+.barWirelessPulse {
+  animation: element-retracted-wireless-pulse 0.85s ease-in-out infinite;
+}
+
+@keyframes element-retracted-wireless-pulse {
+  0%,
+  100% {
+    border-color: var(--color-border-soft);
+    box-shadow:
+      0 0 0 1px rgb(156 220 254 / 28%),
+      0 0 12px rgb(156 220 254 / 22%);
+  }
+
+  50% {
+    border-color: rgb(156 220 254 / 72%);
+    box-shadow:
+      0 0 0 2px rgb(156 220 254 / 72%),
+      0 0 16px rgb(156 220 254 / 45%);
+  }
+}

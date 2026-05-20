@@ -1,0 +1,11 @@
+{
+  "id": "VfxEmitterDefinitionData_listEmbed_birthOrbitalVelocity",
+  "title": "birthOrbitalVelocity",
+  "internalStructures": [
+    {
+      "id": "VfxEmitterDefinitionData_listEmbed_birthOrbitalVelocity-catalog-0",
+      "name": "ValueVector3",
+      "schemaId": "value-vector3"
+    }
+  ]
+}

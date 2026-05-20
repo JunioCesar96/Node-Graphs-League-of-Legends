@@ -1,0 +1,11 @@
+{
+  "id": "PersistentEffectConditionData_listEmbed_PersistentVfxs",
+  "title": "PersistentVfxs",
+  "internalStructures": [
+    {
+      "id": "PersistentEffectConditionData_listEmbed_PersistentVfxs-catalog-0",
+      "name": "PersistentVfxData",
+      "schemaId": "persistent-vfx-data"
+    }
+  ]
+}

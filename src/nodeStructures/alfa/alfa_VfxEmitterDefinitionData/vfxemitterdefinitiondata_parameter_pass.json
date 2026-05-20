@@ -1,0 +1,6 @@
+{
+  "id": "VfxEmitterDefinitionData_parameter_pass",
+  "name": "pass",
+  "type": "i16",
+  "defaultValue": "0"
+}

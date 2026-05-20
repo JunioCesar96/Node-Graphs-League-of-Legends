@@ -7,10 +7,11 @@ import { ParameterMapHashEmbedInput } from '@/components/molecules/ParameterMapH
 import { ParameterMapHashPointerInput } from '@/components/molecules/ParameterMapHashPointerInput'
 import { ParameterMapU64PointerInput } from '@/components/molecules/ParameterMapU64PointerInput'
 import { ParameterValueInput } from '@/components/molecules/ParameterValueInput'
-import type {
-  WirelessPortHandlers,
-  WirelessPortLink,
-  WirelessPortPulseTarget,
+import {
+  isRetractedElementPulsing,
+  type WirelessPortHandlers,
+  type WirelessPortLink,
+  type WirelessPortPulseTarget,
 } from '@/core/connectionDisplay'
 import { canvasContextElementProps } from '@/core/canvasContextMenuAttributes'
 import type {
@@ -88,7 +89,7 @@ export function ParameterItem({
   wirelessOutputLinks,
   wirelessPortHandlers,
   wirelessPortPulse,
-  elementViewKey: _elementViewKey,
+  elementViewKey,
   viewMode = 'list',
   selectedIndex = 0,
   onElementViewModeChange,
@@ -253,6 +254,9 @@ export function ParameterItem({
           parameterType={parameter.type}
           onExpand={onExpandFromRetracted}
           reorderHandlers={parameterNameReorderHandlers}
+          wirelessPulse={
+            elementViewKey ? isRetractedElementPulsing(wirelessPortPulse, elementViewKey) : false
+          }
         />
       </li>
     )

@@ -1,6 +1,11 @@
 import type { CanvasNode, CanvasScene } from '@/core/canvasScene'
 import { isNodeLocked, isNodeRemovableFromScene } from '@/core/canvasNodePresentation'
-import { getElementViewState } from '@/core/elementViewState'
+import {
+  areAllCardElementsRetracted,
+  collectCardElementViewKeys,
+  getElementViewState,
+  isAnyCardElementRetracted,
+} from '@/core/elementViewState'
 import {
   elementViewKeyForEmbed,
   elementViewKeyForList2Embed,
@@ -180,8 +185,12 @@ function buildNodeItems(
   const nodeLocked = canvasNode ? isNodeLocked(canvasNode) : false
   const canDeleteNode = canvasNode ? isNodeRemovableFromScene(canvasNode) : false
   const cardBodyLayout = canvasNode ? resolveNodeCardBodyLayout(canvasNode) : 'bySectionType'
+  const cardElementKeys = canvasNode ? collectCardElementViewKeys(canvasNode.node) : []
+  const hasCardElements = cardElementKeys.length > 0
+  const allElementsRetracted = canvasNode ? areAllCardElementsRetracted(canvasNode.node) : false
+  const anyElementRetracted = canvasNode ? isAnyCardElementRetracted(canvasNode.node) : false
 
-  return [
+  const items: ContextMenuItem[] = [
     {
       id: 'node.toggleBodyCollapse',
       label: bodyCollapsed ? 'Expandir corpo do nó' : 'Retrair corpo do nó',
@@ -203,6 +212,23 @@ function buildNodeItems(
         },
       ],
     },
+  ]
+
+  if (hasCardElements && !bodyCollapsed) {
+    items.push({
+      id: 'node.retractAllElements',
+      label: 'Retrair todos os elementos',
+      disabled: allElementsRetracted,
+      separatorBefore: true,
+    })
+    items.push({
+      id: 'node.expandAllElements',
+      label: 'Expandir todos os elementos',
+      disabled: !anyElementRetracted,
+    })
+  }
+
+  items.push(
     { id: 'node.focus', label: 'Focar nó na vista', shortcut: '.', separatorBefore: true },
     { id: 'node.select', label: isSelected ? 'Já seleccionado' : 'Seleccionar nó', disabled: isSelected },
     { id: 'node.glue', label: isGlued ? 'Desactivar modo cola' : 'Modo cola (glue)', shortcut: 'G', separatorBefore: true },
@@ -214,7 +240,9 @@ function buildNodeItems(
       disabled: !canDeleteNode,
       separatorBefore: true,
     },
-  ]
+  )
+
+  return items
 }
 
 function buildConnectionItems(

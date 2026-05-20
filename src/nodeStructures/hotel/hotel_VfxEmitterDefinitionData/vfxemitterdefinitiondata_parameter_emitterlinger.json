@@ -1,0 +1,6 @@
+{
+  "id": "VfxEmitterDefinitionData_parameter_emitterLinger",
+  "name": "emitterLinger",
+  "type": "optionf32",
+  "defaultValue": "0"
+}

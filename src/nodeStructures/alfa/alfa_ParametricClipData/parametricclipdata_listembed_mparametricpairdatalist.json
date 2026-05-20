@@ -1,0 +1,11 @@
+{
+  "id": "ParametricClipData_listEmbed_mParametricPairDataList",
+  "title": "mParametricPairDataList",
+  "internalStructures": [
+    {
+      "id": "ParametricClipData_listEmbed_mParametricPairDataList-catalog-0",
+      "name": "ParametricPairData",
+      "schemaId": "parametric-pair-data"
+    }
+  ]
+}

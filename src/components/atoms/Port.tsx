@@ -1,4 +1,5 @@
 import type {
+  CSSProperties,
   KeyboardEvent as ReactKeyboardEvent,
   KeyboardEventHandler,
   MouseEventHandler,
@@ -32,6 +33,8 @@ type PortProps = {
   graphNodeId?: string
   graphPortKind?: 'input' | 'output'
   label?: string
+  /** Sobrescreve fundo do portão (ex.: cor do corpo do nó). */
+  style?: CSSProperties
   onClick?: MouseEventHandler<HTMLButtonElement>
   onWireActivateKeyboard?: () => void
   onWirePointerCancel?: PointerEventHandler<HTMLButtonElement>
@@ -63,6 +66,7 @@ export function Port({
   graphNodeId,
   graphPortKind,
   label,
+  style,
   onClick,
   onWireActivateKeyboard,
   onWirePointerCancel,
@@ -125,6 +129,7 @@ export function Port({
           })
         }
         onMouseLeave={() => wirelessLink.onWirelessPeerHoverEnd?.()}
+        style={style}
         title={wirelessTitle}
         type="button"
       >
@@ -174,12 +179,11 @@ export function Port({
           event.stopPropagation()
           onWirePointerUp?.(event)
         }}
+        style={style}
         type="button"
       />
     )
   }
 
-  return (
-    <span {...graphDataProps} aria-hidden="true" className={classes} />
-  )
+  return <span {...graphDataProps} aria-hidden="true" className={classes} style={style} />
 }

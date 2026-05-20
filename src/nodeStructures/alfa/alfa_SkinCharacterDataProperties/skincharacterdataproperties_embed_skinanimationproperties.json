@@ -1,0 +1,11 @@
+{
+  "id": "SkinCharacterDataProperties_embed_SkinAnimationProperties",
+  "title": "SkinAnimationProperties",
+  "internalStructures": [
+    {
+      "id": "SkinCharacterDataProperties_embed_SkinAnimationProperties-catalog-0",
+      "name": "SkinAnimationProperties",
+      "schemaId": "skin-animation-properties"
+    }
+  ]
+}

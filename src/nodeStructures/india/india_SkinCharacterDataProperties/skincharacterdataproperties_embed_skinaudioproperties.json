@@ -1,0 +1,11 @@
+{
+  "id": "SkinCharacterDataProperties_embed_SkinAudioProperties",
+  "title": "SkinAudioProperties",
+  "internalStructures": [
+    {
+      "id": "SkinCharacterDataProperties_embed_SkinAudioProperties-catalog-0",
+      "name": "SkinAudioProperties",
+      "schemaId": "skin-audio-properties"
+    }
+  ]
+}

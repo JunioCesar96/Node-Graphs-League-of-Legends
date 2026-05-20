@@ -1,0 +1,6 @@
+{
+  "id": "main_parameter_linked",
+  "name": "linked",
+  "type": "liststring",
+  "defaultValue": ""
+}

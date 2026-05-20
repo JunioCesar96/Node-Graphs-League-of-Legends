@@ -1,0 +1,79 @@
+{
+  "id": "vfx-reflection-definition-data",
+  "title": "VfxReflectionDefinitionData",
+  "parameters": [
+    {
+      "id": "VfxReflectionDefinitionData_parameter_Fresnel",
+      "name": "Fresnel",
+      "type": "f32",
+      "defaultValue": "0.22"
+    },
+    {
+      "id": "VfxReflectionDefinitionData_parameter_fresnelColor",
+      "name": "fresnelColor",
+      "type": "vector4",
+      "defaultValue": "0.102, 0.302, 0.078, 1"
+    },
+    {
+      "id": "VfxReflectionDefinitionData_parameter_reflectionFresnel",
+      "name": "reflectionFresnel",
+      "type": "f32",
+      "defaultValue": "0.1"
+    },
+    {
+      "id": "VfxReflectionDefinitionData_parameter_reflectionFresnelColor",
+      "name": "reflectionFresnelColor",
+      "type": "vector4",
+      "defaultValue": "1, 1, 1, 0.5"
+    },
+    {
+      "id": "VfxReflectionDefinitionData_parameter_reflectionMapTexture",
+      "name": "reflectionMapTexture",
+      "type": "string",
+      "defaultValue": "ASSETS/Characters/Zac/Skins/Base/particles/Samira_CubeMap.dds"
+    },
+    {
+      "id": "VfxReflectionDefinitionData_parameter_reflectionOpacityDirect",
+      "name": "reflectionOpacityDirect",
+      "type": "f32",
+      "defaultValue": "0.25"
+    },
+    {
+      "id": "VfxReflectionDefinitionData_parameter_reflectionOpacityGlancing",
+      "name": "reflectionOpacityGlancing",
+      "type": "f32",
+      "defaultValue": "0.1"
+    }
+  ],
+  "embed": [],
+  "pointer": [],
+  "listEmbed": [],
+  "listPointer": [],
+  "list2Embed": [],
+  "list2Pointer": [],
+  "internalStructures": [],
+  "nomenclature": {
+    "group": "#3 Internal Structures",
+    "collection": "#3 Pointer Node",
+    "collectionType": "VfxReflectionDefinitionData",
+    "pathHierarchy": "entries > Characters/Zac/Skins/Skin0/Particles/Zac_Base_Q_tar > complexEmitterDefinitionData:0 > reflectionDefinition",
+    "pathHierarchySteps": [
+      {
+        "id": "entries",
+        "type": "#1 Root Entry"
+      },
+      {
+        "id": "Characters/Zac/Skins/Skin0/Particles/Zac_Base_Q_tar",
+        "type": "#2 Root Entry (VfxSystemDefinitionData)"
+      },
+      {
+        "id": "complexEmitterDefinitionData:0",
+        "type": "#3 Collection Block"
+      },
+      {
+        "id": "reflectionDefinition",
+        "type": "#3 Pointer Node"
+      }
+    ]
+  }
+}

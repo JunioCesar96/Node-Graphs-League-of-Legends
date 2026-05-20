@@ -76,13 +76,6 @@ export function listRemovableNodeElements(
       name: parameter.name,
     }))
 
-  const structures: NodeElementListItem[] = node.schema.internalStructures.map((structure) => ({
-    id: structure.id,
-    kind: 'internalStructure' as const,
-    meta: structure.schemaId,
-    name: structure.name,
-  }))
-
   const embedBlocks: NodeElementListItem[] = listRemovableEmbedBlocks(node).map((block) => ({
     id: block.id,
     kind: 'embedBlock' as const,
@@ -117,7 +110,6 @@ export function listRemovableNodeElements(
 
   return [
     ...parameters,
-    ...structures,
     ...embedBlocks,
     ...pointerBlocks,
     ...listEmbedBlocks,

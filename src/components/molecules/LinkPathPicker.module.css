@@ -1,0 +1,122 @@
+.picker {
+  display: grid;
+  gap: var(--space-3);
+  width: min(400px, 94vw);
+  max-height: min(72vh, 480px);
+  padding: var(--space-3);
+  font-family: var(--font-ui);
+  background: rgb(18 20 24 / 98%);
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-leaf);
+  box-shadow: 0 12px 40px var(--color-shadow);
+}
+
+.pathHeader {
+  padding: var(--space-2) var(--space-3);
+  overflow: hidden;
+  color: var(--color-text-primary);
+  font-family: var(--font-data);
+  font-size: 0.76rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: rgb(255 255 255 / 5%);
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 6px;
+}
+
+.segmentList {
+  display: grid;
+  gap: var(--space-2);
+  max-height: 300px;
+  padding-right: var(--space-1);
+  overflow: auto;
+}
+
+.segmentRow {
+  display: grid;
+  grid-template-columns: 5.5rem 1fr;
+  gap: var(--space-2);
+  align-items: center;
+  padding: var(--space-1);
+  border-radius: 6px;
+}
+
+.segmentRowSelected {
+  background: color-mix(in srgb, var(--syntax-link, var(--syntax-string)) 10%, transparent);
+}
+
+.tag {
+  padding: var(--space-2) var(--space-2);
+  color: var(--color-text-primary);
+  font-family: var(--font-data);
+  font-size: 0.7rem;
+  text-align: center;
+  background: rgb(255 255 255 / 6%);
+  border: 1px solid rgb(255 255 255 / 16%);
+  border-radius: 999px;
+  cursor: grab;
+  user-select: none;
+}
+
+.tag:active {
+  cursor: grabbing;
+}
+
+.tag:focus-visible {
+  outline: 2px solid var(--syntax-link, var(--syntax-string));
+  outline-offset: 1px;
+}
+
+.segmentInput {
+  width: 100%;
+  min-width: 0;
+  padding: var(--space-2) var(--space-3);
+  color: var(--color-text-primary);
+  font-family: var(--font-data);
+  font-size: 0.78rem;
+  background: rgb(255 255 255 / 4%);
+  border: 1px solid rgb(255 255 255 / 14%);
+  border-radius: 4px;
+}
+
+.segmentInput:focus {
+  outline: 2px solid var(--syntax-link, var(--syntax-string));
+  outline-offset: 1px;
+}
+
+.controls {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-3);
+}
+
+.controlBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  color: var(--color-text-primary);
+  font-size: 1.1rem;
+  line-height: 1;
+  background: rgb(255 255 255 / 4%);
+  border: 1px solid rgb(255 255 255 / 14%);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.controlBtn:hover {
+  background: rgb(255 255 255 / 10%);
+}
+
+.embedded {
+  width: 100%;
+  max-width: none;
+  max-height: none;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+}

@@ -1,0 +1,6 @@
+{
+  "id": "VfxEmitterDefinitionData_parameter_emitterName",
+  "name": "emitterName",
+  "type": "string",
+  "defaultValue": ""
+}

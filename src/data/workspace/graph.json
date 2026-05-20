@@ -2,10 +2,24 @@
   "version": 1,
   "connections": [
     {
-      "id": "particle-root-01:force->world-force-01",
-      "fromNodeId": "particle-root-01",
-      "fromInternalStructureId": "force",
-      "toNodeId": "world-force-01"
+      "id": "main-01:Main_parameter_entries__map_embed__Characters/Zac/Skins/Skin0/Particles/Zac_Base_Q_tar->vfx-system-definition-data-01",
+      "fromNodeId": "main-01",
+      "fromInternalStructureId": "Main_parameter_entries__map_embed__Characters/Zac/Skins/Skin0/Particles/Zac_Base_Q_tar",
+      "toNodeId": "vfx-system-definition-data-01",
+      "routing": "wireless"
+    },
+    {
+      "id": "animation-graph-data-01:AnimationGraphData_parameter_mBlendDataTable__map_u64__574043308619688281->time-blend-data-01",
+      "fromInternalStructureId": "AnimationGraphData_parameter_mBlendDataTable__map_u64__574043308619688281",
+      "fromNodeId": "animation-graph-data-01",
+      "toNodeId": "time-blend-data-01",
+      "routing": "wireless"
     }
-  ]
+  ],
+  "compactRoutingBackups": {
+    "animation-graph-data-01:AnimationGraphData_parameter_mMaskDataMap__map_embed__ScaleBody->mask-data-01": "flex",
+    "main-01:Main_parameter_entries__map_embed__Characters/Zac/Skins/Skin0->skin-character-data-properties-01": "flex",
+    "main-01:Main_parameter_entries__map_embed__Characters/Zac/Skins/Skin0/Particles/Zac_Base_Q_tar->vfx-system-definition-data-01": "flex",
+    "animation-graph-data-01:AnimationGraphData_parameter_mBlendDataTable__map_u64__574043308619688281->time-blend-data-01": "flex"
+  }
 }

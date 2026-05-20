@@ -1,0 +1,11 @@
+{
+  "id": "VfxTextureMultDefinitionData_listEmbed_uvScaleMult",
+  "title": "uvScaleMult",
+  "internalStructures": [
+    {
+      "id": "VfxTextureMultDefinitionData_listEmbed_uvScaleMult-catalog-0",
+      "name": "ValueVector2",
+      "schemaId": "value-vector2"
+    }
+  ]
+}

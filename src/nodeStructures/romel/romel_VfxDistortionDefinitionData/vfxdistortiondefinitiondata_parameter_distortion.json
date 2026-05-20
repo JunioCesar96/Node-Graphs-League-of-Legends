@@ -1,6 +1,0 @@
-{
-  "id": "VfxDistortionDefinitionData_parameter_Distortion",
-  "name": "Distortion",
-  "type": "f32",
-  "defaultValue": "0.00249999994"
-}

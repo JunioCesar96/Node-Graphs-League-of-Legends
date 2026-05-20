@@ -1,0 +1,6 @@
+{
+  "id": "SkinMeshDataProperties_parameter_texture",
+  "name": "texture",
+  "type": "string",
+  "defaultValue": ""
+}

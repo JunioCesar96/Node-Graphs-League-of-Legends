@@ -9,7 +9,6 @@ import {
   ELEMENT_MENU_ALL_TYPE_TAG_ID,
   buildAutomaticTypeTags,
   buildElementMenuEntries,
-  catalogStructureAppendName,
   filterAndSortElementMenuEntries,
   filterElementMenuEntriesByCatalogScope,
 } from '@/core/elementMenuCatalogUtils'
@@ -34,25 +33,22 @@ import {
 
 import { LIST_EMBED_ADD_PICKER_ROOT_ATTR } from '@/components/molecules/ListEmbedAddPicker'
 import { ELEMENT_REMOVAL_PICKER_ROOT_ATTR } from '@/components/molecules/ElementRemovalPicker'
+import { ELEMENT_MENU_TRIGGER_ATTR } from '@/core/canvasContextMenuAttributes'
 
 import styles from './ElementMenu.module.css'
 
 type ElementMenuProps = {
-  catalogInternalStructures?: InternalStructureDefinition[]
   catalogParameters?: NodeParameterDefinition[]
   disabled?: boolean
   disabledTitle?: string
   hasCatalogParameters: boolean
-  hasCatalogStructures: boolean
   nodeKind?: 'module' | 'base'
   node: NodeInstance
-  onAppendCatalogInternalStructure?: (structure: InternalStructureDefinition) => void
   onAppendCatalogParameter?: (parameter: NodeParameterDefinition) => void
   onAppendEmbedCatalogItem?: (embedId: string, structure: InternalStructureDefinition) => void
   onAppendPointerCatalogItem?: (pointerId: string, structure: InternalStructureDefinition) => void
   onAppendListEmbedCatalogItem?: (listEmbedId: string, structure: InternalStructureDefinition) => void
   onAppendListPointerCatalogItem?: (listPointerId: string, structure: InternalStructureDefinition) => void
-  onCreateElement?: (structure: InternalStructureDefinition) => void
   onRemoveElement?: () => void
   parameterStubCatalog?: readonly NodeParameterDefinition[]
   showPicker: boolean
@@ -64,21 +60,17 @@ const DEFAULT_ORGANIZATION: ElementMenuOrganizationMode = 'az'
 const TYPE_FILTER_VISIBLE_ROWS = 5
 
 export function ElementMenu({
-  catalogInternalStructures,
   catalogParameters,
   disabled = false,
   disabledTitle,
   hasCatalogParameters,
-  hasCatalogStructures,
   nodeKind = 'base',
   node,
-  onAppendCatalogInternalStructure,
   onAppendCatalogParameter,
   onAppendEmbedCatalogItem,
   onAppendPointerCatalogItem,
   onAppendListEmbedCatalogItem,
   onAppendListPointerCatalogItem,
-  onCreateElement,
   onRemoveElement,
   parameterStubCatalog,
   showPicker,
@@ -110,10 +102,9 @@ export function ElementMenu({
         schemaNodeKindBySchemaId,
         jsonRelativePathBySchemaId: schemaJsonRelativePathBySchemaId,
         packFolderBySchemaId: schemaPackFolderBySchemaId,
-        baseCatalogStructures: catalogInternalStructures,
         baseCatalogParameters: catalogParameters,
       }),
-    [catalogInternalStructures, catalogParameters, node, nodeKind],
+    [catalogParameters, node, nodeKind],
   )
 
   const catalogEntries = useMemo(() => {
@@ -291,7 +282,7 @@ export function ElementMenu({
     return (
       <Button
         disabled
-        title={'N\u00e3o h\u00e1 par\u00e2metros, Internal_Structures nem LIST_EMBED dispon\u00edveis para acrescentar.'}
+        title={'N\u00e3o h\u00e1 par\u00e2metros nem blocos estruturais (EMBED/POINTER/LIST_*) dispon\u00edveis para acrescentar.'}
       >
         Element
       </Button>
@@ -305,14 +296,7 @@ export function ElementMenu({
   }
 
   const handlePickEntry = (entry: ElementMenuEntry) => {
-    if (entry.onPick === 'create-element' && entry.structure) {
-      onCreateElement?.(entry.structure)
-    } else if (entry.onPick === 'append-structure' && entry.structure) {
-      onAppendCatalogInternalStructure?.({
-        ...entry.structure,
-        name: catalogStructureAppendName(entry, schemaRegistry),
-      })
-    } else if (entry.onPick === 'append-parameter' && entry.parameter) {
+    if (entry.onPick === 'append-parameter' && entry.parameter) {
       onAppendCatalogParameter?.(entry.parameter)
     } else if (entry.onPick === 'append-embed-catalog' && entry.structure && entry.embedId) {
       onAppendEmbedCatalogItem?.(entry.embedId, structureForEmbedAdd(entry.structure))
@@ -339,7 +323,12 @@ export function ElementMenu({
   }
 
   return (
-    <details className={styles.elementSelector} open={isOpen} ref={elementSelectorRef}>
+    <details
+      {...{ [ELEMENT_MENU_TRIGGER_ATTR]: '' }}
+      className={styles.elementSelector}
+      open={isOpen}
+      ref={elementSelectorRef}
+    >
       <summary
         onClick={(clickEvent) => {
           clickEvent.preventDefault()

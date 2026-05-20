@@ -1,6 +1,0 @@
-{
-  "id": "IntegratedValueVector3_parameter_ConstantValue",
-  "name": "ConstantValue",
-  "type": "vector3",
-  "defaultValue": "0, -1200, 0"
-}

@@ -1,0 +1,6 @@
+{
+  "id": "VfxProjectionDefinitionData_parameter_mYRange",
+  "name": "mYRange",
+  "type": "f32",
+  "defaultValue": "0"
+}

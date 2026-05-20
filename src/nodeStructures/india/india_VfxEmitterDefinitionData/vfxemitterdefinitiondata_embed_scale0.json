@@ -1,0 +1,11 @@
+{
+  "id": "VfxEmitterDefinitionData_embed_scale0",
+  "title": "scale0",
+  "internalStructures": [
+    {
+      "id": "VfxEmitterDefinitionData_embed_scale0-catalog-0",
+      "name": "ValueVector3",
+      "schemaId": "value-vector3"
+    }
+  ]
+}

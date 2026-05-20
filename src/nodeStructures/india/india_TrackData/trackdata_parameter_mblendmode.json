@@ -1,0 +1,6 @@
+{
+  "id": "TrackData_parameter_mBlendMode",
+  "name": "mBlendMode",
+  "type": "u8",
+  "defaultValue": "0"
+}

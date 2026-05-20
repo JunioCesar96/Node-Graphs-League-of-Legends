@@ -107,6 +107,7 @@ function blockViewProps(
   return {
     viewMode: state.mode,
     selectedIndex: state.selectedIndex ?? 0,
+    elementViewKey: elementKey,
     retracted: Boolean(state.retracted),
     onExpandFromRetracted: onSetElementRetracted
       ? () => onSetElementRetracted(elementKey, false)

@@ -1,0 +1,6 @@
+{
+  "id": "VfxProbabilityTableData_parameter_keyTimes",
+  "name": "keyTimes",
+  "type": "listf32",
+  "defaultValue": ""
+}

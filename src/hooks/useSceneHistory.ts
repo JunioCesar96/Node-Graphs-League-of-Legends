@@ -5,13 +5,17 @@ import { nextConnectionRouting } from '@/core/canvasScene'
 import {
   applyCollapsedBodyWireless,
   applyCompactWireless,
-  reapplyCompactElementWireless,
+  reapplyElementViewWireless,
   restoreCollapsedBodyWireless,
   restoreCompactWireless,
   syncSceneCollapsedBodyWireless,
 } from '@/core/compactConnectionRouting'
 import {
-  isSlotInCompactElementView,
+  collectCardElementViewKeys,
+  isElementRetracted,
+  isElementViewCompact,
+  isSlotInWirelessElementView,
+  patchAllCardElementsRetracted,
   patchElementRetracted,
   patchElementSelectedIndex,
   patchElementViewMode,
@@ -20,6 +24,7 @@ import {
 import type { ElementViewKey, ElementViewMode } from '@/core/nodeSchema'
 import {
   allVisibleSectionsExpandedMap,
+  defaultNewCanvasNodeLayout,
   nextNodeCardSectionExpandedMap,
   resolveNodeCardSectionOrder,
   type NodeCardBodyLayout,
@@ -632,7 +637,7 @@ export function useSceneHistory(options?: {
         const targetNode = currentScene.nodes.find((node) => node.id === connection.toNodeId)
         const useWireless =
           sourceCanvasNode &&
-          isSlotInCompactElementView(sourceCanvasNode.node, connection.fromInternalStructureId)
+          isSlotInWirelessElementView(sourceCanvasNode.node, connection.fromInternalStructureId)
         const normalizedConnection: CanvasConnection = useWireless
           ? { ...connection, routing: 'wireless' }
           : connection
@@ -724,7 +729,7 @@ export function useSceneHistory(options?: {
 
         if (mode === 'compact') {
           nextScene = applyCompactWireless(nextScene, canvasNodeId, slotIds)
-        } else {
+        } else if (!isElementRetracted(canvasNode.node, elementKey)) {
           nextScene = restoreCompactWireless(nextScene, canvasNodeId, slotIds)
         }
 
@@ -746,17 +751,64 @@ export function useSceneHistory(options?: {
 
   const setElementRetracted = useCallback(
     (canvasNodeId: string, elementKey: ElementViewKey, retracted: boolean) => {
-      updateScene((currentScene) => ({
-        ...currentScene,
-        nodes: currentScene.nodes.map((n) =>
-          n.id === canvasNodeId
-            ? {
-                ...n,
-                node: patchElementRetracted(n.node, elementKey, retracted),
-              }
-            : n,
-        ),
-      }))
+      updateScene((currentScene) => {
+        const canvasNode = currentScene.nodes.find((n) => n.id === canvasNodeId)
+        if (!canvasNode) {
+          return currentScene
+        }
+
+        const slotIds = slotIdsForElement(canvasNode.node, elementKey)
+        let nextScene = currentScene
+
+        if (retracted) {
+          nextScene = applyCompactWireless(nextScene, canvasNodeId, slotIds)
+        } else if (!isElementViewCompact(canvasNode.node, elementKey)) {
+          nextScene = restoreCompactWireless(nextScene, canvasNodeId, slotIds)
+        }
+
+        return {
+          ...nextScene,
+          nodes: nextScene.nodes.map((n) =>
+            n.id === canvasNodeId
+              ? {
+                  ...n,
+                  node: patchElementRetracted(n.node, elementKey, retracted),
+                }
+              : n,
+          ),
+        }
+      })
+    },
+    [updateScene],
+  )
+
+  const setAllNodeElementsRetracted = useCallback(
+    (canvasNodeId: string, retracted: boolean) => {
+      updateScene((currentScene) => {
+        const canvasNode = currentScene.nodes.find((n) => n.id === canvasNodeId)
+        if (!canvasNode) {
+          return currentScene
+        }
+
+        let nextScene = currentScene
+        let node = patchAllCardElementsRetracted(canvasNode.node, retracted)
+
+        for (const key of collectCardElementViewKeys(node)) {
+          const slotIds = slotIdsForElement(node, key)
+          if (retracted) {
+            nextScene = applyCompactWireless(nextScene, canvasNodeId, slotIds)
+          } else if (!isElementViewCompact(node, key)) {
+            nextScene = restoreCompactWireless(nextScene, canvasNodeId, slotIds)
+          }
+        }
+
+        return {
+          ...nextScene,
+          nodes: nextScene.nodes.map((n) =>
+            n.id === canvasNodeId ? { ...n, node } : n,
+          ),
+        }
+      })
     },
     [updateScene],
   )
@@ -803,6 +855,7 @@ export function useSceneHistory(options?: {
           id: instanceId,
           node,
           position: placement ?? defaultPosition,
+          ...defaultNewCanvasNodeLayout(node),
         }
 
         const connection: CanvasConnection = {
@@ -810,7 +863,7 @@ export function useSceneHistory(options?: {
           fromInternalStructureId: slot.id,
           fromNodeId,
           toNodeId: instanceId,
-          ...(isSlotInCompactElementView(sourceNode.node, slot.id)
+          ...(isSlotInWirelessElementView(sourceNode.node, slot.id)
             ? { routing: 'wireless' as const }
             : {}),
         }
@@ -947,6 +1000,7 @@ export function useSceneHistory(options?: {
               id: instanceId,
               node,
               position: position ?? getNextDetachedNodePosition(currentScene),
+              ...defaultNewCanvasNodeLayout(node),
             },
           ],
         }
@@ -1021,11 +1075,13 @@ export function useSceneHistory(options?: {
               cardSectionExpanded: allVisibleSectionsExpandedMap(node.node),
             }
           }
-          if ((node.cardBodyLayout ?? 'bySectionType') === 'bySectionType') {
+          if (node.cardBodyLayout === 'bySectionType') {
             return node
           }
-          const { cardBodyLayout: _omit, ...rest } = node
-          return rest
+          return {
+            ...node,
+            cardBodyLayout: 'bySectionType',
+          }
         }),
       }))
     },
@@ -1095,7 +1151,7 @@ export function useSceneHistory(options?: {
           nextScene = applyCollapsedBodyWireless(nextScene, nodeId)
         } else {
           nextScene = restoreCollapsedBodyWireless(nextScene, nodeId)
-          nextScene = reapplyCompactElementWireless(nextScene, toggledNode)
+          nextScene = reapplyElementViewWireless(nextScene, toggledNode)
         }
 
         return nextScene
@@ -2283,6 +2339,7 @@ export function useSceneHistory(options?: {
     cycleConnectionRouting,
     setElementViewMode,
     setElementRetracted,
+    setAllNodeElementsRetracted,
     setElementSelectedIndex,
     redoScene,
     resetScene,

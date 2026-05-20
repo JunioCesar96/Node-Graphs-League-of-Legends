@@ -1,0 +1,6 @@
+{
+  "id": "IsAnimationPlayingDynamicMaterialBoolDriver_parameter_mAnimationNames",
+  "name": "mAnimationNames",
+  "type": "listhash",
+  "defaultValue": ""
+}

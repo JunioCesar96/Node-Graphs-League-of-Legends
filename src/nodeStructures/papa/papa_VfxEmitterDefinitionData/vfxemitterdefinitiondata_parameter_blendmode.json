@@ -1,6 +1,0 @@
-{
-  "id": "VfxEmitterDefinitionData_parameter_BlendMode",
-  "name": "BlendMode",
-  "type": "u8",
-  "defaultValue": "1"
-}

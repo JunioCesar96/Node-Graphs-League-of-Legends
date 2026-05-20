@@ -1,0 +1,67 @@
+{
+  "id": "submesh-visibility-event-data",
+  "title": "SubmeshVisibilityEventData",
+  "parameters": [
+    {
+      "id": "SubmeshVisibilityEventData_parameter_mEndFrame",
+      "name": "mEndFrame",
+      "type": "f32",
+      "defaultValue": "13"
+    },
+    {
+      "id": "SubmeshVisibilityEventData_parameter_mHideSubmeshList",
+      "name": "mHideSubmeshList",
+      "type": "listHash",
+      "defaultValue": "Legs"
+    },
+    {
+      "id": "SubmeshVisibilityEventData_parameter_mName",
+      "name": "mName",
+      "type": "integer",
+      "defaultValue": "0x831fa58e"
+    },
+    {
+      "id": "SubmeshVisibilityEventData_parameter_mShowSubmeshList",
+      "name": "mShowSubmeshList",
+      "type": "listHash",
+      "defaultValue": "Tail"
+    },
+    {
+      "id": "SubmeshVisibilityEventData_parameter_mStartFrame",
+      "name": "mStartFrame",
+      "type": "f32",
+      "defaultValue": "6"
+    }
+  ],
+  "embed": [],
+  "pointer": [],
+  "listEmbed": [],
+  "listPointer": [],
+  "list2Embed": [],
+  "list2Pointer": [],
+  "internalStructures": [],
+  "nomenclature": {
+    "group": "#3 Internal Structures",
+    "collection": "#3 Collection Block",
+    "collectionType": "SubmeshVisibilityEventData",
+    "pathHierarchy": "main > entries:Characters/Zac/Animations/Skin0 > mClipDataMap:Spell3_Flying > mEventDataMap:0x831fa58e",
+    "pathHierarchySteps": [
+      {
+        "id": "main",
+        "type": "#0 Root main"
+      },
+      {
+        "id": "entries:Characters/Zac/Animations/Skin0",
+        "type": "#2 Root Entry (AnimationGraphData)"
+      },
+      {
+        "id": "mClipDataMap:Spell3_Flying",
+        "type": "#3 Collection Block"
+      },
+      {
+        "id": "mEventDataMap:0x831fa58e",
+        "type": "#3 Collection Block"
+      }
+    ]
+  }
+}

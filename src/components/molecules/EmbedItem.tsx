@@ -5,6 +5,7 @@ import { Port } from '@/components/atoms/Port'
 import { ElementRetractedBar } from '@/components/molecules/ElementRetractedBar'
 import { StructureViewToggle } from '@/components/atoms/StructureViewToggle'
 import {
+  isRetractedElementPulsing,
   isWirelessPortPulsing,
   toWirelessPortLinkProps,
   type WirelessPortHandlers,
@@ -168,6 +169,7 @@ export function EmbedItem({
   nested = false,
   retracted = false,
   onExpandFromRetracted,
+  elementViewKey,
 }: EmbedItemProps) {
   const [indexPickerOpen, setIndexPickerOpen] = useState(false)
   const isEmpty = slots.length === 0
@@ -211,6 +213,9 @@ export function EmbedItem({
           title={embed.title}
           typeLabel="embed"
           onExpand={onExpandFromRetracted}
+          wirelessPulse={
+            elementViewKey ? isRetractedElementPulsing(wirelessPortPulse, elementViewKey) : false
+          }
         />
       </li>
     )

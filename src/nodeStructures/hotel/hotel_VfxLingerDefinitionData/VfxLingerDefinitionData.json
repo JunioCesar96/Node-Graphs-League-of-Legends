@@ -1,0 +1,62 @@
+{
+  "id": "vfx-linger-definition-data",
+  "title": "VfxLingerDefinitionData",
+  "parameters": [
+    {
+      "id": "VfxLingerDefinitionData_parameter_UseSeparateLingerColor",
+      "name": "UseSeparateLingerColor",
+      "type": "flag",
+      "defaultValue": "true"
+    }
+  ],
+  "embed": [
+    {
+      "id": "VfxLingerDefinitionData_embed_SeparateLingerColor",
+      "title": "SeparateLingerColor",
+      "internalStructures": [
+        {
+          "id": "vfx-linger-definition-data-separate-linger-color",
+          "name": "ValueColor",
+          "schemaId": "value-color"
+        }
+      ],
+      "slots": [
+        {
+          "id": "VfxLingerDefinitionData_embed_SeparateLingerColor__slot__0",
+          "name": "ValueColor",
+          "schemaId": "value-color"
+        }
+      ]
+    }
+  ],
+  "pointer": [],
+  "listEmbed": [],
+  "listPointer": [],
+  "list2Embed": [],
+  "list2Pointer": [],
+  "internalStructures": [],
+  "nomenclature": {
+    "group": "#3 Internal Structures",
+    "collection": "#3 Pointer Node",
+    "collectionType": "VfxLingerDefinitionData",
+    "pathHierarchy": "entries > 0xa2fa6a01 > complexEmitterDefinitionData:4 > Linger",
+    "pathHierarchySteps": [
+      {
+        "id": "entries",
+        "type": "#1 Root Entry"
+      },
+      {
+        "id": "0xa2fa6a01",
+        "type": "#2 Root Entry (VfxSystemDefinitionData)"
+      },
+      {
+        "id": "complexEmitterDefinitionData:4",
+        "type": "#3 Collection Block"
+      },
+      {
+        "id": "Linger",
+        "type": "#3 Pointer Node"
+      }
+    ]
+  }
+}

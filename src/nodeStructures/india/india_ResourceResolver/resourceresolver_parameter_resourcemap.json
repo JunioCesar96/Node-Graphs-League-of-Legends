@@ -1,0 +1,6 @@
+{
+  "id": "ResourceResolver_parameter_resourceMap",
+  "name": "resourceMap",
+  "type": "maphashlink",
+  "defaultValue": ""
+}

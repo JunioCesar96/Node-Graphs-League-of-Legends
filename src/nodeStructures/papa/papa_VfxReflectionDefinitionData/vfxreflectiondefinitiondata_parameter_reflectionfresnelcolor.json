@@ -1,6 +1,0 @@
-{
-  "id": "VfxReflectionDefinitionData_parameter_ReflectionFresnelColor",
-  "name": "ReflectionFresnelColor",
-  "type": "vector4",
-  "defaultValue": "1, 1, 1, 0.5"
-}

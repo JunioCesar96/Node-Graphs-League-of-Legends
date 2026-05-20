@@ -21,6 +21,7 @@ type ListVectorPickerProps<T> = {
   defaultItem: T
   renderEditor: (props: { value: string; onChange: (next: string) => void }) => ReactNode
   removalTitleDomId: string
+  maxItems?: number
 }
 
 export function ListVectorPicker<T>({
@@ -37,6 +38,7 @@ export function ListVectorPicker<T>({
   defaultItem,
   renderEditor,
   removalTitleDomId,
+  maxItems,
 }: ListVectorPickerProps<T>) {
   const items = useMemo(() => parseList(value), [parseList, value])
   const [selectedIndex, setSelectedIndex] = useState(-1)
@@ -83,7 +85,12 @@ export function ListVectorPicker<T>({
     })
   }
 
+  const atMaxItems = maxItems !== undefined && items.length >= maxItems
+
   const addItem = () => {
+    if (atMaxItems) {
+      return
+    }
     onChange(formatList([...items, { ...defaultItem }]))
     closeVecMenu()
   }
@@ -225,7 +232,13 @@ export function ListVectorPicker<T>({
         </button>
         {vecMenuOpen ? (
           <div aria-label={`Ações ${itemLabel}`} className={styles.vecSubmenu} role="menu">
-            <button className={styles.vecSubmenuItem} onClick={addItem} role="menuitem" type="button">
+            <button
+              className={styles.vecSubmenuItem}
+              disabled={atMaxItems}
+              onClick={addItem}
+              role="menuitem"
+              type="button"
+            >
               + {itemLabel}
             </button>
             <button

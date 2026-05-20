@@ -1,0 +1,6 @@
+{
+  "id": "MaskData_parameter_mWeightList",
+  "name": "mWeightList",
+  "type": "listf32",
+  "defaultValue": ""
+}

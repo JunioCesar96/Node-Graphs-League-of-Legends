@@ -1,6 +1,0 @@
-{
-  "id": "SkinMeshDataProperties_parameter_Texture",
-  "name": "Texture",
-  "type": "string",
-  "defaultValue": "ASSETS/Characters/Zac/Skins/Base/Zac_base_TX_CM.tex"
-}

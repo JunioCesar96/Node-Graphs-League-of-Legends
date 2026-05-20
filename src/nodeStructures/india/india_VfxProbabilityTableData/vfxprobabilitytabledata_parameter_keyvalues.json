@@ -1,0 +1,6 @@
+{
+  "id": "VfxProbabilityTableData_parameter_keyValues",
+  "name": "keyValues",
+  "type": "listf32",
+  "defaultValue": ""
+}

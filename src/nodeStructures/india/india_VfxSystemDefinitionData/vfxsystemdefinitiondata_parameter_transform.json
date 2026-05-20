@@ -1,0 +1,6 @@
+{
+  "id": "VfxSystemDefinitionData_parameter_Transform",
+  "name": "Transform",
+  "type": "mtx44",
+  "defaultValue": "1, 0, 0, 0 0, 1, 0, 0 0, 0, 1, 0 0, 0, 0, 1"
+}

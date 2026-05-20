@@ -85,7 +85,8 @@
 .node {
   position: absolute;
   z-index: 2;
-  width: 360px;
+  width: var(--node-card-width);
+  min-width: var(--node-card-width);
   border-radius: var(--radius-node);
   outline: 2px solid transparent;
   outline-offset: 8px;

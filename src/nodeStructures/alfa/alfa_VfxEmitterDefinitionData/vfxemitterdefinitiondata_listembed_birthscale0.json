@@ -1,0 +1,11 @@
+{
+  "id": "VfxEmitterDefinitionData_listEmbed_birthScale0",
+  "title": "birthScale0",
+  "internalStructures": [
+    {
+      "id": "VfxEmitterDefinitionData_listEmbed_birthScale0-catalog-0",
+      "name": "ValueVector3",
+      "schemaId": "value-vector3"
+    }
+  ]
+}

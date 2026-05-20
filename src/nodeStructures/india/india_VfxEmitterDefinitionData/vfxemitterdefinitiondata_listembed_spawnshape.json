@@ -1,0 +1,16 @@
+{
+  "id": "VfxEmitterDefinitionData_listEmbed_SpawnShape",
+  "title": "SpawnShape",
+  "internalStructures": [
+    {
+      "id": "VfxEmitterDefinitionData_listEmbed_SpawnShape-catalog-0",
+      "name": "VfxShapeLegacy",
+      "schemaId": "vfx-shape-legacy"
+    },
+    {
+      "id": "VfxEmitterDefinitionData_listEmbed_SpawnShape-catalog-1",
+      "name": "VfxShapeCylinder",
+      "schemaId": "vfx-shape-cylinder"
+    }
+  ]
+}

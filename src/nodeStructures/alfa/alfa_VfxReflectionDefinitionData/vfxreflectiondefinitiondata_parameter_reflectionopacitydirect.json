@@ -1,0 +1,6 @@
+{
+  "id": "VfxReflectionDefinitionData_parameter_reflectionOpacityDirect",
+  "name": "reflectionOpacityDirect",
+  "type": "f32",
+  "defaultValue": "0"
+}

@@ -1,0 +1,6 @@
+{
+  "id": "main_parameter_type",
+  "name": "type",
+  "type": "string",
+  "defaultValue": ""
+}

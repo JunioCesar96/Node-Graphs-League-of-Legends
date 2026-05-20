@@ -1,6 +1,7 @@
 import type { WirelessPortLinkProps } from '@/components/atoms/Port'
 
 import type { CanvasConnection, CanvasNode } from '@/core/canvasScene'
+import type { ElementViewKey } from '@/core/nodeSchema'
 
 export type WirelessPortLink = {
   connectionId: string
@@ -16,6 +17,8 @@ export type WirelessPortPulseTarget = {
   nodeId: string
   portKind: 'input' | 'output'
   outputSlotId?: string
+  /** Elemento retraído no card cujo slot de saída deve piscar (em vez do Port oculto). */
+  retractedElementViewKey?: ElementViewKey
 }
 
 export type WirelessPeerHoverPayload = {
@@ -107,6 +110,10 @@ export function isWirelessPortPulsing(
     return false
   }
 
+  if (pulse.retractedElementViewKey) {
+    return false
+  }
+
   if (pulse.portKind !== portKind) {
     return false
   }
@@ -116,6 +123,13 @@ export function isWirelessPortPulsing(
   }
 
   return true
+}
+
+export function isRetractedElementPulsing(
+  pulse: WirelessPortPulseTarget | null | undefined,
+  elementViewKey: ElementViewKey,
+): boolean {
+  return Boolean(pulse?.retractedElementViewKey && pulse.retractedElementViewKey === elementViewKey)
 }
 
 export function toWirelessPortLinkProps(

@@ -1,0 +1,12 @@
+{
+  "id": "SkinAudioProperties_list2Embed_bankUnits",
+  "title": "bankUnits",
+  "internalStructures": [
+    {
+      "id": "SkinAudioProperties_list2Embed_bankUnits-catalog-0",
+      "name": "BankUnit",
+      "schemaId": "bank-unit"
+    }
+  ],
+  "instances": []
+}

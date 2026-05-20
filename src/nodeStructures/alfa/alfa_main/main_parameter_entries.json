@@ -1,0 +1,6 @@
+{
+  "id": "main_parameter_entries",
+  "name": "entries",
+  "type": "maphashembed",
+  "defaultValue": ""
+}

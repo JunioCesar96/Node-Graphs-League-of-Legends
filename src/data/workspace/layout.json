@@ -5,45 +5,124 @@
   "nodes": {
     "particle-root-01": {
       "position": {
-        "x": -1070,
-        "y": -370
+        "x": -646,
+        "y": -202
+      },
+      "cardSectionExpanded": {
+        "parameters": false,
+        "embed": false,
+        "pointer": false,
+        "listEmbed": false,
+        "listPointer": false
+      },
+      "cardSectionOrder": [
+        "embed",
+        "pointer",
+        "listEmbed",
+        "listPointer",
+        "parameters"
+      ],
+      "displayLabel": "",
+      "bodyColor": "0.093, 0.122, 0.169, 1",
+      "bodyColorEnabled": true
+    },
+    "main-01": {
+      "position": {
+        "x": -159,
+        "y": -190
+      },
+      "cardSectionExpanded": {
+        "parameters": true,
+        "embed": true,
+        "pointer": true,
+        "listEmbed": true,
+        "listPointer": true
+      },
+      "cardSectionOrder": [
+        "parameters",
+        "embed",
+        "pointer",
+        "listEmbed",
+        "listPointer"
+      ],
+      "cardBodyLayout": "freeform"
+    },
+    "skin-character-data-properties-01": {
+      "position": {
+        "x": -1192,
+        "y": -209
+      },
+      "cardSectionExpanded": {
+        "parameters": false,
+        "embed": false
+      },
+      "cardSectionOrder": [
+        "parameters",
+        "embed",
+        "pointer",
+        "listEmbed",
+        "listPointer",
+        "list2Pointer"
+      ]
+    },
+    "vfx-system-definition-data-01": {
+      "position": {
+        "x": 397,
+        "y": -168
+      },
+      "bodyCollapsed": true,
+      "cardSectionExpanded": {
+        "parameters": false
       }
     },
-    "SkinCharacterDataProperties-01": {
+    "particle-root-02": {
       "position": {
-        "x": -448,
-        "y": -216
-      }
+        "x": 396,
+        "y": -79
+      },
+      "cardSectionExpanded": {
+        "parameters": true,
+        "embed": true,
+        "pointer": true,
+        "listEmbed": true,
+        "listPointer": true
+      },
+      "cardBodyLayout": "freeform"
     },
-    "world-force-01": {
+    "animation-graph-data-01": {
       "position": {
-        "x": -611,
-        "y": 253
-      }
+        "x": 872,
+        "y": -130
+      },
+      "cardSectionExpanded": {
+        "parameters": true,
+        "embed": true,
+        "pointer": true,
+        "listEmbed": true,
+        "listPointer": true
+      },
+      "cardBodyLayout": "freeform"
     },
-    "SkinCharacterDataProperties-02": {
+    "time-blend-data-01": {
       "position": {
-        "x": 769,
-        "y": -8
-      }
-    },
-    "skin-character-data-properties-character-idle-effect-03": {
-      "position": {
-        "x": -146,
-        "y": 471
-      }
-    },
-    "skin-character-data-properties-character-idle-effect-02": {
-      "position": {
-        "x": 1198,
-        "y": -39
-      }
-    },
-    "skin-character-data-properties-character-idle-effect-04": {
-      "position": {
-        "x": 1424,
-        "y": 444
-      }
+        "x": 1419,
+        "y": -25
+      },
+      "cardSectionExpanded": {
+        "parameters": true,
+        "embed": true,
+        "pointer": true,
+        "listEmbed": true,
+        "listPointer": true
+      },
+      "cardBodyLayout": "freeform"
     }
+  },
+  "camera": {
+    "pan": {
+      "x": -41,
+      "y": 207
+    },
+    "scale": 0.774
   }
 }

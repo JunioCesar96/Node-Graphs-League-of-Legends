@@ -1,0 +1,26 @@
+{
+  "id": "VfxEmitterDefinitionData_listEmbed_primitive",
+  "title": "primitive",
+  "internalStructures": [
+    {
+      "id": "VfxEmitterDefinitionData_listEmbed_primitive-catalog-0",
+      "name": "VfxPrimitiveMesh",
+      "schemaId": "vfx-primitive-mesh"
+    },
+    {
+      "id": "VfxEmitterDefinitionData_listEmbed_primitive-catalog-1",
+      "name": "VfxPrimitiveBeam",
+      "schemaId": "vfx-primitive-beam"
+    },
+    {
+      "id": "VfxEmitterDefinitionData_listEmbed_primitive-catalog-2",
+      "name": "VfxPrimitivePlanarProjection",
+      "schemaId": "vfx-primitive-planar-projection"
+    },
+    {
+      "id": "VfxEmitterDefinitionData_listEmbed_primitive-catalog-3",
+      "name": "VfxPrimitiveArbitraryQuad",
+      "schemaId": "vfx-primitive-arbitrary-quad"
+    }
+  ]
+}
