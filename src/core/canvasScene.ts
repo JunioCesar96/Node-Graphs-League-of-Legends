@@ -66,10 +66,31 @@ export type CanvasPosition = {
   y: number
 }
 
+/** Deslocamento (pan) e zoom da vista do canvas — persistido no layout do workspace. */
+export type SceneCamera = {
+  pan: CanvasPosition
+  scale: number
+}
+
 export type CanvasNode = {
   id: string
   node: NodeInstance
   position: CanvasPosition
+  /** Quando true, o corpo do card fica oculto (só cabeçalho visível). */
+  bodyCollapsed?: boolean
+  /** Oculto no canvas (continua na lista «Nodes em cena»). */
+  sceneHidden?: boolean
+  /** Título fictício no cabeçalho; vazio/ausente usa `schema.title`. */
+  displayLabel?: string
+  /** Cor do corpo (RGBA); aplicada só com `bodyColorEnabled`. */
+  bodyColor?: string
+  bodyColorEnabled?: boolean
+  /** Trava movimento, edição de valores e ligações de saída. */
+  locked?: boolean
+}
+
+export function isCanvasNodeBodyCollapsed(canvasNode: CanvasNode): boolean {
+  return canvasNode.bodyCollapsed === true
 }
 
 export type ConnectionRouting = 'flex' | 'rigid' | 'wireless'
@@ -138,6 +159,8 @@ export type CanvasScene = {
   connections: CanvasConnection[]
   /** connectionId → routing antes de compactar (`undefined` = flex implícito). */
   compactRoutingBackups?: Record<string, ConnectionRouting | undefined>
+  /** Câmera da cena (pan em px na vista, escala de zoom). */
+  camera?: SceneCamera
 }
 
 function hydrateNodeInstanceFromEmbeddedLinks(node: NodeInstance): NodeInstance {

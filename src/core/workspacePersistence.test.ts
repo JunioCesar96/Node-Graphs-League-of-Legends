@@ -21,6 +21,51 @@ describe('workspacePersistence', () => {
     expect(restored?.nodes[0]?.position).toEqual(staticCanvasScene.nodes[0]?.position)
   })
 
+  it('persiste overlay de apresentação dos nós no layout', () => {
+    const withOverlay = {
+      ...staticCanvasScene,
+      nodes: staticCanvasScene.nodes.map((node, index) =>
+        index === 0
+          ? {
+              ...node,
+              sceneHidden: true,
+              displayLabel: 'Alias',
+              bodyColor: 'rgba(10, 20, 30, 0.8)',
+              bodyColorEnabled: true,
+              locked: true,
+            }
+          : node,
+      ),
+    }
+    const bundle = splitSceneToWorkspace(withOverlay)
+    const entry = bundle.layout.nodes[withOverlay.nodes[0]!.id]
+    expect(entry?.sceneHidden).toBe(true)
+    expect(entry?.displayLabel).toBe('Alias')
+    expect(entry?.bodyColor).toBe('rgba(10, 20, 30, 0.8)')
+    expect(entry?.bodyColorEnabled).toBe(true)
+    expect(entry?.locked).toBe(true)
+
+    const restored = mergeWorkspaceToScene(bundle)
+    const restoredNode = restored?.nodes.find((node) => node.id === withOverlay.nodes[0]!.id)
+    expect(restoredNode?.sceneHidden).toBe(true)
+    expect(restoredNode?.displayLabel).toBe('Alias')
+    expect(restoredNode?.bodyColor).toBe('rgba(10, 20, 30, 0.8)')
+    expect(restoredNode?.bodyColorEnabled).toBe(true)
+    expect(restoredNode?.locked).toBe(true)
+  })
+
+  it('persiste câmera da cena no layout', () => {
+    const withCamera = {
+      ...staticCanvasScene,
+      camera: { pan: { x: 120, y: -48 }, scale: 1.25 },
+    }
+    const bundle = splitSceneToWorkspace(withCamera)
+    expect(bundle.layout.camera).toEqual({ pan: { x: 120, y: -48 }, scale: 1.25 })
+
+    const restored = mergeWorkspaceToScene(bundle)
+    expect(restored?.camera).toEqual({ pan: { x: 120, y: -48 }, scale: 1.25 })
+  })
+
   it('valida bundle com versão e estrutura corretas', () => {
     const bundle = splitSceneToWorkspace(staticCanvasScene)
     expect(isWorkspaceBundleValid(bundle)).toBe(true)

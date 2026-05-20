@@ -8,10 +8,15 @@
   box-shadow: 0 24px 80px var(--color-shadow);
 }
 
+
 .body {
   display: grid;
   gap: var(--space-5);
   padding: var(--space-5);
+}
+
+.bodyCollapsed {
+  display: none;
 }
 
 .section {

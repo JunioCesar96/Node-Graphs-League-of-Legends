@@ -43,6 +43,8 @@ type ParameterMapHashPointerInputProps = {
   selectedIndex?: number
   onViewModeChange?: (mode: ElementViewMode) => void
   onSelectedIndexChange?: (index: number) => void
+  interactionLocked?: boolean
+  onBlockedInteraction?: () => void
 }
 
 export function ParameterMapHashPointerInput({
@@ -67,6 +69,8 @@ export function ParameterMapHashPointerInput({
   selectedIndex,
   onViewModeChange,
   onSelectedIndexChange,
+  interactionLocked,
+  onBlockedInteraction,
 }: ParameterMapHashPointerInputProps) {
   return (
     <div className={className} data-parameter-type="mapHashPointer">
@@ -74,6 +78,8 @@ export function ParameterMapHashPointerInput({
         activeSlotId={activeSlotId}
         canvasNodeId={canvasNodeId}
         defaultValue={defaultValue}
+        interactionLocked={interactionLocked}
+        onBlockedInteraction={onBlockedInteraction}
         onChange={(next) => onCommit(normalizeMapHashPointerString(next))}
         onStructureSlotRemoved={onStructureSlotRemoved}
         parameterTitle={parameterTitle}

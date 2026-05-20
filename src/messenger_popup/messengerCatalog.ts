@@ -6,9 +6,13 @@ export const MESSENGER_CONFIRM_TOGGLE_REQUIRED_PARAMETER = 'confirm_toggle_requi
 export const MESSENGER_CONFIRM_NODE_CONFIGURATION_MODE = 'confirm_node_configuration_mode' as const
 
 export const MESSENGER_CONFIRM_REMOVE_NODE_ELEMENT = 'confirm_remove_node_element' as const
+
+export const MESSENGER_CONFIRM_DELETE_NODE = 'confirm_delete_node' as const
 /** Toast quando não existem parâmetros string para definir hashString. */
 export const MESSENGER_TOAST_HASH_STRING_REQUIRES_STRING_PARAM =
   'toast_hash_string_requires_string_param' as const
+
+export const MESSENGER_TOAST_NODE_LOCKED = 'toast_node_locked' as const
 
 export type MessengerPopupKind = 'confirm' | 'toast'
 

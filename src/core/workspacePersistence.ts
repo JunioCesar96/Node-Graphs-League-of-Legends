@@ -1,5 +1,6 @@
-import type { CanvasConnection, CanvasScene, ConnectionRouting } from '@/core/canvasScene'
+import type { CanvasConnection, CanvasScene, ConnectionRouting, SceneCamera } from '@/core/canvasScene'
 import { hydrateScene } from '@/core/canvasScene'
+import { syncSceneCollapsedBodyWireless } from '@/core/compactConnectionRouting'
 import type {
   ElementViewKey,
   ElementViewState,
@@ -27,11 +28,78 @@ export type WorkspaceLogicFile = {
   nodes: Record<string, WorkspaceLogicNodePayload>
 }
 
+export type WorkspaceLayoutNodeEntry = {
+  position: { x: number; y: number }
+  bodyCollapsed?: boolean
+  sceneHidden?: boolean
+  displayLabel?: string
+  bodyColor?: string
+  bodyColorEnabled?: boolean
+  locked?: boolean
+}
+
 export type WorkspaceLayoutFile = {
   version: typeof WORKSPACE_FORMAT_VERSION
   width: number
   height: number
-  nodes: Record<string, { position: { x: number; y: number } }>
+  nodes: Record<string, WorkspaceLayoutNodeEntry>
+  camera?: SceneCamera
+}
+
+function layoutOverlayFromCanvasNode(canvasNode: CanvasScene['nodes'][number]): Partial<WorkspaceLayoutNodeEntry> {
+  return {
+    ...(canvasNode.sceneHidden ? { sceneHidden: true } : {}),
+    ...(canvasNode.displayLabel !== undefined ? { displayLabel: canvasNode.displayLabel } : {}),
+    ...(canvasNode.bodyColor !== undefined ? { bodyColor: canvasNode.bodyColor } : {}),
+    ...(canvasNode.bodyColorEnabled ? { bodyColorEnabled: true } : {}),
+    ...(canvasNode.locked ? { locked: true } : {}),
+  }
+}
+
+function isValidLayoutNodeEntry(raw: unknown): raw is WorkspaceLayoutNodeEntry {
+  if (!isRecord(raw) || !isRecord(raw.position)) {
+    return false
+  }
+
+  if (typeof raw.position.x !== 'number' || typeof raw.position.y !== 'number') {
+    return false
+  }
+
+  if (raw.bodyCollapsed !== undefined && raw.bodyCollapsed !== true) {
+    return false
+  }
+
+  if (raw.sceneHidden !== undefined && raw.sceneHidden !== true) {
+    return false
+  }
+
+  if (raw.displayLabel !== undefined && typeof raw.displayLabel !== 'string') {
+    return false
+  }
+
+  if (raw.bodyColor !== undefined && typeof raw.bodyColor !== 'string') {
+    return false
+  }
+
+  if (raw.bodyColorEnabled !== undefined && raw.bodyColorEnabled !== true) {
+    return false
+  }
+
+  if (raw.locked !== undefined && raw.locked !== true) {
+    return false
+  }
+
+  return true
+}
+
+function canvasNodeOverlayFromLayoutEntry(entry: WorkspaceLayoutNodeEntry): Partial<CanvasScene['nodes'][number]> {
+  return {
+    ...(entry.sceneHidden ? { sceneHidden: true } : {}),
+    ...(entry.displayLabel !== undefined ? { displayLabel: entry.displayLabel } : {}),
+    ...(entry.bodyColor !== undefined ? { bodyColor: entry.bodyColor } : {}),
+    ...(entry.bodyColorEnabled ? { bodyColorEnabled: true } : {}),
+    ...(entry.locked ? { locked: true } : {}),
+  }
 }
 
 export type WorkspaceGraphFile = {
@@ -132,7 +200,11 @@ export function splitSceneToWorkspace(scene: CanvasScene): WorkspaceBundle {
 
   for (const canvasNode of scene.nodes) {
     logicNodes[canvasNode.id] = logicNodeFromInstance(canvasNode.node)
-    layoutNodes[canvasNode.id] = { position: { ...canvasNode.position } }
+    layoutNodes[canvasNode.id] = {
+      position: { ...canvasNode.position },
+      ...(canvasNode.bodyCollapsed ? { bodyCollapsed: true } : {}),
+      ...layoutOverlayFromCanvasNode(canvasNode),
+    }
   }
 
   return {
@@ -145,6 +217,7 @@ export function splitSceneToWorkspace(scene: CanvasScene): WorkspaceBundle {
       width: scene.width,
       height: scene.height,
       nodes: layoutNodes,
+      ...(scene.camera ? { camera: structuredClone(scene.camera) } : {}),
     },
     graph: {
       version: WORKSPACE_FORMAT_VERSION,
@@ -285,6 +358,18 @@ export function isWorkspaceBundleValid(bundle: unknown): bundle is WorkspaceBund
     return false
   }
 
+  if (layout.camera !== undefined) {
+    if (
+      !isRecord(layout.camera) ||
+      !isRecord(layout.camera.pan) ||
+      typeof layout.camera.pan.x !== 'number' ||
+      typeof layout.camera.pan.y !== 'number' ||
+      typeof layout.camera.scale !== 'number'
+    ) {
+      return false
+    }
+  }
+
   const logicIds = Object.keys(logic.nodes)
   const layoutIds = Object.keys(layout.nodes)
 
@@ -300,12 +385,7 @@ export function isWorkspaceBundleValid(bundle: unknown): bundle is WorkspaceBund
       return false
     }
     const pos = layout.nodes[id]
-    if (
-      !isRecord(pos) ||
-      !isRecord(pos.position) ||
-      typeof pos.position.x !== 'number' ||
-      typeof pos.position.y !== 'number'
-    ) {
+    if (!isValidLayoutNodeEntry(pos)) {
       return false
     }
   }
@@ -346,6 +426,8 @@ export function mergeWorkspaceToScene(bundle: WorkspaceBundle): CanvasScene | nu
     nodes.push({
       id: canvasNodeId,
       position: { x: layoutEntry.position.x, y: layoutEntry.position.y },
+      ...(layoutEntry.bodyCollapsed ? { bodyCollapsed: true } : {}),
+      ...canvasNodeOverlayFromLayoutEntry(layoutEntry),
       node: {
         id: logicNode.id,
         schema: logicNode.schema,
@@ -398,13 +480,25 @@ export function mergeWorkspaceToScene(bundle: WorkspaceBundle): CanvasScene | nu
     return null
   }
 
-  return hydrateScene({
-    width: bundle.layout.width,
-    height: bundle.layout.height,
-    nodes,
-    connections,
-    ...(compactRoutingBackups && Object.keys(compactRoutingBackups).length > 0
-      ? { compactRoutingBackups }
-      : {}),
-  })
+  const layoutCamera = bundle.layout.camera
+
+  return syncSceneCollapsedBodyWireless(
+    hydrateScene({
+      width: bundle.layout.width,
+      height: bundle.layout.height,
+      nodes,
+      connections,
+      ...(compactRoutingBackups && Object.keys(compactRoutingBackups).length > 0
+        ? { compactRoutingBackups }
+        : {}),
+      ...(layoutCamera
+        ? {
+            camera: {
+              pan: { x: layoutCamera.pan.x, y: layoutCamera.pan.y },
+              scale: layoutCamera.scale,
+            },
+          }
+        : {}),
+    }),
+  )
 }

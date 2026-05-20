@@ -1,4 +1,4 @@
-import type { MouseEvent as ReactMouseEvent, PointerEventHandler } from 'react'
+import type { CSSProperties, MouseEvent as ReactMouseEvent, PointerEventHandler } from 'react'
 
 import { Port, type WirelessPortLinkProps } from '@/components/atoms/Port'
 
@@ -12,6 +12,8 @@ type NodeHeaderProps = {
   onSelect?: (event?: ReactMouseEvent<HTMLElement>) => void
   onStartDrag?: PointerEventHandler<HTMLElement>
   selected?: boolean
+  locked?: boolean
+  inputPortStyle?: CSSProperties
   title: string
   wirelessLink?: WirelessPortLinkProps
 }
@@ -24,6 +26,8 @@ export function NodeHeader({
   onSelect,
   onStartDrag,
   selected = false,
+  locked = false,
+  inputPortStyle,
   title,
   wirelessLink,
 }: NodeHeaderProps) {
@@ -50,6 +54,7 @@ export function NodeHeader({
         graphPortKind="input"
         label={`Connect to ${title}`}
         onClick={wirelessLink ? undefined : onInputPortClick}
+        style={inputPortStyle}
         wirelessLink={wirelessLink}
       />
       <h2 className={styles.title}>{title}</h2>
@@ -66,6 +71,7 @@ export function NodeHeader({
             <span className={styles.infoTooltip}>{infoTooltip}</span>
           </button>
         ) : null}
+        {locked ? <span className={styles.lockBadge}>travado</span> : null}
         <span className={styles.badge}>schema</span>
       </span>
     </header>

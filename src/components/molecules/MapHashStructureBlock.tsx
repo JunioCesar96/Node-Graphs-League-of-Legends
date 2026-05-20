@@ -81,6 +81,8 @@ type MapHashStructureBlockProps = MapHashStructureBlockConfig & {
   selectedIndex?: number
   onViewModeChange?: (mode: ElementViewMode) => void
   onSelectedIndexChange?: (index: number) => void
+  interactionLocked?: boolean
+  onBlockedInteraction?: () => void
 }
 
 function slotForEntry(
@@ -132,7 +134,18 @@ export function MapHashStructureBlock({
   selectedIndex = 0,
   onViewModeChange,
   onSelectedIndexChange,
+  interactionLocked = false,
+  onBlockedInteraction,
 }: MapHashStructureBlockProps) {
+  const blockInteraction = (action: () => void) => {
+    if (interactionLocked) {
+      onBlockedInteraction?.()
+      return
+    }
+
+    action()
+  }
+
   const entries = useMemo(() => parseEntries(value), [parseEntries, value])
   const [structurePickerTarget, setStructurePickerTarget] = useState<StructurePickerTarget | null>(null)
   const [hashRemovalOpen, setHashRemovalOpen] = useState(false)
@@ -154,9 +167,14 @@ export function MapHashStructureBlock({
 
   const commitEntries = useCallback(
     (next: MapHashStructureEntry[]) => {
+      if (interactionLocked) {
+        onBlockedInteraction?.()
+        return
+      }
+
       onChange(formatEntries(next))
     },
-    [formatEntries, onChange],
+    [formatEntries, interactionLocked, onBlockedInteraction, onChange],
   )
 
   const updateEntry = (index: number, patch: Partial<MapHashStructureEntry>) => {
@@ -225,7 +243,18 @@ export function MapHashStructureBlock({
             <input
               aria-label={`${keyEntryLabel} entrada ${index}`}
               className={styles.hashInput}
-              onChange={(event) => updateEntry(index, { key: normalizeKey(event.target.value) })}
+              onChange={(event) =>
+                blockInteraction(() => updateEntry(index, { key: normalizeKey(event.target.value) }))
+              }
+              onPointerDown={(event) => {
+                if (!interactionLocked) {
+                  return
+                }
+
+                event.preventDefault()
+                onBlockedInteraction?.()
+              }}
+              readOnly={interactionLocked}
               type="text"
               value={entry.key}
             />
@@ -236,7 +265,7 @@ export function MapHashStructureBlock({
               aria-label="Remover estrutura desta entrada"
               className={styles.removeButton}
               disabled={!hasStructure}
-              onClick={() => clearStructureAt(index)}
+              onClick={() => blockInteraction(() => clearStructureAt(index))}
               title={hasStructure ? 'Remover estrutura interna' : 'Sem estrutura'}
               type="button"
             >
@@ -246,7 +275,7 @@ export function MapHashStructureBlock({
               aria-label="Adicionar estrutura nesta entrada"
               className={styles.addButton}
               disabled={hasStructure || !canMapAdd}
-              onClick={() => setStructurePickerTarget({ mode: 'hash', index })}
+              onClick={() => blockInteraction(() => setStructurePickerTarget({ mode: 'hash', index }))}
               title={
                 hasStructure
                   ? 'Já existe estrutura nesta entrada'
@@ -318,16 +347,21 @@ export function MapHashStructureBlock({
         </h4>
         <div className={styles.mapActions}>
           {onViewModeChange ? (
-            <StructureViewToggle mode={viewMode} onModeChange={onViewModeChange} />
+            <StructureViewToggle
+              mode={viewMode}
+              onModeChange={(mode) => blockInteraction(() => onViewModeChange(mode))}
+            />
           ) : null}
           <button
             aria-label={`Remover entrada ${keyEntryLabel} de ${parameterTitle}`}
             className={styles.removeButton}
             disabled={!canMapRemove}
-            onClick={() => {
-              setHashRemovalSelectedKey(null)
-              setHashRemovalOpen(true)
-            }}
+            onClick={() =>
+              blockInteraction(() => {
+                setHashRemovalSelectedKey(null)
+                setHashRemovalOpen(true)
+              })
+            }
             title={canMapRemove ? `Remover entrada ${keyEntryLabel}` : 'Mapa vazio'}
             type="button"
           >
@@ -337,7 +371,7 @@ export function MapHashStructureBlock({
             aria-label={`Adicionar entrada ${keyEntryLabel} em ${parameterTitle}`}
             className={styles.addButton}
             disabled={!canMapAdd}
-            onClick={() => setStructurePickerTarget({ mode: 'map' })}
+            onClick={() => blockInteraction(() => setStructurePickerTarget({ mode: 'map' }))}
             title={canMapAdd ? `Adicionar ${keyEntryLabel} com estrutura` : 'Sem tipos no catálogo'}
             type="button"
           >
@@ -362,8 +396,10 @@ export function MapHashStructureBlock({
 
       {isCompact && entries.length > 0 && onSelectedIndexChange ? (
         <StructureIndexPager
-          onCounterClick={() => setIndexPickerOpen(true)}
-          onSelectedIndexChange={onSelectedIndexChange}
+          onCounterClick={() => blockInteraction(() => setIndexPickerOpen(true))}
+          onSelectedIndexChange={(index) =>
+            blockInteraction(() => onSelectedIndexChange?.(index))
+          }
           selectedIndex={safeSelectedIndex}
           total={entries.length}
         />
@@ -372,7 +408,7 @@ export function MapHashStructureBlock({
       <StructureIndexPicker
         items={indexPickerItems}
         onClose={() => setIndexPickerOpen(false)}
-        onSelect={(index) => onSelectedIndexChange?.(index)}
+        onSelect={(index) => blockInteraction(() => onSelectedIndexChange?.(index))}
         open={indexPickerOpen}
         selectedIndex={safeSelectedIndex}
         title={`Escolher índice — ${parameterTitle}`}

@@ -1,0 +1,103 @@
+.menu {
+  position: fixed;
+  z-index: 46;
+  display: grid;
+  gap: var(--space-2);
+  width: min(300px, calc(100vw - 24px));
+  max-height: min(70vh, 560px);
+  padding: var(--space-3);
+  overflow: auto;
+  background: rgb(37 37 38 / 98%);
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-control);
+  box-shadow: 0 18px 50px rgb(0 0 0 / 36%);
+  backdrop-filter: blur(12px);
+}
+
+.action {
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  color: var(--color-text-secondary);
+  text-align: left;
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+}
+
+.action:hover:not(:disabled) {
+  color: var(--color-text-primary);
+  background: rgb(255 255 255 / 5%);
+  border-color: var(--color-border-soft);
+}
+
+.action:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.separator {
+  height: 1px;
+  margin: var(--space-1) 0;
+  background: var(--color-border-soft);
+}
+
+.section {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.sectionMuted {
+  opacity: 0.55;
+}
+
+.sectionTitle {
+  color: var(--color-text-muted);
+  font-family: var(--font-data);
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.checkRow {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  color: var(--color-text-secondary);
+  font-size: 0.78rem;
+}
+
+.labelField {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.labelField input {
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  color: var(--color-text-primary);
+  font-family: var(--font-data);
+  font-size: 0.76rem;
+  background: rgb(0 0 0 / 18%);
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-control);
+}
+
+.labelField input:focus {
+  border-color: var(--syntax-property);
+  outline: none;
+}
+
+.hint {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.68rem;
+  line-height: 1.35;
+}
+
+.pickerWrap {
+  padding: var(--space-1);
+  background: rgb(0 0 0 / 12%);
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-control);
+}

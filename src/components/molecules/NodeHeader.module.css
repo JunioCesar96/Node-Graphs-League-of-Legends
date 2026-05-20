@@ -43,6 +43,20 @@
   font-size: 0.7rem;
 }
 
+.lockBadge {
+  flex: 0 0 auto;
+  padding: 2px var(--space-2);
+  color: var(--syntax-keyword);
+  font-family: var(--font-data);
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  background: color-mix(in srgb, var(--syntax-keyword) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--syntax-keyword) 32%, transparent);
+  border-radius: 999px;
+}
+
 .actions {
   position: relative;
   display: inline-flex;

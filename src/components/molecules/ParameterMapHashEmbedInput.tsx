@@ -43,6 +43,8 @@ type ParameterMapHashEmbedInputProps = {
   selectedIndex?: number
   onViewModeChange?: (mode: ElementViewMode) => void
   onSelectedIndexChange?: (index: number) => void
+  interactionLocked?: boolean
+  onBlockedInteraction?: () => void
 }
 
 export function ParameterMapHashEmbedInput({
@@ -67,6 +69,8 @@ export function ParameterMapHashEmbedInput({
   selectedIndex,
   onViewModeChange,
   onSelectedIndexChange,
+  interactionLocked,
+  onBlockedInteraction,
 }: ParameterMapHashEmbedInputProps) {
   return (
     <div className={className} data-parameter-type="mapHashEmbed">
@@ -74,6 +78,8 @@ export function ParameterMapHashEmbedInput({
         activeSlotId={activeSlotId}
         canvasNodeId={canvasNodeId}
         defaultValue={defaultValue}
+        interactionLocked={interactionLocked}
+        onBlockedInteraction={onBlockedInteraction}
         onChange={(next) => onCommit(normalizeMapHashEmbedString(next))}
         onStructureSlotRemoved={onStructureSlotRemoved}
         parameterTitle={parameterTitle}

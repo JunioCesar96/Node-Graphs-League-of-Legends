@@ -35,6 +35,19 @@ export type ContextMenuItemId =
   | 'canvas.clearSelection'
   | 'canvas.toggleNavigateMode'
   | 'canvas.toggleLegend'
+  | 'canvas.exibir'
+  | 'canvas.toolbar.addNode'
+  | 'canvas.toolbar.undo'
+  | 'canvas.toolbar.redo'
+  | 'canvas.toolbar.camera'
+  | 'canvas.toolbar.zoom'
+  | 'canvas.toolbar.resetViewport'
+  | 'canvas.toolbar.resetScene'
+  | 'canvas.toolbar.inspector'
+  | 'canvas.toolbar.legend'
+  | 'canvas.toolbar.linkStatus'
+  | 'canvas.toolbar.navigateHint'
+  | 'canvas.toolbar.sceneNodes'
   | 'node.focus'
   | 'node.select'
   | 'node.glue'
@@ -54,7 +67,13 @@ export type ContextMenuItem = {
   id: ContextMenuItemId
   label: string
   disabled?: boolean
+  /** Item do submenu Exibir: ferramenta visível na barra (destaque) vs oculta (esmaecido). */
+  toolbarToolVisible?: boolean
+  /** Contexto actual não usa a ferramenta (ex.: undo indisponível); atenua só o rótulo. */
+  contextLimited?: boolean
   danger?: boolean
   shortcut?: string
   separatorBefore?: boolean
+  /** Submenu lateral (ex.: «Exibir»). */
+  children?: ContextMenuItem[]
 }

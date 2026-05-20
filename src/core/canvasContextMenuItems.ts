@@ -1,4 +1,5 @@
 import type { CanvasNode, CanvasScene } from '@/core/canvasScene'
+import { isNodeLocked, isNodeRemovableFromScene } from '@/core/canvasNodePresentation'
 import { getElementViewState } from '@/core/elementViewState'
 import {
   elementViewKeyForEmbed,
@@ -10,6 +11,11 @@ import {
   elementViewKeyForPointer,
 } from '@/core/elementViewState'
 import type { CanvasContextTarget, ContextMenuItem } from '@/core/canvasContextMenuTypes'
+import {
+  CANVAS_TOOLBAR_TOOL_LABELS,
+  type CanvasToolbarToolId,
+  type CanvasToolbarVisibility,
+} from '@/core/canvasToolbarVisibility'
 import { listRemovableNodeElements, type NodeElementListItem } from '@/core/listNodeElements'
 import type { NodeParameterDefinition } from '@/core/nodeSchema'
 
@@ -25,7 +31,9 @@ export type CanvasContextMenuBuildContext = {
   scene: CanvasScene
   selectedNodeIds: string[]
   viewportNavigateMode: boolean
-  canvasLegendVisible: boolean
+  toolbarVisibility: CanvasToolbarVisibility
+  hasPendingLink: boolean
+  hasInspectorSlot: boolean
 }
 
 function findCanvasNode(scene: CanvasScene, nodeId: string): CanvasNode | undefined {
@@ -99,16 +107,45 @@ function elementViewKeyForTarget(target: Extract<CanvasContextTarget, { type: 'e
   }
 }
 
+function toolbarVisibilityItem(
+  toolId: CanvasToolbarToolId,
+  ctx: CanvasContextMenuBuildContext,
+  options?: { contextLimited?: boolean },
+): ContextMenuItem {
+  const id = `canvas.toolbar.${toolId}` as ContextMenuItem['id']
+  const toolbarToolVisible = ctx.toolbarVisibility[toolId]
+
+  return {
+    id,
+    label: CANVAS_TOOLBAR_TOOL_LABELS[toolId],
+    toolbarToolVisible,
+    contextLimited: options?.contextLimited,
+  }
+}
+
+function buildExibirSubmenuItems(ctx: CanvasContextMenuBuildContext): ContextMenuItem[] {
+  return [
+    toolbarVisibilityItem('addNode', ctx),
+    toolbarVisibilityItem('undo', ctx, { contextLimited: !ctx.canUndo }),
+    toolbarVisibilityItem('redo', ctx, { contextLimited: !ctx.canRedo }),
+    toolbarVisibilityItem('camera', ctx),
+    toolbarVisibilityItem('zoom', ctx),
+    toolbarVisibilityItem('resetViewport', ctx),
+    toolbarVisibilityItem('resetScene', ctx),
+    toolbarVisibilityItem('inspector', ctx, { contextLimited: !ctx.hasInspectorSlot }),
+    toolbarVisibilityItem('sceneNodes', ctx),
+    toolbarVisibilityItem('legend', ctx),
+    toolbarVisibilityItem('linkStatus', ctx, { contextLimited: !ctx.hasPendingLink }),
+    toolbarVisibilityItem('navigateHint', ctx, { contextLimited: !ctx.viewportNavigateMode }),
+  ]
+}
+
 function buildCanvasItems(ctx: CanvasContextMenuBuildContext): ContextMenuItem[] {
   const hasSelection = ctx.selectedNodeIds.length > 0
   const navigateLabel = ctx.viewportNavigateMode ? 'Sair do modo mover na grade' : 'Mover na grade'
-  const legendLabel = ctx.canvasLegendVisible ? 'Ocultar legenda' : 'Mostrar legenda'
 
   return [
     { id: 'canvas.addNode', label: 'Adicionar nó', shortcut: 'Ctrl+K' },
-    { id: 'canvas.zoomIn', label: 'Zoom +' },
-    { id: 'canvas.zoomOut', label: 'Zoom −' },
-    { id: 'canvas.resetViewport', label: 'Repor vista' },
     { id: 'canvas.undo', label: 'Desfazer', disabled: !ctx.canUndo, shortcut: 'Ctrl+Z', separatorBefore: true },
     { id: 'canvas.redo', label: 'Refazer', disabled: !ctx.canRedo, shortcut: 'Ctrl+Y' },
     {
@@ -122,7 +159,12 @@ function buildCanvasItems(ctx: CanvasContextMenuBuildContext): ContextMenuItem[]
       ? { id: 'canvas.clearSelection', label: 'Limpar seleção', shortcut: 'A' }
       : { id: 'canvas.selectAll', label: 'Seleccionar todos os nós', disabled: !ctx.hasSelectAll, shortcut: 'A' },
     { id: 'canvas.toggleNavigateMode', label: navigateLabel, separatorBefore: true },
-    { id: 'canvas.toggleLegend', label: legendLabel },
+    {
+      id: 'canvas.exibir',
+      label: 'Exibir',
+      separatorBefore: true,
+      children: buildExibirSubmenuItems(ctx),
+    },
   ]
 }
 
@@ -130,9 +172,12 @@ function buildNodeItems(
   ctx: CanvasContextMenuBuildContext,
   nodeId: string,
 ): ContextMenuItem[] {
+  const canvasNode = findCanvasNode(ctx.scene, nodeId)
   const isGlued = ctx.glueNodeId === nodeId
   const isSelected = ctx.selectedNodeIds.includes(nodeId)
   const bodyCollapsed = ctx.isNodeBodyCollapsed === true
+  const nodeLocked = canvasNode ? isNodeLocked(canvasNode) : false
+  const canDeleteNode = canvasNode ? isNodeRemovableFromScene(canvasNode) : false
 
   return [
     {
@@ -143,7 +188,13 @@ function buildNodeItems(
     { id: 'node.select', label: isSelected ? 'Já seleccionado' : 'Seleccionar nó', disabled: isSelected },
     { id: 'node.glue', label: isGlued ? 'Desactivar modo cola' : 'Modo cola (glue)', shortcut: 'G', separatorBefore: true },
     { id: 'node.addNode', label: 'Adicionar nó (raiz)', shortcut: 'Ctrl+K' },
-    { id: 'node.delete', label: 'Apagar nó', danger: true, separatorBefore: true },
+    {
+      id: 'node.delete',
+      label: nodeLocked ? 'Apagar nó (travado)' : 'Apagar nó',
+      danger: true,
+      disabled: !canDeleteNode,
+      separatorBefore: true,
+    },
   ]
 }
 

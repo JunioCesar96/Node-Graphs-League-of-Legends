@@ -18,7 +18,9 @@ import { ListPointerItem } from '@/components/molecules/ListPointerItem'
 import { PointerItem } from '@/components/molecules/PointerItem'
 import { NodeHeader } from '@/components/molecules/NodeHeader'
 import { ParameterItem } from '@/components/molecules/ParameterItem'
+import type { CSSProperties } from 'react'
 import type { CanvasConnection } from '@/core/canvasScene'
+import { isNodeCardBlockedInteractionTarget } from '@/core/canvasNodePresentation'
 import {
   isWirelessPortPulsing,
   toWirelessPortLinkProps,
@@ -185,6 +187,14 @@ type NodeCardProps = {
   /** Catálogo base do schema (stubs) — usado para resolver parâmetros obrigatórios na remoção. */
   parameterStubCatalog?: readonly NodeParameterDefinition[]
   selected?: boolean
+  /** Oculta o corpo do card (parâmetros, estruturas, Element). */
+  bodyCollapsed?: boolean
+  displayTitle?: string
+  bodyStyle?: CSSProperties
+  cardStyle?: CSSProperties
+  inputPortStyle?: CSSProperties
+  locked?: boolean
+  onLockedInteraction?: () => void
 }
 
 function getNodeTooltip(node: NodeInstance) {
@@ -239,6 +249,13 @@ export function NodeCard({
   parameterHints,
   parameterStubCatalog,
   selected = false,
+  bodyCollapsed = false,
+  displayTitle,
+  bodyStyle,
+  cardStyle,
+  inputPortStyle,
+  locked = false,
+  onLockedInteraction,
 }: NodeCardProps) {
   const [removalPickerOpen, setRemovalPickerOpen] = useState(false)
   const [removalSelectedKey, setRemovalSelectedKey] = useState<string | null>(null)
@@ -640,20 +657,45 @@ export function NodeCard({
     removables.length > 0 ||
     isModule
 
+  const headerTitle = displayTitle ?? node.schema.title
+
+  const handleLockedBodyPointerDown = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (!locked || !onLockedInteraction) {
+        return
+      }
+
+      if (!isNodeCardBlockedInteractionTarget(event.target)) {
+        return
+      }
+
+      event.preventDefault()
+      event.stopPropagation()
+      onLockedInteraction()
+    },
+    [locked, onLockedInteraction],
+  )
+
   return (
-    <article className={styles.card} aria-label={`${node.schema.title} node`}>
+    <article className={styles.card} aria-label={`${headerTitle} node`} style={cardStyle}>
       <NodeHeader
         canvasNodeId={canvasNodeId}
         canAcceptLink={canAcceptLink}
         infoTooltip={getNodeTooltip(node)}
+        inputPortStyle={inputPortStyle}
+        locked={locked}
         onInputPortClick={onInputPortClick}
         onSelect={onSelect}
         onStartDrag={onStartDrag}
         selected={selected}
-        title={node.schema.title}
+        title={headerTitle}
         wirelessLink={wirelessInputLink}
       />
-      <div className={styles.body}>
+      <div
+        className={[styles.body, bodyCollapsed ? styles.bodyCollapsed : ''].filter(Boolean).join(' ')}
+        onPointerDownCapture={handleLockedBodyPointerDown}
+        style={bodyStyle}
+      >
         <section className={styles.section} aria-labelledby={`${sectionId}-parameters`}>
           <h3 className={styles.sectionTitle} id={`${sectionId}-parameters`}>
             Parameters
@@ -702,9 +744,18 @@ export function NodeCard({
                       ? (index) => onSetElementSelectedIndex(paramViewKey, index)
                       : undefined
                   }
+                  interactionLocked={locked}
+                  onBlockedInteraction={onLockedInteraction}
                   onCommitValue={
-                    onUpdateParameter
-                      ? (nextValue) => onUpdateParameter(parameter.id, nextValue)
+                    onUpdateParameter || locked
+                      ? (nextValue) => {
+                          if (locked) {
+                            onLockedInteraction?.()
+                            return
+                          }
+
+                          onUpdateParameter?.(parameter.id, nextValue)
+                        }
                       : undefined
                   }
                   onOutputWireKeyboard={onOutputWireKeyboard}

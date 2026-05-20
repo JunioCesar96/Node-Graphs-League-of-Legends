@@ -11,6 +11,7 @@ import type {
   WirelessPortLink,
   WirelessPortPulseTarget,
 } from '@/core/connectionDisplay'
+import { canvasContextElementProps } from '@/core/canvasContextMenuAttributes'
 import type {
   ElementViewKey,
   ElementViewMode,
@@ -33,6 +34,8 @@ type ParameterItemProps = {
   hint?: string
   isParameterReorderDragSource?: boolean
   onCommitValue?: (value: string) => void
+  interactionLocked?: boolean
+  onBlockedInteraction?: () => void
   onOutputWireKeyboard?: (structure: InternalStructureDefinition) => void
   onOutputWirePointerCancel?: (
     structure: InternalStructureDefinition,
@@ -71,6 +74,8 @@ export function ParameterItem({
   hint,
   isParameterReorderDragSource = false,
   onCommitValue,
+  interactionLocked = false,
+  onBlockedInteraction,
   onOutputWireKeyboard,
   onOutputWirePointerCancel,
   onOutputWirePointerDown,
@@ -99,13 +104,15 @@ export function ParameterItem({
   const expandedLayout = isMapStructure || Boolean(onCommitValue && inputFocused)
 
   const valueInner =
-    isMapHashPointer && onCommitValue && canvasNodeId ? (
+    isMapHashPointer && canvasNodeId ? (
       <ParameterMapHashPointerInput
         activeSlotId={activeOutputInternalStructureId}
         canvasNodeId={canvasNodeId}
         className={styles.valueInput}
         defaultValue={parameter.defaultValue}
-        onCommit={onCommitValue}
+        interactionLocked={interactionLocked}
+        onBlockedInteraction={onBlockedInteraction}
+        onCommit={onCommitValue ?? (() => {})}
         onStructureSlotRemoved={onMapHashStructureSlotRemoved}
         parameterTitle={parameter.name}
         onOutputWireKeyboard={onOutputWireKeyboard}
@@ -123,13 +130,15 @@ export function ParameterItem({
         value={value}
         viewMode={viewMode}
       />
-    ) : isMapU64Pointer && onCommitValue && canvasNodeId ? (
+    ) : isMapU64Pointer && canvasNodeId ? (
       <ParameterMapU64PointerInput
         activeSlotId={activeOutputInternalStructureId}
         canvasNodeId={canvasNodeId}
         className={styles.valueInput}
         defaultValue={parameter.defaultValue}
-        onCommit={onCommitValue}
+        interactionLocked={interactionLocked}
+        onBlockedInteraction={onBlockedInteraction}
+        onCommit={onCommitValue ?? (() => {})}
         onStructureSlotRemoved={onMapHashStructureSlotRemoved}
         parameterTitle={parameter.name}
         onOutputWireKeyboard={onOutputWireKeyboard}
@@ -147,13 +156,15 @@ export function ParameterItem({
         value={value}
         viewMode={viewMode}
       />
-    ) : isMapHashEmbed && onCommitValue && canvasNodeId ? (
+    ) : isMapHashEmbed && canvasNodeId ? (
       <ParameterMapHashEmbedInput
         activeSlotId={activeOutputInternalStructureId}
         canvasNodeId={canvasNodeId}
         className={styles.valueInput}
         defaultValue={parameter.defaultValue}
-        onCommit={onCommitValue}
+        interactionLocked={interactionLocked}
+        onBlockedInteraction={onBlockedInteraction}
+        onCommit={onCommitValue ?? (() => {})}
         onStructureSlotRemoved={onMapHashStructureSlotRemoved}
         parameterTitle={parameter.name}
         onOutputWireKeyboard={onOutputWireKeyboard}
@@ -217,6 +228,14 @@ export function ParameterItem({
     </div>
   )
 
+  const contextAttrs = canvasNodeId
+    ? canvasContextElementProps({
+        nodeId: canvasNodeId,
+        kind: 'parameter',
+        elementId: parameter.id,
+      })
+    : {}
+
   return (
     <li
       className={[
@@ -234,6 +253,7 @@ export function ParameterItem({
         .filter(Boolean)
         .join(' ')}
       ref={registerParameterRowRef}
+      {...contextAttrs}
     >
       <div className={styles.paramShell}>
         <div className={styles.cellName}>{hintAndName}</div>

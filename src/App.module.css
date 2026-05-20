@@ -56,6 +56,21 @@
   top: calc(100% - var(--space-5) - 42px);
 }
 
+.sceneNodesDock {
+  position: absolute;
+  left: var(--space-5);
+  z-index: 8;
+  transform-origin: top left;
+}
+
+.sceneNodesDockMinimized {
+  bottom: var(--space-5);
+}
+
+.sceneNodesDockExpanded {
+  top: calc(100% - var(--space-5) - 42px);
+}
+
 @media (max-width: 900px) {
   .workspace {
     flex-direction: column;
@@ -81,6 +96,18 @@
   }
 
   .inspectorDockExpanded {
+    top: calc(100% - var(--space-3) - 42px);
+  }
+
+  .sceneNodesDock {
+    left: var(--space-3);
+  }
+
+  .sceneNodesDockMinimized {
+    bottom: var(--space-3);
+  }
+
+  .sceneNodesDockExpanded {
     top: calc(100% - var(--space-3) - 42px);
   }
 }

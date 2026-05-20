@@ -1,0 +1,112 @@
+import type { CSSProperties } from 'react'
+
+import type { CanvasNode } from '@/core/canvasScene'
+import { parseRgbaString, rgbaToCss } from '@/core/rgbaColor'
+
+export function getNodeDisplayTitle(canvasNode: CanvasNode): string {
+  const custom = canvasNode.displayLabel?.trim()
+
+  if (custom) {
+    return custom
+  }
+
+  return canvasNode.node.schema.title
+}
+
+export function isNodeVisibleOnCanvas(canvasNode: CanvasNode): boolean {
+  return canvasNode.sceneHidden !== true
+}
+
+/** Nós ocultos na cena não entram em seleccionar todos / marquee / clique no canvas. */
+export function isNodeSelectableOnCanvas(canvasNode: CanvasNode): boolean {
+  return isNodeVisibleOnCanvas(canvasNode)
+}
+
+export function filterSelectableNodeIds(scene: { nodes: CanvasNode[] }, nodeIds: readonly string[]): string[] {
+  return nodeIds.filter((id) => {
+    const node = scene.nodes.find((entry) => entry.id === id)
+
+    return node !== undefined && isNodeSelectableOnCanvas(node)
+  })
+}
+
+export function isNodeLocked(canvasNode: CanvasNode): boolean {
+  return canvasNode.locked === true
+}
+
+/** Nós travados não podem ser apagados da cena (regra além de ROOT). */
+export function isNodeRemovableFromScene(canvasNode: CanvasNode): boolean {
+  return canvasNode.locked !== true
+}
+
+export function filterRemovableNodeIds(scene: { nodes: CanvasNode[] }, nodeIds: readonly string[]): string[] {
+  return nodeIds.filter((id) => {
+    const node = scene.nodes.find((entry) => entry.id === id)
+
+    return node !== undefined && isNodeRemovableFromScene(node)
+  })
+}
+
+/** Converte `bodyColor` persistido (formato `r, g, b, a` ou `rgba(...)`) para CSS válido. */
+export function resolveCanvasNodeBodyCssColor(canvasNode: CanvasNode): string | undefined {
+  if (!canvasNode.bodyColorEnabled || !canvasNode.bodyColor?.trim()) {
+    return undefined
+  }
+
+  const raw = canvasNode.bodyColor.trim()
+
+  if (raw.startsWith('rgba(') || raw.startsWith('rgb(')) {
+    return raw
+  }
+
+  return rgbaToCss(parseRgbaString(raw))
+}
+
+export function canvasNodeBodyStyle(canvasNode: CanvasNode): CSSProperties | undefined {
+  const background = resolveCanvasNodeBodyCssColor(canvasNode)
+
+  if (!background) {
+    return undefined
+  }
+
+  return {
+    background,
+    ['--node-body-fill' as string]: background,
+  }
+}
+
+export function canvasNodeCardStyle(canvasNode: CanvasNode): CSSProperties | undefined {
+  const fill = resolveCanvasNodeBodyCssColor(canvasNode)
+
+  if (!fill) {
+    return undefined
+  }
+
+  return { ['--node-body-fill' as string]: fill }
+}
+
+/** Cor do portão de entrada (orb no topo) — alinhada à cor do corpo quando activa. */
+export function canvasNodeInputPortStyle(canvasNode: CanvasNode): CSSProperties | undefined {
+  const background = resolveCanvasNodeBodyCssColor(canvasNode)
+
+  if (!background) {
+    return undefined
+  }
+
+  return {
+    background,
+    boxShadow: `0 0 0 1px rgb(255 255 255 / 22%), 0 0 14px color-mix(in srgb, ${background} 55%, transparent)`,
+  }
+}
+
+export function isNodeCardBlockedInteractionTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) {
+    return false
+  }
+
+  return Boolean(
+    target.closest(
+      'input, textarea, select, button, [contenteditable="true"], [role="spinbutton"], label',
+    ),
+  )
+}

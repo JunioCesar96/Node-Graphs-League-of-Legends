@@ -43,6 +43,8 @@ type ParameterMapU64PointerInputProps = {
   selectedIndex?: number
   onViewModeChange?: (mode: ElementViewMode) => void
   onSelectedIndexChange?: (index: number) => void
+  interactionLocked?: boolean
+  onBlockedInteraction?: () => void
 }
 
 export function ParameterMapU64PointerInput({
@@ -67,6 +69,8 @@ export function ParameterMapU64PointerInput({
   selectedIndex,
   onViewModeChange,
   onSelectedIndexChange,
+  interactionLocked,
+  onBlockedInteraction,
 }: ParameterMapU64PointerInputProps) {
   return (
     <div className={className} data-parameter-type="mapU64Pointer">
@@ -74,6 +78,8 @@ export function ParameterMapU64PointerInput({
         activeSlotId={activeSlotId}
         canvasNodeId={canvasNodeId}
         defaultValue={defaultValue}
+        interactionLocked={interactionLocked}
+        onBlockedInteraction={onBlockedInteraction}
         onChange={(next) => onCommit(normalizeMapU64PointerString(next))}
         onStructureSlotRemoved={onStructureSlotRemoved}
         parameterTitle={parameterTitle}

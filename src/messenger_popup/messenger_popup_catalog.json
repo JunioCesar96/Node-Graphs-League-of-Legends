@@ -19,6 +19,12 @@
       "kind": "confirm"
     },
     {
+      "id": "confirm_delete_node",
+      "message": "Remover o nó «{nodeTitle}» da cena?",
+      "durationMs": null,
+      "kind": "confirm"
+    },
+    {
       "id": "example_toast_saved",
       "message": "Alterações guardadas.",
       "durationMs": 4000,
@@ -28,6 +34,12 @@
       "id": "toast_hash_string_requires_string_param",
       "message": "Você precisa adicionar um parâmetro do tipo string name em seu node, adicione para definir a hashString",
       "durationMs": 10000,
+      "kind": "toast"
+    },
+    {
+      "id": "toast_node_locked",
+      "message": "Nó bloqueado.",
+      "durationMs": 3500,
       "kind": "toast"
     }
   ]

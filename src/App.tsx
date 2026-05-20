@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { GraphCanvasHandle } from '@/components/organisms/GraphCanvas'
 import type { CSSProperties, PointerEvent } from 'react'
 
 import { ConsoleNotificationCapsule } from '@/components/molecules/ConsoleNotificationCapsule'
@@ -15,6 +16,12 @@ import {
 import { GraphCanvas } from '@/components/organisms/GraphCanvas'
 import { ParameterValueLinkPicker } from '@/components/molecules/ParameterValueLinkPicker'
 import { NodeInspector } from '@/components/organisms/NodeInspector'
+import { SceneNodesPanel } from '@/components/organisms/SceneNodesPanel'
+import {
+  filterRemovableNodeIds,
+  getNodeDisplayTitle,
+  isNodeLocked,
+} from '@/core/canvasNodePresentation'
 import { stubBinStructureDocument } from '@/core/binImportStub'
 import { convertBinViaOptionalBridge } from '@/core/jadeBinBridge'
 import { binTreeJsonToCanvasScene } from '@/core/ltkBinTreeScene'
@@ -38,6 +45,7 @@ import type {
   NodeParameterDefinition,
   NodeSchemaDefinition,
 } from '@/core/nodeSchema'
+import type { CanvasPosition } from '@/core/canvasScene'
 import {
   hydrateScene,
   schemaPackFolderBySchemaId,
@@ -66,6 +74,8 @@ import {
   type NodeElementListItem,
 } from '@/core/listNodeElements'
 import {
+  MESSENGER_CONFIRM_DELETE_NODE,
+  MESSENGER_TOAST_NODE_LOCKED,
   MESSENGER_CONFIRM_NODE_CONFIGURATION_MODE,
   MESSENGER_CONFIRM_REMOVE_NODE_ELEMENT,
   MESSENGER_CONFIRM_TOGGLE_REQUIRED_PARAMETER,
@@ -147,7 +157,10 @@ function readRootSpacePx(variable: string): number {
 function App() {
   const inspectorMovedDuringPointer = useRef(false)
   const inspectorDragGesture = useRef<InspectorDragGesture | null>(null)
+  const sceneNodesMovedDuringPointer = useRef(false)
+  const sceneNodesDragGesture = useRef<InspectorDragGesture | null>(null)
   const graphColumnRef = useRef<HTMLDivElement | null>(null)
+  const graphCanvasRef = useRef<GraphCanvasHandle | null>(null)
 
   const [dynamicStructurePacks, setDynamicStructurePacks] = useState(loadDynamicStructurePacksFromStorage)
 
@@ -180,6 +193,7 @@ function App() {
     resetScene,
     sceneHistory,
     moveNode,
+    setSceneCamera,
     connectNodes,
     relinkInternalStructureSlot,
     removeConnection,
@@ -188,6 +202,10 @@ function App() {
     createRootNode,
     deleteSelectedNodes,
     deleteNodeIds,
+    patchNodeSceneOverlay,
+    setAllNodesSceneHidden,
+    setAllNodesLocked,
+    resetNodePosition,
     toggleNodeBodyCollapsed,
     updateSelectedParameter,
     updateNodeParameter,
@@ -228,7 +246,7 @@ function App() {
     removeListPointerBlock,
   } = useSceneHistory({ extendSchemaLookup })
 
-  const { showConfirmByCatalogId } = useMessengerPopup()
+  const { showConfirmByCatalogId, showToastByCatalogId } = useMessengerPopup()
 
   const availableSchemas = useMemo(() => Object.values(extendSchemaLookup), [extendSchemaLookup])
 
@@ -271,6 +289,9 @@ function App() {
   const [inspectorViewportDocked, setInspectorViewportDocked] = useState(true)
   const [inspectorGrabFollowActive, setInspectorGrabFollowActive] = useState(false)
   const [inspectorGrabFollowCoords, setInspectorGrabFollowCoords] = useState({ x: 0, y: 0 })
+  const [sceneNodesMinimized, setSceneNodesMinimized] = useState(true)
+  const [sceneNodesOffset, setSceneNodesOffset] = useState<InspectorOffset>({ x: 0, y: 0 })
+  const [sceneNodesViewportDocked, setSceneNodesViewportDocked] = useState(true)
   const [codeDockOpen, setCodeDockOpen] = useState(false)
   const [codeDockWidth, setCodeDockWidth] = useState(360)
   const [codeDockFloating, setCodeDockFloating] = useState(false)
@@ -351,6 +372,42 @@ function App() {
     applyInspectorOffsetFromViewportStrip()
     setInspectorViewportDocked(false)
   }, [applyInspectorOffsetFromViewportStrip])
+
+  const applySceneNodesOffsetFromViewportStrip = useCallback(() => {
+    const column = graphColumnRef.current
+
+    if (!column) {
+      setSceneNodesOffset({ x: 0, y: 0 })
+      return
+    }
+
+    const strip = column.querySelector('[data-scene-nodes-viewport-strip]')
+
+    if (!(strip instanceof HTMLElement)) {
+      setSceneNodesOffset({ x: 0, y: 0 })
+      return
+    }
+
+    const sr = strip.getBoundingClientRect()
+    const col = column.getBoundingClientRect()
+    const narrow = typeof window !== 'undefined' && window.matchMedia('(max-width: 900px)').matches
+    const marginEdge = readRootSpacePx(narrow ? '--space-3' : '--space-5')
+    const marginBelowStrip = readRootSpacePx('--space-3')
+    const defaultLeft = col.left + marginEdge
+    const defaultTop = sceneNodesMinimized
+      ? col.bottom - marginEdge - INSPECTOR_CHROME_STRIP_PX
+      : col.top + col.height - marginEdge - INSPECTOR_CHROME_STRIP_PX
+
+    setSceneNodesOffset({
+      x: sr.left - defaultLeft,
+      y: sr.bottom + marginBelowStrip - defaultTop,
+    })
+  }, [sceneNodesMinimized])
+
+  const handleUndockSceneNodesFromViewportToolbar = useCallback(() => {
+    applySceneNodesOffsetFromViewportStrip()
+    setSceneNodesViewportDocked(false)
+  }, [applySceneNodesOffsetFromViewportStrip])
 
   useEffect(() => {
     const loadTooltips = async () => {
@@ -958,6 +1015,66 @@ function App() {
     setInspectorMinimized((isMinimized) => !isMinimized)
   }
 
+  const startSceneNodesDrag = (event: PointerEvent<HTMLElement>) => {
+    if (event.button !== 0 || sceneNodesViewportDocked) {
+      return
+    }
+
+    sceneNodesMovedDuringPointer.current = false
+    sceneNodesDragGesture.current = {
+      element: event.currentTarget,
+      moved: false,
+      offset: sceneNodesOffset,
+      origin: { x: event.clientX, y: event.clientY },
+      pointerId: event.pointerId,
+      viewportDockedAtStart: sceneNodesViewportDocked,
+      undockFromToolbarStarted: false,
+    }
+    event.currentTarget.setPointerCapture(event.pointerId)
+    event.stopPropagation()
+  }
+
+  const moveSceneNodesDrag = (event: PointerEvent<HTMLElement>) => {
+    const gesture = sceneNodesDragGesture.current
+
+    if (!gesture) {
+      return
+    }
+
+    const nextOffset = {
+      x: gesture.offset.x + event.clientX - gesture.origin.x,
+      y: gesture.offset.y + event.clientY - gesture.origin.y,
+    }
+    const moved = Math.abs(nextOffset.x - gesture.offset.x) > 3 || Math.abs(nextOffset.y - gesture.offset.y) > 3
+
+    gesture.moved = gesture.moved || moved
+    setSceneNodesOffset(nextOffset)
+  }
+
+  const stopSceneNodesDrag = (event: PointerEvent<HTMLElement>) => {
+    const gesture = sceneNodesDragGesture.current
+
+    if (gesture?.pointerId !== event.pointerId) {
+      return
+    }
+
+    sceneNodesMovedDuringPointer.current = gesture.moved
+    sceneNodesDragGesture.current = null
+
+    if (gesture.element.hasPointerCapture(event.pointerId)) {
+      gesture.element.releasePointerCapture(event.pointerId)
+    }
+  }
+
+  const toggleSceneNodesMinimized = () => {
+    if (sceneNodesMovedDuringPointer.current) {
+      sceneNodesMovedDuringPointer.current = false
+      return
+    }
+
+    setSceneNodesMinimized((isMinimized) => !isMinimized)
+  }
+
   const inspectorDockClassName = [
     styles.inspectorDock,
     inspectorMinimized ? styles.inspectorDockMinimized : styles.inspectorDockExpanded,
@@ -967,6 +1084,17 @@ function App() {
 
   const inspectorDockStyle = {
     transform: `translate(${inspectorOffset.x}px, ${inspectorOffset.y}px)`,
+  } satisfies CSSProperties
+
+  const sceneNodesDockClassName = [
+    styles.sceneNodesDock,
+    sceneNodesMinimized ? styles.sceneNodesDockMinimized : styles.sceneNodesDockExpanded,
+  ]
+    .filter(Boolean)
+    .join(' ')
+
+  const sceneNodesDockStyle = {
+    transform: `translate(${sceneNodesOffset.x}px, ${sceneNodesOffset.y}px)`,
   } satisfies CSSProperties
 
   const handleCloseCodeDock = useCallback(() => {
@@ -1036,8 +1164,27 @@ function App() {
           return
         }
 
+        const deletableIds = filterRemovableNodeIds(scene, selectedNodeIds).filter(
+          (id) => id !== ROOT_NODE_ID,
+        )
+
+        if (deletableIds.length === 0) {
+          const hasLocked = selectedNodeIds.some((id) => {
+            const node = scene.nodes.find((entry) => entry.id === id)
+
+            return node !== undefined && isNodeLocked(node)
+          })
+
+          if (hasLocked) {
+            event.preventDefault()
+            showToastByCatalogId(MESSENGER_TOAST_NODE_LOCKED)
+          }
+
+          return
+        }
+
         event.preventDefault()
-        deleteSelectedNodes()
+        deleteNodeIds(deletableIds)
       }
     }
 
@@ -1047,10 +1194,13 @@ function App() {
       window.removeEventListener('keydown', handleKeyboardShortcut)
     }
   }, [
+    deleteNodeIds,
     deleteSelectedNodes,
     primarySelectedId,
     redoScene,
+    scene,
     selectedNodeIds,
+    showToastByCatalogId,
     undoScene,
   ])
 
@@ -1063,6 +1213,17 @@ function App() {
     inspectorTarget !== undefined
       ? mergedBaseParameterCatalogBySchemaId[inspectorTarget.node.schema.id]
       : undefined
+
+  const handleInspectorUpdatePosition = useCallback(
+    (position: CanvasPosition) => {
+      if (!inspectorTarget) {
+        return
+      }
+
+      moveNode(inspectorTarget.id, position, { axisLock: '', snapGrid: false })
+    },
+    [inspectorTarget, moveNode],
+  )
 
   const resolveNodeStructureJsonRelativePath = useCallback(
     (schemaId: string): string | undefined => {
@@ -1531,13 +1692,34 @@ function App() {
 
   const showInspectorPinnedToToolbar = inspectorViewportDocked && !inspectorGrabFollowActive
   const inspectorDockShowsSidebar = !inspectorGrabFollowActive && !showInspectorPinnedToToolbar
-  const inspectorCanDelete =
-    selectedNodeIds.length > 0 &&
-    !(
+  const showSceneNodesPinnedToToolbar = sceneNodesViewportDocked
+  const sceneNodesDockShowsSidebar = !showSceneNodesPinnedToToolbar
+  const selectionCanDeleteNode = (() => {
+    if (selectedNodeIds.length === 0) {
+      return false
+    }
+
+    if (
       selectedNodeIds.length === 1 &&
       selectedNodeIds[0] === ROOT_NODE_ID &&
       primarySelectedId === ROOT_NODE_ID
-    )
+    ) {
+      return false
+    }
+
+    const primary = primarySelectedId
+      ? scene.nodes.find((node) => node.id === primarySelectedId)
+      : undefined
+
+    if (primary && isNodeLocked(primary)) {
+      return false
+    }
+
+    return filterRemovableNodeIds(scene, selectedNodeIds).some((id) => id !== ROOT_NODE_ID)
+  })()
+
+  const sceneNodesCanDelete = selectionCanDeleteNode
+  const inspectorCanDelete = selectionCanDeleteNode
   const inspectorDragHandleProps = inspectorViewportDocked
     ? {}
     : {
@@ -1556,6 +1738,90 @@ function App() {
     }),
     [handleUndockFromViewportToolbar],
   )
+
+  const sceneNodesPickHandlers = useMemo(
+    () => ({
+      onDockToViewport: () => {
+        setSceneNodesViewportDocked(true)
+        setSceneNodesMinimized(false)
+      },
+      onUndockFromViewportToolbar: handleUndockSceneNodesFromViewportToolbar,
+    }),
+    [handleUndockSceneNodesFromViewportToolbar],
+  )
+
+  const sceneNodesDragHandleProps = sceneNodesViewportDocked
+    ? {}
+    : {
+        onPointerCancel: stopSceneNodesDrag,
+        onPointerDown: startSceneNodesDrag,
+        onPointerMove: moveSceneNodesDrag,
+        onPointerUp: stopSceneNodesDrag,
+      }
+
+  const handleSceneNodesDelete = useCallback(() => {
+    if (!primarySelectedId || !sceneNodesCanDelete) {
+      return
+    }
+
+    const target = scene.nodes.find((node) => node.id === primarySelectedId)
+
+    if (!target || isNodeLocked(target)) {
+      if (target && isNodeLocked(target)) {
+        showToastByCatalogId(MESSENGER_TOAST_NODE_LOCKED)
+      }
+
+      return
+    }
+
+    showConfirmByCatalogId(MESSENGER_CONFIRM_DELETE_NODE, {
+      replacements: { nodeTitle: getNodeDisplayTitle(target) },
+      onConfirm: () => deleteNodeIds([primarySelectedId]),
+    })
+  }, [
+    deleteNodeIds,
+    primarySelectedId,
+    scene.nodes,
+    sceneNodesCanDelete,
+    showConfirmByCatalogId,
+  ])
+
+  const handleResetSceneNodesSelectedPosition = useCallback(() => {
+    if (!primarySelectedId) {
+      return
+    }
+
+    resetNodePosition(primarySelectedId)
+  }, [primarySelectedId, resetNodePosition])
+
+  const handleFocusSceneNode = useCallback(
+    (nodeId: string) => {
+      selectNode(nodeId)
+      graphCanvasRef.current?.focusSelectionIntoView([nodeId])
+    },
+    [selectNode],
+  )
+
+  const sceneNodesPanelProps = {
+    ...sceneNodesPickHandlers,
+    canDeleteSelected: sceneNodesCanDelete,
+    dragHandleProps: sceneNodesDragHandleProps,
+    minimized: sceneNodesMinimized,
+    onDeleteSelected: handleSceneNodesDelete,
+    onFocusNode: handleFocusSceneNode,
+    onHideAll: () => setAllNodesSceneHidden(true),
+    onLockAll: () => setAllNodesLocked(true),
+    onPatchNodeOverlay: patchNodeSceneOverlay,
+    onRequestAddNode: requestPalette,
+    onResetSelectedPosition: handleResetSceneNodesSelectedPosition,
+    onSelectNode: (nodeId: string) => selectNode(nodeId, { includeHidden: true }),
+    onShowAll: () => setAllNodesSceneHidden(false),
+    onToggleMinimized: toggleSceneNodesMinimized,
+    onUnlockAll: () => setAllNodesLocked(false),
+    primarySelectedId,
+    scene,
+    selectedNodeIds,
+  }
 
   if (!scene.nodes.length) {
     return (
@@ -1623,6 +1889,7 @@ function App() {
       <div className={styles.workspace} data-workspace>
         <div className={styles.graphColumn} ref={graphColumnRef}>
           <GraphCanvas
+            ref={graphCanvasRef}
             availableSchemas={availableSchemas}
             canRedo={sceneHistory.future.length > 0}
             canUndo={sceneHistory.past.length > 0}
@@ -1668,6 +1935,9 @@ function App() {
             onCycleConnectionRouting={cycleConnectionRouting}
             onMarqueeCommit={commitMarqueeSelection}
             onMoveNode={moveNode}
+            onSceneCameraChange={setSceneCamera}
+            onNodeLockedInteraction={() => showToastByCatalogId(MESSENGER_TOAST_NODE_LOCKED)}
+            onSceneNodesPanelRequest={() => setSceneNodesMinimized(false)}
             onRedo={redoScene}
             onRemoveConnection={removeConnection}
             onResetScene={resetScene}
@@ -1689,6 +1959,11 @@ function App() {
             schemaStructureSubfolderBySchemaId={mergedStructureSubfolderBySchemaId}
             selectedNodeId={primarySelectedId}
             selectedNodeIds={selectedNodeIds}
+            sceneNodesControlsSlot={
+              showSceneNodesPinnedToToolbar ? (
+                <SceneNodesPanel {...sceneNodesPanelProps} viewportDocked />
+              ) : null
+            }
             viewportControlsSlot={
               showInspectorPinnedToToolbar ? (
                 <NodeInspector
@@ -1707,11 +1982,17 @@ function App() {
                   onSwapParameterPositions={swapSelectedNodeParameters}
                   onToggleMinimized={toggleInspectorMinimized}
                   onUpdateParameter={updateSelectedParameter}
+                  onUpdatePosition={handleInspectorUpdatePosition}
                   viewportDocked
                 />
               ) : null
             }
           />
+          {sceneNodesDockShowsSidebar ? (
+            <div className={sceneNodesDockClassName} style={sceneNodesDockStyle}>
+              <SceneNodesPanel {...sceneNodesPanelProps} />
+            </div>
+          ) : null}
           {inspectorDockShowsSidebar ? (
             <div className={inspectorDockClassName} style={inspectorDockStyle}>
               <NodeInspector
@@ -1730,6 +2011,7 @@ function App() {
                 onSwapParameterPositions={swapSelectedNodeParameters}
                 onToggleMinimized={toggleInspectorMinimized}
                 onUpdateParameter={updateSelectedParameter}
+                onUpdatePosition={handleInspectorUpdatePosition}
               />
             </div>
           ) : null}
@@ -1758,6 +2040,7 @@ function App() {
                 onSwapParameterPositions={swapSelectedNodeParameters}
                 onToggleMinimized={toggleInspectorMinimized}
                 onUpdateParameter={updateSelectedParameter}
+                onUpdatePosition={handleInspectorUpdatePosition}
               />
             </div>
           ) : null}

@@ -3,10 +3,19 @@ import type { CSSProperties, MouseEvent, PointerEvent, ReactNode } from 'react'
 
 import { CanvasContextMenu } from '@/components/molecules/CanvasContextMenu'
 import { CollectionTypeLinkMenu } from '@/components/molecules/CollectionTypeLinkMenu'
+import { SceneCameraPanel } from '@/components/molecules/SceneCameraPanel'
 import { AddNodePalette } from '@/components/organisms/AddNodePalette'
 import { NodeCard } from '@/components/organisms/NodeCard'
-import type { CanvasConnection, CanvasNode, CanvasPosition, CanvasScene } from '@/core/canvasScene'
+import type { CanvasConnection, CanvasNode, CanvasPosition, CanvasScene, SceneCamera } from '@/core/canvasScene'
 import { isCanvasNodeBodyCollapsed } from '@/core/canvasScene'
+import {
+  canvasNodeBodyStyle,
+  canvasNodeCardStyle,
+  canvasNodeInputPortStyle,
+  getNodeDisplayTitle,
+  isNodeLocked,
+  isNodeVisibleOnCanvas,
+} from '@/core/canvasNodePresentation'
 import {
   buildWirelessDisplayByNode,
   type WirelessPortPulseTarget,
@@ -109,6 +118,12 @@ import {
   ELEMENT_MENU_TRIGGER_ATTR,
 } from '@/core/canvasContextMenuAttributes'
 import { buildContextMenuItems } from '@/core/canvasContextMenuItems'
+import {
+  DEFAULT_CANVAS_TOOLBAR_VISIBILITY,
+  toggleToolbarVisibility,
+  type CanvasToolbarToolId,
+  type CanvasToolbarVisibility,
+} from '@/core/canvasToolbarVisibility'
 import { resolveContextTarget } from '@/core/canvasContextMenuResolve'
 import type {
   CanvasContextMenuAnchor,
@@ -135,7 +150,7 @@ const SECTION_GAP = 20
 const PORT_OVERLAP = 6
 const RIGID_SEGMENT_LENGTH = 44
 const BUTTON_HEIGHT = 46
-const MIN_SCALE = 0.65
+const MIN_SCALE = 0.15
 const MAX_SCALE = 1.25
 const SCALE_STEP = 0.1
 const SNAP_GRID_PX = 24
@@ -260,10 +275,18 @@ type GraphCanvasProps = {
     oneBasedIndex: number,
   ) => void
   scene: CanvasScene
+  /** Persiste pan/zoom da câmera na cena (sem histórico undo). */
+  onSceneCameraChange?: (camera: SceneCamera) => void
   selectedNodeIds: string[]
   selectedNodeId: string
   /** Conteúdo extra dentro da régua aria-label «Canvas viewport controls» (ex.: inspector acoplado). */
   viewportControlsSlot?: ReactNode
+  /** Painel «Nodes em cena» acoplado à barra (cápsula / chrome). */
+  sceneNodesControlsSlot?: ReactNode
+  /** Toast quando o utilizador tenta editar um nó travado. */
+  onNodeLockedInteraction?: () => void
+  /** Abre/expande o painel «Nodes em cena» (ex.: ao activar no submenu Exibir). */
+  onSceneNodesPanelRequest?: () => void
 }
 
 type ConnectionPath = {
@@ -1221,9 +1244,13 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     onSetElementSelectedIndex,
     onRemoveConnectionsFromOutputSlot,
     scene,
+    onSceneCameraChange,
     selectedNodeIds,
     selectedNodeId,
     viewportControlsSlot,
+    sceneNodesControlsSlot,
+    onNodeLockedInteraction,
+    onSceneNodesPanelRequest,
   },
   ref,
 ) {
@@ -1239,8 +1266,8 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
   const pendingLinkRef = useRef<PendingLink | null>(null)
   const [linkDropContext, setLinkDropContext] = useState<GraphDropLinkContext | null>(null)
   const [isPaletteOpen, setIsPaletteOpen] = useState(false)
-  const [pan, setPan] = useState<PanPoint>({ x: 0, y: 0 })
-  const [scale, setScale] = useState(1)
+  const [pan, setPan] = useState<PanPoint>(() => scene.camera?.pan ?? { x: 0, y: 0 })
+  const [scale, setScale] = useState(() => scene.camera?.scale ?? 1)
   const nodeDragGesture = useRef<NodeDragGesture | null>(null)
   const panGesture = useRef<PanGesture | null>(null)
   const middlePanGestureRef = useRef<PanGesture | null>(null)
@@ -1257,10 +1284,54 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     target: CanvasContextTarget
   } | null>(null)
   const [viewportNavigateMode, setViewportNavigateMode] = useState(false)
-  const [canvasLegendVisible, setCanvasLegendVisible] = useState(false)
+  const [toolbarVisibility, setToolbarVisibility] = useState<CanvasToolbarVisibility>(
+    () => DEFAULT_CANVAS_TOOLBAR_VISIBILITY,
+  )
   const [paletteSpawnPosition, setPaletteSpawnPosition] = useState<CanvasPosition | null>(null)
   const navigatePanOriginRef = useRef<{ x: number; y: number } | null>(null)
   const [wirelessPortPulse, setWirelessPortPulse] = useState<WirelessPortPulseTarget | null>(null)
+
+  const panRef = useRef(pan)
+  const scaleRef = useRef(scale)
+  const wheelPersistTimerRef = useRef<ReturnType<typeof window.setTimeout> | null>(null)
+
+  useEffect(() => {
+    panRef.current = pan
+  }, [pan])
+
+  useEffect(() => {
+    scaleRef.current = scale
+  }, [scale])
+
+  useEffect(() => {
+    const nextPan = scene.camera?.pan ?? { x: 0, y: 0 }
+    const nextScale = scene.camera?.scale ?? 1
+
+    setPan((current) =>
+      current.x === nextPan.x && current.y === nextPan.y ? current : { x: nextPan.x, y: nextPan.y },
+    )
+    setScale((current) => (current === nextScale ? current : nextScale))
+  }, [scene.camera])
+
+  const persistSceneCamera = useCallback(
+    (camera: { pan: PanPoint; scale: number }) => {
+      onSceneCameraChange?.(camera)
+    },
+    [onSceneCameraChange],
+  )
+
+  const persistSceneCameraFromRefs = useCallback(() => {
+    persistSceneCamera({ pan: panRef.current, scale: scaleRef.current })
+  }, [persistSceneCamera])
+
+  useEffect(
+    () => () => {
+      if (wheelPersistTimerRef.current !== null) {
+        window.clearTimeout(wheelPersistTimerRef.current)
+      }
+    },
+    [],
+  )
   const glueTargetId =
     selectedNodeIds.length > 0
       ? selectedNodeIds.includes(selectedNodeId)
@@ -1318,12 +1389,22 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     setWirelessPortPulse(null)
   }, [])
 
+  const visibleNodeIds = useMemo(
+    () => new Set(scene.nodes.filter(isNodeVisibleOnCanvas).map((node) => node.id)),
+    [scene.nodes],
+  )
+
   const connectionPaths = useMemo(() => {
     return scene.connections
-      .filter((connection) => connection.routing !== 'wireless')
+      .filter(
+        (connection) =>
+          connection.routing !== 'wireless' &&
+          visibleNodeIds.has(connection.fromNodeId) &&
+          visibleNodeIds.has(connection.toNodeId),
+      )
       .map((connection) => resolveConnectionPath(connection, scene.nodes, scene.connections, portAnchors))
       .filter((path): path is ConnectionPath => path !== null)
-  }, [portAnchors, scene.connections, scene.nodes])
+  }, [portAnchors, scene.connections, scene.nodes, visibleNodeIds])
 
   const paletteSchemas = useMemo(() => {
     if (!linkDropContext) {
@@ -1410,16 +1491,31 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
   }
 
   const zoomIn = () => {
-    setScale((currentScale) => Math.min(MAX_SCALE, Number((currentScale + SCALE_STEP).toFixed(2))))
+    setScale((currentScale) => {
+      const nextScale = Math.min(MAX_SCALE, Number((currentScale + SCALE_STEP).toFixed(2)))
+      scaleRef.current = nextScale
+      persistSceneCamera({ pan: panRef.current, scale: nextScale })
+      return nextScale
+    })
   }
 
   const zoomOut = () => {
-    setScale((currentScale) => Math.max(MIN_SCALE, Number((currentScale - SCALE_STEP).toFixed(2))))
+    setScale((currentScale) => {
+      const nextScale = Math.max(MIN_SCALE, Number((currentScale - SCALE_STEP).toFixed(2)))
+      scaleRef.current = nextScale
+      persistSceneCamera({ pan: panRef.current, scale: nextScale })
+      return nextScale
+    })
   }
 
   const resetViewport = () => {
-    setPan({ x: 0, y: 0 })
-    setScale(1)
+    const nextPan = { x: 0, y: 0 }
+    const nextScale = 1
+    panRef.current = nextPan
+    scaleRef.current = nextScale
+    setPan(nextPan)
+    setScale(nextScale)
+    persistSceneCamera({ pan: nextPan, scale: nextScale })
   }
 
   const beginPendingLink = useCallback(
@@ -1795,6 +1891,12 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
         return
       }
 
+      const fromNode = scene.nodes.find((node) => node.id === fromNodeId)
+
+      if (fromNode && isNodeLocked(fromNode)) {
+        return
+      }
+
       event.preventDefault()
       beginPendingLink(fromNodeId, entity, event.currentTarget)
       outputWireDragRef.current = {
@@ -1809,7 +1911,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       attachOutputWireWindowMove(event.pointerId)
       event.currentTarget.setPointerCapture(event.pointerId)
     },
-    [attachOutputWireWindowMove, beginPendingLink, updateLinkDraftFromClient],
+    [attachOutputWireWindowMove, beginPendingLink, scene.nodes, updateLinkDraftFromClient],
   )
 
   const handleOutputWirePointerMove = useCallback(
@@ -2188,6 +2290,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
         event.currentTarget.releasePointerCapture(event.pointerId)
       }
 
+      persistSceneCameraFromRefs()
       return
     }
 
@@ -2210,10 +2313,12 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId)
     }
+
+    persistSceneCameraFromRefs()
   }
 
   const startNodeDrag = (event: PointerEvent<HTMLElement>, canvasNode: CanvasNode) => {
-    if (event.button !== 0) {
+    if (event.button !== 0 || isNodeLocked(canvasNode)) {
       return
     }
 
@@ -2369,13 +2474,17 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       const heightScale = viewportHeight / bboxHeight
       const targetScale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, Math.min(widthScale, heightScale)))
 
-      setPan({
-        x: viewportWidth / 2 - centerX * targetScale,
-        y: viewportHeight / 2 - centerY * targetScale,
-      })
+      const nextPan = {
+        x: Math.round(viewportWidth / 2 - centerX * targetScale),
+        y: Math.round(viewportHeight / 2 - centerY * targetScale),
+      }
+      panRef.current = nextPan
+      scaleRef.current = targetScale
+      setPan(nextPan)
       setScale(targetScale)
+      persistSceneCamera({ pan: nextPan, scale: targetScale })
     },
-    [scene.nodes],
+    [persistSceneCamera, scene.nodes],
   )
 
   useImperativeHandle(ref, () => ({
@@ -2402,7 +2511,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       canRedo,
       canUndo,
       glueNodeId,
-      hasSelectAll: scene.nodes.length > 0,
+      hasSelectAll: scene.nodes.some(isNodeVisibleOnCanvas),
       isNodeBodyCollapsed: contextNode ? isCanvasNodeBodyCollapsed(contextNode) : false,
       onCycleConnectionRouting,
       onRemoveConnection,
@@ -2412,12 +2521,13 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       scene,
       selectedNodeIds,
       viewportNavigateMode,
-      canvasLegendVisible,
+      toolbarVisibility,
+      hasPendingLink: Boolean(pendingLink),
+      hasInspectorSlot: Boolean(viewportControlsSlot),
     })
   }, [
     canRedo,
     canUndo,
-    canvasLegendVisible,
     contextMenu,
     glueNodeId,
     onCycleConnectionRouting,
@@ -2427,6 +2537,9 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     selectedNodeId,
     selectedNodeIds,
     viewportNavigateMode,
+    toolbarVisibility,
+    pendingLink,
+    viewportControlsSlot,
   ])
 
   const runContextMenuAction = useCallback(
@@ -2450,14 +2563,13 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
           break
         }
         case 'canvas.zoomIn':
-          setScale((current) => Math.min(MAX_SCALE, Number((current + SCALE_STEP).toFixed(2))))
+          zoomIn()
           break
         case 'canvas.zoomOut':
-          setScale((current) => Math.max(MIN_SCALE, Number((current - SCALE_STEP).toFixed(2))))
+          zoomOut()
           break
         case 'canvas.resetViewport':
-          setPan({ x: 0, y: 0 })
-          setScale(1)
+          resetViewport()
           break
         case 'canvas.undo':
           onUndo()
@@ -2478,7 +2590,33 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
           setViewportNavigateMode((active) => !active)
           break
         case 'canvas.toggleLegend':
-          setCanvasLegendVisible((visible) => !visible)
+          setToolbarVisibility((current) => toggleToolbarVisibility(current, 'legend'))
+          break
+        case 'canvas.toolbar.addNode':
+        case 'canvas.toolbar.undo':
+        case 'canvas.toolbar.redo':
+        case 'canvas.toolbar.camera':
+        case 'canvas.toolbar.zoom':
+        case 'canvas.toolbar.resetViewport':
+        case 'canvas.toolbar.resetScene':
+        case 'canvas.toolbar.inspector':
+        case 'canvas.toolbar.legend':
+        case 'canvas.toolbar.linkStatus':
+        case 'canvas.toolbar.navigateHint':
+        case 'canvas.toolbar.sceneNodes': {
+          const toolId = actionId.replace('canvas.toolbar.', '') as CanvasToolbarToolId
+          setToolbarVisibility((current) => {
+            const next = toggleToolbarVisibility(current, toolId)
+
+            if (next.sceneNodes) {
+              onSceneNodesPanelRequest?.()
+            }
+
+            return next
+          })
+          break
+        }
+        case 'canvas.exibir':
           break
         case 'node.toggleBodyCollapse':
           if (target.type === 'node') {
@@ -2502,6 +2640,13 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
           break
         case 'node.delete':
           if (target.type === 'node') {
+            const canvasNode = scene.nodes.find((node) => node.id === target.nodeId)
+
+            if (!canvasNode || isNodeLocked(canvasNode)) {
+              onNodeLockedInteraction?.()
+              break
+            }
+
             onDeleteNodeIds?.([target.nodeId])
           }
           break
@@ -2641,6 +2786,8 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       onClearSelection,
       onCycleConnectionRouting,
       onDeleteNodeIds,
+      onNodeLockedInteraction,
+      onSceneNodesPanelRequest,
       onToggleNodeBodyCollapsed,
       onRedo,
       onRemoveConnection,
@@ -2699,30 +2846,46 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       return
     }
 
-    const handleWheelPan = (event: WheelEvent) => {
+    const handleWheelZoom = (event: WheelEvent) => {
       if (isParameterPickerOpen() || shouldIgnoreCanvasWheelShortcut(event.target)) {
         return
       }
 
-      if (event.ctrlKey || event.metaKey) {
+      if (event.target instanceof HTMLElement && event.target.closest('[data-canvas-toolbar="true"]')) {
         return
       }
 
       event.preventDefault()
+
       const zoomDirection = event.deltaY > 0 ? -1 : 1
       const factor = 1 + zoomDirection * 0.08
 
-      setScale((previousScale) =>
-        Math.min(MAX_SCALE, Math.max(MIN_SCALE, Number((previousScale * factor).toFixed(3)))),
-      )
+      setScale((previousScale) => {
+        const nextScale = Math.min(
+          MAX_SCALE,
+          Math.max(MIN_SCALE, Number((previousScale * factor).toFixed(3))),
+        )
+        scaleRef.current = nextScale
+
+        if (wheelPersistTimerRef.current !== null) {
+          window.clearTimeout(wheelPersistTimerRef.current)
+        }
+
+        wheelPersistTimerRef.current = window.setTimeout(() => {
+          wheelPersistTimerRef.current = null
+          persistSceneCamera({ pan: panRef.current, scale: scaleRef.current })
+        }, 150)
+
+        return nextScale
+      })
     }
 
-    element.addEventListener('wheel', handleWheelPan, { passive: false })
+    element.addEventListener('wheel', handleWheelZoom, { passive: false })
 
     return () => {
-      element.removeEventListener('wheel', handleWheelPan)
+      element.removeEventListener('wheel', handleWheelZoom)
     }
-  }, [scene.nodes.length])
+  }, [persistSceneCamera, scene.nodes.length])
 
   useEffect(() => {
     if (!glueNodeId) {
@@ -2742,6 +2905,12 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
         return
       }
 
+      const glueNode = scene.nodes.find((node) => node.id === glueNodeId)
+
+      if (glueNode && isNodeLocked(glueNode)) {
+        return
+      }
+
       const projected = graphClientToPosition(canvas, scale, pointerEvent.clientX, pointerEvent.clientY)
 
       onMoveNode(glueNodeId, projected, {
@@ -2755,7 +2924,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     return () => {
       window.removeEventListener('pointermove', reposition)
     }
-  }, [glueNodeId, onMoveNode, scale])
+  }, [glueNodeId, onMoveNode, scale, scene.nodes])
 
   useEffect(() => {
     const handleShortcut = (event: KeyboardEvent) => {
@@ -2829,7 +2998,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       ref={viewportRef}
     >
       <div className={styles.toolbar} data-canvas-control="true" data-canvas-toolbar="true">
-        {canvasLegendVisible ? (
+        {toolbarVisibility.legend ? (
           <div className={styles.legend} aria-label="Canvas legend">
             <span className={styles.legendItem}>
               <span className={styles.inputDot} />
@@ -2848,41 +3017,68 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
         ) : null}
 
         <div className={styles.controls} aria-label="Canvas viewport controls">
-          {pendingLink ? (
+          {toolbarVisibility.linkStatus && pendingLink ? (
             <span className={styles.linkStatus}>
               ligando até{' '}
               <strong>{pendingLink.targetCollectionType || pendingLink.targetSchemaId}</strong>
               {' · '}arrastar à grade vazia adiciona nó · vazio/Esc cancela
             </span>
           ) : null}
-          {viewportNavigateMode ? (
+          {toolbarVisibility.navigateHint && viewportNavigateMode ? (
             <span className={styles.linkStatus}>
               modo mover na grade · arrastar para deslocar · clique vazio ou Esc para sair
             </span>
           ) : null}
-          <button className={styles.primaryControl} type="button" onClick={() => openPalette()}>
-            add node
-          </button>
-          <button disabled={!canUndo} type="button" onClick={onUndo}>
-            undo
-          </button>
-          <button disabled={!canRedo} type="button" onClick={onRedo}>
-            redo
-          </button>
-          <button type="button" onClick={zoomOut}>
-            -
-          </button>
-          <span>{Math.round(scale * 100)}%</span>
-          <button type="button" onClick={zoomIn}>
-            +
-          </button>
-          <button type="button" onClick={resetViewport}>
-            reset
-          </button>
-          <button className={styles.dangerControl} type="button" onClick={onResetScene}>
-            reset scene
-          </button>
-          {viewportControlsSlot ? (
+          {toolbarVisibility.addNode ? (
+            <button className={styles.primaryControl} type="button" onClick={() => openPalette()}>
+              add node
+            </button>
+          ) : null}
+          {toolbarVisibility.undo ? (
+            <button disabled={!canUndo} type="button" onClick={onUndo}>
+              undo
+            </button>
+          ) : null}
+          {toolbarVisibility.redo ? (
+            <button disabled={!canRedo} type="button" onClick={onRedo}>
+              redo
+            </button>
+          ) : null}
+          {toolbarVisibility.camera ? (
+            <SceneCameraPanel
+              onPanChange={(nextPan) => {
+                panRef.current = nextPan
+                setPan(nextPan)
+                persistSceneCamera({ pan: nextPan, scale: scaleRef.current })
+              }}
+              pan={pan}
+            />
+          ) : null}
+          {toolbarVisibility.zoom ? (
+            <>
+              <button type="button" onClick={zoomOut}>
+                -
+              </button>
+              <span>{Math.round(scale * 100)}%</span>
+              <button type="button" onClick={zoomIn}>
+                +
+              </button>
+            </>
+          ) : null}
+          {toolbarVisibility.resetViewport ? (
+            <button type="button" onClick={resetViewport}>
+              reset
+            </button>
+          ) : null}
+          {toolbarVisibility.resetScene ? (
+            <button className={styles.dangerControl} type="button" onClick={onResetScene}>
+              reset scene
+            </button>
+          ) : null}
+          {toolbarVisibility.sceneNodes && sceneNodesControlsSlot ? (
+            <div className={styles.controlsInspectorSlot}>{sceneNodesControlsSlot}</div>
+          ) : null}
+          {toolbarVisibility.inspector && viewportControlsSlot ? (
             <div className={styles.controlsInspectorSlot}>{viewportControlsSlot}</div>
           ) : null}
         </div>
@@ -3058,6 +3254,11 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
         ) : null}
 
         {scene.nodes.map((canvasNode) => {
+          if (!isNodeVisibleOnCanvas(canvasNode)) {
+            return null
+          }
+
+          const nodeLocked = isNodeLocked(canvasNode)
           const isSelected = selectedNodeIds.includes(canvasNode.id)
           const pendingFromNode = pendingLink
             ? scene.nodes.find((node) => node.id === pendingLink.fromNodeId)
@@ -3111,9 +3312,15 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
                 activeOutputInternalStructureId={
                   pendingLink?.fromNodeId === canvasNode.id ? pendingLink.fromInternalStructureId : undefined
                 }
+                bodyStyle={canvasNodeBodyStyle(canvasNode)}
+                cardStyle={canvasNodeCardStyle(canvasNode)}
+                inputPortStyle={canvasNodeInputPortStyle(canvasNode)}
                 canvasNodeId={canvasNode.id}
                 canAcceptLink={isCompatibleTarget}
                 connections={scene.connections}
+                displayTitle={getNodeDisplayTitle(canvasNode)}
+                locked={nodeLocked}
+                onLockedInteraction={onNodeLockedInteraction}
                 catalogInternalStructures={(() => {
                   const sid = canvasNode.node.schema.id
                   const parentSchema = canvasNode.node.schema
@@ -3232,15 +3439,17 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
                 onInputPortClick={() => completeLink(canvasNode)}
                 onOutputWireKeyboard={(entity) => handleOutputWireKeyboard(canvasNode.id, entity)}
                 onOutputWirePointerCancel={handleOutputWirePointerCancel}
-                onOutputWirePointerDown={(entity, event) =>
-                  handleOutputWirePointerDown(canvasNode.id, entity, event)
+                onOutputWirePointerDown={
+                  nodeLocked
+                    ? undefined
+                    : (entity, event) => handleOutputWirePointerDown(canvasNode.id, entity, event)
                 }
                 onOutputWirePointerMove={handleOutputWirePointerMove}
                 onOutputWirePointerUp={(entity, event) =>
                   handleOutputWirePointerUp(canvasNode.id, entity, event)
                 }
                 onSelect={(event) => onSelectNode(canvasNode.id, { additive: Boolean(event?.shiftKey) })}
-                onStartDrag={(event) => startNodeDrag(event, canvasNode)}
+                onStartDrag={nodeLocked ? undefined : (event) => startNodeDrag(event, canvasNode)}
                 onReorderNodeParameter={
                   onSetNodeParameterOrder
                     ? (parameterId, oneBased) =>
