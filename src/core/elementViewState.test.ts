@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  applyDefaultCompactElementView,
   clampSelectedIndex,
   elementViewKeyForParameter,
   getElementViewState,
@@ -54,6 +55,14 @@ describe('elementViewState', () => {
     const key = elementViewKeyForParameter('param-map')
     const next = patchElementViewMode(node, key, 'compact', 2)
     expect(getElementViewState(next, key)).toEqual({ mode: 'compact', selectedIndex: 2 })
+  })
+
+  it('applyDefaultCompactElementView sets compact on map parameters', () => {
+    const node = applyDefaultCompactElementView(minimalNode())
+    expect(getElementViewState(node, elementViewKeyForParameter('param-map'))).toEqual({
+      mode: 'compact',
+      selectedIndex: 0,
+    })
   })
 
   it('slotIdsForElement returns map slot ids', () => {

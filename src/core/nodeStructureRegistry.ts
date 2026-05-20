@@ -37,6 +37,7 @@ import {
   translateDiskLinkedPairsToCanvas,
 } from './linked_parameter_values'
 import { hydrateInstanceHashStringFields } from './hashString'
+import { applyDefaultCompactElementView } from './elementViewState'
 
 const modules = import.meta.glob<{ default: unknown }>('../nodeStructures/**/*.json', { eager: true })
 
@@ -1000,20 +1001,24 @@ export function createNodeInstanceFromRegistry(
       schemaClone.linked_parameter_values.length > 0 &&
       canvasLinks.length === 0
     ) {
-      return hydrateInstanceHashStringFields(instance, catalog)
+      return applyDefaultCompactElementView(
+        hydrateInstanceHashStringFields(instance, catalog),
+      )
     }
-    return hydrateInstanceHashStringFields(
-      linked_parameter_values_apply_to_instance(
-        instance,
-        canvasLinks,
-        schemaClone.linked_parameter_values,
+    return applyDefaultCompactElementView(
+      hydrateInstanceHashStringFields(
+        linked_parameter_values_apply_to_instance(
+          instance,
+          canvasLinks,
+          schemaClone.linked_parameter_values,
+          catalog,
+        ),
         catalog,
       ),
-      catalog,
     )
   }
 
-  return hydrateInstanceHashStringFields(instance, catalog)
+  return applyDefaultCompactElementView(hydrateInstanceHashStringFields(instance, catalog))
 }
 
 export function createNodeInstance(schemaId: string, instanceId: string): NodeInstance | null {

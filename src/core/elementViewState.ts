@@ -51,6 +51,66 @@ export function elementViewKeyForList2Pointer(blockId: string): ElementViewKey {
   return `${ELEMENT_VIEW_KEY_LIST2_POINTER}${blockId}`
 }
 
+const MAP_STRUCTURE_PARAMETER_TYPES = new Set<NodeParameterDefinition['type']>([
+  'mapHashPointer',
+  'mapHashEmbed',
+  'mapU64Pointer',
+])
+
+function isMapStructureParameter(type: NodeParameterDefinition['type']): boolean {
+  return MAP_STRUCTURE_PARAMETER_TYPES.has(type)
+}
+
+/** Chaves de blocos que suportam toggle lista/compacto. */
+export function collectStructureElementViewKeys(node: NodeInstance): ElementViewKey[] {
+  const keys: ElementViewKey[] = []
+  const schema = node.schema
+
+  for (const parameter of schema.parameters) {
+    if (isMapStructureParameter(parameter.type)) {
+      keys.push(elementViewKeyForParameter(parameter.id))
+    }
+  }
+
+  for (const block of schema.embed ?? []) {
+    keys.push(elementViewKeyForEmbed(block.id))
+  }
+  for (const block of schema.pointer ?? []) {
+    keys.push(elementViewKeyForPointer(block.id))
+  }
+  for (const block of schema.listEmbed ?? []) {
+    keys.push(elementViewKeyForListEmbed(block.id))
+  }
+  for (const block of schema.listPointer ?? []) {
+    keys.push(elementViewKeyForListPointer(block.id))
+  }
+  for (const block of schema.list2Embed ?? []) {
+    keys.push(elementViewKeyForList2Embed(block.id))
+  }
+  for (const block of schema.list2Pointer ?? []) {
+    keys.push(elementViewKeyForList2Pointer(block.id))
+  }
+
+  return keys
+}
+
+/** Novos nós começam com todos os blocos estruturais em modo compacto. */
+export function applyDefaultCompactElementView(node: NodeInstance): NodeInstance {
+  const keys = collectStructureElementViewKeys(node)
+  if (keys.length === 0) {
+    return node
+  }
+
+  const elementView: Record<ElementViewKey, ElementViewState> = {
+    ...(node.elementView ?? {}),
+  }
+  for (const key of keys) {
+    elementView[key] = { mode: 'compact', selectedIndex: 0 }
+  }
+
+  return { ...node, elementView }
+}
+
 export function getElementViewState(
   node: NodeInstance,
   key: ElementViewKey,
