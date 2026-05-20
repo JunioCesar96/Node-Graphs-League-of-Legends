@@ -9,7 +9,7 @@ Arquivo salvo em: `feature_md/feature/feature-canvas-inspector-main-ux.md`
 | Nome da Branch | `feature/canvas-inspector-main-ux` |
 | Nome das Features | Nó **Main** (Class Group); legenda do canvas; controlos da vista; inspector acoplado; rascunho de ligação; grade fixa |
 | Versão atual | `1.5.0` |
-| Hash do Commit | _(preencher após commit)_ |
+| Hash do Commit | `b2c5b77` |
 
 ## 2. Definição e Resumo de Tags
 
