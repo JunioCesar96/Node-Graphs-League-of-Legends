@@ -37,8 +37,6 @@ import {
   findSlotInPointerSchema,
   resolveCollectionTypeForPointerSlot,
 } from '@/core/pointerSlots'
-import { filterOutEmbedCatalogChildStructures } from '@/core/embedElementMenu'
-import { filterOutPointerCatalogChildStructures } from '@/core/pointerElementMenu'
 import {
   findOutputSlotInNode,
   findSlotInSchema as findSlotInListEmbedSchema,
@@ -49,8 +47,6 @@ import {
   findSlotInSchema as findSlotInListPointerSchema,
   resolveCollectionTypeForListPointerSlot,
 } from '@/core/listPointerSlots'
-import { filterOutListEmbedCatalogChildStructures } from '@/core/listEmbedElementMenu'
-import { filterOutListPointerCatalogChildStructures } from '@/core/listPointerElementMenu'
 import {
   estimateMapHashEmbedParameterHeight,
   findMapHashEmbedEntryBySlotId,
@@ -79,7 +75,9 @@ import {
 } from '@/core/mapU64PointerSlots'
 import { parseMapU64PointerString } from '@/core/mapU64PointerValue'
 import {
+  ELEMENT_RETRACTED_ROW_HEIGHT,
   isElementCompact,
+  isElementRetracted,
   listSlotsCompactHeight,
   mapHashStructureCompactHeight,
   parameterMapCompact,
@@ -94,15 +92,24 @@ import {
   elementViewKeyForPointer,
   getElementViewState,
 } from '@/core/elementViewState'
+import type { ElementViewKey } from '@/core/nodeSchema'
 import { listRemovableNodeElements } from '@/core/listNodeElements'
 import { populatedSlotsForPointer } from '@/core/pointerSlots'
 import { populatedSlotsForListPointer } from '@/core/listPointerSlots'
 import type { NodeElementListItem } from '@/core/listNodeElements'
 import type { InternalStructureDefinition, NodeParameterDefinition, NodeSchemaDefinition } from '@/core/nodeSchema'
 import {
-  filterInternalStructuresByPathHierarchy,
-  listInternalStructureCandidatesForBase,
-} from '@/core/pathHierarchyInternalStructures'
+  isNodeCardFreeform,
+  isNodeCardSectionExpanded,
+  NODE_CARD_SECTION_CONTENT_GAP,
+  NODE_CARD_SECTION_HEADER_HEIGHT,
+  NODE_CARD_WIDTH,
+  nodeCardSectionChromeHeight,
+  resolveNodeCardBodyLayout,
+  resolveNodeCardSectionOrderForCanvasNode,
+  type NodeCardBodyLayout,
+  type NodeCardSectionId,
+} from '@/core/nodeCardSections'
 import { isParameterPickerOpen } from '@/core/parameterPickerModal'
 import {
   shouldIgnoreCanvasKeyboardShortcut,
@@ -133,8 +140,9 @@ import type {
 
 import styles from './GraphCanvas.module.css'
 
-const CARD_WIDTH = 360
+const CARD_WIDTH = NODE_CARD_WIDTH
 const HEADER_HEIGHT = 56
+/** Alinhado a `--node-card-body-padding-y` no NodeCard (só eixo vertical). */
 const BODY_PADDING = 20
 const SECTION_TITLE_HEIGHT = 16
 const SECTION_TITLE_GAP = 8
@@ -145,8 +153,10 @@ const EMBED_BLOCK_HEADER_HEIGHT = 42
 const LIST_EMBED_BLOCK_HEADER_HEIGHT = EMBED_BLOCK_HEADER_HEIGHT
 /** Altura por parâmetro: pilha nome (hint+label) + valor + tipo (cards). */
 const PARAMETER_ITEM_HEIGHT = 128
-const ITEM_GAP = 8
-const SECTION_GAP = 20
+/** Alinhado a `--node-card-list-gap`. */
+const ITEM_GAP = 12
+/** Alinhado a `--node-card-section-gap`. */
+const SECTION_GAP = 16
 const PORT_OVERLAP = 6
 const RIGID_SEGMENT_LENGTH = 44
 const BUTTON_HEIGHT = 46
@@ -194,6 +204,9 @@ type GraphCanvasProps = {
   onCreateRootNode: (schema: NodeSchemaDefinition, position?: CanvasPosition) => void
   onDeleteNodeIds?: (nodeIds: string[]) => void
   onToggleNodeBodyCollapsed?: (nodeId: string) => void
+  onToggleNodeCardSection?: (nodeId: string, sectionId: NodeCardSectionId) => void
+  onSetNodeCardSectionOrder?: (nodeId: string, sectionId: NodeCardSectionId, oneBasedIndex: number) => void
+  onSetNodeCardBodyLayout?: (nodeId: string, layout: NodeCardBodyLayout) => void
   onMarqueeCommit: (payload: { additive: boolean; nodeIds: string[] }) => void
   onMoveNode: (
     nodeId: string,
@@ -204,10 +217,6 @@ type GraphCanvasProps = {
   onRemoveConnection?: (connectionId: string) => void
   onResetScene: () => void
   hints?: Record<string, string>
-  onAppendCatalogInternalStructure?: (
-    canvasNodeId: string,
-    structure: InternalStructureDefinition,
-  ) => void
   onAppendEmbedCatalogItem?: (
     canvasNodeId: string,
     embedId: string,
@@ -262,6 +271,11 @@ type GraphCanvasProps = {
     elementKey: import('@/core/nodeSchema').ElementViewKey,
     mode: import('@/core/nodeSchema').ElementViewMode,
   ) => void
+  onSetElementRetracted?: (
+    canvasNodeId: string,
+    elementKey: import('@/core/nodeSchema').ElementViewKey,
+    retracted: boolean,
+  ) => void
   onSetElementSelectedIndex?: (
     canvasNodeId: string,
     elementKey: import('@/core/nodeSchema').ElementViewKey,
@@ -273,6 +287,15 @@ type GraphCanvasProps = {
     canvasNodeId: string,
     parameterId: string,
     oneBasedIndex: number,
+  ) => void
+  onSetNodeCardSectionOrder?: (
+    canvasNodeId: string,
+    sectionId: NodeCardSectionId,
+    oneBasedIndex: number,
+  ) => void
+  onSetNodeCardBodyLayout?: (
+    canvasNodeId: string,
+    layout: import('@/core/nodeCardSections').NodeCardBodyLayout,
   ) => void
   scene: CanvasScene
   /** Persiste pan/zoom da câmera na cena (sem histórico undo). */
@@ -384,7 +407,39 @@ function mapParameterRowHeight(
   return mapHashStructureCompactHeight(Boolean(entry && hasStructure(entry)))
 }
 
+function elementViewKeyForContextElementTarget(
+  target: Extract<CanvasContextTarget, { type: 'element' }>,
+): ElementViewKey | null {
+  switch (target.kind) {
+    case 'parameter':
+      return elementViewKeyForParameter(target.elementId)
+    case 'embedBlock':
+    case 'embedSlot':
+      return target.embedId ? elementViewKeyForEmbed(target.embedId) : null
+    case 'pointerBlock':
+    case 'pointerSlot':
+      return target.pointerId ? elementViewKeyForPointer(target.pointerId) : null
+    case 'listEmbedBlock':
+    case 'listEmbedSlot':
+      return target.listEmbedId ? elementViewKeyForListEmbed(target.listEmbedId) : null
+    case 'listPointerBlock':
+    case 'listPointerSlot':
+      return target.listPointerId ? elementViewKeyForListPointer(target.listPointerId) : null
+    case 'list2EmbedBlock':
+    case 'list2EmbedInstance':
+      return target.list2EmbedId ? elementViewKeyForList2Embed(target.list2EmbedId) : null
+    case 'list2PointerBlock':
+    case 'list2PointerInstance':
+      return target.list2PointerId ? elementViewKeyForList2Pointer(target.list2PointerId) : null
+    default:
+      return null
+  }
+}
+
 function getParameterRowHeight(node: CanvasNode, parameter: NodeParameterDefinition): number {
+  if (isElementRetracted(node.node, elementViewKeyForParameter(parameter.id))) {
+    return ELEMENT_RETRACTED_ROW_HEIGHT
+  }
   const stored = getParameterValueFromNode(node, parameter.id, parameter.defaultValue)
   if (parameter.type === 'mapHashPointer') {
     return mapParameterRowHeight(
@@ -419,7 +474,7 @@ function getParameterRowHeight(node: CanvasNode, parameter: NodeParameterDefinit
   return PARAMETER_ITEM_HEIGHT
 }
 
-function getParameterSectionHeight(node: CanvasNode) {
+function getParameterSectionContentHeight(node: CanvasNode) {
   const params = node.node.schema.parameters
   let listHeight = 0
   for (let i = 0; i < params.length; i += 1) {
@@ -428,13 +483,105 @@ function getParameterSectionHeight(node: CanvasNode) {
       listHeight += ITEM_GAP
     }
   }
+  return listHeight
+}
 
-  return SECTION_TITLE_HEIGHT + SECTION_TITLE_GAP + listHeight
+function getParameterSectionHeight(node: CanvasNode) {
+  if (!isNodeCardSectionExpanded(node, 'parameters')) {
+    return NODE_CARD_SECTION_HEADER_HEIGHT
+  }
+  return nodeCardSectionChromeHeight(true, getParameterSectionContentHeight(node))
+}
+
+function getSectionContentHeight(
+  node: CanvasNode,
+  connections: readonly CanvasConnection[],
+  sectionId: NodeCardSectionId,
+): number {
+  switch (sectionId) {
+    case 'parameters':
+      return getParameterSectionContentHeight(node)
+    case 'embed':
+      return getEmbedBlocksHeight(node)
+    case 'pointer':
+      return getPointerBlocksHeight(node)
+    case 'listEmbed':
+      return getListEmbedBlocksHeight(node, connections)
+    case 'listPointer':
+      return getListPointerBlocksHeight(node)
+    case 'list2Embed':
+      return getList2EmbedBlocksHeight(node)
+    case 'list2Pointer':
+      return getList2PointerBlocksHeight(node)
+    default:
+      return 0
+  }
+}
+
+function nodeCardSectionHeightById(
+  node: CanvasNode,
+  connections: readonly CanvasConnection[],
+  sectionId: NodeCardSectionId,
+): number {
+  if (isNodeCardFreeform(node)) {
+    return getSectionContentHeight(node, connections, sectionId)
+  }
+
+  switch (sectionId) {
+    case 'parameters':
+      return getParameterSectionHeight(node)
+    case 'embed':
+      return getEmbedSectionHeight(node)
+    case 'pointer':
+      return getPointerSectionHeight(node)
+    case 'listEmbed':
+      return getListEmbedSectionHeight(node, connections)
+    case 'listPointer':
+      return getListPointerSectionHeight(node)
+    case 'list2Embed':
+      return getList2EmbedSectionHeight(node)
+    case 'list2Pointer':
+      return getList2PointerSectionHeight(node)
+    default:
+      return 0
+  }
+}
+
+function nodeCardSectionContentTopY(
+  node: CanvasNode,
+  connections: readonly CanvasConnection[],
+  sectionId: NodeCardSectionId,
+): number {
+  const sectionStart = nodeCardSectionStartY(node, connections, sectionId)
+  if (isNodeCardFreeform(node)) {
+    return sectionStart
+  }
+  if (!isNodeCardSectionExpanded(node, sectionId)) {
+    return sectionStart + NODE_CARD_SECTION_HEADER_HEIGHT / 2
+  }
+  return sectionStart + NODE_CARD_SECTION_HEADER_HEIGHT + NODE_CARD_SECTION_CONTENT_GAP
+}
+
+function nodeCardSectionStartY(
+  node: CanvasNode,
+  connections: readonly CanvasConnection[],
+  sectionId: NodeCardSectionId,
+): number {
+  let y = node.position.y + HEADER_HEIGHT + BODY_PADDING
+  for (const id of resolveNodeCardSectionOrderForCanvasNode(node)) {
+    if (id === sectionId) {
+      break
+    }
+    const h = nodeCardSectionHeightById(node, connections, id)
+    if (h > 0) {
+      y += h + SECTION_GAP
+    }
+  }
+  return y
 }
 
 function getMapHashStructurePortY(node: CanvasNode, structureId: string): number | null {
-  let cursor =
-    node.position.y + HEADER_HEIGHT + BODY_PADDING + SECTION_TITLE_HEIGHT + SECTION_TITLE_GAP
+  let cursor = nodeCardSectionContentTopY(node, [], 'parameters')
 
   for (let i = 0; i < node.node.schema.parameters.length; i += 1) {
     const param = node.node.schema.parameters[i]!
@@ -475,6 +622,13 @@ function getEmbedBlocksHeight(node: CanvasNode) {
   let height = 0
   for (let i = 0; i < blocks.length; i += 1) {
     const block = blocks[i]!
+    if (isElementRetracted(node.node, elementViewKeyForEmbed(block.id))) {
+      height += ELEMENT_RETRACTED_ROW_HEIGHT
+      if (i < blocks.length - 1) {
+        height += ITEM_GAP
+      }
+      continue
+    }
     if (isElementCompact(node.node, elementViewKeyForEmbed(block.id))) {
       height += listSlotsCompactHeight(EMBED_BLOCK_HEADER_HEIGHT)
       if (i < blocks.length - 1) {
@@ -497,12 +651,11 @@ function getEmbedBlocksHeight(node: CanvasNode) {
 }
 
 function getEmbedSectionHeight(node: CanvasNode) {
-  const blocksHeight = getEmbedBlocksHeight(node)
-  if (blocksHeight === 0) {
-    return SECTION_TITLE_HEIGHT + SECTION_TITLE_GAP
+  if (!isNodeCardSectionExpanded(node, 'embed')) {
+    return NODE_CARD_SECTION_HEADER_HEIGHT
   }
-
-  return SECTION_TITLE_HEIGHT + SECTION_TITLE_GAP + blocksHeight
+  const blocksHeight = getEmbedBlocksHeight(node)
+  return nodeCardSectionChromeHeight(true, blocksHeight)
 }
 
 function getPointerBlocksHeight(node: CanvasNode) {
@@ -514,6 +667,13 @@ function getPointerBlocksHeight(node: CanvasNode) {
   let height = 0
   for (let i = 0; i < blocks.length; i += 1) {
     const block = blocks[i]!
+    if (isElementRetracted(node.node, elementViewKeyForPointer(block.id))) {
+      height += ELEMENT_RETRACTED_ROW_HEIGHT
+      if (i < blocks.length - 1) {
+        height += ITEM_GAP
+      }
+      continue
+    }
     if (isElementCompact(node.node, elementViewKeyForPointer(block.id))) {
       height += listSlotsCompactHeight(EMBED_BLOCK_HEADER_HEIGHT)
       if (i < blocks.length - 1) {
@@ -536,12 +696,11 @@ function getPointerBlocksHeight(node: CanvasNode) {
 }
 
 function getPointerSectionHeight(node: CanvasNode) {
-  const blocksHeight = getPointerBlocksHeight(node)
-  if (blocksHeight === 0) {
-    return SECTION_TITLE_HEIGHT + SECTION_TITLE_GAP
+  if (!isNodeCardSectionExpanded(node, 'pointer')) {
+    return NODE_CARD_SECTION_HEADER_HEIGHT
   }
-
-  return SECTION_TITLE_HEIGHT + SECTION_TITLE_GAP + blocksHeight
+  const blocksHeight = getPointerBlocksHeight(node)
+  return nodeCardSectionChromeHeight(true, blocksHeight)
 }
 
 function getListEmbedBlocksHeight(node: CanvasNode, connections: readonly CanvasConnection[]) {
@@ -553,6 +712,13 @@ function getListEmbedBlocksHeight(node: CanvasNode, connections: readonly Canvas
   let height = 0
   for (let i = 0; i < blocks.length; i += 1) {
     const block = blocks[i]!
+    if (isElementRetracted(node.node, elementViewKeyForListEmbed(block.id))) {
+      height += ELEMENT_RETRACTED_ROW_HEIGHT
+      if (i < blocks.length - 1) {
+        height += ITEM_GAP
+      }
+      continue
+    }
     if (isElementCompact(node.node, elementViewKeyForListEmbed(block.id))) {
       height += listSlotsCompactHeight(LIST_EMBED_BLOCK_HEADER_HEIGHT)
       if (i < blocks.length - 1) {
@@ -575,12 +741,11 @@ function getListEmbedBlocksHeight(node: CanvasNode, connections: readonly Canvas
 }
 
 function getListEmbedSectionHeight(node: CanvasNode, connections: readonly CanvasConnection[]) {
-  const blocksHeight = getListEmbedBlocksHeight(node, connections)
-  if (blocksHeight === 0) {
-    return SECTION_TITLE_HEIGHT + SECTION_TITLE_GAP
+  if (!isNodeCardSectionExpanded(node, 'listEmbed')) {
+    return NODE_CARD_SECTION_HEADER_HEIGHT
   }
-
-  return SECTION_TITLE_HEIGHT + SECTION_TITLE_GAP + blocksHeight
+  const blocksHeight = getListEmbedBlocksHeight(node, connections)
+  return nodeCardSectionChromeHeight(true, blocksHeight)
 }
 
 function getListPointerBlocksHeight(node: CanvasNode) {
@@ -592,6 +757,13 @@ function getListPointerBlocksHeight(node: CanvasNode) {
   let height = 0
   for (let i = 0; i < blocks.length; i += 1) {
     const block = blocks[i]!
+    if (isElementRetracted(node.node, elementViewKeyForListPointer(block.id))) {
+      height += ELEMENT_RETRACTED_ROW_HEIGHT
+      if (i < blocks.length - 1) {
+        height += ITEM_GAP
+      }
+      continue
+    }
     if (isElementCompact(node.node, elementViewKeyForListPointer(block.id))) {
       height += listSlotsCompactHeight(LIST_EMBED_BLOCK_HEADER_HEIGHT)
       if (i < blocks.length - 1) {
@@ -614,12 +786,11 @@ function getListPointerBlocksHeight(node: CanvasNode) {
 }
 
 function getListPointerSectionHeight(node: CanvasNode) {
-  const blocksHeight = getListPointerBlocksHeight(node)
-  if (blocksHeight === 0) {
-    return SECTION_TITLE_HEIGHT + SECTION_TITLE_GAP
+  if (!isNodeCardSectionExpanded(node, 'listPointer')) {
+    return NODE_CARD_SECTION_HEADER_HEIGHT
   }
-
-  return SECTION_TITLE_HEIGHT + SECTION_TITLE_GAP + blocksHeight
+  const blocksHeight = getListPointerBlocksHeight(node)
+  return nodeCardSectionChromeHeight(true, blocksHeight)
 }
 
 function getList2EmbedBlocksHeight(node: CanvasNode) {
@@ -631,6 +802,13 @@ function getList2EmbedBlocksHeight(node: CanvasNode) {
   let height = 0
   for (let i = 0; i < blocks.length; i += 1) {
     const block = blocks[i]!
+    if (isElementRetracted(node.node, elementViewKeyForList2Embed(block.id))) {
+      height += ELEMENT_RETRACTED_ROW_HEIGHT
+      if (i < blocks.length - 1) {
+        height += ITEM_GAP
+      }
+      continue
+    }
     if (isElementCompact(node.node, elementViewKeyForList2Embed(block.id))) {
       height += listSlotsCompactHeight(LIST_EMBED_BLOCK_HEADER_HEIGHT)
       if (i < blocks.length - 1) {
@@ -663,8 +841,10 @@ function getList2EmbedSectionHeight(node: CanvasNode) {
   if (blocksHeight === 0) {
     return 0
   }
-
-  return SECTION_TITLE_HEIGHT + SECTION_TITLE_GAP + blocksHeight
+  if (!isNodeCardSectionExpanded(node, 'list2Embed')) {
+    return NODE_CARD_SECTION_HEADER_HEIGHT
+  }
+  return nodeCardSectionChromeHeight(true, blocksHeight)
 }
 
 function getList2PointerBlocksHeight(node: CanvasNode) {
@@ -676,6 +856,13 @@ function getList2PointerBlocksHeight(node: CanvasNode) {
   let height = 0
   for (let i = 0; i < blocks.length; i += 1) {
     const block = blocks[i]!
+    if (isElementRetracted(node.node, elementViewKeyForList2Pointer(block.id))) {
+      height += ELEMENT_RETRACTED_ROW_HEIGHT
+      if (i < blocks.length - 1) {
+        height += ITEM_GAP
+      }
+      continue
+    }
     if (isElementCompact(node.node, elementViewKeyForList2Pointer(block.id))) {
       height += listSlotsCompactHeight(LIST_EMBED_BLOCK_HEADER_HEIGHT)
       if (i < blocks.length - 1) {
@@ -708,16 +895,15 @@ function getList2PointerSectionHeight(node: CanvasNode) {
   if (blocksHeight === 0) {
     return 0
   }
-
-  return SECTION_TITLE_HEIGHT + SECTION_TITLE_GAP + blocksHeight
+  if (!isNodeCardSectionExpanded(node, 'list2Pointer')) {
+    return NODE_CARD_SECTION_HEADER_HEIGHT
+  }
+  return nodeCardSectionChromeHeight(true, blocksHeight)
 }
 
-function getInternalStructureSectionHeight(node: CanvasNode) {
-  const itemCount = node.node.schema.internalStructures.length
-  const listHeight =
-    itemCount * INTERNAL_STRUCTURE_ITEM_HEIGHT + Math.max(0, itemCount - 1) * ITEM_GAP
-
-  return SECTION_TITLE_HEIGHT + SECTION_TITLE_GAP + listHeight
+/** Top-level `internalStructures` não têm secção no card; altura 0 no layout. */
+function getInternalStructureSectionHeight(_node: CanvasNode) {
+  return 0
 }
 
 function getNodeCardHeight(node: CanvasNode, connections: readonly CanvasConnection[]) {
@@ -725,24 +911,22 @@ function getNodeCardHeight(node: CanvasNode, connections: readonly CanvasConnect
     return HEADER_HEIGHT
   }
 
+  const order = resolveNodeCardSectionOrderForCanvasNode(node)
+  let sectionsHeight = 0
+  let visibleSections = 0
+  for (const id of order) {
+    const h = nodeCardSectionHeightById(node, connections, id)
+    if (h > 0) {
+      sectionsHeight += h
+      visibleSections += 1
+    }
+  }
+
   return (
     HEADER_HEIGHT +
     BODY_PADDING * 2 +
-    getParameterSectionHeight(node) +
-    SECTION_GAP +
-    getEmbedSectionHeight(node) +
-    SECTION_GAP +
-    getPointerSectionHeight(node) +
-    SECTION_GAP +
-    getListEmbedSectionHeight(node, connections) +
-    SECTION_GAP +
-    getListPointerSectionHeight(node) +
-    SECTION_GAP +
-    getList2EmbedSectionHeight(node) +
-    SECTION_GAP +
-    getList2PointerSectionHeight(node) +
-    SECTION_GAP +
-    getInternalStructureSectionHeight(node) +
+    sectionsHeight +
+    Math.max(0, visibleSections - 1) * SECTION_GAP +
     SECTION_GAP +
     BUTTON_HEIGHT
   )
@@ -757,14 +941,7 @@ function getCanvasBounds(scene: CanvasScene): CanvasBounds {
 }
 
 function getEmbedPortY(node: CanvasNode, structureId: string) {
-  let cursor =
-    node.position.y +
-    HEADER_HEIGHT +
-    BODY_PADDING +
-    getParameterSectionHeight(node) +
-    SECTION_GAP +
-    SECTION_TITLE_HEIGHT +
-    SECTION_TITLE_GAP
+  let cursor = nodeCardSectionContentTopY(node, [], 'embed')
 
   for (const block of node.node.schema.embed ?? []) {
     cursor += EMBED_BLOCK_HEADER_HEIGHT
@@ -790,16 +967,7 @@ function getEmbedPortY(node: CanvasNode, structureId: string) {
 }
 
 function getPointerPortY(node: CanvasNode, structureId: string) {
-  let cursor =
-    node.position.y +
-    HEADER_HEIGHT +
-    BODY_PADDING +
-    getParameterSectionHeight(node) +
-    SECTION_GAP +
-    getEmbedSectionHeight(node) +
-    SECTION_GAP +
-    SECTION_TITLE_HEIGHT +
-    SECTION_TITLE_GAP
+  let cursor = nodeCardSectionContentTopY(node, [], 'pointer')
 
   for (const block of node.node.schema.pointer ?? []) {
     cursor += EMBED_BLOCK_HEADER_HEIGHT
@@ -829,18 +997,7 @@ function getListEmbedPortY(
   structureId: string,
   connections: readonly CanvasConnection[],
 ) {
-  let cursor =
-    node.position.y +
-    HEADER_HEIGHT +
-    BODY_PADDING +
-    getParameterSectionHeight(node) +
-    SECTION_GAP +
-    getEmbedSectionHeight(node) +
-    SECTION_GAP +
-    getPointerSectionHeight(node) +
-    SECTION_GAP +
-    SECTION_TITLE_HEIGHT +
-    SECTION_TITLE_GAP
+  let cursor = nodeCardSectionContentTopY(node, connections, 'listEmbed')
 
   for (const block of node.node.schema.listEmbed ?? []) {
     cursor += LIST_EMBED_BLOCK_HEADER_HEIGHT
@@ -866,20 +1023,7 @@ function getListEmbedPortY(
 }
 
 function getListPointerPortY(node: CanvasNode, structureId: string, connections: readonly CanvasConnection[]) {
-  let cursor =
-    node.position.y +
-    HEADER_HEIGHT +
-    BODY_PADDING +
-    getParameterSectionHeight(node) +
-    SECTION_GAP +
-    getEmbedSectionHeight(node) +
-    SECTION_GAP +
-    getPointerSectionHeight(node) +
-    SECTION_GAP +
-    getListEmbedSectionHeight(node, connections) +
-    SECTION_GAP +
-    SECTION_TITLE_HEIGHT +
-    SECTION_TITLE_GAP
+  let cursor = nodeCardSectionContentTopY(node, connections, 'listPointer')
 
   for (const block of node.node.schema.listPointer ?? []) {
     cursor += LIST_EMBED_BLOCK_HEADER_HEIGHT
@@ -952,9 +1096,11 @@ function getInternalStructurePortY(
   }
 
   const structureIndex = node.node.schema.internalStructures.findIndex((s) => s.id === structureId)
-  const safeIndex = Math.max(structureIndex, 0)
+  if (structureIndex < 0) {
+    return node.position.y + HEADER_HEIGHT + BODY_PADDING
+  }
 
-  return (
+  const baseY =
     node.position.y +
     HEADER_HEIGHT +
     BODY_PADDING +
@@ -968,11 +1114,19 @@ function getInternalStructurePortY(
     SECTION_GAP +
     getListPointerSectionHeight(node) +
     SECTION_GAP +
-    SECTION_TITLE_HEIGHT +
-    SECTION_TITLE_GAP +
-    safeIndex * (INTERNAL_STRUCTURE_ITEM_HEIGHT + ITEM_GAP) +
-    INTERNAL_STRUCTURE_ITEM_HEIGHT / 2
+    getList2EmbedSectionHeight(node) +
+    SECTION_GAP +
+    getList2PointerSectionHeight(node) +
+    SECTION_GAP
+
+  const itemCount = node.node.schema.internalStructures.length
+  const slotSpan = Math.max(itemCount, 1)
+  const slotPitch = Math.min(
+    INTERNAL_STRUCTURE_ITEM_HEIGHT + ITEM_GAP,
+    BUTTON_HEIGHT / slotSpan,
   )
+
+  return baseY + structureIndex * slotPitch + slotPitch / 2
 }
 
 function getOutputPortY(node: CanvasNode, structureId: string, connections: readonly CanvasConnection[]) {
@@ -1217,13 +1371,15 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     onCreateRootNode,
     onDeleteNodeIds,
     onToggleNodeBodyCollapsed,
+    onToggleNodeCardSection,
+    onSetNodeCardSectionOrder,
+    onSetNodeCardBodyLayout,
     onMarqueeCommit,
     onMoveNode,
     onRedo,
     onRemoveConnection,
     onResetScene,
     hints,
-    onAppendCatalogInternalStructure,
     onAppendEmbedCatalogItem,
     onAppendPointerCatalogItem,
     onAppendListEmbedCatalogItem,
@@ -1241,6 +1397,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     onUndo,
     onUpdateNodeParameter,
     onSetElementViewMode,
+    onSetElementRetracted,
     onSetElementSelectedIndex,
     onRemoveConnectionsFromOutputSlot,
     scene,
@@ -2653,6 +2810,18 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
         case 'node.addNode':
           openPalette()
           break
+        case 'node.organization':
+          break
+        case 'node.organization.bySectionType':
+          if (target.type === 'node') {
+            onSetNodeCardBodyLayout?.(target.nodeId, 'bySectionType')
+          }
+          break
+        case 'node.organization.freeform':
+          if (target.type === 'node') {
+            onSetNodeCardBodyLayout?.(target.nodeId, 'freeform')
+          }
+          break
         case 'connection.cycleRouting':
           if (target.type === 'connection') {
             onCycleConnectionRouting?.(target.connectionId)
@@ -2674,32 +2843,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
             break
           }
 
-          const viewKey = (() => {
-            switch (target.kind) {
-              case 'parameter':
-                return elementViewKeyForParameter(target.elementId)
-              case 'embedBlock':
-              case 'embedSlot':
-                return target.embedId ? elementViewKeyForEmbed(target.embedId) : null
-              case 'pointerBlock':
-              case 'pointerSlot':
-                return target.pointerId ? elementViewKeyForPointer(target.pointerId) : null
-              case 'listEmbedBlock':
-              case 'listEmbedSlot':
-                return target.listEmbedId ? elementViewKeyForListEmbed(target.listEmbedId) : null
-              case 'listPointerBlock':
-              case 'listPointerSlot':
-                return target.listPointerId ? elementViewKeyForListPointer(target.listPointerId) : null
-              case 'list2EmbedBlock':
-              case 'list2EmbedInstance':
-                return target.list2EmbedId ? elementViewKeyForList2Embed(target.list2EmbedId) : null
-              case 'list2PointerBlock':
-              case 'list2PointerInstance':
-                return target.list2PointerId ? elementViewKeyForList2Pointer(target.list2PointerId) : null
-              default:
-                return null
-            }
-          })()
+          const viewKey = elementViewKeyForContextElementTarget(target)
 
           if (!viewKey) {
             break
@@ -2707,6 +2851,27 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
 
           const currentMode = getElementViewState(canvasNode.node, viewKey).mode
           onSetElementViewMode(target.nodeId, viewKey, currentMode === 'compact' ? 'list' : 'compact')
+          break
+        }
+        case 'element.toggleRetracted': {
+          if (target.type !== 'element' || !onSetElementRetracted) {
+            break
+          }
+
+          const canvasNode = scene.nodes.find((node) => node.id === target.nodeId)
+
+          if (!canvasNode) {
+            break
+          }
+
+          const viewKey = elementViewKeyForContextElementTarget(target)
+
+          if (!viewKey) {
+            break
+          }
+
+          const retracted = Boolean(getElementViewState(canvasNode.node, viewKey).retracted)
+          onSetElementRetracted(target.nodeId, viewKey, !retracted)
           break
         }
         case 'element.relink': {
@@ -2789,6 +2954,8 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       onNodeLockedInteraction,
       onSceneNodesPanelRequest,
       onToggleNodeBodyCollapsed,
+      onToggleNodeCardSection,
+      onSetNodeCardBodyLayout,
       onRedo,
       onRemoveConnection,
       onRemoveConnectionsFromOutputSlot,
@@ -2798,6 +2965,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       onSelectAllNodesShortcut,
       onSelectNode,
       onSetElementViewMode,
+      onSetElementRetracted,
       onUndo,
       openCollectionTypeLinkMenu,
       openPalette,
@@ -3321,40 +3489,6 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
                 displayTitle={getNodeDisplayTitle(canvasNode)}
                 locked={nodeLocked}
                 onLockedInteraction={onNodeLockedInteraction}
-                catalogInternalStructures={(() => {
-                  const sid = canvasNode.node.schema.id
-                  const parentSchema = canvasNode.node.schema
-                  const kind = schemaNodeKindBySchemaId?.[sid] ?? 'module'
-                  const list =
-                    kind === 'base'
-                      ? (schemaBaseInternalStructureCatalogBySchemaId?.[sid] ?? [])
-                      : listInternalStructureCandidatesForBase(parentSchema, schemaRegistry, {
-                          jsonRelativePathBySchemaId: schemaJsonRelativePathBySchemaId,
-                        })
-                  const used = new Set(
-                    canvasNode.node.schema.internalStructures.map((structure) => structure.schemaId),
-                  )
-                  const fresh = list.filter((structure) => !used.has(structure.schemaId))
-                  const templateSchema = schemaRegistry[sid] ?? null
-                  return filterOutEmbedCatalogChildStructures(
-                    filterOutPointerCatalogChildStructures(
-                      filterOutListEmbedCatalogChildStructures(
-                        filterOutListPointerCatalogChildStructures(
-                          filterInternalStructuresByPathHierarchy(
-                            parentSchema,
-                            fresh,
-                            schemaRegistry,
-                            schemaJsonRelativePathBySchemaId,
-                          ),
-                          templateSchema,
-                        ),
-                        templateSchema,
-                      ),
-                      templateSchema,
-                    ),
-                    templateSchema,
-                  )
-                })()}
                 catalogParameters={(() => {
                   const sid = canvasNode.node.schema.id
                   const kind = schemaNodeKindBySchemaId?.[sid] ?? 'module'
@@ -3371,11 +3505,6 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
                 templateSchema={schemaRegistry[canvasNode.node.schema.id] ?? null}
                 parameterStubCatalog={
                   schemaBaseParameterCatalogBySchemaId?.[canvasNode.node.schema.id] ?? []
-                }
-                onAppendCatalogInternalStructure={
-                  onAppendCatalogInternalStructure
-                    ? (structure) => onAppendCatalogInternalStructure(canvasNode.id, structure)
-                    : undefined
                 }
                 onAppendCatalogParameter={
                   onCatalogParameterAppend
@@ -3430,7 +3559,6 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
                         onRemoveList2PointerInstance(canvasNode.id, list2PointerId, instanceId)
                     : undefined
                 }
-                onCreateElement={(entity) => onCreateChildNode(canvasNode.id, entity)}
                 onRequestRemoveElement={
                   onRequestRemoveElement
                     ? (item) => onRequestRemoveElement(canvasNode.id, item)
@@ -3467,6 +3595,12 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
                     ? (elementKey, mode) => onSetElementViewMode(canvasNode.id, elementKey, mode)
                     : undefined
                 }
+                onSetElementRetracted={
+                  onSetElementRetracted
+                    ? (elementKey, retracted) =>
+                        onSetElementRetracted(canvasNode.id, elementKey, retracted)
+                    : undefined
+                }
                 onSetElementSelectedIndex={
                   onSetElementSelectedIndex
                     ? (elementKey, index) =>
@@ -3488,6 +3622,20 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
                 }
                 parameterHints={hints}
                 bodyCollapsed={isCanvasNodeBodyCollapsed(canvasNode)}
+                cardSectionExpanded={canvasNode.cardSectionExpanded}
+                cardSectionOrder={canvasNode.cardSectionOrder}
+                cardBodyLayout={resolveNodeCardBodyLayout(canvasNode)}
+                onToggleCardSection={
+                  onToggleNodeCardSection
+                    ? (sectionId) => onToggleNodeCardSection(canvasNode.id, sectionId)
+                    : undefined
+                }
+                onReorderNodeCardSection={
+                  onSetNodeCardSectionOrder
+                    ? (sectionId, oneBased) =>
+                        onSetNodeCardSectionOrder(canvasNode.id, sectionId, oneBased)
+                    : undefined
+                }
                 selected={isSelected}
               />
             </div>

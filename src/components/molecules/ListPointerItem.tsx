@@ -2,6 +2,7 @@ import type { PointerEvent as ReactPointerEvent } from 'react'
 import { useState } from 'react'
 
 import { Port } from '@/components/atoms/Port'
+import { ElementRetractedBar } from '@/components/molecules/ElementRetractedBar'
 import { StructureViewToggle } from '@/components/atoms/StructureViewToggle'
 import {
   isWirelessPortPulsing,
@@ -11,6 +12,7 @@ import {
   type WirelessPortPulseTarget,
 } from '@/core/connectionDisplay'
 import { clampSelectedIndex } from '@/core/elementViewState'
+import { canvasContextElementProps } from '@/core/canvasContextMenuAttributes'
 import type { InternalStructureDefinition, ListPointerDefinition } from '@/core/nodeSchema'
 import { StructureIndexPager } from '@/components/molecules/StructureIndexPager'
 import {
@@ -73,6 +75,8 @@ export function ListPointerItem({
   selectedIndex = 0,
   onViewModeChange,
   onSelectedIndexChange,
+  retracted = false,
+  onExpandFromRetracted,
 }: ListPointerItemProps) {
   const [indexPickerOpen, setIndexPickerOpen] = useState(false)
   const isEmpty = slots.length === 0
@@ -85,8 +89,30 @@ export function ListPointerItem({
     label: slot.name,
   }))
 
+  const contextProps = canvasContextElementProps({
+    nodeId: canvasNodeId,
+    kind: 'listPointerBlock',
+    elementId: listPointer.id,
+    listPointerId: listPointer.id,
+  })
+
+  if (retracted && onExpandFromRetracted) {
+    return (
+      <li className={`${styles.block} ${styles.blockRetracted}`} {...contextProps}>
+        <ElementRetractedBar
+          title={listPointer.title}
+          typeLabel="listPointer"
+          onExpand={onExpandFromRetracted}
+        />
+      </li>
+    )
+  }
+
   return (
-    <li className={`${styles.block} ${isEmpty ? styles.blockEmpty : ''}`}>
+    <li
+      className={`${styles.block} ${isEmpty ? styles.blockEmpty : ''}`}
+      {...contextProps}
+    >
       <div className={styles.blockHeader}>
         <h4 className={styles.blockTitle} title={listPointer.title}>
           {listPointer.title}
@@ -121,7 +147,16 @@ export function ListPointerItem({
       {visibleSlots.length > 0 ? (
         <ul className={styles.slots}>
           {visibleSlots.map((slot) => (
-            <li className={styles.slot} key={slot.id}>
+            <li
+              className={styles.slot}
+              key={slot.id}
+              {...canvasContextElementProps({
+                nodeId: canvasNodeId,
+                kind: 'listPointerSlot',
+                elementId: slot.id,
+                listPointerId: listPointer.id,
+              })}
+            >
               <span className={styles.slotName} title={slot.name}>
                 {slot.name}
               </span>

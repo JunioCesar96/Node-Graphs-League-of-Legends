@@ -54,9 +54,13 @@ export type ContextMenuItemId =
   | 'node.delete'
   | 'node.addNode'
   | 'node.toggleBodyCollapse'
+  | 'node.organization'
+  | 'node.organization.bySectionType'
+  | 'node.organization.freeform'
   | 'connection.cycleRouting'
   | 'connection.remove'
   | 'element.toggleCompact'
+  | 'element.toggleRetracted'
   | 'element.relink'
   | 'element.removeConnections'
   | 'element.remove'
@@ -74,6 +78,8 @@ export type ContextMenuItem = {
   danger?: boolean
   shortcut?: string
   separatorBefore?: boolean
-  /** Submenu lateral (ex.: «Exibir»). */
+  /** Submenu lateral (ex.: «Exibir», «Organização»). */
   children?: ContextMenuItem[]
+  /** Opção activa (ex.: modo de organização do card). */
+  selected?: boolean
 }

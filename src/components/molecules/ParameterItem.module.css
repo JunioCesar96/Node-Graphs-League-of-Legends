@@ -1,9 +1,14 @@
 .item {
   cursor: default;
-  padding: var(--space-3);
+  padding: var(--space-4);
   background: color-mix(in srgb, var(--node-body-fill, transparent) 18%, rgb(255 255 255 / 4%));
   border: 1px solid var(--color-border-soft);
   border-radius: var(--radius-leaf);
+}
+
+.itemRetracted {
+  padding: var(--space-2);
+  min-height: var(--element-retracted-row-height, 2.75rem);
 }
 
 .itemCompact {

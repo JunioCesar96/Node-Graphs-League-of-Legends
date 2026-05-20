@@ -3,6 +3,8 @@ import { useState } from 'react'
 
 import { PointerItem } from '@/components/molecules/PointerItem'
 import { StructureViewToggle } from '@/components/atoms/StructureViewToggle'
+import { ElementRetractedBar } from '@/components/molecules/ElementRetractedBar'
+import { canvasContextElementProps } from '@/core/canvasContextMenuAttributes'
 import type { InternalStructureDefinition, List2PointerDefinition } from '@/core/nodeSchema'
 import { clampSelectedIndex } from '@/core/elementViewState'
 import { populatedSlotsForList2PointerInstance } from '@/core/list2PointerSlots'
@@ -67,6 +69,8 @@ export function List2PointerItem({
   selectedIndex = 0,
   onViewModeChange,
   onSelectedIndexChange,
+  retracted = false,
+  onExpandFromRetracted,
 }: List2PointerItemProps) {
   const [indexPickerOpen, setIndexPickerOpen] = useState(false)
   const isEmpty = list2Pointer.instances.length === 0
@@ -84,8 +88,30 @@ export function List2PointerItem({
     }),
   )
 
+  const contextProps = canvasContextElementProps({
+    nodeId: canvasNodeId,
+    kind: 'list2PointerBlock',
+    elementId: list2Pointer.id,
+    list2PointerId: list2Pointer.id,
+  })
+
+  if (retracted && onExpandFromRetracted) {
+    return (
+      <li className={`${styles.block} ${styles.blockRetracted}`} {...contextProps}>
+        <ElementRetractedBar
+          title={list2Pointer.title}
+          typeLabel="list2Pointer"
+          onExpand={onExpandFromRetracted}
+        />
+      </li>
+    )
+  }
+
   return (
-    <li className={`${styles.block} ${isEmpty ? styles.blockEmpty : ''}`}>
+    <li
+      className={`${styles.block} ${isEmpty ? styles.blockEmpty : ''}`}
+      {...contextProps}
+    >
       <div className={styles.blockHeader}>
         <h4 className={styles.blockTitle} title={list2Pointer.title}>
           {list2Pointer.title}
@@ -125,6 +151,13 @@ export function List2PointerItem({
               canAdd={false}
               canRemove={Boolean(onRemoveInstanceClick)}
               canvasNodeId={canvasNodeId}
+              contextOverride={{
+                nodeId: canvasNodeId,
+                kind: 'list2PointerInstance',
+                elementId: instance.id,
+                list2PointerId: list2Pointer.id,
+                instanceId: instance.id,
+              }}
               nested
               onRemoveClick={
                 onRemoveInstanceClick ? () => onRemoveInstanceClick(instance.id) : undefined

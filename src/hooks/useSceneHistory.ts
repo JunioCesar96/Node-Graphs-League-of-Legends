@@ -12,11 +12,19 @@ import {
 } from '@/core/compactConnectionRouting'
 import {
   isSlotInCompactElementView,
+  patchElementRetracted,
   patchElementSelectedIndex,
   patchElementViewMode,
   slotIdsForElement,
 } from '@/core/elementViewState'
 import type { ElementViewKey, ElementViewMode } from '@/core/nodeSchema'
+import {
+  allVisibleSectionsExpandedMap,
+  nextNodeCardSectionExpandedMap,
+  resolveNodeCardSectionOrder,
+  type NodeCardBodyLayout,
+  type NodeCardSectionId,
+} from '@/core/nodeCardSections'
 import { isNodeSelectableOnCanvas } from '@/core/canvasNodePresentation'
 import { hydrateScene, schemaJsonRelativePathBySchemaId, staticCanvasScene } from '@/core/canvasScene'
 import { loadStoredScene, SCENE_STORAGE_KEY } from '@/core/sceneStorage'
@@ -736,6 +744,23 @@ export function useSceneHistory(options?: {
     [updateScene],
   )
 
+  const setElementRetracted = useCallback(
+    (canvasNodeId: string, elementKey: ElementViewKey, retracted: boolean) => {
+      updateScene((currentScene) => ({
+        ...currentScene,
+        nodes: currentScene.nodes.map((n) =>
+          n.id === canvasNodeId
+            ? {
+                ...n,
+                node: patchElementRetracted(n.node, elementKey, retracted),
+              }
+            : n,
+        ),
+      }))
+    },
+    [updateScene],
+  )
+
   const setElementSelectedIndex = useCallback(
     (canvasNodeId: string, elementKey: ElementViewKey, selectedIndex: number) => {
       updateScene((currentScene) => ({
@@ -962,6 +987,90 @@ export function useSceneHistory(options?: {
   const deleteSelectedNodes = useCallback(() => {
     deleteNodeIds(orderedSelectionUnique)
   }, [deleteNodeIds, orderedSelectionUnique])
+
+  const toggleNodeCardSection = useCallback(
+    (nodeId: string, sectionId: NodeCardSectionId) => {
+      updateScene((currentScene) => ({
+        ...currentScene,
+        nodes: currentScene.nodes.map((node) => {
+          if (node.id !== nodeId) {
+            return node
+          }
+          return {
+            ...node,
+            cardSectionExpanded: nextNodeCardSectionExpandedMap(node.cardSectionExpanded, sectionId),
+          }
+        }),
+      }))
+    },
+    [updateScene],
+  )
+
+  const setNodeCardBodyLayout = useCallback(
+    (nodeId: string, layout: NodeCardBodyLayout) => {
+      updateScene((currentScene) => ({
+        ...currentScene,
+        nodes: currentScene.nodes.map((node) => {
+          if (node.id !== nodeId) {
+            return node
+          }
+          if (layout === 'freeform') {
+            return {
+              ...node,
+              cardBodyLayout: 'freeform',
+              cardSectionExpanded: allVisibleSectionsExpandedMap(node.node),
+            }
+          }
+          if ((node.cardBodyLayout ?? 'bySectionType') === 'bySectionType') {
+            return node
+          }
+          const { cardBodyLayout: _omit, ...rest } = node
+          return rest
+        }),
+      }))
+    },
+    [updateScene],
+  )
+
+  const setNodeCardSectionOrder = useCallback(
+    (nodeId: string, sectionId: NodeCardSectionId, oneBasedIndex: number) => {
+      updateScene((currentScene) => {
+        const canvasNode = currentScene.nodes.find((node) => node.id === nodeId)
+        if (!canvasNode) {
+          return currentScene
+        }
+
+        const order = resolveNodeCardSectionOrder(canvasNode.cardSectionOrder, canvasNode.node)
+        const fromIndex = order.indexOf(sectionId)
+        if (fromIndex < 0) {
+          return currentScene
+        }
+
+        const count = order.length
+        if (count < 2) {
+          return currentScene
+        }
+
+        const targetOneBased = Math.max(1, Math.min(count, Math.trunc(oneBasedIndex)))
+        const toIndex = targetOneBased - 1
+        if (fromIndex === toIndex) {
+          return currentScene
+        }
+
+        const nextOrder = [...order]
+        const [moved] = nextOrder.splice(fromIndex, 1)
+        nextOrder.splice(toIndex, 0, moved)
+
+        return {
+          ...currentScene,
+          nodes: currentScene.nodes.map((node) =>
+            node.id !== nodeId ? node : { ...node, cardSectionOrder: nextOrder },
+          ),
+        }
+      })
+    },
+    [updateScene],
+  )
 
   const toggleNodeBodyCollapsed = useCallback(
     (nodeId: string) => {
@@ -2173,6 +2282,7 @@ export function useSceneHistory(options?: {
   return {
     cycleConnectionRouting,
     setElementViewMode,
+    setElementRetracted,
     setElementSelectedIndex,
     redoScene,
     resetScene,
@@ -2192,6 +2302,9 @@ export function useSceneHistory(options?: {
     deleteNodeIds,
     deleteSelectedNodes,
     toggleNodeBodyCollapsed,
+    toggleNodeCardSection,
+    setNodeCardBodyLayout,
+    setNodeCardSectionOrder,
     updateScene,
     updateSelectedParameter,
     updateNodeParameter,

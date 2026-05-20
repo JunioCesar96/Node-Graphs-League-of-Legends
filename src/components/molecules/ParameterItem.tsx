@@ -2,6 +2,7 @@ import type { PointerEventHandler, PointerEvent as ReactPointerEvent, Ref } from
 import { useState } from 'react'
 
 import { SyntaxType } from '@/components/atoms/SyntaxType'
+import { ElementRetractedBar } from '@/components/molecules/ElementRetractedBar'
 import { ParameterMapHashEmbedInput } from '@/components/molecules/ParameterMapHashEmbedInput'
 import { ParameterMapHashPointerInput } from '@/components/molecules/ParameterMapHashPointerInput'
 import { ParameterMapU64PointerInput } from '@/components/molecules/ParameterMapU64PointerInput'
@@ -62,6 +63,8 @@ type ParameterItemProps = {
   selectedIndex?: number
   onElementViewModeChange?: (mode: ElementViewMode) => void
   onElementSelectedIndexChange?: (index: number) => void
+  retracted?: boolean
+  onExpandFromRetracted?: () => void
   parameter: NodeParameterDefinition
   parameterNameReorderHandlers?: ParameterNameReorderHandlers
   registerParameterRowRef?: Ref<HTMLLIElement>
@@ -90,6 +93,8 @@ export function ParameterItem({
   selectedIndex = 0,
   onElementViewModeChange,
   onElementSelectedIndexChange,
+  retracted = false,
+  onExpandFromRetracted,
   parameter,
   parameterNameReorderHandlers,
   registerParameterRowRef,
@@ -235,6 +240,23 @@ export function ParameterItem({
         elementId: parameter.id,
       })
     : {}
+
+  if (retracted && onExpandFromRetracted) {
+    return (
+      <li
+        className={[styles.item, styles.itemRetracted].join(' ')}
+        ref={registerParameterRowRef}
+        {...contextAttrs}
+      >
+        <ElementRetractedBar
+          title={parameter.name}
+          parameterType={parameter.type}
+          onExpand={onExpandFromRetracted}
+          reorderHandlers={parameterNameReorderHandlers}
+        />
+      </li>
+    )
+  }
 
   return (
     <li

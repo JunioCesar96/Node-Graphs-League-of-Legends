@@ -2,6 +2,7 @@ import type { PointerEvent as ReactPointerEvent } from 'react'
 import { useState } from 'react'
 
 import { Port } from '@/components/atoms/Port'
+import { ElementRetractedBar } from '@/components/molecules/ElementRetractedBar'
 import { StructureViewToggle } from '@/components/atoms/StructureViewToggle'
 import {
   isWirelessPortPulsing,
@@ -11,6 +12,7 @@ import {
   type WirelessPortPulseTarget,
 } from '@/core/connectionDisplay'
 import { clampSelectedIndex } from '@/core/elementViewState'
+import { canvasContextElementProps } from '@/core/canvasContextMenuAttributes'
 import type { EmbedDefinition, InternalStructureDefinition } from '@/core/nodeSchema'
 import { StructureIndexPager } from '@/components/molecules/StructureIndexPager'
 import {
@@ -21,11 +23,14 @@ import type { StructureBlockViewProps } from '@/components/molecules/structureBl
 
 import styles from './EmbedItem.module.css'
 
+type EmbedContextOverride = Parameters<typeof canvasContextElementProps>[0]
+
 type EmbedItemProps = StructureBlockViewProps & {
   activeSlotId?: string
   canAdd?: boolean
   canRemove?: boolean
   canvasNodeId: string
+  contextOverride?: EmbedContextOverride
   embed: EmbedDefinition
   slots: InternalStructureDefinition[]
   onAddClick?: () => void
@@ -56,6 +61,7 @@ type EmbedItemProps = StructureBlockViewProps & {
 
 function renderSlotRow(
   slot: InternalStructureDefinition,
+  embedId: string,
   embedTitle: string,
   props: Pick<
     EmbedItemProps,
@@ -85,7 +91,16 @@ function renderSlotRow(
   } = props
 
   return (
-    <li className={styles.slot} key={slot.id}>
+    <li
+      className={styles.slot}
+      key={slot.id}
+      {...canvasContextElementProps({
+        nodeId: canvasNodeId,
+        kind: 'embedSlot',
+        elementId: slot.id,
+        embedId,
+      })}
+    >
       <span className={styles.slotName} title={slot.name}>
         {slot.name}
       </span>
@@ -133,6 +148,7 @@ export function EmbedItem({
   canAdd = false,
   canRemove = false,
   canvasNodeId,
+  contextOverride,
   embed,
   slots,
   onAddClick,
@@ -150,6 +166,8 @@ export function EmbedItem({
   onViewModeChange,
   onSelectedIndexChange,
   nested = false,
+  retracted = false,
+  onExpandFromRetracted,
 }: EmbedItemProps) {
   const [indexPickerOpen, setIndexPickerOpen] = useState(false)
   const isEmpty = slots.length === 0
@@ -175,8 +193,34 @@ export function EmbedItem({
 
   const visibleSlots = isCompact && slots.length > 0 ? [slots[safeIndex]!] : slots
 
+  const contextProps = contextOverride
+    ? canvasContextElementProps(contextOverride)
+    : nested
+      ? {}
+      : canvasContextElementProps({
+          nodeId: canvasNodeId,
+          kind: 'embedBlock',
+          elementId: embed.id,
+          embedId: embed.id,
+        })
+
+  if (retracted && onExpandFromRetracted && !nested) {
+    return (
+      <li className={`${styles.block} ${styles.blockRetracted}`} {...contextProps}>
+        <ElementRetractedBar
+          title={embed.title}
+          typeLabel="embed"
+          onExpand={onExpandFromRetracted}
+        />
+      </li>
+    )
+  }
+
   return (
-    <li className={`${styles.block} ${isEmpty ? styles.blockEmpty : ''} ${nested ? styles.blockNested : ''}`}>
+    <li
+      className={`${styles.block} ${isEmpty ? styles.blockEmpty : ''} ${nested ? styles.blockNested : ''}`}
+      {...contextProps}
+    >
       {!nested ? (
         <div className={styles.blockHeader}>
           <h4 className={styles.blockTitle} title={embed.title}>
@@ -212,7 +256,7 @@ export function EmbedItem({
 
       {visibleSlots.length > 0 ? (
         <ul className={styles.slots}>
-          {visibleSlots.map((slot) => renderSlotRow(slot, embed.title, slotProps))}
+          {visibleSlots.map((slot) => renderSlotRow(slot, embed.id, embed.title, slotProps))}
         </ul>
       ) : null}
 

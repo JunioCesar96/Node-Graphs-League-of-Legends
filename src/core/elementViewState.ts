@@ -122,6 +122,10 @@ export function isElementViewCompact(node: NodeInstance, key: ElementViewKey): b
   return getElementViewState(node, key).mode === 'compact'
 }
 
+export function isElementRetracted(node: NodeInstance, key: ElementViewKey): boolean {
+  return Boolean(getElementViewState(node, key).retracted)
+}
+
 export function clampSelectedIndex(count: number, index: number | undefined): number {
   if (count <= 0) {
     return 0
@@ -353,6 +357,7 @@ export function patchElementViewMode(
   const prev = getElementViewState(node, key)
   const nextState: ElementViewState = {
     mode,
+    ...(prev.retracted ? { retracted: true } : {}),
     ...(mode === 'compact'
       ? { selectedIndex: selectedIndex ?? prev.selectedIndex ?? 0 }
       : prev.selectedIndex !== undefined
@@ -382,6 +387,27 @@ export function patchElementSelectedIndex(
         ...prev,
         selectedIndex,
       },
+    },
+  }
+}
+
+export function patchElementRetracted(
+  node: NodeInstance,
+  key: ElementViewKey,
+  retracted: boolean,
+): NodeInstance {
+  const prev = getElementViewState(node, key)
+  const nextState: ElementViewState = retracted
+    ? { ...prev, retracted: true }
+    : {
+        mode: prev.mode,
+        ...(prev.selectedIndex !== undefined ? { selectedIndex: prev.selectedIndex } : {}),
+      }
+  return {
+    ...node,
+    elementView: {
+      ...(node.elementView ?? {}),
+      [key]: nextState,
     },
   }
 }

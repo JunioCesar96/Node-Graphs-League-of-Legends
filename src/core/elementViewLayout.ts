@@ -1,15 +1,9 @@
 import {
-  elementViewKeyForEmbed,
-  elementViewKeyForList2Embed,
-  elementViewKeyForList2Pointer,
-  elementViewKeyForListEmbed,
-  elementViewKeyForListPointer,
   elementViewKeyForParameter,
-  elementViewKeyForPointer,
   getElementViewState,
-  type ElementViewKey,
+  isElementRetracted,
 } from '@/core/elementViewState'
-import type { NodeInstance, NodeParameterDefinition } from '@/core/nodeSchema'
+import type { ElementViewKey, NodeInstance, NodeParameterDefinition } from '@/core/nodeSchema'
 import {
   MAP_HASH_POINTER_BLOCK_HEADER_HEIGHT,
   MAP_HASH_POINTER_ENTRY_GAP,
@@ -20,12 +14,17 @@ import {
 
 export const STRUCTURE_INDEX_PAGER_HEIGHT = 28
 
+/** Altura da barra retraída de um elemento no card (parâmetro ou bloco). */
+export const ELEMENT_RETRACTED_ROW_HEIGHT = 44
+
 const INTERNAL_STRUCTURE_ITEM_HEIGHT = 36
 const ITEM_GAP = 8
 
 export function isElementCompact(node: NodeInstance, elementKey: ElementViewKey): boolean {
   return getElementViewState(node, elementKey).mode === 'compact'
 }
+
+export { isElementRetracted }
 
 export function mapHashStructureListHeight(entryCount: number, hasStructureInLast = false): number {
   if (entryCount <= 0) {

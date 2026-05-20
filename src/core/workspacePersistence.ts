@@ -1,4 +1,12 @@
 import type { CanvasConnection, CanvasScene, ConnectionRouting, SceneCamera } from '@/core/canvasScene'
+import {
+  allVisibleSectionsExpandedMap,
+  isNodeCardBodyLayout,
+  isNodeCardSectionId,
+  type NodeCardBodyLayout,
+  type NodeCardSectionExpandedMap,
+  type NodeCardSectionId,
+} from '@/core/nodeCardSections'
 import { hydrateScene } from '@/core/canvasScene'
 import { syncSceneCollapsedBodyWireless } from '@/core/compactConnectionRouting'
 import type {
@@ -31,6 +39,9 @@ export type WorkspaceLogicFile = {
 export type WorkspaceLayoutNodeEntry = {
   position: { x: number; y: number }
   bodyCollapsed?: boolean
+  cardSectionExpanded?: NodeCardSectionExpandedMap
+  cardSectionOrder?: NodeCardSectionId[]
+  cardBodyLayout?: NodeCardBodyLayout
   sceneHidden?: boolean
   displayLabel?: string
   bodyColor?: string
@@ -46,8 +57,52 @@ export type WorkspaceLayoutFile = {
   camera?: SceneCamera
 }
 
+function parseCardSectionExpanded(raw: unknown): NodeCardSectionExpandedMap | undefined {
+  if (!isRecord(raw)) {
+    return undefined
+  }
+  const out: NodeCardSectionExpandedMap = {}
+  for (const [key, value] of Object.entries(raw)) {
+    if (isNodeCardSectionId(key) && value === true) {
+      out[key] = true
+    } else if (isNodeCardSectionId(key) && value === false) {
+      out[key] = false
+    }
+  }
+  return Object.keys(out).length > 0 ? out : undefined
+}
+
+function parseCardBodyLayout(raw: unknown): NodeCardBodyLayout | undefined {
+  if (typeof raw === 'string' && isNodeCardBodyLayout(raw)) {
+    return raw
+  }
+  return undefined
+}
+
+function parseCardSectionOrder(raw: unknown): NodeCardSectionId[] | undefined {
+  if (!Array.isArray(raw)) {
+    return undefined
+  }
+  const out: NodeCardSectionId[] = []
+  for (const item of raw) {
+    if (typeof item === 'string' && isNodeCardSectionId(item) && !out.includes(item)) {
+      out.push(item)
+    }
+  }
+  return out.length > 0 ? out : undefined
+}
+
 function layoutOverlayFromCanvasNode(canvasNode: CanvasScene['nodes'][number]): Partial<WorkspaceLayoutNodeEntry> {
   return {
+    ...(canvasNode.cardSectionExpanded && Object.keys(canvasNode.cardSectionExpanded).length > 0
+      ? { cardSectionExpanded: structuredClone(canvasNode.cardSectionExpanded) }
+      : {}),
+    ...(canvasNode.cardSectionOrder && canvasNode.cardSectionOrder.length > 0
+      ? { cardSectionOrder: [...canvasNode.cardSectionOrder] }
+      : {}),
+    ...(canvasNode.cardBodyLayout && canvasNode.cardBodyLayout !== 'bySectionType'
+      ? { cardBodyLayout: canvasNode.cardBodyLayout }
+      : {}),
     ...(canvasNode.sceneHidden ? { sceneHidden: true } : {}),
     ...(canvasNode.displayLabel !== undefined ? { displayLabel: canvasNode.displayLabel } : {}),
     ...(canvasNode.bodyColor !== undefined ? { bodyColor: canvasNode.bodyColor } : {}),
@@ -66,6 +121,18 @@ function isValidLayoutNodeEntry(raw: unknown): raw is WorkspaceLayoutNodeEntry {
   }
 
   if (raw.bodyCollapsed !== undefined && raw.bodyCollapsed !== true) {
+    return false
+  }
+
+  if (raw.cardSectionExpanded !== undefined && parseCardSectionExpanded(raw.cardSectionExpanded) === undefined) {
+    return false
+  }
+
+  if (raw.cardSectionOrder !== undefined && parseCardSectionOrder(raw.cardSectionOrder) === undefined) {
+    return false
+  }
+
+  if (raw.cardBodyLayout !== undefined && parseCardBodyLayout(raw.cardBodyLayout) === undefined) {
     return false
   }
 
@@ -93,7 +160,15 @@ function isValidLayoutNodeEntry(raw: unknown): raw is WorkspaceLayoutNodeEntry {
 }
 
 function canvasNodeOverlayFromLayoutEntry(entry: WorkspaceLayoutNodeEntry): Partial<CanvasScene['nodes'][number]> {
+  const cardSectionExpanded = entry.cardSectionExpanded
+    ? structuredClone(entry.cardSectionExpanded)
+    : undefined
+  const cardSectionOrder = entry.cardSectionOrder ? [...entry.cardSectionOrder] : undefined
+  const cardBodyLayout = entry.cardBodyLayout ? entry.cardBodyLayout : undefined
   return {
+    ...(cardSectionExpanded ? { cardSectionExpanded } : {}),
+    ...(cardSectionOrder ? { cardSectionOrder } : {}),
+    ...(cardBodyLayout ? { cardBodyLayout } : {}),
     ...(entry.sceneHidden ? { sceneHidden: true } : {}),
     ...(entry.displayLabel !== undefined ? { displayLabel: entry.displayLabel } : {}),
     ...(entry.bodyColor !== undefined ? { bodyColor: entry.bodyColor } : {}),
@@ -154,6 +229,9 @@ function isElementViewState(value: unknown): value is ElementViewState {
     return false
   }
   if (value.selectedIndex !== undefined && typeof value.selectedIndex !== 'number') {
+    return false
+  }
+  if (value.retracted !== undefined && typeof value.retracted !== 'boolean') {
     return false
   }
   return true
@@ -423,27 +501,36 @@ export function mergeWorkspaceToScene(bundle: WorkspaceBundle): CanvasScene | nu
       return null
     }
 
+    const nodeInstance: NodeInstance = {
+      id: logicNode.id,
+      schema: logicNode.schema,
+      values: logicNode.values,
+      ...(logicNode.required_parameter?.length
+        ? { required_parameter: logicNode.required_parameter }
+        : {}),
+      ...(logicNode.parameter_value_links?.length
+        ? { parameter_value_links: logicNode.parameter_value_links }
+        : {}),
+      ...(logicNode.hashString !== undefined ? { hashString: logicNode.hashString } : {}),
+      ...(logicNode.hashStringParameterId !== undefined
+        ? { hashStringParameterId: logicNode.hashStringParameterId }
+        : {}),
+      ...(logicNode.elementView ? { elementView: structuredClone(logicNode.elementView) } : {}),
+    }
+
+    const overlay = canvasNodeOverlayFromLayoutEntry(layoutEntry)
+    const cardSectionExpanded =
+      layoutEntry.cardBodyLayout === 'freeform'
+        ? allVisibleSectionsExpandedMap(nodeInstance)
+        : overlay.cardSectionExpanded
+
     nodes.push({
       id: canvasNodeId,
       position: { x: layoutEntry.position.x, y: layoutEntry.position.y },
       ...(layoutEntry.bodyCollapsed ? { bodyCollapsed: true } : {}),
-      ...canvasNodeOverlayFromLayoutEntry(layoutEntry),
-      node: {
-        id: logicNode.id,
-        schema: logicNode.schema,
-        values: logicNode.values,
-        ...(logicNode.required_parameter?.length
-          ? { required_parameter: logicNode.required_parameter }
-          : {}),
-        ...(logicNode.parameter_value_links?.length
-          ? { parameter_value_links: logicNode.parameter_value_links }
-          : {}),
-        ...(logicNode.hashString !== undefined ? { hashString: logicNode.hashString } : {}),
-        ...(logicNode.hashStringParameterId !== undefined
-          ? { hashStringParameterId: logicNode.hashStringParameterId }
-          : {}),
-        ...(logicNode.elementView ? { elementView: structuredClone(logicNode.elementView) } : {}),
-      },
+      ...overlay,
+      ...(cardSectionExpanded ? { cardSectionExpanded } : {}),
+      node: nodeInstance,
     })
   }
 

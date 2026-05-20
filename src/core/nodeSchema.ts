@@ -171,6 +171,8 @@ export type ElementViewState = {
   mode: ElementViewMode
   /** Índice visível no modo compacto (0-based). */
   selectedIndex?: number
+  /** Barra compacta no card (chevron + título + tipo); independente de list/compact. */
+  retracted?: boolean
 }
 
 /** Chave estável: `param:<id>`, `embed:<id>`, `listEmbed:<id>`, etc. */

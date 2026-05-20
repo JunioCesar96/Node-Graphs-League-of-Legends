@@ -3,6 +3,8 @@ import { useState } from 'react'
 
 import { EmbedItem } from '@/components/molecules/EmbedItem'
 import { StructureViewToggle } from '@/components/atoms/StructureViewToggle'
+import { ElementRetractedBar } from '@/components/molecules/ElementRetractedBar'
+import { canvasContextElementProps } from '@/core/canvasContextMenuAttributes'
 import type { InternalStructureDefinition, List2EmbedDefinition } from '@/core/nodeSchema'
 import { clampSelectedIndex } from '@/core/elementViewState'
 import { populatedSlotsForList2EmbedInstance } from '@/core/list2EmbedSlots'
@@ -67,6 +69,8 @@ export function List2EmbedItem({
   selectedIndex = 0,
   onViewModeChange,
   onSelectedIndexChange,
+  retracted = false,
+  onExpandFromRetracted,
 }: List2EmbedItemProps) {
   const [indexPickerOpen, setIndexPickerOpen] = useState(false)
   const isEmpty = list2Embed.instances.length === 0
@@ -84,8 +88,30 @@ export function List2EmbedItem({
     }),
   )
 
+  const contextProps = canvasContextElementProps({
+    nodeId: canvasNodeId,
+    kind: 'list2EmbedBlock',
+    elementId: list2Embed.id,
+    list2EmbedId: list2Embed.id,
+  })
+
+  if (retracted && onExpandFromRetracted) {
+    return (
+      <li className={`${styles.block} ${styles.blockRetracted}`} {...contextProps}>
+        <ElementRetractedBar
+          title={list2Embed.title}
+          typeLabel="list2Embed"
+          onExpand={onExpandFromRetracted}
+        />
+      </li>
+    )
+  }
+
   return (
-    <li className={`${styles.block} ${isEmpty ? styles.blockEmpty : ''}`}>
+    <li
+      className={`${styles.block} ${isEmpty ? styles.blockEmpty : ''}`}
+      {...contextProps}
+    >
       <div className={styles.blockHeader}>
         <h4 className={styles.blockTitle} title={list2Embed.title}>
           {list2Embed.title}
@@ -125,6 +151,13 @@ export function List2EmbedItem({
               canAdd={false}
               canRemove={Boolean(onRemoveInstanceClick)}
               canvasNodeId={canvasNodeId}
+              contextOverride={{
+                nodeId: canvasNodeId,
+                kind: 'list2EmbedInstance',
+                elementId: instance.id,
+                list2EmbedId: list2Embed.id,
+                instanceId: instance.id,
+              }}
               embed={instance}
               key={instance.id}
               nested

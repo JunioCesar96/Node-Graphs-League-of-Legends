@@ -5,6 +5,7 @@ import {
   clampSelectedIndex,
   elementViewKeyForParameter,
   getElementViewState,
+  patchElementRetracted,
   patchElementViewMode,
   slotIdsForElement,
 } from '@/core/elementViewState'
@@ -55,6 +56,20 @@ describe('elementViewState', () => {
     const key = elementViewKeyForParameter('param-map')
     const next = patchElementViewMode(node, key, 'compact', 2)
     expect(getElementViewState(next, key)).toEqual({ mode: 'compact', selectedIndex: 2 })
+  })
+
+  it('patchElementRetracted toggles retracted and preserves mode', () => {
+    const node = minimalNode()
+    const key = elementViewKeyForParameter('param-map')
+    const compact = patchElementViewMode(node, key, 'compact', 1)
+    const retracted = patchElementRetracted(compact, key, true)
+    expect(getElementViewState(retracted, key)).toEqual({
+      mode: 'compact',
+      selectedIndex: 1,
+      retracted: true,
+    })
+    const expanded = patchElementRetracted(retracted, key, false)
+    expect(getElementViewState(expanded, key)).toEqual({ mode: 'compact', selectedIndex: 1 })
   })
 
   it('applyDefaultCompactElementView sets compact on map parameters', () => {

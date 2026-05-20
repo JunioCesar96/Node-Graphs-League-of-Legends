@@ -5,4 +5,6 @@ export type StructureBlockViewProps = {
   selectedIndex?: number
   onViewModeChange?: (mode: ElementViewMode) => void
   onSelectedIndexChange?: (index: number) => void
+  retracted?: boolean
+  onExpandFromRetracted?: () => void
 }

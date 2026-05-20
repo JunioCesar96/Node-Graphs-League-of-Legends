@@ -1,0 +1,124 @@
+.bar {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  min-height: var(--element-retracted-row-height, 2.75rem);
+  width: 100%;
+  min-width: 0;
+  border-radius: var(--radius-leaf);
+  overflow: hidden;
+  background: color-mix(in srgb, var(--node-body-fill, transparent) 18%, rgb(255 255 255 / 4%));
+  border: 1px solid var(--color-border-soft);
+}
+
+.expandButton {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: var(--space-2) var(--space-3);
+  margin: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-family: var(--font-ui);
+  text-align: left;
+  cursor: pointer;
+  user-select: none;
+}
+
+.expandButton:hover {
+  background: rgb(255 255 255 / 4%);
+}
+
+.expandButton:focus-visible {
+  outline: 2px solid var(--syntax-keyword);
+  outline-offset: -2px;
+}
+
+.chevron {
+  flex-shrink: 0;
+  width: 0.6rem;
+  height: 0.6rem;
+  border-right: 2px solid var(--color-text-secondary);
+  border-bottom: 2px solid var(--color-text-secondary);
+  transform: rotate(-45deg);
+  transition: transform 120ms ease;
+  opacity: 0.85;
+}
+
+.title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--syntax-property);
+  font-family: var(--font-data);
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.typeCell {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  padding: 0 var(--space-3);
+  min-width: 0;
+}
+
+.typeLabel {
+  font-family: var(--font-data);
+  font-size: 0.78rem;
+}
+
+.reorderGrip {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: var(--node-card-section-reorder-width, 2rem);
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-left: 1px solid var(--color-border-soft);
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.reorderGrip:hover {
+  background: rgb(255 255 255 / 6%);
+  color: var(--color-text-primary);
+}
+
+.reorderGrip:active {
+  cursor: grabbing;
+}
+
+.reorderGrip:focus-visible {
+  outline: 2px solid var(--syntax-keyword);
+  outline-offset: -2px;
+}
+
+.gripDots {
+  width: 0.55rem;
+  height: 0.95rem;
+  opacity: 0.75;
+  background-image: radial-gradient(currentColor 1.15px, transparent 1.15px);
+  background-size: 4px 4px;
+}
+
+.nameDraggable {
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.nameDraggable:active {
+  cursor: grabbing;
+}

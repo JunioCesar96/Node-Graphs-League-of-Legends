@@ -11,9 +11,13 @@ Atualmente um nó (`NodeSchemaDefinition` / instância no canvas) organiza-se em
 | **LIST_POINTER** | `Campo: list[pointer] = { … }` | Bloco de lista com **vários** slots; compacto = 1 slot visível + paginação |
 | **LIST2_EMBED** | `Campo: list2[embed] = { … }` | Lista de **instâncias** estilo EMBED; compacto = 1 instância visível + paginação |
 | **LIST2_POINTER** | `Campo: list2[pointer] = { … }` | Lista de **instâncias** estilo POINTER; compacto = 1 instância visível + paginação |
-| **Internal_Structures** | `link = Tipo { … }` e filhos estruturais genéricos | Portas de saída para ligar a outros nós |
+| **Internal_Structures** | `link = Tipo { … }` (parâmetro estrutural) | `schema.internalStructures[]`; ligações no grafo; **sem secção no card** e **fora** do menu Element |
 
-Definido em `nodeSchema.ts` e renderizado em `NodeCard.tsx`.
+Definido em `nodeSchema.ts`; ligações via `GraphCanvas` (portas calculadas junto ao botão Element).
+
+**Card do nó:** cada família (Parameters, EMBED, POINTER, …) é um painel colapsável estilo Blender — **recluso** mostra só o título com chevron; **expandido** mostra o conteúdo actual. Por defeito só **Parameters** inicia expandido; o estado persiste em `layout.json` (`cardSectionExpanded`).
+
+**Retrair elemento (por linha):** independente da secção e da vista **lista/compacta**, cada parâmetro e cada bloco EMBED/POINTER/LIST/LIST2 pode estar **retraído** — barra com chevron, título, tipo e grip (parâmetros); menu de contexto «Retrair / Expandir elemento»; estado em `elementView[key].retracted` no logic JSON. Expandido = UI completa actual.
 
 **Nota:** `link = Tipo { }` permanece em **Internal_Structures**; `pointer = Tipo { }` vai para **POINTER**.
 
@@ -23,12 +27,11 @@ Definido em `nodeSchema.ts` e renderizado em `NodeCard.tsx`.
 
 ## Tipos de elemento (`NodeElementKind`)
 
-Usados em remoção, dependências e pickers (`listNodeElements.ts`):
+Usados em remoção via **− Element**, dependências e pickers (`listNodeElements.ts`):
 
 | `kind` | Significado |
 |--------|-------------|
 | `parameter` | Parâmetro escalar |
-| `internalStructure` | Entrada em **Internal_Structures** |
 | `embedBlock` | Bloco inteiro em **EMBED** |
 | `embedSlot` | Slot dentro de um bloco EMBED |
 | `pointerBlock` | Bloco inteiro em **POINTER** |
@@ -40,6 +43,8 @@ Usados em remoção, dependências e pickers (`listNodeElements.ts`):
 | `list2EmbedInstance` | Instância (estilo embed) dentro de LIST2_EMBED |
 | `list2PointerInstance` | Instância (estilo pointer) dentro de LIST2_POINTER |
 
+**Internal_Structures (top-level):** continuam em `schema.internalStructures[]` e na secção do card com portas de saída, mas **não** são `NodeElementKind` removível nem entradas do menu **Element**. São parâmetros estruturais (`link = Tipo { }`): origem no ritual/conversor; ligação a nós filhos por drag da porta ou drop no canvas. O tipo `internalStructure` mantém-se só para contexto de porta (ex.: menu «Remover ligações»).
+
 ---
 
 ## O que o menu **+ Element** pode acrescentar
@@ -48,8 +53,6 @@ Tipos de entrada no catálogo (`ElementMenuEntryKind` em `elementMenuCatalogUtil
 
 | `kind` | Acção típica |
 |--------|----------------|
-| `preset-slot` | Slot pré-definido (template) |
-| `catalog-structure` | Estrutura interna do catálogo do pack |
 | `catalog-parameter` | Parâmetro do catálogo (stub `*_parameter_*.json`) |
 | `catalog-embed` | Item do catálogo EMBED |
 | `catalog-pointer` | Item do catálogo POINTER |
@@ -98,7 +101,6 @@ flowchart TB
     LP[LIST_POINTER]
     L2E[LIST2_EMBED]
     L2P[LIST2_POINTER]
-    IS[Internal_Structures]
   end
-  P --> E --> PT --> LE --> LP --> L2E --> L2P --> IS
+  P --> E --> PT --> LE --> LP --> L2E --> L2P
 ```

@@ -11,6 +11,7 @@ import {
   elementViewKeyForPointer,
 } from '@/core/elementViewState'
 import type { CanvasContextTarget, ContextMenuItem } from '@/core/canvasContextMenuTypes'
+import { resolveNodeCardBodyLayout } from '@/core/nodeCardSections'
 import {
   CANVAS_TOOLBAR_TOOL_LABELS,
   type CanvasToolbarToolId,
@@ -178,11 +179,29 @@ function buildNodeItems(
   const bodyCollapsed = ctx.isNodeBodyCollapsed === true
   const nodeLocked = canvasNode ? isNodeLocked(canvasNode) : false
   const canDeleteNode = canvasNode ? isNodeRemovableFromScene(canvasNode) : false
+  const cardBodyLayout = canvasNode ? resolveNodeCardBodyLayout(canvasNode) : 'bySectionType'
 
   return [
     {
       id: 'node.toggleBodyCollapse',
       label: bodyCollapsed ? 'Expandir corpo do nó' : 'Retrair corpo do nó',
+    },
+    {
+      id: 'node.organization',
+      label: 'Organização',
+      separatorBefore: true,
+      children: [
+        {
+          id: 'node.organization.bySectionType',
+          label: 'Separar por tipos de secções',
+          selected: cardBodyLayout === 'bySectionType',
+        },
+        {
+          id: 'node.organization.freeform',
+          label: 'Forma livre',
+          selected: cardBodyLayout === 'freeform',
+        },
+      ],
     },
     { id: 'node.focus', label: 'Focar nó na vista', shortcut: '.', separatorBefore: true },
     { id: 'node.select', label: isSelected ? 'Já seleccionado' : 'Seleccionar nó', disabled: isSelected },
@@ -233,6 +252,13 @@ function buildElementItems(
       viewState.mode === 'compact' ? 'Vista em lista' : 'Vista compacta'
 
     items.push({ id: 'element.toggleCompact', label: compactLabel })
+
+    const retracted = Boolean(viewState.retracted)
+    items.push({
+      id: 'element.toggleRetracted',
+      label: retracted ? 'Expandir elemento' : 'Retrair elemento',
+      separatorBefore: true,
+    })
   }
 
   if (target.kind === 'internalStructure') {

@@ -188,6 +188,7 @@ function App() {
   const {
     cycleConnectionRouting,
     setElementViewMode,
+    setElementRetracted,
     setElementSelectedIndex,
     redoScene,
     resetScene,
@@ -207,6 +208,9 @@ function App() {
     setAllNodesLocked,
     resetNodePosition,
     toggleNodeBodyCollapsed,
+    toggleNodeCardSection,
+    setNodeCardSectionOrder,
+    setNodeCardBodyLayout,
     updateSelectedParameter,
     updateNodeParameter,
     setNodeParameterOrder,
@@ -224,10 +228,8 @@ function App() {
     selectAllNodes,
     clearSelection,
     replaceScene,
-    addDynamicInternalStructureSlot,
     addDynamicParameter,
     removeCanvasParameter,
-    removeCanvasInternalStructure,
     appendEmbedCatalogItem,
     appendPointerCatalogItem,
     appendListEmbedCatalogItem,
@@ -1593,15 +1595,12 @@ function App() {
           }
           if (item.kind === 'listPointerSlot') {
             removeListPointerSlot(canvasNodeId, item.id)
-            return
           }
-          removeCanvasInternalStructure(canvasNodeId, item.id)
         },
       })
     },
     [
       mergedBaseParameterCatalogBySchemaId,
-      removeCanvasInternalStructure,
       removeEmbedSlot,
       removeEmbedBlock,
       removeListEmbedSlot,
@@ -1894,9 +1893,6 @@ function App() {
             canRedo={sceneHistory.future.length > 0}
             canUndo={sceneHistory.past.length > 0}
             hints={tooltipHints}
-            onAppendCatalogInternalStructure={(canvasNodeId, structure) =>
-              addDynamicInternalStructureSlot(canvasNodeId, structure)
-            }
             onAppendEmbedCatalogItem={(canvasNodeId, embedId, structure) =>
               appendEmbedCatalogItem(canvasNodeId, embedId, structure)
             }
@@ -1932,6 +1928,9 @@ function App() {
             onCreateRootNode={createRootNode}
             onDeleteNodeIds={deleteNodeIds}
             onToggleNodeBodyCollapsed={toggleNodeBodyCollapsed}
+            onToggleNodeCardSection={toggleNodeCardSection}
+            onSetNodeCardSectionOrder={setNodeCardSectionOrder}
+            onSetNodeCardBodyLayout={setNodeCardBodyLayout}
             onCycleConnectionRouting={cycleConnectionRouting}
             onMarqueeCommit={commitMarqueeSelection}
             onMoveNode={moveNode}
@@ -1947,6 +1946,7 @@ function App() {
             onUndo={undoScene}
             onUpdateNodeParameter={updateNodeParameter}
             onSetElementViewMode={setElementViewMode}
+            onSetElementRetracted={setElementRetracted}
             onSetElementSelectedIndex={setElementSelectedIndex}
             onRemoveConnectionsFromOutputSlot={removeConnectionsFromOutputSlot}
             onSetNodeParameterOrder={setNodeParameterOrder}

@@ -2,6 +2,7 @@ import type { PointerEvent as ReactPointerEvent } from 'react'
 import { useState } from 'react'
 
 import { Port } from '@/components/atoms/Port'
+import { ElementRetractedBar } from '@/components/molecules/ElementRetractedBar'
 import { StructureViewToggle } from '@/components/atoms/StructureViewToggle'
 import {
   isWirelessPortPulsing,
@@ -11,6 +12,7 @@ import {
   type WirelessPortPulseTarget,
 } from '@/core/connectionDisplay'
 import { clampSelectedIndex } from '@/core/elementViewState'
+import { canvasContextElementProps } from '@/core/canvasContextMenuAttributes'
 import type { InternalStructureDefinition, PointerDefinition } from '@/core/nodeSchema'
 import { StructureIndexPager } from '@/components/molecules/StructureIndexPager'
 import {
@@ -21,11 +23,14 @@ import type { StructureBlockViewProps } from '@/components/molecules/structureBl
 
 import styles from './PointerItem.module.css'
 
+type PointerContextOverride = Parameters<typeof canvasContextElementProps>[0]
+
 type PointerItemProps = StructureBlockViewProps & {
   activeSlotId?: string
   canAdd?: boolean
   canRemove?: boolean
   canvasNodeId: string
+  contextOverride?: PointerContextOverride
   pointer: PointerDefinition
   slots: InternalStructureDefinition[]
   onAddClick?: () => void
@@ -58,6 +63,7 @@ export function PointerItem({
   canAdd = false,
   canRemove = false,
   canvasNodeId,
+  contextOverride,
   pointer,
   slots,
   onAddClick,
@@ -75,6 +81,8 @@ export function PointerItem({
   onViewModeChange,
   onSelectedIndexChange,
   nested = false,
+  retracted = false,
+  onExpandFromRetracted,
 }: PointerItemProps) {
   const [indexPickerOpen, setIndexPickerOpen] = useState(false)
   const isEmpty = slots.length === 0
@@ -87,8 +95,34 @@ export function PointerItem({
     label: slot.name,
   }))
 
+  const contextProps = contextOverride
+    ? canvasContextElementProps(contextOverride)
+    : nested
+      ? {}
+      : canvasContextElementProps({
+          nodeId: canvasNodeId,
+          kind: 'pointerBlock',
+          elementId: pointer.id,
+          pointerId: pointer.id,
+        })
+
+  if (retracted && onExpandFromRetracted && !nested) {
+    return (
+      <li className={`${styles.block} ${styles.blockRetracted}`} {...contextProps}>
+        <ElementRetractedBar
+          title={pointer.title}
+          typeLabel="pointer"
+          onExpand={onExpandFromRetracted}
+        />
+      </li>
+    )
+  }
+
   return (
-    <li className={`${styles.block} ${isEmpty ? styles.blockEmpty : ''}`}>
+    <li
+      className={`${styles.block} ${isEmpty ? styles.blockEmpty : ''}`}
+      {...contextProps}
+    >
       {!nested ? (
         <div className={styles.blockHeader}>
           <h4 className={styles.blockTitle} title={pointer.title}>
@@ -125,7 +159,16 @@ export function PointerItem({
       {visibleSlots.length > 0 ? (
         <ul className={styles.slots}>
           {visibleSlots.map((slot) => (
-            <li className={styles.slot} key={slot.id}>
+            <li
+              className={styles.slot}
+              key={slot.id}
+              {...canvasContextElementProps({
+                nodeId: canvasNodeId,
+                kind: 'pointerSlot',
+                elementId: slot.id,
+                pointerId: pointer.id,
+              })}
+            >
               <span className={styles.slotName} title={slot.name}>
                 {slot.name}
               </span>

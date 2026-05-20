@@ -2,6 +2,7 @@ import type { PointerEvent as ReactPointerEvent } from 'react'
 import { useState } from 'react'
 
 import { Port } from '@/components/atoms/Port'
+import { ElementRetractedBar } from '@/components/molecules/ElementRetractedBar'
 import { StructureViewToggle } from '@/components/atoms/StructureViewToggle'
 import {
   isWirelessPortPulsing,
@@ -11,6 +12,7 @@ import {
   type WirelessPortPulseTarget,
 } from '@/core/connectionDisplay'
 import { clampSelectedIndex } from '@/core/elementViewState'
+import { canvasContextElementProps } from '@/core/canvasContextMenuAttributes'
 import type { InternalStructureDefinition, ListEmbedDefinition } from '@/core/nodeSchema'
 import { StructureIndexPager } from '@/components/molecules/StructureIndexPager'
 import {
@@ -73,6 +75,8 @@ export function ListEmbedItem({
   selectedIndex = 0,
   onViewModeChange,
   onSelectedIndexChange,
+  retracted = false,
+  onExpandFromRetracted,
 }: ListEmbedItemProps) {
   const [indexPickerOpen, setIndexPickerOpen] = useState(false)
   const isEmpty = slots.length === 0
@@ -85,8 +89,30 @@ export function ListEmbedItem({
     label: slot.name,
   }))
 
+  const contextProps = canvasContextElementProps({
+    nodeId: canvasNodeId,
+    kind: 'listEmbedBlock',
+    elementId: listEmbed.id,
+    listEmbedId: listEmbed.id,
+  })
+
+  if (retracted && onExpandFromRetracted) {
+    return (
+      <li className={`${styles.block} ${styles.blockRetracted}`} {...contextProps}>
+        <ElementRetractedBar
+          title={listEmbed.title}
+          typeLabel="listEmbed"
+          onExpand={onExpandFromRetracted}
+        />
+      </li>
+    )
+  }
+
   return (
-    <li className={`${styles.block} ${isEmpty ? styles.blockEmpty : ''}`}>
+    <li
+      className={`${styles.block} ${isEmpty ? styles.blockEmpty : ''}`}
+      {...contextProps}
+    >
       <div className={styles.blockHeader}>
         <h4 className={styles.blockTitle} title={listEmbed.title}>
           {listEmbed.title}
@@ -121,7 +147,16 @@ export function ListEmbedItem({
       {visibleSlots.length > 0 ? (
         <ul className={styles.slots}>
           {visibleSlots.map((slot) => (
-            <li className={styles.slot} key={slot.id}>
+            <li
+              className={styles.slot}
+              key={slot.id}
+              {...canvasContextElementProps({
+                nodeId: canvasNodeId,
+                kind: 'listEmbedSlot',
+                elementId: slot.id,
+                listEmbedId: listEmbed.id,
+              })}
+            >
               <span className={styles.slotName} title={slot.name}>
                 {slot.name}
               </span>

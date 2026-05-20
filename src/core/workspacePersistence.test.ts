@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { staticCanvasScene } from '@/core/canvasScene'
+import { elementViewKeyForParameter, patchElementRetracted } from '@/core/elementViewState'
 import {
   isWorkspaceBundleEmpty,
   isWorkspaceBundleValid,
@@ -52,6 +53,48 @@ describe('workspacePersistence', () => {
     expect(restoredNode?.bodyColor).toBe('rgba(10, 20, 30, 0.8)')
     expect(restoredNode?.bodyColorEnabled).toBe(true)
     expect(restoredNode?.locked).toBe(true)
+  })
+
+  it('persiste cardBodyLayout freeform no layout', () => {
+    const withFreeform = {
+      ...staticCanvasScene,
+      nodes: staticCanvasScene.nodes.map((node, index) =>
+        index === 0 ? { ...node, cardBodyLayout: 'freeform' as const } : node,
+      ),
+    }
+    const bundle = splitSceneToWorkspace(withFreeform)
+    expect(bundle.layout.nodes[withFreeform.nodes[0]!.id]?.cardBodyLayout).toBe('freeform')
+
+    const restored = mergeWorkspaceToScene(bundle)
+    const restoredNode = restored?.nodes.find((node) => node.id === withFreeform.nodes[0]!.id)
+    expect(restoredNode?.cardBodyLayout).toBe('freeform')
+    expect(restoredNode?.cardSectionExpanded?.parameters).toBe(true)
+  })
+
+  it('persiste elementView.retracted no logic', () => {
+    const canvasNode = staticCanvasScene.nodes[0]!
+    const param = canvasNode.node.schema.parameters[0]
+    if (!param) {
+      return
+    }
+
+    const key = elementViewKeyForParameter(param.id)
+    const withRetracted = {
+      ...staticCanvasScene,
+      nodes: staticCanvasScene.nodes.map((n) =>
+        n.id === canvasNode.id
+          ? { ...n, node: patchElementRetracted(n.node, key, true) }
+          : n,
+      ),
+    }
+
+    const bundle = splitSceneToWorkspace(withRetracted)
+    const logicNode = bundle.logic.nodes[canvasNode.id]
+    expect(logicNode?.elementView?.[key]?.retracted).toBe(true)
+
+    const restored = mergeWorkspaceToScene(bundle)
+    const restoredNode = restored?.nodes.find((node) => node.id === canvasNode.id)
+    expect(restoredNode?.node.elementView?.[key]?.retracted).toBe(true)
   })
 
   it('persiste câmera da cena no layout', () => {

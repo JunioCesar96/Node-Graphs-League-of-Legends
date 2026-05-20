@@ -5,9 +5,9 @@ import type {
   PointerEventHandler,
 } from 'react'
 
+import { NodeCardCollapsibleSection } from '@/components/molecules/NodeCardCollapsibleSection'
 import { ElementMenu } from '@/components/molecules/ElementMenu'
 import { ElementRemovalPicker } from '@/components/molecules/ElementRemovalPicker'
-import { InternalStructureItem } from '@/components/molecules/InternalStructureItem'
 import { EmbedAddPicker } from '@/components/molecules/EmbedAddPicker'
 import { EmbedItem } from '@/components/molecules/EmbedItem'
 import { ListEmbedAddPicker } from '@/components/molecules/ListEmbedAddPicker'
@@ -33,6 +33,14 @@ import { populatedSlotsForListEmbed } from '@/core/listEmbedSlots'
 import { populatedSlotsForListPointer } from '@/core/listPointerSlots'
 import { populatedSlotsForPointer } from '@/core/pointerSlots'
 import { listRemovableNodeElements, type NodeElementListItem } from '@/core/listNodeElements'
+import {
+  NODE_CARD_SECTION_LABELS,
+  resolveNodeCardSectionExpanded,
+  resolveNodeCardSectionOrder,
+  type NodeCardBodyLayout,
+  type NodeCardSectionExpandedMap,
+  type NodeCardSectionId,
+} from '@/core/nodeCardSections'
 import {
   buildEmbedAddChoices,
   embedCatalogPicksForElementMenu,
@@ -93,11 +101,16 @@ function blockViewProps(
   elementKey: ElementViewKey,
   onSetElementViewMode?: (elementKey: ElementViewKey, mode: ElementViewMode) => void,
   onSetElementSelectedIndex?: (elementKey: ElementViewKey, index: number) => void,
+  onSetElementRetracted?: (elementKey: ElementViewKey, retracted: boolean) => void,
 ) {
   const state = getElementViewState(node, elementKey)
   return {
     viewMode: state.mode,
     selectedIndex: state.selectedIndex ?? 0,
+    retracted: Boolean(state.retracted),
+    onExpandFromRetracted: onSetElementRetracted
+      ? () => onSetElementRetracted(elementKey, false)
+      : undefined,
     onViewModeChange: onSetElementViewMode
       ? (mode: ElementViewMode) => onSetElementViewMode(elementKey, mode)
       : undefined,
@@ -130,12 +143,10 @@ type NodeCardProps = {
   activeOutputInternalStructureId?: string
   connections?: readonly CanvasConnection[]
   canAcceptLink?: boolean
-  catalogInternalStructures?: InternalStructureDefinition[]
   catalogParameters?: NodeParameterDefinition[]
   /** `module` — raiz do pack; `base` — subpasta pack_Type (corpo Type.json). */
   nodeKind?: 'module' | 'base'
   node: NodeInstance
-  onAppendCatalogInternalStructure?: (structure: InternalStructureDefinition) => void
   onAppendCatalogParameter?: (parameter: NodeParameterDefinition) => void
   onAppendEmbedCatalogItem?: (embedId: string, structure: InternalStructureDefinition) => void
   onAppendPointerCatalogItem?: (pointerId: string, structure: InternalStructureDefinition) => void
@@ -147,7 +158,6 @@ type NodeCardProps = {
   onRemoveList2PointerInstance?: (list2PointerId: string, instanceId: string) => void
   /** Schema base (registry) — catálogo LIST_EMBED para o picker «+». */
   templateSchema?: NodeSchemaDefinition | null
-  onCreateElement?: (structure: InternalStructureDefinition) => void
   onRequestRemoveElement?: (item: NodeElementListItem) => void
   onInputPortClick?: () => void
   onOutputWireKeyboard?: (structure: InternalStructureDefinition) => void
@@ -174,6 +184,7 @@ type NodeCardProps = {
   /** Remove ligações de saída de um slot virtual map[hash,pointer]. */
   onMapHashStructureSlotRemoved?: (slotId: string) => void
   onSetElementViewMode?: (elementKey: ElementViewKey, mode: ElementViewMode) => void
+  onSetElementRetracted?: (elementKey: ElementViewKey, retracted: boolean) => void
   onSetElementSelectedIndex?: (elementKey: ElementViewKey, index: number) => void
   onCycleConnectionRouting?: (connectionId: string) => void
   onRemoveConnection?: (connectionId: string) => void
@@ -189,6 +200,12 @@ type NodeCardProps = {
   selected?: boolean
   /** Oculta o corpo do card (parâmetros, estruturas, Element). */
   bodyCollapsed?: boolean
+  cardSectionExpanded?: NodeCardSectionExpandedMap
+  cardSectionOrder?: readonly NodeCardSectionId[]
+  cardBodyLayout?: NodeCardBodyLayout
+  onToggleCardSection?: (sectionId: NodeCardSectionId) => void
+  /** Reordena secções do card (índice 1-based entre secções visíveis). */
+  onReorderNodeCardSection?: (sectionId: NodeCardSectionId, oneBasedIndex: number) => void
   displayTitle?: string
   bodyStyle?: CSSProperties
   cardStyle?: CSSProperties
@@ -202,7 +219,7 @@ function getNodeTooltip(node: NodeInstance) {
   const valueSummary = valueTypes.length > 0 ? valueTypes.join(', ') : 'no values'
   const listEmbedCount = node.schema.listEmbed?.length ?? 0
 
-  return `${node.schema.title}: ${node.schema.parameters.length} parameters, ${String(listEmbedCount)} LIST_EMBED, ${node.schema.internalStructures.length} Internal_Structures, ${valueSummary}`
+  return `${node.schema.title}: ${node.schema.parameters.length} parameters, ${String(listEmbedCount)} LIST_EMBED, ${valueSummary}`
 }
 
 export function NodeCard({
@@ -210,11 +227,9 @@ export function NodeCard({
   canvasNodeId,
   connections = [],
   canAcceptLink = false,
-  catalogInternalStructures,
   catalogParameters,
   nodeKind = 'module',
   node,
-  onAppendCatalogInternalStructure,
   onAppendCatalogParameter,
   onAppendEmbedCatalogItem,
   onAppendPointerCatalogItem,
@@ -225,7 +240,6 @@ export function NodeCard({
   onRemoveList2EmbedInstance,
   onRemoveList2PointerInstance,
   templateSchema = null,
-  onCreateElement,
   onRequestRemoveElement,
   onInputPortClick,
   onOutputWireKeyboard,
@@ -238,6 +252,7 @@ export function NodeCard({
   onUpdateParameter,
   onMapHashStructureSlotRemoved,
   onSetElementViewMode,
+  onSetElementRetracted,
   onSetElementSelectedIndex,
   onCycleConnectionRouting,
   onRemoveConnection,
@@ -250,6 +265,11 @@ export function NodeCard({
   parameterStubCatalog,
   selected = false,
   bodyCollapsed = false,
+  cardSectionExpanded,
+  cardSectionOrder,
+  cardBodyLayout = 'bySectionType',
+  onToggleCardSection,
+  onReorderNodeCardSection,
   displayTitle,
   bodyStyle,
   cardStyle,
@@ -361,11 +381,6 @@ export function NodeCard({
     return node.values.find((value) => value.parameterId === parameterId)?.value ?? fallback
   }
 
-  const presetStructureCount = node.schema.internalStructures.length
-  const isModule = nodeKind === 'module'
-  const hasCatalogStructures = Boolean(
-    catalogInternalStructures?.length && onAppendCatalogInternalStructure,
-  )
   const hasCatalogParameters = Boolean(catalogParameters?.length && onAppendCatalogParameter)
   const embedAddChoices = useMemo(() => buildEmbedAddChoices(node, templateSchema), [node, templateSchema])
   const embedAddPickerBlocks = useMemo(() => {
@@ -647,17 +662,157 @@ export function NodeCard({
   const wirelessOutputLinks = wirelessDisplay?.outputs
 
   const showElementPicker =
-    presetStructureCount > 0 ||
-    hasCatalogStructures ||
     hasCatalogParameters ||
     hasEmbedElementMenu ||
     hasPointerElementMenu ||
     hasListEmbedElementMenu ||
     hasListPointerElementMenu ||
-    removables.length > 0 ||
-    isModule
+    removables.length > 0
 
   const headerTitle = displayTitle ?? node.schema.title
+
+  const isSectionExpanded = useCallback(
+    (sectionId: NodeCardSectionId) => resolveNodeCardSectionExpanded(cardSectionExpanded, sectionId),
+    [cardSectionExpanded],
+  )
+
+  const visibleSectionOrder = useMemo(
+    () => resolveNodeCardSectionOrder(cardSectionOrder, node),
+    [cardSectionOrder, node.schema.list2Embed?.length, node.schema.list2Pointer?.length],
+  )
+
+  const sectionOrderIndex = useMemo(
+    () => new Map(visibleSectionOrder.map((id, index) => [id, index] as const)),
+    [visibleSectionOrder],
+  )
+
+  const sectionRefs = useRef(new Map<NodeCardSectionId, HTMLElement>())
+  const registerSectionRef = useCallback((sectionId: NodeCardSectionId, element: HTMLElement | null) => {
+    if (element) {
+      sectionRefs.current.set(sectionId, element)
+    } else {
+      sectionRefs.current.delete(sectionId)
+    }
+  }, [])
+
+  const onReorderSectionRef = useRef(onReorderNodeCardSection)
+  onReorderSectionRef.current = onReorderNodeCardSection
+
+  const visibleSectionOrderRef = useRef(visibleSectionOrder)
+  visibleSectionOrderRef.current = visibleSectionOrder
+
+  const dragSectionIdRef = useRef<NodeCardSectionId | null>(null)
+  const [dragSectionId, setDragSectionId] = useState<NodeCardSectionId | null>(null)
+
+  const canReorderSections = Boolean(onReorderNodeCardSection) && visibleSectionOrder.length > 1
+
+  const handleSectionReorderPointerMove = useCallback(
+    (event: ReactPointerEvent<HTMLButtonElement>) => {
+      const reorder = onReorderSectionRef.current
+      const draggedId = dragSectionIdRef.current
+      if (!reorder || !draggedId) {
+        return
+      }
+
+      const order = visibleSectionOrderRef.current
+      const fromIndex = order.indexOf(draggedId)
+      if (fromIndex < 0) {
+        return
+      }
+
+      let targetIndex = order.length - 1
+      for (let i = 0; i < order.length; i++) {
+        const sectionElement = sectionRefs.current.get(order[i]!)
+        if (!sectionElement) {
+          continue
+        }
+        const rect = sectionElement.getBoundingClientRect()
+        const midY = rect.top + rect.height / 2
+        if (event.clientY < midY) {
+          targetIndex = i
+          break
+        }
+      }
+
+      if (targetIndex !== fromIndex) {
+        reorder(draggedId, targetIndex + 1)
+      }
+    },
+    [],
+  )
+
+  const endSectionReorderDrag = useCallback((event: ReactPointerEvent<HTMLButtonElement>) => {
+    try {
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.releasePointerCapture(event.pointerId)
+      }
+    } catch {
+      /** ignore */
+    }
+    dragSectionIdRef.current = null
+    setDragSectionId(null)
+  }, [])
+
+  const beginSectionReorderDrag = useCallback(
+    (sectionId: NodeCardSectionId, event: ReactPointerEvent<HTMLButtonElement>) => {
+      if (!onReorderNodeCardSection || visibleSectionOrder.length < 2) {
+        return
+      }
+      if (event.button !== 0) {
+        return
+      }
+      event.stopPropagation()
+      event.preventDefault()
+      dragSectionIdRef.current = sectionId
+      setDragSectionId(sectionId)
+      event.currentTarget.setPointerCapture(event.pointerId)
+    },
+    [onReorderNodeCardSection, visibleSectionOrder.length],
+  )
+
+  const sectionDomSuffix: Record<NodeCardSectionId, string> = {
+    parameters: 'parameters',
+    embed: 'embed',
+    pointer: 'pointer',
+    listEmbed: 'list-embed',
+    listPointer: 'list-pointer',
+    list2Embed: 'list2-embed',
+    list2Pointer: 'list2-pointer',
+  }
+
+  const sectionCollapsibleProps = useCallback(
+    (sectionKey: NodeCardSectionId) => ({
+      expanded: isSectionExpanded(sectionKey),
+      onToggle: () => onToggleCardSection?.(sectionKey),
+      sectionId: `${sectionId}-${sectionDomSuffix[sectionKey]}`,
+      title: NODE_CARD_SECTION_LABELS[sectionKey],
+      style: { order: sectionOrderIndex.get(sectionKey) ?? 0 } as CSSProperties,
+      reorderable: canReorderSections,
+      isReorderDragSource: dragSectionId === sectionKey,
+      reorderHandlers: canReorderSections
+        ? {
+            onPointerDown: (event: ReactPointerEvent<HTMLButtonElement>) =>
+              beginSectionReorderDrag(sectionKey, event),
+            onPointerMove: handleSectionReorderPointerMove,
+            onPointerUp: endSectionReorderDrag,
+            onLostPointerCapture: endSectionReorderDrag,
+          }
+        : undefined,
+      ref: (element: HTMLElement | null) => registerSectionRef(sectionKey, element),
+    }),
+    [
+      beginSectionReorderDrag,
+      canReorderSections,
+      dragSectionId,
+      endSectionReorderDrag,
+      handleSectionReorderPointerMove,
+      isSectionExpanded,
+      onToggleCardSection,
+      registerSectionRef,
+      sectionId,
+      sectionOrderIndex,
+    ],
+  )
 
   const handleLockedBodyPointerDown = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -676,30 +831,33 @@ export function NodeCard({
     [locked, onLockedInteraction],
   )
 
-  return (
-    <article className={styles.card} aria-label={`${headerTitle} node`} style={cardStyle}>
-      <NodeHeader
-        canvasNodeId={canvasNodeId}
-        canAcceptLink={canAcceptLink}
-        infoTooltip={getNodeTooltip(node)}
-        inputPortStyle={inputPortStyle}
-        locked={locked}
-        onInputPortClick={onInputPortClick}
-        onSelect={onSelect}
-        onStartDrag={onStartDrag}
-        selected={selected}
-        title={headerTitle}
-        wirelessLink={wirelessInputLink}
-      />
-      <div
-        className={[styles.body, bodyCollapsed ? styles.bodyCollapsed : ''].filter(Boolean).join(' ')}
-        onPointerDownCapture={handleLockedBodyPointerDown}
-        style={bodyStyle}
-      >
-        <section className={styles.section} aria-labelledby={`${sectionId}-parameters`}>
-          <h3 className={styles.sectionTitle} id={`${sectionId}-parameters`}>
-            Parameters
-          </h3>
+  const isCardFreeform = cardBodyLayout === 'freeform'
+
+  const sectionHasContent = (sectionId: NodeCardSectionId): boolean => {
+    switch (sectionId) {
+      case 'parameters':
+        return node.schema.parameters.length > 0
+      case 'embed':
+        return (node.schema.embed?.length ?? 0) > 0
+      case 'pointer':
+        return (node.schema.pointer?.length ?? 0) > 0
+      case 'listEmbed':
+        return (node.schema.listEmbed?.length ?? 0) > 0
+      case 'listPointer':
+        return (node.schema.listPointer?.length ?? 0) > 0
+      case 'list2Embed':
+        return (node.schema.list2Embed?.length ?? 0) > 0
+      case 'list2Pointer':
+        return (node.schema.list2Pointer?.length ?? 0) > 0
+      default:
+        return false
+    }
+  }
+
+  const renderSectionPanel = (sectionId: NodeCardSectionId) => {
+    switch (sectionId) {
+      case 'parameters':
+        return (
           <ul className={styles.list}>
             {node.schema.parameters.map((parameter) => {
               const nameReorderHandlers =
@@ -713,16 +871,8 @@ export function NodeCard({
                     }
                   : undefined
 
-              const isMapStructure =
-                parameter.type === 'mapHashPointer' ||
-                parameter.type === 'mapHashEmbed' ||
-                parameter.type === 'mapU64Pointer'
-              const paramViewKey = isMapStructure
-                ? elementViewKeyForParameter(parameter.id)
-                : undefined
-              const paramViewState = paramViewKey
-                ? getElementViewState(node, paramViewKey)
-                : undefined
+              const paramViewKey = elementViewKeyForParameter(parameter.id)
+              const paramViewState = getElementViewState(node, paramViewKey)
 
               return (
                 <ParameterItem
@@ -732,15 +882,21 @@ export function NodeCard({
                   isParameterReorderDragSource={dragParameterId === parameter.id}
                   key={parameter.id}
                   elementViewKey={paramViewKey}
-                  viewMode={paramViewState?.mode}
-                  selectedIndex={paramViewState?.selectedIndex ?? 0}
+                  viewMode={paramViewState.mode}
+                  selectedIndex={paramViewState.selectedIndex ?? 0}
+                  retracted={Boolean(paramViewState.retracted)}
+                  onExpandFromRetracted={
+                    onSetElementRetracted
+                      ? () => onSetElementRetracted(paramViewKey, false)
+                      : undefined
+                  }
                   onElementViewModeChange={
-                    paramViewKey && onSetElementViewMode
+                    onSetElementViewMode
                       ? (mode) => onSetElementViewMode(paramViewKey, mode)
                       : undefined
                   }
                   onElementSelectedIndexChange={
-                    paramViewKey && onSetElementSelectedIndex
+                    onSetElementSelectedIndex
                       ? (index) => onSetElementSelectedIndex(paramViewKey, index)
                       : undefined
                   }
@@ -775,12 +931,9 @@ export function NodeCard({
               )
             })}
           </ul>
-        </section>
-
-        <section className={styles.section} aria-labelledby={`${sectionId}-embed`}>
-          <h3 className={styles.sectionTitle} id={`${sectionId}-embed`}>
-            EMBED
-          </h3>
+        )
+      case 'embed':
+        return (
           <ul className={styles.list}>
             {(node.schema.embed ?? []).map((embed) => (
               <EmbedItem
@@ -789,6 +942,7 @@ export function NodeCard({
                   elementViewKeyForEmbed(embed.id),
                   onSetElementViewMode,
                   onSetElementSelectedIndex,
+                  onSetElementRetracted,
                 )}
                 activeSlotId={activeOutputInternalStructureId}
                 canAdd={canAddToEmbedBlock(embed.id)}
@@ -813,12 +967,9 @@ export function NodeCard({
               />
             ))}
           </ul>
-        </section>
-
-        <section className={styles.section} aria-labelledby={`${sectionId}-pointer`}>
-          <h3 className={styles.sectionTitle} id={`${sectionId}-pointer`}>
-            POINTER
-          </h3>
+        )
+      case 'pointer':
+        return (
           <ul className={styles.list}>
             {(node.schema.pointer ?? []).map((pointer) => (
               <PointerItem
@@ -827,6 +978,7 @@ export function NodeCard({
                   elementViewKeyForPointer(pointer.id),
                   onSetElementViewMode,
                   onSetElementSelectedIndex,
+                  onSetElementRetracted,
                 )}
                 activeSlotId={activeOutputInternalStructureId}
                 canAdd={canAddToPointerBlock(pointer.id)}
@@ -851,12 +1003,9 @@ export function NodeCard({
               />
             ))}
           </ul>
-        </section>
-
-        <section className={styles.section} aria-labelledby={`${sectionId}-list-embed`}>
-          <h3 className={styles.sectionTitle} id={`${sectionId}-list-embed`}>
-            LIST_EMBED
-          </h3>
+        )
+      case 'listEmbed':
+        return (
           <ul className={styles.list}>
             {(node.schema.listEmbed ?? []).map((listEmbed) => (
               <ListEmbedItem
@@ -865,6 +1014,7 @@ export function NodeCard({
                   elementViewKeyForListEmbed(listEmbed.id),
                   onSetElementViewMode,
                   onSetElementSelectedIndex,
+                  onSetElementRetracted,
                 )}
                 activeSlotId={activeOutputInternalStructureId}
                 canAdd={canAddToListEmbedBlock(listEmbed.id)}
@@ -889,12 +1039,9 @@ export function NodeCard({
               />
             ))}
           </ul>
-        </section>
-
-        <section className={styles.section} aria-labelledby={`${sectionId}-list-pointer`}>
-          <h3 className={styles.sectionTitle} id={`${sectionId}-list-pointer`}>
-            LIST_POINTER
-          </h3>
+        )
+      case 'listPointer':
+        return (
           <ul className={styles.list}>
             {(node.schema.listPointer ?? []).map((listPointer) => (
               <ListPointerItem
@@ -903,6 +1050,7 @@ export function NodeCard({
                   elementViewKeyForListPointer(listPointer.id),
                   onSetElementViewMode,
                   onSetElementSelectedIndex,
+                  onSetElementRetracted,
                 )}
                 activeSlotId={activeOutputInternalStructureId}
                 canAdd={canAddToListPointerBlock(listPointer.id)}
@@ -927,152 +1075,179 @@ export function NodeCard({
               />
             ))}
           </ul>
-        </section>
-
-        {(node.schema.list2Embed?.length ?? 0) > 0 ? (
-          <section className={styles.section} aria-labelledby={`${sectionId}-list2-embed`}>
-            <h3 className={styles.sectionTitle} id={`${sectionId}-list2-embed`}>
-              LIST2_EMBED
-            </h3>
-            <ul className={styles.list}>
-              {(node.schema.list2Embed ?? []).map((list2Embed) => (
-                <List2EmbedItem
-                  {...blockViewProps(
-                    node,
-                    elementViewKeyForList2Embed(list2Embed.id),
-                    onSetElementViewMode,
-                    onSetElementSelectedIndex,
-                  )}
-                  activeSlotId={activeOutputInternalStructureId}
-                  canAdd={Boolean(onAppendList2EmbedCatalogItem) && list2Embed.internalStructures.length > 0}
-                  canRemove={(list2Embed.instances?.length ?? 0) > 0}
-                  canvasNodeId={canvasNodeId}
-                  key={list2Embed.id}
-                  list2Embed={list2Embed}
-                  onAddClick={() => {
-                    const first = list2Embed.internalStructures[0]
-                    if (first && onAppendList2EmbedCatalogItem) {
-                      onAppendList2EmbedCatalogItem(list2Embed.id, first)
-                    }
-                  }}
-                  onRemoveClick={() => {
-                    const last = list2Embed.instances.at(-1)
-                    if (last && onRemoveList2EmbedInstance) {
-                      onRemoveList2EmbedInstance(list2Embed.id, last.id)
-                    }
-                  }}
-                  onRemoveInstanceClick={(instanceId) =>
-                    onRemoveList2EmbedInstance?.(list2Embed.id, instanceId)
-                  }
-                  onOutputWireKeyboard={onOutputWireKeyboard}
-                  onOutputWirePointerCancel={onOutputWirePointerCancel}
-                  onOutputWirePointerDown={onOutputWirePointerDown}
-                  onOutputWirePointerMove={onOutputWirePointerMove}
-                  onOutputWirePointerUp={onOutputWirePointerUp}
-                  wirelessOutputLinks={wirelessOutputLinks}
-                  wirelessPortHandlers={wirelessPortHandlers}
-                  wirelessPortPulse={wirelessPortPulse}
-                />
-              ))}
-            </ul>
-          </section>
-        ) : null}
-
-        {(node.schema.list2Pointer?.length ?? 0) > 0 ? (
-          <section className={styles.section} aria-labelledby={`${sectionId}-list2-pointer`}>
-            <h3 className={styles.sectionTitle} id={`${sectionId}-list2-pointer`}>
-              LIST2_POINTER
-            </h3>
-            <ul className={styles.list}>
-              {(node.schema.list2Pointer ?? []).map((list2Pointer) => (
-                <List2PointerItem
-                  {...blockViewProps(
-                    node,
-                    elementViewKeyForList2Pointer(list2Pointer.id),
-                    onSetElementViewMode,
-                    onSetElementSelectedIndex,
-                  )}
-                  activeSlotId={activeOutputInternalStructureId}
-                  canAdd={Boolean(onAppendList2PointerCatalogItem) && list2Pointer.internalStructures.length > 0}
-                  canRemove={(list2Pointer.instances?.length ?? 0) > 0}
-                  canvasNodeId={canvasNodeId}
-                  key={list2Pointer.id}
-                  list2Pointer={list2Pointer}
-                  onAddClick={() => {
-                    const first = list2Pointer.internalStructures[0]
-                    if (first && onAppendList2PointerCatalogItem) {
-                      onAppendList2PointerCatalogItem(list2Pointer.id, first)
-                    }
-                  }}
-                  onRemoveClick={() => {
-                    const last = list2Pointer.instances.at(-1)
-                    if (last && onRemoveList2PointerInstance) {
-                      onRemoveList2PointerInstance(list2Pointer.id, last.id)
-                    }
-                  }}
-                  onRemoveInstanceClick={(instanceId) =>
-                    onRemoveList2PointerInstance?.(list2Pointer.id, instanceId)
-                  }
-                  onOutputWireKeyboard={onOutputWireKeyboard}
-                  onOutputWirePointerCancel={onOutputWirePointerCancel}
-                  onOutputWirePointerDown={onOutputWirePointerDown}
-                  onOutputWirePointerMove={onOutputWirePointerMove}
-                  onOutputWirePointerUp={onOutputWirePointerUp}
-                  wirelessOutputLinks={wirelessOutputLinks}
-                  wirelessPortHandlers={wirelessPortHandlers}
-                  wirelessPortPulse={wirelessPortPulse}
-                />
-              ))}
-            </ul>
-          </section>
-        ) : null}
-
-        <section className={styles.section} aria-labelledby={`${sectionId}-internal-structures`}>
-          <h3 className={styles.sectionTitle} id={`${sectionId}-internal-structures`}>
-            Internal_Structures
-          </h3>
+        )
+      case 'list2Embed':
+        if ((node.schema.list2Embed?.length ?? 0) === 0) {
+          return null
+        }
+        return (
           <ul className={styles.list}>
-            {node.schema.internalStructures.map((structure) => (
-              <InternalStructureItem
-                active={structure.id === activeOutputInternalStructureId}
+            {(node.schema.list2Embed ?? []).map((list2Embed) => (
+              <List2EmbedItem
+                {...blockViewProps(
+                  node,
+                  elementViewKeyForList2Embed(list2Embed.id),
+                  onSetElementViewMode,
+                  onSetElementSelectedIndex,
+                  onSetElementRetracted,
+                )}
+                activeSlotId={activeOutputInternalStructureId}
+                canAdd={Boolean(onAppendList2EmbedCatalogItem) && list2Embed.internalStructures.length > 0}
+                canRemove={(list2Embed.instances?.length ?? 0) > 0}
                 canvasNodeId={canvasNodeId}
-                key={structure.id}
-                structure={structure}
+                key={list2Embed.id}
+                list2Embed={list2Embed}
+                onAddClick={() => {
+                  const first = list2Embed.internalStructures[0]
+                  if (first && onAppendList2EmbedCatalogItem) {
+                    onAppendList2EmbedCatalogItem(list2Embed.id, first)
+                  }
+                }}
+                onRemoveClick={() => {
+                  const last = list2Embed.instances.at(-1)
+                  if (last && onRemoveList2EmbedInstance) {
+                    onRemoveList2EmbedInstance(list2Embed.id, last.id)
+                  }
+                }}
+                onRemoveInstanceClick={(instanceId) =>
+                  onRemoveList2EmbedInstance?.(list2Embed.id, instanceId)
+                }
                 onOutputWireKeyboard={onOutputWireKeyboard}
                 onOutputWirePointerCancel={onOutputWirePointerCancel}
                 onOutputWirePointerDown={onOutputWirePointerDown}
                 onOutputWirePointerMove={onOutputWirePointerMove}
                 onOutputWirePointerUp={onOutputWirePointerUp}
-                wirelessLink={toWirelessPortLinkProps(
-                  wirelessOutputLinks?.get(structure.id),
-                  wirelessPortHandlers,
-                  isWirelessPortPulsing(
-                    wirelessPortPulse,
-                    wirelessOutputLinks?.get(structure.id)?.connectionId ?? '',
-                    'output',
-                    structure.id,
-                  ),
-                )}
+                wirelessOutputLinks={wirelessOutputLinks}
+                wirelessPortHandlers={wirelessPortHandlers}
+                wirelessPortPulse={wirelessPortPulse}
               />
             ))}
           </ul>
-        </section>
+        )
+      case 'list2Pointer':
+        if ((node.schema.list2Pointer?.length ?? 0) === 0) {
+          return null
+        }
+        return (
+          <ul className={styles.list}>
+            {(node.schema.list2Pointer ?? []).map((list2Pointer) => (
+              <List2PointerItem
+                {...blockViewProps(
+                  node,
+                  elementViewKeyForList2Pointer(list2Pointer.id),
+                  onSetElementViewMode,
+                  onSetElementSelectedIndex,
+                  onSetElementRetracted,
+                )}
+                activeSlotId={activeOutputInternalStructureId}
+                canAdd={Boolean(onAppendList2PointerCatalogItem) && list2Pointer.internalStructures.length > 0}
+                canRemove={(list2Pointer.instances?.length ?? 0) > 0}
+                canvasNodeId={canvasNodeId}
+                key={list2Pointer.id}
+                list2Pointer={list2Pointer}
+                onAddClick={() => {
+                  const first = list2Pointer.internalStructures[0]
+                  if (first && onAppendList2PointerCatalogItem) {
+                    onAppendList2PointerCatalogItem(list2Pointer.id, first)
+                  }
+                }}
+                onRemoveClick={() => {
+                  const last = list2Pointer.instances.at(-1)
+                  if (last && onRemoveList2PointerInstance) {
+                    onRemoveList2PointerInstance(list2Pointer.id, last.id)
+                  }
+                }}
+                onRemoveInstanceClick={(instanceId) =>
+                  onRemoveList2PointerInstance?.(list2Pointer.id, instanceId)
+                }
+                onOutputWireKeyboard={onOutputWireKeyboard}
+                onOutputWirePointerCancel={onOutputWirePointerCancel}
+                onOutputWirePointerDown={onOutputWirePointerDown}
+                onOutputWirePointerMove={onOutputWirePointerMove}
+                onOutputWirePointerUp={onOutputWirePointerUp}
+                wirelessOutputLinks={wirelessOutputLinks}
+                wirelessPortHandlers={wirelessPortHandlers}
+                wirelessPortPulse={wirelessPortPulse}
+              />
+            ))}
+          </ul>
+        )
+      default:
+        return null
+    }
+  }
 
+  const sectionPanels = isCardFreeform ? (
+    <div className={styles.bodyFreeform}>
+      {visibleSectionOrder.map((sectionId) => {
+        if (!sectionHasContent(sectionId)) {
+          return null
+        }
+        const panel = renderSectionPanel(sectionId)
+        if (!panel) {
+          return null
+        }
+        return (
+          <div className={styles.freeformGroup} key={sectionId}>
+            {panel}
+          </div>
+        )
+      })}
+    </div>
+  ) : (
+    visibleSectionOrder.map((sectionId) => {
+      const panel = renderSectionPanel(sectionId)
+      if (!panel) {
+        return null
+      }
+      return (
+        <NodeCardCollapsibleSection key={sectionId} {...sectionCollapsibleProps(sectionId)}>
+          {panel}
+        </NodeCardCollapsibleSection>
+      )
+    })
+  )
+
+  return (
+    <article className={styles.card} aria-label={`${headerTitle} node`} style={cardStyle}>
+      <NodeHeader
+        canvasNodeId={canvasNodeId}
+        canAcceptLink={canAcceptLink}
+        infoTooltip={getNodeTooltip(node)}
+        inputPortStyle={inputPortStyle}
+        locked={locked}
+        onInputPortClick={onInputPortClick}
+        onSelect={onSelect}
+        onStartDrag={onStartDrag}
+        selected={selected}
+        title={headerTitle}
+        wirelessLink={wirelessInputLink}
+      />
+      <div
+        className={[
+          styles.body,
+          isCardFreeform ? styles.bodyFreeformActive : '',
+          bodyCollapsed ? styles.bodyCollapsed : '',
+        ]
+          .filter(Boolean)
+          .join(' ')}
+        onPointerDownCapture={handleLockedBodyPointerDown}
+        style={bodyStyle}
+      >
+        {sectionPanels}
+
+        <div className={styles.bodyFooter}>
         <ElementMenu
-          catalogInternalStructures={catalogInternalStructures}
           catalogParameters={catalogParameters}
           disabled={false}
           hasCatalogParameters={Boolean(hasCatalogParameters)}
-          hasCatalogStructures={Boolean(hasCatalogStructures)}
           node={node}
           nodeKind={nodeKind}
-          onAppendCatalogInternalStructure={onAppendCatalogInternalStructure}
           onAppendCatalogParameter={onAppendCatalogParameter}
           onAppendEmbedCatalogItem={onAppendEmbedCatalogItem}
           onAppendPointerCatalogItem={onAppendPointerCatalogItem}
           onAppendListEmbedCatalogItem={onAppendListEmbedCatalogItem}
           onAppendListPointerCatalogItem={onAppendListPointerCatalogItem}
-          onCreateElement={onCreateElement}
           onRemoveElement={
             onRequestRemoveElement && removables.length > 0
               ? () => setRemovalPickerOpen(true)
@@ -1081,6 +1256,7 @@ export function NodeCard({
           parameterStubCatalog={parameterStubCatalog}
           showPicker={showElementPicker}
         />
+        </div>
 
         {removalPickerOpen ? (
           <ElementRemovalPicker
