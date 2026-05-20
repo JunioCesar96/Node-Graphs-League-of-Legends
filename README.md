@@ -9,7 +9,7 @@ Arquivo salvo em: `feature_md/feature/feature-retrair-elemento-card.md`
 | Nome da Branch | `feature/retrair-elemento-card` |
 | Nome das Features | **Retrair / expandir elemento no card** (barra compacta por elemento; menu de contexto; persistência em `elementView`) |
 | Versão atual | `1.4.0` |
-| Hash do Commit | _(preenchido após commit)_ |
+| Hash do Commit | `4db7e01` |
 
 ## 2. Definição e Resumo de Tags
 
