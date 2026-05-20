@@ -9,7 +9,7 @@ Arquivo salvo em: `feature_md/feature/feature-compact-structure-view.md`
 | Nome da Branch | `feature/compact-structure-view` |
 | Nome das Features | Modo compacto lista/compacto por bloco estrutural; paginação e picker de índice; wireless automático com restauração; isolamento de atalhos do canvas no picker |
 | Versão atual | `1.4.0` |
-| Hash do Commit | _ver commit desta branch_ |
+| Hash do Commit | `c0e80d5` |
 
 ## 2. Definição e Resumo de Tags
 
