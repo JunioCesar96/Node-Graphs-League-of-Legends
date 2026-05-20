@@ -9,7 +9,7 @@ Arquivo salvo em: `feature_md/feature/feature-nodes-em-cena.md`
 | Nome da Branch | `feature/nodes-em-cena` |
 | Nome das Features | **Nodes em cena** (overlay por nó, painel flutuante/acoplável, regras de trava/oculto/seleção/apagar) |
 | Versão atual | `1.4.0` |
-| Hash do Commit | `c2e97de` |
+| Hash do Commit | `6da5fc6` |
 
 ## 2. Definição e Resumo de Tags
 
