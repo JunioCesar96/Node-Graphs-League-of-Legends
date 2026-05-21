@@ -301,11 +301,13 @@ export function vitePluginNodeStructuresWrite(projectRoot: string): Plugin {
         if (pathname === '/api/node-structures-folders' && req.method === 'GET') {
           void (async () => {
             try {
+              const includeDefault =
+                new URL(req.url ?? '', 'http://localhost').searchParams.get('includeDefault') === '1'
               const entries = await fs.readdir(nodeStructuresRoot, { withFileTypes: true })
               const folders = entries
                 .filter((e) => e.isDirectory())
                 .map((e) => e.name)
-                .filter((name) => !RESERVED_NODE_STRUCTURE_FOLDERS.has(name))
+                .filter((name) => includeDefault || !RESERVED_NODE_STRUCTURE_FOLDERS.has(name))
                 .sort()
 
               res.statusCode = 200
@@ -414,10 +416,10 @@ export function vitePluginNodeStructuresWrite(projectRoot: string): Plugin {
 
                 const folder = safePackFolder(String(parsed.folder ?? ''))
 
-                if (!folder || RESERVED_NODE_STRUCTURE_FOLDERS.has(folder)) {
+                if (!folder) {
                   res.statusCode = 400
                   res.setHeader('Content-Type', 'application/json; charset=utf-8')
-                  res.end(JSON.stringify({ ok: false, error: 'Pasta inválida ou reservada' }))
+                  res.end(JSON.stringify({ ok: false, error: 'Pasta inválida' }))
                   return
                 }
 
@@ -1571,13 +1573,6 @@ export function vitePluginNodeStructuresWrite(projectRoot: string): Plugin {
                 res.statusCode = 400
                 res.setHeader('Content-Type', 'application/json; charset=utf-8')
                 res.end(JSON.stringify({ ok: false, error: 'folder ou schemas em falta' }))
-                return
-              }
-
-              if (RESERVED_NODE_STRUCTURE_FOLDERS.has(folder)) {
-                res.statusCode = 400
-                res.setHeader('Content-Type', 'application/json; charset=utf-8')
-                res.end(JSON.stringify({ ok: false, error: 'Nome de pasta reservado' }))
                 return
               }
 

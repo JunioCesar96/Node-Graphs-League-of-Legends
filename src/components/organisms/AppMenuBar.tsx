@@ -21,6 +21,7 @@ export type AppMenuBarProps = {
   onSaveWorkScene: () => void
   onToggleAutoSave: () => void
   onToggleNodeConfigurationMode: () => void
+  onEditClassGroupPackFolder?: () => void
   onToggleCodeDock: () => void
   recentScenes: RecentSceneListItem[]
 }
@@ -37,6 +38,7 @@ export function AppMenuBar({
   onSaveWorkScene,
   onToggleAutoSave,
   onToggleNodeConfigurationMode,
+  onEditClassGroupPackFolder,
   onToggleCodeDock,
   recentScenes,
 }: AppMenuBarProps) {
@@ -288,6 +290,15 @@ export function AppMenuBar({
               />
               <span>Configurar</span>
             </button>
+            {nodeConfigurationMode && onEditClassGroupPackFolder ? (
+              <button
+                className={styles.menuItem}
+                onClick={onEditClassGroupPackFolder}
+                type="button"
+              >
+                Pasta Converter Class Group…
+              </button>
+            ) : null}
           </div>
         </div>
       </nav>

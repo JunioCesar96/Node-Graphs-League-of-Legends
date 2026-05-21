@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { staticCanvasScene } from '@/core/canvasScene'
+import { demoCanvasScene } from '@/core/demoCanvasScene'
 import { DEFAULT_CANVAS_TOOLBAR_VISIBILITY } from '@/core/canvasToolbarVisibility'
 import { elementViewKeyForParameter, patchElementRetracted } from '@/core/elementViewState'
 import {
@@ -13,20 +13,20 @@ import {
 
 describe('workspacePersistence', () => {
   it('faz round-trip split → merge sobre a demo estática', () => {
-    const bundle = splitSceneToWorkspace(staticCanvasScene)
+    const bundle = splitSceneToWorkspace(demoCanvasScene)
     const restored = mergeWorkspaceToScene(bundle)
 
     expect(restored).not.toBeNull()
-    expect(restored?.nodes.length).toBe(staticCanvasScene.nodes.length)
-    expect(restored?.connections.length).toBe(staticCanvasScene.connections.length)
-    expect(restored?.nodes[0]?.node.schema.id).toBe(staticCanvasScene.nodes[0]?.node.schema.id)
-    expect(restored?.nodes[0]?.position).toEqual(staticCanvasScene.nodes[0]?.position)
+    expect(restored?.nodes.length).toBe(demoCanvasScene.nodes.length)
+    expect(restored?.connections.length).toBe(demoCanvasScene.connections.length)
+    expect(restored?.nodes[0]?.node.schema.id).toBe(demoCanvasScene.nodes[0]?.node.schema.id)
+    expect(restored?.nodes[0]?.position).toEqual(demoCanvasScene.nodes[0]?.position)
   })
 
   it('persiste overlay de apresentação dos nós no layout', () => {
     const withOverlay = {
-      ...staticCanvasScene,
-      nodes: staticCanvasScene.nodes.map((node, index) =>
+      ...demoCanvasScene,
+      nodes: demoCanvasScene.nodes.map((node, index) =>
         index === 0
           ? {
               ...node,
@@ -58,8 +58,8 @@ describe('workspacePersistence', () => {
 
   it('persiste cardBodyLayout freeform no layout', () => {
     const withFreeform = {
-      ...staticCanvasScene,
-      nodes: staticCanvasScene.nodes.map((node, index) =>
+      ...demoCanvasScene,
+      nodes: demoCanvasScene.nodes.map((node, index) =>
         index === 0 ? { ...node, cardBodyLayout: 'freeform' as const } : node,
       ),
     }
@@ -73,7 +73,7 @@ describe('workspacePersistence', () => {
   })
 
   it('persiste elementView.retracted no logic', () => {
-    const canvasNode = staticCanvasScene.nodes[0]!
+    const canvasNode = demoCanvasScene.nodes[0]!
     const param = canvasNode.node.schema.parameters[0]
     if (!param) {
       return
@@ -81,8 +81,8 @@ describe('workspacePersistence', () => {
 
     const key = elementViewKeyForParameter(param.id)
     const withRetracted = {
-      ...staticCanvasScene,
-      nodes: staticCanvasScene.nodes.map((n) =>
+      ...demoCanvasScene,
+      nodes: demoCanvasScene.nodes.map((n) =>
         n.id === canvasNode.id
           ? { ...n, node: patchElementRetracted(n.node, key, true) }
           : n,
@@ -100,8 +100,8 @@ describe('workspacePersistence', () => {
 
   it('persiste bodyCollapsed no layout', () => {
     const withCollapsed = {
-      ...staticCanvasScene,
-      nodes: staticCanvasScene.nodes.map((node, index) =>
+      ...demoCanvasScene,
+      nodes: demoCanvasScene.nodes.map((node, index) =>
         index === 0 ? { ...node, bodyCollapsed: true } : node,
       ),
     }
@@ -115,8 +115,8 @@ describe('workspacePersistence', () => {
 
   it('persiste bodyColorEnabled false no layout', () => {
     const withColorOff = {
-      ...staticCanvasScene,
-      nodes: staticCanvasScene.nodes.map((node, index) =>
+      ...demoCanvasScene,
+      nodes: demoCanvasScene.nodes.map((node, index) =>
         index === 0
           ? { ...node, bodyColor: 'rgba(0,0,0,0.5)', bodyColorEnabled: false }
           : node,
@@ -131,8 +131,8 @@ describe('workspacePersistence', () => {
   })
 
   it('merge sem cardBodyLayout assume freeform', () => {
-    const nodeId = staticCanvasScene.nodes[0]!.id
-    const bundle = splitSceneToWorkspace(staticCanvasScene)
+    const nodeId = demoCanvasScene.nodes[0]!.id
+    const bundle = splitSceneToWorkspace(demoCanvasScene)
     const entry = bundle.layout.nodes[nodeId]
     if (!entry) {
       throw new Error('layout entry em falta')
@@ -147,14 +147,14 @@ describe('workspacePersistence', () => {
   })
 
   it('persiste connection.routing e compactRoutingBackups no graph', () => {
-    const connection = staticCanvasScene.connections[0]
+    const connection = demoCanvasScene.connections[0]
     if (!connection) {
       return
     }
 
     const withRouting = {
-      ...staticCanvasScene,
-      connections: staticCanvasScene.connections.map((c) =>
+      ...demoCanvasScene,
+      connections: demoCanvasScene.connections.map((c) =>
         c.id === connection.id ? { ...c, routing: 'wireless' as const } : c,
       ),
       compactRoutingBackups: { [connection.id]: 'flex' },
@@ -172,7 +172,7 @@ describe('workspacePersistence', () => {
 
   it('persiste sceneChrome no layout', () => {
     const withChrome = {
-      ...staticCanvasScene,
+      ...demoCanvasScene,
       sceneChrome: {
         sceneNodes: { minimized: false, sortMode: 'position' as const },
         toolbarVisibility: {
@@ -194,7 +194,7 @@ describe('workspacePersistence', () => {
 
   it('persiste câmera da cena no layout', () => {
     const withCamera = {
-      ...staticCanvasScene,
+      ...demoCanvasScene,
       camera: { pan: { x: 120, y: -48 }, scale: 1.25 },
     }
     const bundle = splitSceneToWorkspace(withCamera)
@@ -205,7 +205,7 @@ describe('workspacePersistence', () => {
   })
 
   it('valida bundle com versão e estrutura corretas', () => {
-    const bundle = splitSceneToWorkspace(staticCanvasScene)
+    const bundle = splitSceneToWorkspace(demoCanvasScene)
     expect(isWorkspaceBundleValid(bundle)).toBe(true)
     expect(isWorkspaceBundleEmpty(bundle)).toBe(false)
   })

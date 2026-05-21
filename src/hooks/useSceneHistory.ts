@@ -39,7 +39,11 @@ import {
   type NodeCardSectionId,
 } from '@/core/nodeCardSections'
 import { isNodeSelectableOnCanvas } from '@/core/canvasNodePresentation'
-import { hydrateScene, schemaJsonRelativePathBySchemaId, staticCanvasScene } from '@/core/canvasScene'
+import {
+  emptyCanvasScene,
+  hydrateScene,
+  schemaJsonRelativePathBySchemaId,
+} from '@/core/canvasScene'
 import { loadStoredScene, SCENE_STORAGE_KEY } from '@/core/sceneStorage'
 import type { SceneTabSnapshot } from '@/core/sceneTabsStorage'
 import { workspaceService } from '@/services/workspaceService'
@@ -110,8 +114,6 @@ import type {
 } from '@/core/nodeSchema'
 import { addHashStringInNode, syncHashStringMirrorFromValues } from '@/core/hashString'
 import { STORAGE_LAST_STRUCTURE_META } from '@/core/workspaceStorage'
-
-export const ROOT_NODE_ID = 'particle-root-01'
 
 export { isCanvasScene, loadStoredScene, SCENE_STORAGE_KEY } from '@/core/sceneStorage'
 
@@ -197,10 +199,10 @@ export function getNextDetachedNodePosition(scene: CanvasScene) {
   }
 }
 
-/** Cena inicial: storage válido ou demo estática; grafo persistido sem nós volta à demo para não bloquear a UI. */
+/** Cena inicial legacy (`node-graphs-lol:scene`): storage válido ou grade vazia. */
 function getInitialPresent(): CanvasScene {
   const loaded = loadStoredScene()
-  return loaded.nodes.length === 0 ? staticCanvasScene : loaded
+  return loaded.nodes.length === 0 ? emptyCanvasScene : loaded
 }
 
 function selectionFromSnapshot(snapshot: SceneTabSnapshot): { ids: string[]; primaryId: string } {
@@ -214,8 +216,7 @@ function selectionFromSnapshot(snapshot: SceneTabSnapshot): { ids: string[]; pri
   }
 
   if (!validIds.has(primaryId) || !ids.includes(primaryId)) {
-    primaryId =
-      ids[0] ?? present.nodes.find((node) => node.id === ROOT_NODE_ID)?.id ?? present.nodes[0]?.id ?? ROOT_NODE_ID
+    primaryId = ids[0] ?? present.nodes[0]?.id ?? ''
 
     return { ids: primaryId ? [primaryId] : [], primaryId }
   }
@@ -251,7 +252,7 @@ export function useSceneHistory(options?: {
     return {
       future: [] as CanvasScene[],
       past: [] as CanvasScene[],
-      present: getInitialPresent(),
+      present: syncSceneCollapsedBodyWireless(hydrateScene(emptyCanvasScene)),
     }
   })
 
@@ -262,16 +263,7 @@ export function useSceneHistory(options?: {
       return selectionFromSnapshot(initialTabSnapshot)
     }
 
-    const present = getInitialPresent()
-    const fallback =
-      present.nodes.find((node) => node.id === ROOT_NODE_ID)?.id ??
-      present.nodes[0]?.id ??
-      ROOT_NODE_ID
-
-    return {
-      ids: fallback ? [fallback] : ([] as string[]),
-      primaryId: fallback || ROOT_NODE_ID,
-    }
+    return { ids: [] as string[], primaryId: '' }
   })
 
   useEffect(() => {
@@ -339,10 +331,7 @@ export function useSceneHistory(options?: {
         present: diskScene,
       })
 
-      const fallbackId =
-        diskScene.nodes.find((node) => node.id === ROOT_NODE_ID)?.id ??
-        diskScene.nodes[0]?.id ??
-        ROOT_NODE_ID
+      const fallbackId = diskScene.nodes[0]?.id ?? ''
 
       setSelectionState({
         ids: fallbackId ? [fallbackId] : [],
@@ -456,8 +445,7 @@ export function useSceneHistory(options?: {
 
   const replaceScene = useCallback((nextScene: CanvasScene, storageMeta?: Record<string, string>) => {
     const hydrated = syncSceneCollapsedBodyWireless(hydrateScene(nextScene))
-    const fallbackId =
-      hydrated.nodes.find((node) => node.id === ROOT_NODE_ID)?.id ?? hydrated.nodes[0]?.id ?? ROOT_NODE_ID
+    const fallbackId = hydrated.nodes[0]?.id ?? ''
 
     setSceneHistory({
       future: [],
@@ -501,7 +489,7 @@ export function useSceneHistory(options?: {
       nextIds = []
       primaryId = ''
     } else if (!validIds.has(primaryId) || !nextIds.includes(primaryId)) {
-      primaryId = nextIds[0] ?? hydrated.nodes.find((n) => n.id === ROOT_NODE_ID)?.id ?? hydrated.nodes[0]?.id ?? ''
+      primaryId = nextIds[0] ?? hydrated.nodes[0]?.id ?? ''
       if (primaryId && !nextIds.includes(primaryId)) {
         nextIds = [primaryId]
       }
@@ -601,7 +589,7 @@ export function useSceneHistory(options?: {
         }
 
         const primaryKeeps =
-          prev.primaryId && bag.has(prev.primaryId) ? prev.primaryId : (nextArr[0] ?? ROOT_NODE_ID)
+          prev.primaryId && bag.has(prev.primaryId) ? prev.primaryId : (nextArr[0] ?? '')
 
         return {
           ids: nextArr,
@@ -619,7 +607,7 @@ export function useSceneHistory(options?: {
       return
     }
 
-    const pivot = ids.includes(ROOT_NODE_ID) ? ROOT_NODE_ID : ids[0]
+    const pivot = ids[0]!
 
     setSelectionState({ ids, primaryId: pivot })
   }, [scene.nodes])
@@ -1142,10 +1130,6 @@ export function useSceneHistory(options?: {
     (identifiers: string[]) => {
       const idSet = new Set(
         identifiers.filter((id) => {
-          if (id === ROOT_NODE_ID) {
-            return false
-          }
-
           const entry = sceneHistory.present.nodes.find((node) => node.id === id)
 
           return entry !== undefined && entry.locked !== true
@@ -2380,10 +2364,7 @@ export function useSceneHistory(options?: {
           )
 
           if (restored.length === 0) {
-            const fallback =
-              previousScene.nodes.find((node) => node.id === ROOT_NODE_ID)?.id ??
-              previousScene.nodes[0]?.id ??
-              ''
+            const fallback = previousScene.nodes[0]?.id ?? ''
 
             return fallback
               ? { ids: [fallback], primaryId: fallback }
@@ -2423,10 +2404,7 @@ export function useSceneHistory(options?: {
           )
 
           if (restored.length === 0) {
-            const fallback =
-              nextScene.nodes.find((node) => node.id === ROOT_NODE_ID)?.id ??
-              nextScene.nodes[0]?.id ??
-              ''
+            const fallback = nextScene.nodes[0]?.id ?? ''
 
             return fallback
               ? { ids: [fallback], primaryId: fallback }
@@ -2453,16 +2431,14 @@ export function useSceneHistory(options?: {
 
   const resetScene = useCallback(() => {
     window.localStorage.removeItem(SCENE_STORAGE_KEY)
-    const emptySelection = [ROOT_NODE_ID]
-
     setSceneHistory({
       future: [],
       past: [],
-      present: staticCanvasScene,
+      present: emptyCanvasScene,
     })
-    setSelectionState({ ids: emptySelection, primaryId: ROOT_NODE_ID })
+    setSelectionState({ ids: [], primaryId: '' })
     if (jsonFileAutoSave && onAutoSaveScene) {
-      onAutoSaveScene(staticCanvasScene)
+      onAutoSaveScene(emptyCanvasScene)
     }
   }, [jsonFileAutoSave, onAutoSaveScene])
 

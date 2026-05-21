@@ -4,6 +4,9 @@ import type { CSSProperties, PointerEvent } from 'react'
 
 import { ConsoleNotificationCapsule } from '@/components/molecules/ConsoleNotificationCapsule'
 import { SceneTabBar } from '@/components/molecules/SceneTabBar'
+import type { TabContextMenuAction } from '@/components/molecules/TabContextMenu'
+import { NewCodeFileDialog } from '@/components/molecules/NewCodeFileDialog'
+import { TextInputDialog } from '@/components/molecules/TextInputDialog'
 import { AppMenuBar } from '@/components/organisms/AppMenuBar'
 import {
   CodeDock,
@@ -94,10 +97,23 @@ import {
   getSceneAutoSaveEnabled,
   setSceneAutoSaveEnabled,
 } from '@/core/sceneAutoSavePreference'
+import {
+  getClassGroupConverterPackFolder,
+  parseClassGroupPackFolderName,
+  setClassGroupConverterPackFolder,
+} from '@/core/nodeConfigurationPreference'
 import { STORAGE_LAST_STRUCTURE_META, triggerJsonDownload } from '@/core/workspaceStorage'
-import { saveSceneJsonManual } from '@/core/sceneJsonFileSave'
+import {
+  CODE_DOCK_FILE_INPUT_ACCEPT,
+  defaultContentForNewFile,
+  getFileExtension,
+  needsBinConversionOnOpen,
+  needsBinConversionOnSave,
+  normalizeCodeDockFileName,
+} from '@/core/codeDockFileTypes'
 import { stripExtension } from '@/core/sceneTabsStorage'
-import { ROOT_NODE_ID, isCanvasScene } from '@/hooks/useSceneHistory'
+import { isCanvasScene } from '@/hooks/useSceneHistory'
+import { useCodeDockTabs } from '@/hooks/useCodeDockTabs'
 import { useSceneTabs } from '@/hooks/useSceneTabs'
 
 import styles from './App.module.css'
@@ -107,6 +123,13 @@ const BOOT_CONSOLE_TEST_MESSAGE = 'Teste, console de notificação funcionado.'
 const BOOT_CONSOLE_TEST_SECONDS = 3
 
 const SAVE_STATUS_NOTICE_SECONDS = 10
+
+const SCENE_WORKSPACE_EMPTY_HINT =
+  'Abra um ficheiro JSON de cena de trabalho ou crie uma cena nova.'
+
+type TabRenameTarget =
+  | { kind: 'scene'; tabId: string; initial: string }
+  | { kind: 'code'; tabId: string; initial: string }
 
 const HASH_STRING_EMPTY_NOTICE =
   'Você precisa adicionar um parâmetro do tipo string name em seu node, adicione para definir a hashString'
@@ -249,6 +272,10 @@ function App() {
     recentScenes,
     activateTab,
     closeTab,
+    createWorkScene,
+    hasOpenSceneTabs,
+    renameTab: renameSceneTab,
+    saveSceneTab,
     openSceneInNewTab,
     openRecentScene,
     promptNewWorkScene,
@@ -329,11 +356,31 @@ function App() {
   const [codeDockFloatingRect, setCodeDockFloatingRect] = useState(() =>
     clampFloatingDockRect(createDefaultFloatingCodeDockRect()),
   )
-  const [codeText, setCodeText] = useState('// Stub do editor League-Bin\n// Sincronização bidirecional chega na fase E.\n')
-  const [codeDockFileName, setCodeDockFileName] = useState('ritual.py')
+  const {
+    activateTab: activateCodeDockTab,
+    activeTabId: activeCodeDockTabId,
+    closeTab: closeCodeDockTab,
+    codeDockFileName,
+    codeText,
+    markActiveTabSaved,
+    openInTab: openCodeDockTab,
+    openNewTab: openNewCodeDockTab,
+    renameTab: renameCodeDockTab,
+    saveTab: saveCodeDockTab,
+    setCodeDockFileName,
+    setCodeText,
+    tabBarItems: codeDockTabBarItems,
+    tabs: codeDockTabs,
+  } = useCodeDockTabs()
+  const [tabRenameTarget, setTabRenameTarget] = useState<TabRenameTarget | null>(null)
+  const [newCodeFileDialogOpen, setNewCodeFileDialogOpen] = useState(false)
   const [codeRecentFiles, setCodeRecentFiles] = useState<string[]>(() => readCodeRecentFiles())
   const codeDockFileInputRef = useRef<HTMLInputElement>(null)
   const [nodeConfigurationMode, setNodeConfigurationMode] = useState(false)
+  const [classGroupPackFolderDialogOpen, setClassGroupPackFolderDialogOpen] = useState(false)
+  const [classGroupPackFolderDialogMode, setClassGroupPackFolderDialogMode] = useState<
+    'settings' | 'convert'
+  >('settings')
   const [parameterValueLinkSourceId, setParameterValueLinkSourceId] = useState<null | string>(null)
   const [nodeInstanceStringPickerNodeId, setNodeInstanceStringPickerNodeId] = useState<null | string>(null)
   const [hashStringPickerNodeId, setHashStringPickerNodeId] = useState<null | string>(null)
@@ -367,16 +414,24 @@ function App() {
   )
 
 
+  const openClassGroupPackFolderDialog = useCallback(() => {
+    setClassGroupPackFolderDialogMode('settings')
+    setClassGroupPackFolderDialogOpen(true)
+  }, [])
+
   const toggleNodeConfigurationMode = useCallback(() => {
     if (nodeConfigurationMode) {
       setNodeConfigurationMode(false)
+      setClassGroupPackFolderDialogOpen(false)
       setParameterValueLinkSourceId(null)
       setHashStringPickerNodeId(null)
       return
     }
 
     showConfirmByCatalogId(MESSENGER_CONFIRM_NODE_CONFIGURATION_MODE, {
-      onConfirm: () => setNodeConfigurationMode(true),
+      onConfirm: () => {
+        setNodeConfigurationMode(true)
+      },
       onCancel: () => {
         setNodeConfigurationMode(false)
         setParameterValueLinkSourceId(null)
@@ -563,18 +618,14 @@ function App() {
     [],
   )
 
-  const handleConvertRitualToStructurePack = useCallback(
-    async (
-      convertFn: (text: string) => ConvertRitobinToStructuresResult,
-      modeBanner: string,
-    ) => {
+  const resolveStructurePackFolder = useCallback((): string | null => {
       const rawName = window.prompt(
         'Nome da pasta (cria `src/nodeStructures/<nome>/` em dev; aparece na paleta como 📂 [nome]):',
         'importado',
       )
 
       if (rawName === null) {
-        return
+        return null
       }
 
       const folder = sanitizeStructurePackFolderName(rawName)
@@ -583,11 +634,25 @@ function App() {
         window.alert(
           'Nome de pasta inválido. Usa letras minúsculas, números, hífen (-) e sublinhado (_), até 48 caracteres.',
         )
-        return
+        return null
       }
 
       if (folder === 'default') {
         window.alert('«default» é reservada aos tipos estáticos da app; escolhe outro nome de pasta.')
+        return null
+      }
+
+      return folder
+  }, [])
+
+  const handleConvertRitualToStructurePack = useCallback(
+    async (
+      convertFn: (text: string) => ConvertRitobinToStructuresResult,
+      modeBanner: string,
+    ) => {
+      const folder = resolveStructurePackFolder()
+
+      if (!folder) {
         return
       }
 
@@ -606,7 +671,7 @@ function App() {
         converted.rootSchemaIds,
       )
     },
-    [codeText, persistConvertedStructurePack],
+    [codeText, persistConvertedStructurePack, resolveStructurePackFolder],
   )
 
   const handleConvertJadeFxEditorPack = useCallback(() => {
@@ -616,49 +681,117 @@ function App() {
     )
   }, [handleConvertRitualToStructurePack])
 
+  const runClassGroupPackConvert = useCallback(
+    async (folder: string) => {
+      const converted = convertRitualTextClassGroup(codeText)
+
+      if (converted.ok === false) {
+        window.alert(converted.error)
+        return
+      }
+
+      await persistConvertedStructurePack(
+        folder,
+        converted.schemas,
+        converted.warnings,
+        '[Converter · Class Group]\n\n',
+        converted.rootSchemaIds,
+      )
+    },
+    [codeText, persistConvertedStructurePack],
+  )
+
+  const handleClassGroupPackFolderConfirm = useCallback(
+    async (raw: string) => {
+      const folder = parseClassGroupPackFolderName(raw, { allowDefault: true })
+
+      if (!folder) {
+        window.alert(
+          'Nome de pasta inválido. Usa letras minúsculas, números, hífen (-) e sublinhado (_), até 48 caracteres.',
+        )
+        return
+      }
+
+      if (classGroupPackFolderDialogMode === 'settings') {
+        setClassGroupConverterPackFolder(folder)
+        setClassGroupPackFolderDialogOpen(false)
+        return
+      }
+
+      setClassGroupPackFolderDialogOpen(false)
+      setClassGroupConverterPackFolder(folder)
+      await runClassGroupPackConvert(folder)
+    },
+    [classGroupPackFolderDialogMode, runClassGroupPackConvert],
+  )
+
   const handleConvertClassGroupPack = useCallback(() => {
+    if (nodeConfigurationMode) {
+      setClassGroupPackFolderDialogMode('convert')
+      setClassGroupPackFolderDialogOpen(true)
+      return
+    }
+
     void handleConvertRitualToStructurePack(
       convertRitualTextClassGroup,
       '[Converter · Class Group]\n\n',
     )
-  }, [handleConvertRitualToStructurePack])
+  }, [handleConvertRitualToStructurePack, nodeConfigurationMode])
 
-  const listStructurePackFolders = useCallback(async () => {
-    if (import.meta.env.DEV) {
-      try {
-        const res = await fetch('/api/node-structures-folders')
-        const payload: unknown = await res.json().catch(() => null)
+  const listPackFolders = useCallback(
+    async (includeDefault: boolean) => {
+      const unique = new Set<string>()
 
-        const apiOk =
-          res.ok &&
-          typeof payload === 'object' &&
-          payload !== null &&
-          Reflect.get(payload, 'ok') === true
+      if (import.meta.env.DEV) {
+        try {
+          const query = includeDefault ? '?includeDefault=1' : ''
+          const res = await fetch(`/api/node-structures-folders${query}`)
+          const payload: unknown = await res.json().catch(() => null)
 
-        if (apiOk && typeof payload === 'object' && payload !== null) {
-          const folders = Reflect.get(payload, 'folders')
+          const apiOk =
+            res.ok &&
+            typeof payload === 'object' &&
+            payload !== null &&
+            Reflect.get(payload, 'ok') === true
 
-          if (Array.isArray(folders)) {
-            /** Lista alinhada ao que existe em `src/nodeStructures/` (evita pastas só no localStorage). */
-            return folders
-              .map((entry: unknown) => String(entry).trim())
-              .filter((name) => name.length > 0 && name !== 'default')
-              .sort((a, b) => a.localeCompare(b))
+          if (apiOk && typeof payload === 'object' && payload !== null) {
+            const folders = Reflect.get(payload, 'folders')
+
+            if (Array.isArray(folders)) {
+              for (const entry of folders) {
+                const name = String(entry).trim()
+                if (name.length > 0) {
+                  unique.add(name)
+                }
+              }
+            }
           }
+        } catch {
+          /** API indisponível — cai no fallback */
         }
-      } catch {
-        /** API indisponível — cai no fallback */
       }
-    }
 
-    const unique = new Set<string>()
-    for (const pack of dynamicStructurePacks) {
-      if (pack.folder !== 'default') {
-        unique.add(pack.folder)
+      for (const pack of dynamicStructurePacks) {
+        if (includeDefault || pack.folder !== 'default') {
+          unique.add(pack.folder)
+        }
       }
-    }
-    return Array.from(unique).sort((a, b) => a.localeCompare(b))
-  }, [dynamicStructurePacks])
+
+      if (includeDefault) {
+        unique.add('default')
+      }
+
+      return Array.from(unique).sort((a, b) => a.localeCompare(b))
+    },
+    [dynamicStructurePacks],
+  )
+
+  const listStructurePackFolders = useCallback(
+    () => listPackFolders(nodeConfigurationMode),
+    [listPackFolders, nodeConfigurationMode],
+  )
+
+  const listDeletablePackFolders = useCallback(() => listPackFolders(false), [listPackFolders])
 
   const deleteNodeStructurePackFolder = useCallback(async (folder: string) => {
     const safe = sanitizeStructurePackFolderName(folder)
@@ -708,11 +841,16 @@ function App() {
     return { ok: true as const, ...(notice ? { notice } : {}) }
   }, [])
 
-  const handleExtractNodeBasePack = useCallback(async (folder: string): Promise<boolean> => {
-    const safe = sanitizeStructurePackFolderName(folder)
+  const handleExtractNodeBasePack = useCallback(
+    async (folder: string): Promise<boolean> => {
+    const safe = parseClassGroupPackFolderName(folder, { allowDefault: nodeConfigurationMode })
 
-    if (!safe || safe === 'default') {
-      window.alert('Pasta inválida ou reservada (default).')
+    if (!safe) {
+      window.alert(
+        nodeConfigurationMode
+          ? 'Pasta inválida. Usa letras minúsculas, números, hífen (-) e sublinhado (_), até 48 caracteres.'
+          : 'Pasta inválida ou reservada (default).',
+      )
       return false
     }
 
@@ -795,7 +933,9 @@ function App() {
       window.alert('Servidor dev indisponível ou pedido falhou.')
       return false
     }
-  }, [])
+  },
+    [nodeConfigurationMode],
+  )
 
   const handleApplyBinNomenclaturaPack = useCallback(
     async (folder: string): Promise<boolean> => {
@@ -878,32 +1018,116 @@ function App() {
     [codeText, dynamicStructurePacks],
   )
 
-  const loadRitobinTextIntoCodeDock = useCallback((ritualText: string, fileName: string, via: string) => {
-    const maxPreview = 500_000
-    setCodeText(ritualText.length > maxPreview ? `${ritualText.slice(0, maxPreview)}\n…` : ritualText)
-    setCodeDockFileName(fileName)
-    pushCodeRecentFile(fileName)
-    setCodeRecentFiles(readCodeRecentFiles())
-    setCodeDockOpen(true)
-    window.alert(`«${fileName}» carregado no painel Código (${via}). O grafo mock não foi alterado.`)
-  }, [])
-
-  const downloadCodeDockText = useCallback(
-    (suggestedName: string) => {
-      const base = suggestedName.trim() || codeDockFileName || 'ritual'
-      const fileName = base.toLowerCase().endsWith('.py') ? base : `${base}.py`
-      const blob = new Blob([codeText], { type: 'text/plain;charset=utf-8' })
-      const url = URL.createObjectURL(blob)
-      const anchor = document.createElement('a')
-      anchor.href = url
-      anchor.download = fileName
-      anchor.click()
-      URL.revokeObjectURL(url)
-      setCodeDockFileName(fileName)
-      pushCodeRecentFile(fileName)
+  const loadTextIntoCodeDock = useCallback(
+    (text: string, fileName: string, via: string) => {
+      const maxPreview = 500_000
+      const content = text.length > maxPreview ? `${text.slice(0, maxPreview)}\n…` : text
+      const normalized = normalizeCodeDockFileName(fileName)
+      openCodeDockTab(content, normalized)
+      pushCodeRecentFile(normalized)
       setCodeRecentFiles(readCodeRecentFiles())
+      setCodeDockOpen(true)
+
+      if (needsBinConversionOnOpen(normalized)) {
+        window.alert(`«${normalized}» convertido e aberto no painel Código (${via}).`)
+      }
     },
-    [codeDockFileName, codeText],
+    [openCodeDockTab],
+  )
+
+  const saveCodeDockTabById = useCallback(
+    async (tabId: string) => {
+      const tab = codeDockTabs.find((entry) => entry.id === tabId)
+
+      if (!tab) {
+        return
+      }
+
+      const content = tabId === activeCodeDockTabId ? codeText : tab.content
+      const suggested = tab.fileName
+
+      if (needsBinConversionOnSave(suggested)) {
+        const { base64ToUint8Array, convertTextToBinViaBridge, downloadBytesAsFile } =
+          await import('@/core/jadeBridgeApi')
+        const result = await convertTextToBinViaBridge(content)
+
+        if (result.branch !== 'success') {
+          const hint =
+            result.branch === 'not_configured'
+              ? 'Gravar .bin requer jade-http-bridge (reinicia npm run dev com Rust compilado).'
+              : result.branch === 'network_error'
+                ? result.message
+                : result.message
+          window.alert(`Não foi possível converter para .bin: ${hint}`)
+          return
+        }
+
+        const normalized = normalizeCodeDockFileName(suggested)
+        const fileName = normalized.toLowerCase().endsWith('.bin') ? normalized : `${normalized.replace(/\.py$/i, '')}.bin`
+
+        if (typeof window.showSaveFilePicker === 'function') {
+          try {
+            const handle = await window.showSaveFilePicker({
+              suggestedName: fileName,
+              types: [{ description: 'Binário ritual', accept: { 'application/octet-stream': ['.bin'] } }],
+            })
+            const writable = await handle.createWritable()
+            await writable.write(base64ToUint8Array(result.bytesBase64))
+            await writable.close()
+            const savedName = handle.name || fileName
+            renameCodeDockTab(tabId, savedName)
+            if (tabId === activeCodeDockTabId) {
+              markActiveTabSaved(savedName)
+            }
+            pushCodeRecentFile(savedName)
+            setCodeRecentFiles(readCodeRecentFiles())
+            return
+          } catch (error) {
+            if (error instanceof DOMException && error.name === 'AbortError') {
+              return
+            }
+          }
+        }
+
+        downloadBytesAsFile(base64ToUint8Array(result.bytesBase64), fileName)
+        renameCodeDockTab(tabId, fileName)
+        if (tabId === activeCodeDockTabId) {
+          markActiveTabSaved(fileName)
+        }
+        pushCodeRecentFile(fileName)
+        setCodeRecentFiles(readCodeRecentFiles())
+        return
+      }
+
+      const saveResult = await saveCodeDockTab(
+        tabId,
+        tabId === activeCodeDockTabId ? codeText : undefined,
+      )
+
+      if (!saveResult.cancelled) {
+        pushCodeRecentFile(saveResult.fileName)
+        setCodeRecentFiles(readCodeRecentFiles())
+      }
+    },
+    [
+      activeCodeDockTabId,
+      codeDockTabs,
+      codeText,
+      markActiveTabSaved,
+      renameCodeDockTab,
+      saveCodeDockTab,
+    ],
+  )
+
+  const saveCodeDockFile = useCallback(
+    async () => {
+      if (!activeCodeDockTabId) {
+        return
+      }
+
+      await saveCodeDockTabById(activeCodeDockTabId)
+    },
+    [activeCodeDockTabId, saveCodeDockTabById],
   )
 
   const convertBinForCodeDock = useCallback(async (file: File): Promise<boolean> => {
@@ -915,7 +1139,7 @@ function App() {
       if (!exeConfigured) return false
       const rit = await convertBinViaRitobinExeBridge(file, exeConfigured)
       if (rit.branch === 'success') {
-        loadRitobinTextIntoCodeDock(rit.text, file.name, 'ponte ritobin + executável local')
+        loadTextIntoCodeDock(rit.text, file.name, 'ponte ritobin + executável local')
         return true
       }
       return false
@@ -924,7 +1148,7 @@ function App() {
     const tryJadeBridge = async () => {
       const bridge = await convertBinViaOptionalBridge(file)
       if (bridge.branch === 'success') {
-        loadRitobinTextIntoCodeDock(bridge.text, file.name, 'Jade bridge /convert')
+        loadTextIntoCodeDock(bridge.text, file.name, 'Jade bridge /convert')
         return true
       }
       if (bridge.branch === 'not_configured') {
@@ -952,33 +1176,50 @@ function App() {
     }
     if (await tryRitobin()) return true
     return tryJadeBridge()
-  }, [loadRitobinTextIntoCodeDock])
+  }, [loadTextIntoCodeDock])
 
   const handleCodeDockImportFile = useCallback(
     async (file: File) => {
-      if (file.name.toLowerCase().endsWith('.bin')) {
+      if (needsBinConversionOnOpen(file.name)) {
         await convertBinForCodeDock(file)
         return
       }
+
       const text = await file.text()
-      loadRitobinTextIntoCodeDock(text, file.name, 'ficheiro texto')
+      const ext = getFileExtension(file.name)
+      const via =
+        ext === 'py'
+          ? 'ritobin (.py)'
+          : ext === 'json'
+            ? 'JSON'
+            : ext === 'md' || ext === 'markdown'
+              ? 'Markdown'
+              : 'texto'
+
+      loadTextIntoCodeDock(text, file.name, via)
     },
-    [convertBinForCodeDock, loadRitobinTextIntoCodeDock],
+    [convertBinForCodeDock, loadTextIntoCodeDock],
+  )
+
+  const handleCreateCodeDockFile = useCallback(
+    (fileName: string) => {
+      const normalized = normalizeCodeDockFileName(fileName)
+      openNewCodeDockTab(normalized, defaultContentForNewFile(normalized))
+      setCodeDockOpen(true)
+      setNewCodeFileDialogOpen(false)
+    },
+    [openNewCodeDockTab],
   )
 
   const codeDockFileBridge = useMemo<CodeDockFileBridge>(
     () => ({
       onOpenFile: () => codeDockFileInputRef.current?.click(),
       onNewFile: () => {
-        setCodeText('// Novo ritual\n')
-        setCodeDockFileName('untitled.py')
+        setNewCodeFileDialogOpen(true)
         setCodeDockOpen(true)
       },
-      onSaveFile: () => downloadCodeDockText(codeDockFileName),
-      onSaveFileAs: () => {
-        const suggested = window.prompt('Nome do ficheiro', codeDockFileName)
-        if (suggested) downloadCodeDockText(suggested)
-      },
+      onSaveFile: () => void saveCodeDockFile(),
+      onSaveFileAs: () => void saveCodeDockFile(),
       onOpenLog: () => {
         window.alert('Open Log File: disponível no Jade desktop ou ponte Tauri (Fase 2).')
       },
@@ -987,35 +1228,87 @@ function App() {
         window.alert(`Recente «${path}»: reabre com File → Open… (caminho completo não guardado no browser).`)
       },
     }),
-    [codeDockFileName, codeRecentFiles, downloadCodeDockText],
+    [codeRecentFiles, saveCodeDockFile],
+  )
+
+  const handleSceneTabAction = useCallback(
+    (tabId: string, action: TabContextMenuAction) => {
+      if (action === 'rename') {
+        const tab = tabBarItems.find((entry) => entry.id === tabId)
+        setTabRenameTarget({ kind: 'scene', tabId, initial: tab?.title ?? '' })
+        return
+      }
+
+      if (action === 'save') {
+        void saveSceneTab(tabId).then((result) => {
+          if (result.cancelled) {
+            return
+          }
+
+          const message = result.usedDownload
+            ? `Cena de trabalho descarregada como «${result.fileName}».`
+            : `Cena de trabalho guardada em «${result.fileName}».`
+
+          showSaveStatusNotice(message)
+        })
+      }
+    },
+    [saveSceneTab, showSaveStatusNotice, tabBarItems],
+  )
+
+  const handleCodeDockTabAction = useCallback(
+    (tabId: string, action: TabContextMenuAction) => {
+      if (action === 'rename') {
+        const tab = codeDockTabs.find((entry) => entry.id === tabId)
+        setTabRenameTarget({
+          kind: 'code',
+          tabId,
+          initial: tab ? stripExtension(tab.fileName) : '',
+        })
+        return
+      }
+
+      if (action === 'save') {
+        void saveCodeDockTabById(tabId)
+      }
+    },
+    [codeDockTabs, saveCodeDockTabById],
   )
 
   const handleSaveWorkScene = useCallback(async () => {
-    const suggested = activeTabJsonFileName ?? `${activeTabTitle}.json`
-    const result = await saveSceneJsonManual(scene, suggested)
+    if (!hasOpenSceneTabs || !activeTabId) {
+      return
+    }
+
+    const result = await saveSceneTab(activeTabId)
 
     if (result.cancelled) {
       return
     }
-
-    setTabJsonFileContext(activeTabId, {
-      fileName: result.fileName,
-      handle: result.handle,
-    })
 
     const message = result.usedDownload
       ? `Cena de trabalho descarregada como «${result.fileName}».`
       : `Cena de trabalho guardada em «${result.fileName}».`
 
     showSaveStatusNotice(message)
-  }, [
-    activeTabId,
-    activeTabJsonFileName,
-    activeTabTitle,
-    scene,
-    setTabJsonFileContext,
-    showSaveStatusNotice,
-  ])
+  }, [activeTabId, hasOpenSceneTabs, saveSceneTab, showSaveStatusNotice])
+
+  const handleTabRenameConfirm = useCallback(
+    (value: string) => {
+      if (!tabRenameTarget) {
+        return
+      }
+
+      if (tabRenameTarget.kind === 'scene') {
+        renameSceneTab(tabRenameTarget.tabId, value)
+      } else {
+        renameCodeDockTab(tabRenameTarget.tabId, value)
+      }
+
+      setTabRenameTarget(null)
+    },
+    [renameCodeDockTab, renameSceneTab, tabRenameTarget],
+  )
 
   const handleToggleJsonFileAutoSave = useCallback(() => {
     setJsonFileAutoSave((current) => {
@@ -1305,16 +1598,7 @@ function App() {
       }
 
       if (event.key === 'Delete' || event.key === 'Backspace') {
-        const hasProtectedOnly =
-          selectedNodeIds.length === 1 && selectedNodeIds[0] === ROOT_NODE_ID && primarySelectedId === ROOT_NODE_ID
-
-        if (hasProtectedOnly) {
-          return
-        }
-
-        const deletableIds = filterRemovableNodeIds(scene, selectedNodeIds).filter(
-          (id) => id !== ROOT_NODE_ID,
-        )
+        const deletableIds = filterRemovableNodeIds(scene, selectedNodeIds)
 
         if (deletableIds.length === 0) {
           const hasLocked = selectedNodeIds.some((id) => {
@@ -1844,14 +2128,6 @@ function App() {
       return false
     }
 
-    if (
-      selectedNodeIds.length === 1 &&
-      selectedNodeIds[0] === ROOT_NODE_ID &&
-      primarySelectedId === ROOT_NODE_ID
-    ) {
-      return false
-    }
-
     const primary = primarySelectedId
       ? scene.nodes.find((node) => node.id === primarySelectedId)
       : undefined
@@ -1860,7 +2136,7 @@ function App() {
       return false
     }
 
-    return filterRemovableNodeIds(scene, selectedNodeIds).some((id) => id !== ROOT_NODE_ID)
+    return filterRemovableNodeIds(scene, selectedNodeIds).length > 0
   })()
 
   const sceneNodesCanDelete = selectionCanDeleteNode
@@ -1970,67 +2246,6 @@ function App() {
     sortMode: sceneNodesSortMode,
   }
 
-  if (!scene.nodes.length) {
-    return (
-      <main className={styles.shell}>
-        {bootConsoleTestStamp !== null ? (
-          <ConsoleNotificationCapsule
-            key={bootConsoleTestStamp}
-            lifetimeSeconds={BOOT_CONSOLE_TEST_SECONDS}
-            message={BOOT_CONSOLE_TEST_MESSAGE}
-            onDismiss={dismissBootConsoleTest}
-          />
-        ) : null}
-        {hashStringNoticeStamp !== null ? (
-          <ConsoleNotificationCapsule
-            key={`hash-${String(hashStringNoticeStamp)}`}
-            lifetimeSeconds={10}
-            message={HASH_STRING_EMPTY_NOTICE}
-            onDismiss={dismissHashStringNotice}
-          />
-        ) : null}
-        {saveStatusNotice !== null ? (
-          <ConsoleNotificationCapsule
-            key={`save-${String(saveStatusNotice.stamp)}`}
-            lifetimeSeconds={saveStatusNotice.lifetimeSeconds}
-            message={saveStatusNotice.message}
-            onDismiss={dismissSaveStatusNotice}
-          />
-        ) : null}
-        <AppMenuBar
-          autoSaveEnabled={jsonFileAutoSave}
-          nodeConfigurationMode={nodeConfigurationMode}
-          onDeleteSelection={() => deleteSelectedNodes()}
-          onImportGraph={handleImportWorkspaceFile}
-          onNewWorkScene={promptNewWorkScene}
-          onOpenRecentScene={openRecentScene}
-          onOpenStubBin={handleStubPipeline}
-          onRequestAddNode={requestPalette}
-          onSaveWorkScene={handleSaveWorkScene}
-          onToggleAutoSave={handleToggleJsonFileAutoSave}
-          onToggleNodeConfigurationMode={toggleNodeConfigurationMode}
-          onToggleCodeDock={() => setCodeDockOpen((isOpen) => !isOpen)}
-          recentScenes={recentScenes}
-        />
-        <div className={styles.workspace} data-workspace>
-          <div className={styles.graphColumn}>
-            <div className={styles.graphSurface}>
-              <div className={styles.sceneTabRow}>
-                <SceneTabBar
-                  attached
-                  onActivate={activateTab}
-                  onClose={closeTab}
-                  tabs={tabBarItems}
-                />
-              </div>
-              <p className={styles.empty}>Nenhum nó disponível. Use File → Stub .bin ou add node.</p>
-            </div>
-          </div>
-        </div>
-      </main>
-    )
-  }
-
   return (
     <main className={styles.shell}>
       {bootConsoleTestStamp !== null ? (
@@ -2069,6 +2284,9 @@ function App() {
         onSaveWorkScene={handleSaveWorkScene}
         onToggleAutoSave={handleToggleJsonFileAutoSave}
         onToggleNodeConfigurationMode={toggleNodeConfigurationMode}
+        onEditClassGroupPackFolder={
+          nodeConfigurationMode ? openClassGroupPackFolderDialog : undefined
+        }
         onToggleCodeDock={() => setCodeDockOpen((isOpen) => !isOpen)}
         recentScenes={recentScenes}
       />
@@ -2081,10 +2299,13 @@ function App() {
                 attached
                 onActivate={activateTab}
                 onClose={closeTab}
+                onNewTab={() => createWorkScene('Nova cena')}
+                onTabAction={handleSceneTabAction}
                 tabs={tabBarItems}
               />
             </div>
             <div className={styles.graphColumnMain}>
+          {hasOpenSceneTabs ? (
           <GraphCanvas
             attachedViewport
             ref={graphCanvasRef}
@@ -2196,6 +2417,9 @@ function App() {
               ) : null
             }
           />
+          ) : (
+            <p className={styles.empty}>{SCENE_WORKSPACE_EMPTY_HINT}</p>
+          )}
           {sceneNodesDockShowsSidebar ? (
             <div className={sceneNodesDockClassName} style={sceneNodesDockStyle}>
               <SceneNodesPanel {...sceneNodesPanelProps} />
@@ -2344,7 +2568,7 @@ function App() {
             }
           >
             <input
-              accept=".bin,.py,.txt,.json"
+              accept={CODE_DOCK_FILE_INPUT_ACCEPT}
               hidden
               onChange={(e) => {
                 const picked = e.target.files?.[0]
@@ -2355,30 +2579,78 @@ function App() {
               type="file"
             />
             <CodeDock
+              activeFileName={codeDockFileName}
+              activeTabId={activeCodeDockTabId}
               dockedWidth={codeDockWidth}
               fileBridge={codeDockFileBridge}
               floatingActive={codeDockFloating}
               floatingRect={codeDockFloatingRect}
               nodeActions={{
                 deleteFolder: deleteNodeStructurePackFolder,
-                listDeletableFolders: listStructurePackFolders,
+                listDeletableFolders: listDeletablePackFolders,
                 listStructurePackFolders,
                 onConvertClassGroup: handleConvertClassGroupPack,
                 onConvertJadeFxEditor: handleConvertJadeFxEditorPack,
                 onApplyBinNomenclatura: handleApplyBinNomenclaturaPack,
                 onExtractNodeBase: handleExtractNodeBasePack,
               }}
+              onActivateTab={activateCodeDockTab}
               onChange={setCodeText}
               onClose={handleCloseCodeDock}
+              onCloseTab={closeCodeDockTab}
               onDockedWidthChange={setCodeDockWidth}
               onFloatingRectChange={setCodeDockFloatingRect}
+              onNewTab={openNewCodeDockTab}
+              onTabAction={handleCodeDockTabAction}
               onResetFloatingDimensions={resetFloatingDockDimensions}
               onToggleFloating={() => setCodeDockFloating((v) => !v)}
+              tabs={codeDockTabBarItems}
               value={codeText}
             />
           </div>
         ) : null}
       </div>
+
+      <NewCodeFileDialog
+        isOpen={newCodeFileDialogOpen}
+        onCancel={() => setNewCodeFileDialogOpen(false)}
+        onCreate={handleCreateCodeDockFile}
+      />
+
+      <TextInputDialog
+        cancelLabel="Cancelar"
+        confirmLabel="Renomear"
+        hint={
+          tabRenameTarget?.kind === 'scene'
+            ? 'O nome aparece na aba da grade; ao guardar JSON, o ficheiro pode ter outro nome.'
+            : 'Pode incluir extensão (.txt, .md, .json, .py, .bin, …); se omitir, usa-se .txt.'
+        }
+        initialValue={tabRenameTarget?.initial ?? ''}
+        inputLabel={tabRenameTarget?.kind === 'scene' ? 'Nome da cena' : 'Nome do ficheiro'}
+        isOpen={tabRenameTarget !== null}
+        onCancel={() => setTabRenameTarget(null)}
+        onConfirm={handleTabRenameConfirm}
+        title={tabRenameTarget?.kind === 'scene' ? 'Renomear cena' : 'Renomear ficheiro'}
+      />
+      <TextInputDialog
+        cancelLabel="Cancelar"
+        confirmLabel="Guardar"
+        hint={
+          classGroupPackFolderDialogMode === 'convert'
+            ? 'Com Configurar activo podes usar «default». Cria `src/nodeStructures/<nome>/` em dev.'
+            : 'Pasta predefinida ao abrir Converter [Class Group] com Configurar activo.'
+        }
+        initialValue={getClassGroupConverterPackFolder()}
+        inputLabel="Nome da pasta"
+        isOpen={classGroupPackFolderDialogOpen}
+        onCancel={() => setClassGroupPackFolderDialogOpen(false)}
+        onConfirm={handleClassGroupPackFolderConfirm}
+        title={
+          classGroupPackFolderDialogMode === 'convert'
+            ? 'Converter [Class Group] · pasta de destino'
+            : 'Pasta predefinida · Converter Class Group'
+        }
+      />
     </main>
   )
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { staticCanvasScene } from '@/core/canvasScene'
+import { demoCanvasScene } from '@/core/demoCanvasScene'
 import {
   countElementDependencies,
   formatElementDependencyWarning,
@@ -10,7 +10,7 @@ import {
 
 describe('listNodeElements', () => {
   it('combina parâmetros e internal structures na ordem parameters → structures', () => {
-    const emitter = staticCanvasScene.nodes.find((n) => n.id === 'emitter-01')
+    const emitter = demoCanvasScene.nodes.find((n) => n.id === 'emitter-01')
     if (!emitter) {
       throw new Error('demo sem emitter-01')
     }
@@ -25,13 +25,13 @@ describe('listNodeElements', () => {
   })
 
   it('conta conexões de grafo para internal structure', () => {
-    const connection = staticCanvasScene.connections[0]
+    const connection = demoCanvasScene.connections[0]
     if (!connection) {
       throw new Error('demo sem conexões')
     }
 
     const count = countElementDependencies(
-      staticCanvasScene,
+      demoCanvasScene,
       connection.fromNodeId,
       connection.fromInternalStructureId,
       'internalStructure',
@@ -41,13 +41,13 @@ describe('listNodeElements', () => {
   })
 
   it('conta conexões para listEmbedSlot', () => {
-    const connection = staticCanvasScene.connections[0]
+    const connection = demoCanvasScene.connections[0]
     if (!connection) {
       throw new Error('demo sem conexões')
     }
 
     const count = countElementDependencies(
-      staticCanvasScene,
+      demoCanvasScene,
       connection.fromNodeId,
       connection.fromInternalStructureId,
       'listEmbedSlot',
@@ -57,7 +57,7 @@ describe('listNodeElements', () => {
   })
 
   it('conta vínculos parameter_value_links para parâmetro', () => {
-    const emitter = staticCanvasScene.nodes.find((n) => n.id === 'emitter-01')
+    const emitter = demoCanvasScene.nodes.find((n) => n.id === 'emitter-01')
     if (!emitter) {
       throw new Error('demo sem emitter-01')
     }
@@ -68,8 +68,8 @@ describe('listNodeElements', () => {
     }
 
     const scene = {
-      ...staticCanvasScene,
-      nodes: staticCanvasScene.nodes.map((n) =>
+      ...demoCanvasScene,
+      nodes: demoCanvasScene.nodes.map((n) =>
         n.id === emitter.id ? { ...n, node: linkedNode } : n,
       ),
     }
@@ -79,7 +79,7 @@ describe('listNodeElements', () => {
   })
 
   it('exclui internal structures top-level da lista removível', () => {
-    const emitter = staticCanvasScene.nodes.find((n) => n.id === 'emitter-01')
+    const emitter = demoCanvasScene.nodes.find((n) => n.id === 'emitter-01')
     if (!emitter) {
       throw new Error('demo sem emitter-01')
     }
@@ -96,7 +96,7 @@ describe('listNodeElements', () => {
   })
 
   it('exclui parâmetros obrigatórios da lista removível', () => {
-    const emitter = staticCanvasScene.nodes.find((n) => n.id === 'emitter-01')
+    const emitter = demoCanvasScene.nodes.find((n) => n.id === 'emitter-01')
     if (!emitter) {
       throw new Error('demo sem emitter-01')
     }

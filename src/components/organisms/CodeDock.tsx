@@ -9,10 +9,14 @@ import {
 import { createPortal } from 'react-dom'
 import Editor from '@monaco-editor/react'
 import MenuBar from '@jade/components/MenuBar'
-import { RITOBIN_LANGUAGE_ID } from '@/monaco/ritobinEditorSetup'
+import { getMonacoLanguageForFileName } from '@/core/codeDockFileTypes'
 import { useCodeDockJadeEditor } from '@/hooks/useCodeDockJadeEditor'
 
 import { clampFloatingDockRect, type CodeDockFloatingRect } from './codeDockFloatingRect'
+import { CodeDockTabBar } from '@/components/molecules/CodeDockTabBar'
+import type { TabContextMenuAction } from '@/components/molecules/TabContextMenu'
+import type { CodeDockTabBarItem } from '@/hooks/useCodeDockTabs'
+
 import { CodeDockJadeDialogs } from './CodeDockJadeDialogs'
 
 import '@/monaco/jade-syntax-globals.css'
@@ -70,6 +74,13 @@ type CodeDockProps = {
   /** Ritual → tipos na paleta; eliminar pastas pack (exceto `default`) */
   nodeActions?: CodeDockNodeActions
   fileBridge?: CodeDockFileBridge
+  tabs: CodeDockTabBarItem[]
+  activeTabId: string
+  activeFileName: string
+  onActivateTab: (tabId: string) => void
+  onCloseTab: (tabId: string) => void
+  onNewTab?: () => void
+  onTabAction?: (tabId: string, action: TabContextMenuAction) => void
   value: string
 }
 
@@ -79,8 +90,6 @@ export const CODE_DOCK_MAX_WIDTH = 760
 
 const MIN_DOCK_WIDTH = CODE_DOCK_MIN_WIDTH
 const MAX_DOCK_WIDTH = CODE_DOCK_MAX_WIDTH
-const MODEL_PATH = '/workspace/opened.bin'
-
 export function CodeDock({
   dockedWidth,
   floatingActive,
@@ -93,9 +102,18 @@ export function CodeDock({
   onDockedWidthChange,
   nodeActions,
   fileBridge,
+  tabs,
+  activeTabId,
+  activeFileName,
+  onActivateTab,
+  onCloseTab,
+  onNewTab,
+  onTabAction,
   value,
 }: CodeDockProps) {
-  const jade = useCodeDockJadeEditor(value, onChange)
+  const monacoModelPath = `/workspace/code-dock/${activeTabId}/${activeFileName}`
+  const editorLanguage = getMonacoLanguageForFileName(activeFileName)
+  const jade = useCodeDockJadeEditor(value, onChange, editorLanguage)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [deleteChoices, setDeleteChoices] = useState<string[]>([])
   const [deleteSelected, setDeleteSelected] = useState('')
@@ -113,7 +131,16 @@ export function CodeDock({
   const [nomeListError, setNomeListError] = useState<string | null>(null)
 
   const dragPhaseRef = useRef<FloatingDragPhase>(null)
+  const floatMovePendingRef = useRef<{
+    rx: number
+    ry: number
+    sx: number
+    sy: number
+  } | null>(null)
   const dockedResizePhaseRef = useRef(false)
+  const [floatDragging, setFloatDragging] = useState(false)
+
+  const FLOAT_DRAG_THRESHOLD_PX = 5
 
   /** Evita ler `floatingRect` em closure obsoleta durante drag. */
   const floatingRectRef = useRef(floatingRect)
@@ -131,8 +158,28 @@ export function CodeDock({
   /** Arrastar e redimensionar janela flutuante */
   useEffect(() => {
     const handleMove = (event: PointerEvent) => {
+      if (!floatingActive) {
+        return
+      }
+
+      const pending = floatMovePendingRef.current
+      if (pending && !dragPhaseRef.current) {
+        const dx = event.clientX - pending.sx
+        const dy = event.clientY - pending.sy
+        if (Math.hypot(dx, dy) >= FLOAT_DRAG_THRESHOLD_PX) {
+          setFloatDragging(true)
+          dragPhaseRef.current = {
+            kind: 'move',
+            rx: pending.rx,
+            ry: pending.ry,
+            sx: pending.sx,
+            sy: pending.sy,
+          }
+        }
+      }
+
       const phase = dragPhaseRef.current
-      if (!phase || !floatingActive) {
+      if (!phase) {
         return
       }
 
@@ -171,7 +218,9 @@ export function CodeDock({
     }
 
     const stopFloatingDrag = () => {
+      floatMovePendingRef.current = null
       dragPhaseRef.current = null
+      setFloatDragging(false)
     }
 
     window.addEventListener('pointermove', handleMove)
@@ -184,6 +233,13 @@ export function CodeDock({
       window.removeEventListener('pointerup', stopFloatingDrag)
     }
   }, [applyFloatingRect, floatingActive])
+
+  useEffect(() => {
+    if (!floatingActive) {
+      floatMovePendingRef.current = null
+      setFloatDragging(false)
+    }
+  }, [floatingActive])
 
   /** Largura quando docado à direita */
   useEffect(() => {
@@ -340,21 +396,21 @@ export function CodeDock({
     dockedResizePhaseRef.current = true
   }, [])
 
-  const startFloatMove = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
-    if (!floatingActive) {
-      return
-    }
-    event.preventDefault()
-    const r = floatingRectRef.current
-    dragPhaseRef.current = {
-      kind: 'move',
-      rx: r.left,
-      ry: r.top,
-      sx: event.clientX,
-      sy: event.clientY,
-    }
-    event.currentTarget.setPointerCapture(event.pointerId)
-  }, [floatingActive])
+  const beginFloatMovePending = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (!floatingActive || event.button !== 0) {
+        return
+      }
+      const r = floatingRectRef.current
+      floatMovePendingRef.current = {
+        rx: r.left,
+        ry: r.top,
+        sx: event.clientX,
+        sy: event.clientY,
+      }
+    },
+    [floatingActive],
+  )
 
   const startFloatResize = useCallback(
     (corner: CodeDockFloatingResizeCorner, event: ReactPointerEvent<HTMLButtonElement>) => {
@@ -467,9 +523,21 @@ export function CodeDock({
         </>
       )}
 
-      <div className="codeDockJadeScope">
+      <div
+        className={[
+          'codeDockJadeScope',
+          styles.menuBarDragShell,
+          floatingActive ? styles.menuBarDragShellFloating : '',
+          floatDragging ? styles.menuBarDragShellDragging : '',
+        ]
+          .filter(Boolean)
+          .join(' ')}
+        onPointerDownCapture={floatingActive ? beginFloatMovePending : undefined}
+        title={floatingActive ? 'Arrastar janela (barra File / Edit / Tools)' : undefined}
+      >
         <MenuBar
           findActive={jade.findActive}
+          interactionsDisabled={floatingActive && floatDragging}
           generalEditActive={jade.generalEditActive}
           openFileDisabled={fileBridge?.openFileDisabled}
           particleDisabled={jade.particleDisabled}
@@ -504,13 +572,13 @@ export function CodeDock({
       </div>
 
       <header className={styles.header}>
-        <div
-          className={floatingActive ? `${styles.titleStrip} ${styles.titleStripFloating}` : styles.titleStrip}
-          onPointerDown={startFloatMove}
-          title={floatingActive ? 'Arrastar janela' : undefined}
-        >
-          código ritual (Monaco / Jade)
-        </div>
+        <CodeDockTabBar
+          onActivate={onActivateTab}
+          onClose={onCloseTab}
+          onNewTab={onNewTab}
+          onTabAction={onTabAction}
+          tabs={tabs}
+        />
         <div className={styles.headerActions}>
           <button
             className={styles.headerGhostButton}
@@ -644,7 +712,10 @@ export function CodeDock({
             {extractListError ? (
               <p className={styles.dialogHint}>{extractListError}</p>
             ) : extractChoices.length === 0 ? (
-              <p className={styles.dialogHint}>Nenhuma pasta pack (além da default).</p>
+              <p className={styles.dialogHint}>
+                Nenhum pack disponível. Com Nodes → Configurar activo, converte para a pasta «default» ou
+                outra.
+              </p>
             ) : (
               <>
                 <label className={styles.dialogField}>
@@ -685,18 +756,25 @@ export function CodeDock({
         </div>
       ) : null}
       <div className={`${styles.editorHost} codeDockJadeScope`}>
-        <Editor
-          beforeMount={jade.handleBeforeMount}
-          defaultLanguage={RITOBIN_LANGUAGE_ID}
-          height="100%"
-          loading={<span className={styles.loading}>A carregar editor…</span>}
-          onChange={(next) => onChange(next ?? '')}
-          onMount={jade.handleMount}
-          options={jade.monacoOptions}
-          path={MODEL_PATH}
-          theme={jade.editorTheme}
-          value={value}
-        />
+        {tabs.length === 0 ? (
+          <p className={styles.emptyEditor}>
+            Nenhum ficheiro de código aberto. Abra um ficheiro ou crie um novo.
+          </p>
+        ) : (
+          <Editor
+            key={activeTabId}
+            beforeMount={jade.handleBeforeMount}
+            defaultLanguage={editorLanguage}
+            height="100%"
+            loading={<span className={styles.loading}>A carregar editor…</span>}
+            onChange={(next) => onChange(next ?? '')}
+            onMount={jade.handleMount}
+            options={jade.monacoOptions}
+            path={monacoModelPath}
+            theme={jade.editorTheme}
+            value={value}
+          />
+        )}
       </div>
 
       <CodeDockJadeDialogs editor={jade} value={value} />

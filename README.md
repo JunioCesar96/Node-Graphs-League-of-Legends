@@ -9,8 +9,22 @@ Editor de grafos de nós para League of Legends / ritobin, com painel de código
 | Menu Jade no CodeDock | [`feature-menu-jade-codedock.md`](feature_md/feature/feature-menu-jade-codedock.md) |
 | Ponte Jade automática (abrir `.bin` em dev) | [`feature-jade-bridge-auto-dev.md`](feature_md/feature/feature-jade-bridge-auto-dev.md) |
 | Abas de cena e menu Grafo | [`feature-abas-cena-json-menu-grafo.md`](feature_md/feature/feature-abas-cena-json-menu-grafo.md) |
+| Nodes Configurar, Class Group e pack `default` | [`feature-nodes-configurar-pack-default.md`](feature_md/feature/feature-nodes-configurar-pack-default.md) |
 
 Índice completo em [`feature_md/feature/`](feature_md/feature/).
+
+---
+
+## Documentação de Implementação — Nodes Configurar e pack default (v1.5.0)
+
+Arquivo salvo em: `feature_md/feature/feature-nodes-configurar-pack-default.md`.
+
+| Campo | Valor |
+| --- | --- |
+| Branch | `feature/nodes-configurar-pack-default` |
+| Versão | `1.5.0` |
+
+Com **Nodes → Configurar** activo: **Converter [Class Group]** pede a pasta (inclui `default`), **Extrair Node Base** lista `default`, cena nova fica **vazia** (sem `particle-root` obrigatório). Detalhes, fluxogramas Mermaid e tabela de componentes no documento linkado acima.
 
 ---
 

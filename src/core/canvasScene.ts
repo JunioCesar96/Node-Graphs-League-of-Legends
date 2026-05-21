@@ -58,15 +58,8 @@ export function createNodeInstance(
   return _createNodeInstance(schemaId, instanceId)
 }
 
-function schemaRef(id: string): NodeSchemaDefinition {
-  const schema = schemaRegistry[id]
-  if (!schema) {
-    throw new Error(
-      `Estrutura de nó em falta: "${id}". Adiciona ou corrige um ficheiro em src/nodeStructures/<pasta>/ (ex.: default).`,
-    )
-  }
-  return schema
-}
+export const DEFAULT_CANVAS_WIDTH = 1120
+export const DEFAULT_CANVAS_HEIGHT = 760
 
 export type CanvasPosition = {
   x: number
@@ -263,148 +256,15 @@ export function hydrateScene(scene: CanvasScene): CanvasScene {
   }
 }
 
-const staticCanvasSceneRaw = {
-  width: 1120,
-  height: 760,
-  nodes: [
-    {
-      id: 'particle-root-01',
-      node: {
-        id: 'particle-root-01',
-        schema: schemaRef('particle-root'),
-        values: [
-          {
-            parameterId: 'spawn-rate',
-            value: '42',
-          },
-          {
-            parameterId: 'lifetime',
-            value: '3.14',
-          },
-          {
-            parameterId: 'tint',
-            value: '1, 0.58, 0.1, 1',
-          },
-        ],
-      },
-      position: {
-        x: 72,
-        y: 190,
-      },
-    },
-    {
-      id: 'emitter-01',
-      node: {
-        id: 'emitter-01',
-        schema: schemaRef('emitter-shape'),
-        values: [
-          {
-            parameterId: 'shape',
-            value: '"cone"',
-          },
-          {
-            parameterId: 'radius',
-            value: '1.25',
-          },
-          {
-            parameterId: 'offset',
-            value: '0, 0.5, 0',
-          },
-        ],
-      },
-      position: {
-        x: 600,
-        y: 72,
-      },
-    },
-    {
-      id: 'emitter-alt-01',
-      node: {
-        id: 'emitter-alt-01',
-        schema: schemaRef('emitter-shape'),
-        values: [
-          {
-            parameterId: 'shape',
-            value: '"sphere"',
-          },
-          {
-            parameterId: 'radius',
-            value: '2.4',
-          },
-          {
-            parameterId: 'offset',
-            value: '0, -0.25, 0',
-          },
-        ],
-      },
-      position: {
-        x: 1010,
-        y: 92,
-      },
-    },
-    {
-      id: 'force-01',
-      node: {
-        id: 'force-01',
-        schema: schemaRef('world-force'),
-        values: [
-          {
-            parameterId: 'gravity',
-            value: '0, -9.8, 0',
-          },
-          {
-            parameterId: 'drag',
-            value: '0.18',
-          },
-        ],
-      },
-      position: {
-        x: 600,
-        y: 390,
-      },
-    },
-    {
-      id: 'falloff-01',
-      node: {
-        id: 'falloff-01',
-        schema: schemaRef('falloff-curve'),
-        values: [
-          {
-            parameterId: 'mode',
-            value: 'smoothstep',
-          },
-          {
-            parameterId: 'strength',
-            value: '0.845',
-          },
-        ],
-      },
-      position: {
-        x: 910,
-        y: 474,
-      },
-    },
-  ],
-  connections: [
-    {
-      id: 'root-to-emitter',
-      fromNodeId: 'particle-root-01',
-      fromInternalStructureId: 'emitter',
-      toNodeId: 'emitter-01',
-    },
-    {
-      id: 'root-to-force',
-      fromNodeId: 'particle-root-01',
-      fromInternalStructureId: 'force',
-      toNodeId: 'force-01',
-    },
-    {
-      id: 'force-to-falloff',
-      fromNodeId: 'force-01',
-      fromInternalStructureId: 'falloff',
-      toNodeId: 'falloff-01',
-    },
-  ],
+const emptyCanvasSceneRaw = {
+  width: DEFAULT_CANVAS_WIDTH,
+  height: DEFAULT_CANVAS_HEIGHT,
+  nodes: [],
+  connections: [],
 } satisfies CanvasScene
 
-export const staticCanvasScene = hydrateScene(staticCanvasSceneRaw)
+/** Grade sem nós — cena inicial, abas novas e fallbacks de storage. */
+export const emptyCanvasScene = hydrateScene(emptyCanvasSceneRaw)
+
+/** @deprecated Usa `emptyCanvasScene`. Mantido para imports legados. */
+export const staticCanvasScene = emptyCanvasScene

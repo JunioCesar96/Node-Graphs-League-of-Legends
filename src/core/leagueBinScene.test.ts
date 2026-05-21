@@ -1,31 +1,31 @@
 import { describe, expect, it } from 'vitest'
 
-import { staticCanvasScene } from '@/core/canvasScene'
+import { demoCanvasScene } from '@/core/demoCanvasScene'
 import { DEFAULT_CANVAS_TOOLBAR_VISIBILITY } from '@/core/canvasToolbarVisibility'
 import { parseSceneDocument, serializeScene } from '@/core/leagueBinScene'
 
 describe('leagueBinScene', () => {
   it('faz round-trip completo sobre a demo estática', () => {
-    const doc = serializeScene(staticCanvasScene)
+    const doc = serializeScene(demoCanvasScene)
     expect(doc.version).toBe(2)
     const roundTrip = parseSceneDocument(doc)
 
-    expect(roundTrip?.nodes.length).toBe(staticCanvasScene.nodes.length)
-    expect(roundTrip?.connections.length).toBe(staticCanvasScene.connections.length)
-    expect(roundTrip?.nodes[0]?.node.schema.id).toBe(staticCanvasScene.nodes[0]?.node.schema.id)
+    expect(roundTrip?.nodes.length).toBe(demoCanvasScene.nodes.length)
+    expect(roundTrip?.connections.length).toBe(demoCanvasScene.connections.length)
+    expect(roundTrip?.nodes[0]?.node.schema.id).toBe(demoCanvasScene.nodes[0]?.node.schema.id)
   })
 
   it('export v2 preserva apresentação, câmera e sceneChrome', () => {
-    const connection = staticCanvasScene.connections[0]
-    const nodeId = staticCanvasScene.nodes[0]!.id
+    const connection = demoCanvasScene.connections[0]
+    const nodeId = demoCanvasScene.nodes[0]!.id
     const scene = {
-      ...staticCanvasScene,
+      ...demoCanvasScene,
       camera: { pan: { x: 10, y: 20 }, scale: 0.9 },
       sceneChrome: {
         sceneNodes: { minimized: true, sortMode: 'type' as const },
         toolbarVisibility: DEFAULT_CANVAS_TOOLBAR_VISIBILITY,
       },
-      nodes: staticCanvasScene.nodes.map((n) =>
+      nodes: demoCanvasScene.nodes.map((n) =>
         n.id === nodeId
           ? {
               ...n,
@@ -37,7 +37,7 @@ describe('leagueBinScene', () => {
       ),
       ...(connection
         ? {
-            connections: staticCanvasScene.connections.map((c) =>
+            connections: demoCanvasScene.connections.map((c) =>
               c.id === connection.id ? { ...c, routing: 'rigid' as const } : c,
             ),
             compactRoutingBackups: { [connection.id]: 'flex' },
@@ -72,10 +72,10 @@ describe('leagueBinScene', () => {
     const v1 = {
       format: 'node-graphs-lol',
       version: 1,
-      width: staticCanvasScene.width,
-      height: staticCanvasScene.height,
-      connections: staticCanvasScene.connections,
-      nodes: staticCanvasScene.nodes.map((n) => ({
+      width: demoCanvasScene.width,
+      height: demoCanvasScene.height,
+      connections: demoCanvasScene.connections,
+      nodes: demoCanvasScene.nodes.map((n) => ({
         id: n.id,
         position: n.position,
         node: {
@@ -92,7 +92,7 @@ describe('leagueBinScene', () => {
   })
 
   it('preserva hashString quando referencia um parâmetro string válido', () => {
-    const base = staticCanvasScene.nodes.find((n) => n.id === 'emitter-01')
+    const base = demoCanvasScene.nodes.find((n) => n.id === 'emitter-01')
     if (!base) {
       throw new Error('demo sem emitter-01')
     }
@@ -103,8 +103,8 @@ describe('leagueBinScene', () => {
     }
 
     const scene = {
-      ...staticCanvasScene,
-      nodes: staticCanvasScene.nodes.map((n) =>
+      ...demoCanvasScene,
+      nodes: demoCanvasScene.nodes.map((n) =>
         n.id === base.id ? { ...n, node: { ...n.node, hashString: stringParameter.id } } : n,
       ),
     }

@@ -1,9 +1,7 @@
 import type { CanvasScene } from '@/core/canvasScene'
-import { hydrateScene, staticCanvasScene } from '@/core/canvasScene'
+import { emptyCanvasScene, hydrateScene } from '@/core/canvasScene'
 import { syncSceneCollapsedBodyWireless } from '@/core/compactConnectionRouting'
-import { isCanvasScene, loadStoredScene } from '@/core/sceneStorage'
-
-const ROOT_NODE_ID = 'particle-root-01'
+import { isCanvasScene, loadStoredScene, SCENE_STORAGE_KEY } from '@/core/sceneStorage'
 
 export const STORAGE_SCENE_TABS_KEY = 'node-graphs-lol:scene-tabs-v1'
 export const STORAGE_RECENT_SCENES_KEY = 'node-graphs-lol:recent-scenes'
@@ -95,8 +93,22 @@ export function uniqueTabTitle(requested: string, existingTitles: string[]): str
   return `${base} (${index})`
 }
 
+/** Estado interno da grade quando não há abas abertas (não é persistido como tab). */
+export function createEmptyWorkspaceSnapshot(): SceneTabSnapshot {
+  const present = hydrateTabScene(emptyCanvasScene)
+
+  return {
+    id: '',
+    title: '',
+    past: [],
+    present,
+    future: [],
+    selection: { ids: [], primaryId: '' },
+  }
+}
+
 export function createDefaultTabSnapshot(title = 'Cena 1'): SceneTabSnapshot {
-  const present = hydrateTabScene(staticCanvasScene)
+  const present = hydrateTabScene(emptyCanvasScene)
 
   return {
     id: createTabId(),
@@ -118,7 +130,7 @@ export function snapshotFromScene(
 ): SceneTabSnapshot {
   const present = hydrateTabScene(scene)
   const primaryId =
-    present.nodes.find((node) => node.id === ROOT_NODE_ID)?.id ?? present.nodes[0]?.id ?? ''
+    present.nodes[0]?.id ?? ''
 
   return {
     id: createTabId(),
@@ -185,6 +197,13 @@ export function loadSceneTabsPersisted(): SceneTabsPersisted | null {
       return null
     }
 
+    if (parsed.tabs.length === 0) {
+      return {
+        activeTabId: typeof parsed.activeTabId === 'string' ? parsed.activeTabId : '',
+        tabs: [],
+      }
+    }
+
     const tabs = parsed.tabs
       .map(parseTabSnapshot)
       .filter((tab): tab is SceneTabSnapshot => tab !== null)
@@ -214,17 +233,33 @@ export function migrateLegacySceneToTabs(): SceneTabsPersisted {
   }
 }
 
+function hasLegacySceneStorage(): boolean {
+  try {
+    return window.localStorage.getItem(SCENE_STORAGE_KEY) !== null
+  } catch {
+    return false
+  }
+}
+
 export function getInitialSceneTabsPersisted(): SceneTabsPersisted {
   const stored = loadSceneTabsPersisted()
+
+  if (stored && stored.tabs.length > 0) {
+    return stored
+  }
+
+  if (hasLegacySceneStorage()) {
+    const migrated = migrateLegacySceneToTabs()
+    migrated.activeTabId = migrated.tabs[0]!.id
+
+    return migrated
+  }
 
   if (stored) {
     return stored
   }
 
-  const migrated = migrateLegacySceneToTabs()
-  migrated.activeTabId = migrated.tabs[0]!.id
-
-  return migrated
+  return { activeTabId: '', tabs: [] }
 }
 
 export function saveSceneTabsPersisted(data: SceneTabsPersisted): void {

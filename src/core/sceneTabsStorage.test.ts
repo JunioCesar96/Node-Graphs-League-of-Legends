@@ -1,10 +1,11 @@
 import { describe, expect, it, beforeEach } from 'vitest'
 
-import { staticCanvasScene } from '@/core/canvasScene'
+import { emptyCanvasScene } from '@/core/canvasScene'
 import { SCENE_STORAGE_KEY } from '@/core/sceneStorage'
 import {
   MAX_RECENT_SCENES,
   STORAGE_SCENE_TABS_KEY,
+  createDefaultTabSnapshot,
   getInitialSceneTabsPersisted,
   loadRecentSceneList,
   loadSceneTabsPersisted,
@@ -44,9 +45,9 @@ describe('pushRecentScene', () => {
   })
 
   it('deduplica por título e promove ao topo', () => {
-    pushRecentScene('A', staticCanvasScene)
-    pushRecentScene('B', staticCanvasScene)
-    pushRecentScene('A', staticCanvasScene)
+    pushRecentScene('A', emptyCanvasScene)
+    pushRecentScene('B', emptyCanvasScene)
+    pushRecentScene('A', emptyCanvasScene)
 
     const list = loadRecentSceneList()
     expect(list).toHaveLength(2)
@@ -55,9 +56,9 @@ describe('pushRecentScene', () => {
   })
 
   it('deduplica por sourceFileName', () => {
-    pushRecentScene('foo', staticCanvasScene, 'foo.json')
-    pushRecentScene('bar', staticCanvasScene, 'bar.json')
-    pushRecentScene('outro-titulo', staticCanvasScene, 'foo.json')
+    pushRecentScene('foo', emptyCanvasScene, 'foo.json')
+    pushRecentScene('bar', emptyCanvasScene, 'bar.json')
+    pushRecentScene('outro-titulo', emptyCanvasScene, 'foo.json')
 
     const list = loadRecentSceneList()
     expect(list).toHaveLength(2)
@@ -66,7 +67,7 @@ describe('pushRecentScene', () => {
 
   it('limita ao máximo de entradas', () => {
     for (let index = 0; index < MAX_RECENT_SCENES + 3; index += 1) {
-      pushRecentScene(`Cena ${index}`, staticCanvasScene)
+      pushRecentScene(`Cena ${index}`, emptyCanvasScene)
     }
 
     expect(loadRecentSceneList()).toHaveLength(MAX_RECENT_SCENES)
@@ -78,23 +79,50 @@ describe('getInitialSceneTabsPersisted', () => {
     localStorage.clear()
   })
 
+  it('começa sem abas quando não há legacy nem tabs guardados', () => {
+    const initial = getInitialSceneTabsPersisted()
+
+    expect(initial.tabs).toHaveLength(0)
+    expect(initial.activeTabId).toBe('')
+  })
+
   it('migra cena legacy quando não há tabs', () => {
-    localStorage.setItem(SCENE_STORAGE_KEY, JSON.stringify(staticCanvasScene))
+    localStorage.removeItem(STORAGE_SCENE_TABS_KEY)
+    // Cena mínima no storage legacy (o payload completo de emptyCanvasScene excede quota em jsdom).
+    localStorage.setItem(
+      SCENE_STORAGE_KEY,
+      JSON.stringify({ width: 1120, height: 760, nodes: [], connections: [] }),
+    )
+
+    expect(localStorage.getItem(SCENE_STORAGE_KEY)).not.toBeNull()
 
     const initial = getInitialSceneTabsPersisted()
 
     expect(initial.tabs).toHaveLength(1)
-    expect(initial.tabs[0]?.title).toBe('Cena guardada')
+    expect(initial.tabs[0]?.title).toBe('Cena 1')
     expect(initial.activeTabId).toBe(initial.tabs[0]?.id)
   })
 
   it('restaura tabs persistidos', () => {
-    const payload = getInitialSceneTabsPersisted()
+    const tab = createDefaultTabSnapshot('Cena teste')
+    const payload = { activeTabId: tab.id, tabs: [tab] }
     localStorage.setItem(STORAGE_SCENE_TABS_KEY, JSON.stringify(payload))
 
     const loaded = loadSceneTabsPersisted()
 
-    expect(loaded?.tabs).toHaveLength(payload.tabs.length)
-    expect(loaded?.activeTabId).toBe(payload.activeTabId)
+    expect(loaded?.tabs).toHaveLength(1)
+    expect(loaded?.activeTabId).toBe(tab.id)
+  })
+
+  it('restaura estado sem abas abertas', () => {
+    localStorage.setItem(
+      STORAGE_SCENE_TABS_KEY,
+      JSON.stringify({ activeTabId: '', tabs: [] }),
+    )
+
+    const loaded = loadSceneTabsPersisted()
+
+    expect(loaded?.tabs).toHaveLength(0)
+    expect(loaded?.activeTabId).toBe('')
   })
 })

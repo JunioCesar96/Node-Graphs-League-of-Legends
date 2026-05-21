@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { staticCanvasScene } from '@/core/canvasScene'
+import { demoCanvasScene } from '@/core/demoCanvasScene'
 import { elementViewKeyForParameter, patchElementRetracted } from '@/core/elementViewState'
 import { buildContextMenuItems } from '@/core/canvasContextMenuItems'
 import type { CanvasContextTarget } from '@/core/canvasContextMenuTypes'
@@ -12,7 +12,7 @@ describe('buildContextMenuItems element retracted', () => {
     canUndo: false,
     glueNodeId: null,
     hasSelectAll: false,
-    scene: staticCanvasScene,
+    scene: demoCanvasScene,
     selectedNodeIds: [],
     viewportNavigateMode: false,
     toolbarVisibility: DEFAULT_CANVAS_TOOLBAR_VISIBILITY,
@@ -21,7 +21,7 @@ describe('buildContextMenuItems element retracted', () => {
   }
 
   it('mostra Retrair elemento quando expandido', () => {
-    const canvasNode = staticCanvasScene.nodes[0]!
+    const canvasNode = demoCanvasScene.nodes[0]!
     const param = canvasNode.node.schema.parameters[0]
     if (!param) {
       return
@@ -40,7 +40,7 @@ describe('buildContextMenuItems element retracted', () => {
   })
 
   it('mostra Expandir elemento quando retraído', () => {
-    const canvasNode = staticCanvasScene.nodes[0]!
+    const canvasNode = demoCanvasScene.nodes[0]!
     const param = canvasNode.node.schema.parameters[0]
     if (!param) {
       return
@@ -48,8 +48,8 @@ describe('buildContextMenuItems element retracted', () => {
 
     const key = elementViewKeyForParameter(param.id)
     const scene = {
-      ...staticCanvasScene,
-      nodes: staticCanvasScene.nodes.map((n) =>
+      ...demoCanvasScene,
+      nodes: demoCanvasScene.nodes.map((n) =>
         n.id === canvasNode.id
           ? { ...n, node: patchElementRetracted(n.node, key, true) }
           : n,
