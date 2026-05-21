@@ -9,7 +9,7 @@ Arquivo salvo em: `feature_md/feature/feature-jade-bridge-auto-dev.md`
 | Nome da Branch | `feature/jade-bridge-auto-dev` |
 | Nome das Features | Ponte Jade automática em dev; proxy Jade activo por defeito; abertura de `.bin` no painel Código |
 | Versão atual | `1.5.0` |
-| Hash do Commit | _(preencher após commit)_ |
+| Hash do Commit | `2278623` |
 
 ## 2. Definição e Resumo de Tags
 
