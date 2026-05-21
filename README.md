@@ -9,7 +9,7 @@ Arquivo salvo em: `feature_md/feature/feature-abas-cena-json-menu-grafo.md`
 | Nome da Branch | `feature/abas-cena-json-menu-grafo` |
 | Nome das Features | Abas de cena gráfica; menu Grafo (Nova Cena, recentes JSON, Salvar Cena de trabalho, Auto Save em ficheiro); bloco visual unificado abas + grade |
 | Versão atual | `1.5.0` |
-| Hash do Commit | `PENDING` |
+| Hash do Commit | `a869629` |
 
 ## 2. Definição e Resumo de Tags
 
