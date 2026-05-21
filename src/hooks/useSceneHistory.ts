@@ -41,6 +41,7 @@ import {
 import { isNodeSelectableOnCanvas } from '@/core/canvasNodePresentation'
 import { hydrateScene, schemaJsonRelativePathBySchemaId, staticCanvasScene } from '@/core/canvasScene'
 import { loadStoredScene, SCENE_STORAGE_KEY } from '@/core/sceneStorage'
+import type { SceneTabSnapshot } from '@/core/sceneTabsStorage'
 import { workspaceService } from '@/services/workspaceService'
 import { fx_required_parameter, resolveRequiredParameterListId } from '@/core/fx_required_parameter'
 import {
@@ -202,24 +203,65 @@ function getInitialPresent(): CanvasScene {
   return loaded.nodes.length === 0 ? staticCanvasScene : loaded
 }
 
+function selectionFromSnapshot(snapshot: SceneTabSnapshot): { ids: string[]; primaryId: string } {
+  const present = snapshot.present
+  const validIds = new Set(present.nodes.map((node) => node.id))
+  const ids = snapshot.selection.ids.filter((id) => validIds.has(id))
+  let primaryId = snapshot.selection.primaryId
+
+  if (present.nodes.length === 0) {
+    return { ids: [], primaryId: '' }
+  }
+
+  if (!validIds.has(primaryId) || !ids.includes(primaryId)) {
+    primaryId =
+      ids[0] ?? present.nodes.find((node) => node.id === ROOT_NODE_ID)?.id ?? present.nodes[0]?.id ?? ROOT_NODE_ID
+
+    return { ids: primaryId ? [primaryId] : [], primaryId }
+  }
+
+  return { ids, primaryId }
+}
+
 /** Hook central do grafo local com histórico, persistência em localStorage e multi-seleção. */
 export function useSceneHistory(options?: {
   /** Registo efectivo `{ ...schemaRegistryEstático, ...convertidosLocal }`; omite só estático */
   extendSchemaLookup?: Record<string, NodeSchemaDefinition>
-  /** Sync debounced para `src/data/workspace/` em dev (menu Grafo → Auto Save). */
-  workspaceAutoSave?: boolean
+  /** Auto Save: grava JSON da cena activa via callback (não workspace em disco). */
+  jsonFileAutoSave?: boolean
+  /** Chamado quando `jsonFileAutoSave` está activo e a cena muda. */
+  onAutoSaveScene?: (scene: CanvasScene) => void
+  /** Estado inicial da aba activa (multi-abas); omitir para legacy `getInitialPresent()`. */
+  initialTabSnapshot?: SceneTabSnapshot
 }) {
   const schemaLookup = options?.extendSchemaLookup ?? schemaRegistry
-  const workspaceAutoSave = options?.workspaceAutoSave === true
-  const [sceneHistory, setSceneHistory] = useState(() => ({
-    future: [] as CanvasScene[],
-    past: [] as CanvasScene[],
-    present: getInitialPresent(),
-  }))
+  const jsonFileAutoSave = options?.jsonFileAutoSave === true
+  const onAutoSaveScene = options?.onAutoSaveScene
+  const initialTabSnapshot = options?.initialTabSnapshot
+
+  const [sceneHistory, setSceneHistory] = useState(() => {
+    if (initialTabSnapshot) {
+      return {
+        future: initialTabSnapshot.future.map((s) => structuredClone(s)),
+        past: initialTabSnapshot.past.map((s) => structuredClone(s)),
+        present: syncSceneCollapsedBodyWireless(hydrateScene(initialTabSnapshot.present)),
+      }
+    }
+
+    return {
+      future: [] as CanvasScene[],
+      past: [] as CanvasScene[],
+      present: getInitialPresent(),
+    }
+  })
 
   const scene = sceneHistory.present
 
   const [selectionState, setSelectionState] = useState(() => {
+    if (initialTabSnapshot) {
+      return selectionFromSnapshot(initialTabSnapshot)
+    }
+
     const present = getInitialPresent()
     const fallback =
       present.nodes.find((node) => node.id === ROOT_NODE_ID)?.id ??
@@ -271,11 +313,11 @@ export function useSceneHistory(options?: {
   }, [scene])
 
   useEffect(() => {
-    if (!import.meta.env.DEV || !workspaceAutoSave) {
+    if (!jsonFileAutoSave || !onAutoSaveScene) {
       return
     }
-    workspaceService.syncSceneToDisk(scene)
-  }, [scene, workspaceAutoSave])
+    onAutoSaveScene(scene)
+  }, [scene, jsonFileAutoSave, onAutoSaveScene])
 
   useEffect(() => {
     if (!import.meta.env.DEV) {
@@ -432,6 +474,45 @@ export function useSceneHistory(options?: {
     } catch {
       /** ignore */
     }
+  }, [])
+
+  const getTabSnapshot = useCallback(
+    (tabId: string, title: string): SceneTabSnapshot => ({
+      id: tabId,
+      title,
+      past: sceneHistory.past.map((s) => structuredClone(s)),
+      present: structuredClone(sceneHistory.present),
+      future: sceneHistory.future.map((s) => structuredClone(s)),
+      selection: {
+        ids: [...selectionState.ids],
+        primaryId: selectionState.primaryId,
+      },
+    }),
+    [sceneHistory, selectionState],
+  )
+
+  const applyTabSnapshot = useCallback((snapshot: SceneTabSnapshot) => {
+    const hydrated = syncSceneCollapsedBodyWireless(hydrateScene(snapshot.present))
+    const validIds = new Set(hydrated.nodes.map((node) => node.id))
+    let nextIds = snapshot.selection.ids.filter((id) => validIds.has(id))
+    let primaryId = snapshot.selection.primaryId
+
+    if (hydrated.nodes.length === 0) {
+      nextIds = []
+      primaryId = ''
+    } else if (!validIds.has(primaryId) || !nextIds.includes(primaryId)) {
+      primaryId = nextIds[0] ?? hydrated.nodes.find((n) => n.id === ROOT_NODE_ID)?.id ?? hydrated.nodes[0]?.id ?? ''
+      if (primaryId && !nextIds.includes(primaryId)) {
+        nextIds = [primaryId]
+      }
+    }
+
+    setSceneHistory({
+      past: snapshot.past.map((s) => syncSceneCollapsedBodyWireless(hydrateScene(s))),
+      present: hydrated,
+      future: snapshot.future.map((s) => syncSceneCollapsedBodyWireless(hydrateScene(s))),
+    })
+    setSelectionState({ ids: nextIds, primaryId })
   }, [])
 
   const selectNode = useCallback(
@@ -2380,10 +2461,10 @@ export function useSceneHistory(options?: {
       present: staticCanvasScene,
     })
     setSelectionState({ ids: emptySelection, primaryId: ROOT_NODE_ID })
-    if (workspaceAutoSave) {
-      workspaceService.syncSceneToDisk(staticCanvasScene)
+    if (jsonFileAutoSave && onAutoSaveScene) {
+      onAutoSaveScene(staticCanvasScene)
     }
-  }, [workspaceAutoSave])
+  }, [jsonFileAutoSave, onAutoSaveScene])
 
   return {
     cycleConnectionRouting,
@@ -2452,6 +2533,8 @@ export function useSceneHistory(options?: {
     undoScene,
     selectedNode,
     replaceScene,
+    getTabSnapshot,
+    applyTabSnapshot,
     clearSelection,
   }
 }

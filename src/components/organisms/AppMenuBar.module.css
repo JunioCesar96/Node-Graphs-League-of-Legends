@@ -130,6 +130,57 @@
   background: var(--color-border-soft);
 }
 
+.menuItemWithSub {
+  position: relative;
+}
+
+.menuItemWithSub:hover .menuSubPanel,
+.menuItemWithSub:focus-within .menuSubPanel {
+  pointer-events: auto;
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.menuSubPanel {
+  position: absolute;
+  top: 0;
+  left: calc(100% + 4px);
+  z-index: 25;
+  display: grid;
+  gap: 2px;
+  min-width: 220px;
+  max-width: 320px;
+  max-height: 280px;
+  padding: var(--space-2);
+  overflow-y: auto;
+  pointer-events: none;
+  background: rgb(19 19 19 / 96%);
+  border: 1px solid var(--color-border-soft);
+  border-radius: 12px;
+  box-shadow: 0 16px 40px rgb(0 0 0 / 48%);
+  opacity: 0;
+  transform: translateX(-4px);
+  transition:
+    opacity 120ms ease-out,
+    transform 120ms ease-out;
+}
+
+.menuItemDisabled {
+  padding: var(--space-2) var(--space-3);
+  color: var(--color-text-secondary);
+  font-family: var(--font-ui);
+  font-size: 0.76rem;
+  font-style: italic;
+  cursor: default;
+}
+
+.menuItemRecentMeta {
+  display: block;
+  margin-top: 2px;
+  color: var(--color-text-secondary);
+  font-size: 0.68rem;
+}
+
 .hiddenInput {
   display: none;
 }

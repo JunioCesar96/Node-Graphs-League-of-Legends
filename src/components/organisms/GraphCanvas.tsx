@@ -315,6 +315,8 @@ type GraphCanvasProps = {
   /** Visibilidade dos botões da barra do canvas (persistida em `scene.sceneChrome`). */
   toolbarVisibility?: CanvasToolbarVisibility
   onToolbarVisibilityChange?: (next: CanvasToolbarVisibility) => void
+  /** Junta visualmente ao bloco de abas «Cenas de trabalho» (sem borda/cantos no topo). */
+  attachedViewport?: boolean
 }
 
 type ConnectionPath = {
@@ -1416,6 +1418,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     onSceneNodesPanelRequest,
     toolbarVisibility: toolbarVisibilityProp,
     onToolbarVisibilityChange,
+    attachedViewport = false,
   },
   ref,
 ) {
@@ -3216,7 +3219,9 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
   return (
     <section
       aria-label="Static node graph canvas"
-      className={styles.viewport}
+      className={[styles.viewport, attachedViewport ? styles.viewportAttached : '']
+        .filter(Boolean)
+        .join(' ')}
       ref={viewportRef}
     >
       <div className={styles.toolbar} data-canvas-control="true" data-canvas-toolbar="true">

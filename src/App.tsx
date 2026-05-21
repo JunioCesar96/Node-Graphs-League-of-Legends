@@ -3,6 +3,7 @@ import type { GraphCanvasHandle } from '@/components/organisms/GraphCanvas'
 import type { CSSProperties, PointerEvent } from 'react'
 
 import { ConsoleNotificationCapsule } from '@/components/molecules/ConsoleNotificationCapsule'
+import { SceneTabBar } from '@/components/molecules/SceneTabBar'
 import { AppMenuBar } from '@/components/organisms/AppMenuBar'
 import { CodeDock } from '@/components/organisms/CodeDock'
 import {
@@ -68,7 +69,7 @@ import {
 import { fx_required_parameter_isMarked, resolveRequiredParameterListId } from '@/core/fx_required_parameter'
 import { resolveLinkedPairForDisk } from '@/core/linked_parameter_values'
 import { link_parameter_value_partner } from '@/core/link_parameter_value'
-import { parseSceneDocument, serializeScene } from '@/core/leagueBinScene'
+import { parseSceneDocument } from '@/core/leagueBinScene'
 import {
   countElementDependencies,
   formatElementDependencyWarning,
@@ -87,12 +88,10 @@ import {
   setSceneAutoSaveEnabled,
 } from '@/core/sceneAutoSavePreference'
 import { STORAGE_LAST_STRUCTURE_META, triggerJsonDownload } from '@/core/workspaceStorage'
-import { workspaceService } from '@/services/workspaceService'
-import {
-  ROOT_NODE_ID,
-  isCanvasScene,
-  useSceneHistory,
-} from '@/hooks/useSceneHistory'
+import { saveSceneJsonManual } from '@/core/sceneJsonFileSave'
+import { stripExtension } from '@/core/sceneTabsStorage'
+import { ROOT_NODE_ID, isCanvasScene } from '@/hooks/useSceneHistory'
+import { useSceneTabs } from '@/hooks/useSceneTabs'
 
 import styles from './App.module.css'
 
@@ -193,7 +192,7 @@ function App() {
     [dynamicStructurePacks],
   )
 
-  const [workspaceAutoSave, setWorkspaceAutoSave] = useState(() => getSceneAutoSaveEnabled())
+  const [jsonFileAutoSave, setJsonFileAutoSave] = useState(() => getSceneAutoSaveEnabled())
 
   const {
     cycleConnectionRouting,
@@ -239,7 +238,17 @@ function App() {
     selectNode,
     selectAllNodes,
     clearSelection,
-    replaceScene,
+    tabBarItems,
+    recentScenes,
+    activateTab,
+    closeTab,
+    openSceneInNewTab,
+    openRecentScene,
+    promptNewWorkScene,
+    activeTabId,
+    activeTabTitle,
+    activeTabJsonFileName,
+    setTabJsonFileContext,
     addDynamicParameter,
     removeCanvasParameter,
     appendEmbedCatalogItem,
@@ -258,7 +267,7 @@ function App() {
     removeListEmbedBlock,
     removeListPointerSlot,
     removeListPointerBlock,
-  } = useSceneHistory({ extendSchemaLookup, workspaceAutoSave })
+  } = useSceneTabs({ extendSchemaLookup, jsonFileAutoSave })
 
   const { showConfirmByCatalogId, showToastByCatalogId } = useMessengerPopup()
 
@@ -347,26 +356,6 @@ function App() {
     [],
   )
 
-  useEffect(() => {
-    workspaceService.setSaveStatusListener((event) => {
-      if (event.trigger === 'migration' || event.trigger === 'auto') {
-        return
-      }
-
-      if (event.ok) {
-        showSaveStatusNotice(
-          'Cena gravada em src/data/workspace/ (logic.json, layout.json, graph.json).',
-        )
-        return
-      }
-
-      showSaveStatusNotice(event.detail ?? 'Falha ao gravar a cena no disco.')
-    })
-
-    return () => {
-      workspaceService.setSaveStatusListener(null)
-    }
-  }, [showSaveStatusNotice])
 
   const toggleNodeConfigurationMode = useCallback(() => {
     if (nodeConfigurationMode) {
@@ -886,30 +875,48 @@ function App() {
     window.alert(`«${fileName}» carregado no painel Código (${via}). O grafo mock não foi alterado.`)
   }, [])
 
-  const handleExportGraph = () => {
-    const documentPayload = serializeScene(scene)
-    const timestampLabel = Date.now()
+  const handleSaveWorkScene = useCallback(async () => {
+    const suggested = activeTabJsonFileName ?? `${activeTabTitle}.json`
+    const result = await saveSceneJsonManual(scene, suggested)
 
-    triggerJsonDownload(documentPayload, `node-structure-${timestampLabel}.json`)
-    showSaveStatusNotice('Grafo JSON exportado para download (node-graphs-lol v2).')
-  }
-
-  const handleToggleWorkspaceAutoSave = useCallback(() => {
-    setWorkspaceAutoSave((current) => {
-      const next = !current
-      setSceneAutoSaveEnabled(next)
-      return next
-    })
-  }, [])
-
-  const handleSaveSceneGraph = useCallback(() => {
-    if (!import.meta.env.DEV) {
-      showSaveStatusNotice('Cena guardada no localStorage do browser (disco só em npm run dev).')
+    if (result.cancelled) {
       return
     }
 
-    workspaceService.saveSceneNow(scene)
-  }, [scene, showSaveStatusNotice])
+    setTabJsonFileContext(activeTabId, {
+      fileName: result.fileName,
+      handle: result.handle,
+    })
+
+    const message = result.usedDownload
+      ? `Cena de trabalho descarregada como «${result.fileName}».`
+      : `Cena de trabalho guardada em «${result.fileName}».`
+
+    showSaveStatusNotice(message)
+  }, [
+    activeTabId,
+    activeTabJsonFileName,
+    activeTabTitle,
+    scene,
+    setTabJsonFileContext,
+    showSaveStatusNotice,
+  ])
+
+  const handleToggleJsonFileAutoSave = useCallback(() => {
+    setJsonFileAutoSave((current) => {
+      const next = !current
+      setSceneAutoSaveEnabled(next)
+
+      if (next) {
+        showSaveStatusNotice(
+          'Auto Save activo: grava no ficheiro JSON após o primeiro «Salvar Cena de trabalho» nesta sessão (por aba).',
+          12,
+        )
+      }
+
+      return next
+    })
+  }, [showSaveStatusNotice])
 
   const handleImportWorkspaceFile = async (file: File) => {
     if (file.name.toLowerCase().endsWith('.bin')) {
@@ -974,7 +981,7 @@ function App() {
         return
       }
 
-      replaceScene(graphCandidate)
+      openSceneInNewTab(stripExtension(file.name), graphCandidate, { sourceFileName: file.name })
     } catch {
       window.alert('Não foi possível ler o JSON.')
     }
@@ -1920,19 +1927,35 @@ function App() {
           />
         ) : null}
         <AppMenuBar
-          autoSaveEnabled={workspaceAutoSave}
+          autoSaveEnabled={jsonFileAutoSave}
           nodeConfigurationMode={nodeConfigurationMode}
           onDeleteSelection={() => deleteSelectedNodes()}
-          onExportGraph={handleExportGraph}
           onImportGraph={handleImportWorkspaceFile}
+          onNewWorkScene={promptNewWorkScene}
+          onOpenRecentScene={openRecentScene}
           onOpenStubBin={handleStubPipeline}
           onRequestAddNode={requestPalette}
-          onSaveSceneGraph={handleSaveSceneGraph}
-          onToggleAutoSave={handleToggleWorkspaceAutoSave}
+          onSaveWorkScene={handleSaveWorkScene}
+          onToggleAutoSave={handleToggleJsonFileAutoSave}
           onToggleNodeConfigurationMode={toggleNodeConfigurationMode}
           onToggleCodeDock={() => setCodeDockOpen((isOpen) => !isOpen)}
+          recentScenes={recentScenes}
         />
-        <p className={styles.empty}>Nenhum nó disponível. Use File → Stub .bin ou add node.</p>
+        <div className={styles.workspace} data-workspace>
+          <div className={styles.graphColumn}>
+            <div className={styles.graphSurface}>
+              <div className={styles.sceneTabRow}>
+                <SceneTabBar
+                  attached
+                  onActivate={activateTab}
+                  onClose={closeTab}
+                  tabs={tabBarItems}
+                />
+              </div>
+              <p className={styles.empty}>Nenhum nó disponível. Use File → Stub .bin ou add node.</p>
+            </div>
+          </div>
+        </div>
       </main>
     )
   }
@@ -1964,22 +1987,35 @@ function App() {
         />
       ) : null}
       <AppMenuBar
-        autoSaveEnabled={workspaceAutoSave}
+        autoSaveEnabled={jsonFileAutoSave}
         nodeConfigurationMode={nodeConfigurationMode}
         onDeleteSelection={() => deleteSelectedNodes()}
-        onExportGraph={handleExportGraph}
         onImportGraph={handleImportWorkspaceFile}
+        onNewWorkScene={promptNewWorkScene}
+        onOpenRecentScene={openRecentScene}
         onOpenStubBin={handleStubPipeline}
         onRequestAddNode={requestPalette}
-        onSaveSceneGraph={handleSaveSceneGraph}
-        onToggleAutoSave={handleToggleWorkspaceAutoSave}
+        onSaveWorkScene={handleSaveWorkScene}
+        onToggleAutoSave={handleToggleJsonFileAutoSave}
         onToggleNodeConfigurationMode={toggleNodeConfigurationMode}
         onToggleCodeDock={() => setCodeDockOpen((isOpen) => !isOpen)}
+        recentScenes={recentScenes}
       />
 
       <div className={styles.workspace} data-workspace>
         <div className={styles.graphColumn} ref={graphColumnRef}>
+          <div className={styles.graphSurface}>
+            <div className={styles.sceneTabRow}>
+              <SceneTabBar
+                attached
+                onActivate={activateTab}
+                onClose={closeTab}
+                tabs={tabBarItems}
+              />
+            </div>
+            <div className={styles.graphColumnMain}>
           <GraphCanvas
+            attachedViewport
             ref={graphCanvasRef}
             availableSchemas={availableSchemas}
             canRedo={sceneHistory.future.length > 0}
@@ -2145,7 +2181,8 @@ function App() {
               />
             </div>
           ) : null}
-        </div>
+            </div>
+          </div>
 
         {nodeConfigurationMode && parameterValueLinkPickerModel && inspectorTarget ? (
           <ParameterValueLinkPicker
@@ -2224,6 +2261,7 @@ function App() {
             titleDomId="hash-string-picker-title"
           />
         ) : null}
+        </div>
 
         {codeDockOpen ? (
           <div className={codeDockFloating ? styles.codeDockPortalSlot : styles.codeDockColumn}>

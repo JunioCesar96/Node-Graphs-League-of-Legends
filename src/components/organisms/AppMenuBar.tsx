@@ -6,34 +6,39 @@ import {
   readAbsolutePathFromDroppedOrPickedFile,
   setStoredRitobinExePath,
 } from '@/core/ritobinExePreference'
+import type { RecentSceneListItem } from '@/core/sceneTabsStorage'
 import styles from './AppMenuBar.module.css'
 
 export type AppMenuBarProps = {
   autoSaveEnabled: boolean
   nodeConfigurationMode: boolean
   onDeleteSelection: () => void
-  onExportGraph: () => void
   onImportGraph: (file: File) => void
+  onNewWorkScene: () => void
+  onOpenRecentScene: (recentId: string) => void
   onOpenStubBin: () => void
   onRequestAddNode: () => void
-  onSaveSceneGraph: () => void
+  onSaveWorkScene: () => void
   onToggleAutoSave: () => void
   onToggleNodeConfigurationMode: () => void
   onToggleCodeDock: () => void
+  recentScenes: RecentSceneListItem[]
 }
 
 export function AppMenuBar({
   autoSaveEnabled,
   nodeConfigurationMode,
   onDeleteSelection,
-  onExportGraph,
   onImportGraph,
+  onNewWorkScene,
+  onOpenRecentScene,
   onOpenStubBin,
   onRequestAddNode,
-  onSaveSceneGraph,
+  onSaveWorkScene,
   onToggleAutoSave,
   onToggleNodeConfigurationMode,
   onToggleCodeDock,
+  recentScenes,
 }: AppMenuBarProps) {
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const ritobinExeInputRef = useRef<HTMLInputElement | null>(null)
@@ -194,9 +199,36 @@ export function AppMenuBar({
             Grafo
           </button>
           <div className={styles.menuPanel} role="menu">
-            <button className={styles.menuItem} onClick={onSaveSceneGraph} type="button">
-              Salvar grafo cena
+            <button className={styles.menuItem} onClick={onNewWorkScene} type="button">
+              Nova Cena de trabalho
             </button>
+            <div className={styles.menuItemWithSub}>
+              <button className={styles.menuItem} type="button">
+                Carregar cenas recentes
+              </button>
+              <div className={styles.menuSubPanel} role="menu">
+                {recentScenes.length === 0 ? (
+                  <span className={styles.menuItemDisabled}>Nenhum JSON aberto recentemente</span>
+                ) : (
+                  recentScenes.map((entry) => (
+                    <button
+                      className={styles.menuItem}
+                      key={entry.id}
+                      onClick={() => onOpenRecentScene(entry.id)}
+                      type="button"
+                    >
+                      {entry.sourceFileName ?? entry.title}
+                      {entry.openedAt ? (
+                        <span className={styles.menuItemRecentMeta}>
+                          {new Date(entry.openedAt).toLocaleString()}
+                        </span>
+                      ) : null}
+                    </button>
+                  ))
+                )}
+              </div>
+            </div>
+            <div aria-hidden className={styles.menuSeparator} />
             <button
               aria-checked={autoSaveEnabled}
               className={styles.menuItemConfig}
@@ -215,9 +247,8 @@ export function AppMenuBar({
               />
               <span>Auto Save</span>
             </button>
-            <div aria-hidden className={styles.menuSeparator} />
-            <button className={styles.menuItem} onClick={onExportGraph} type="button">
-              Exportar grafo JSON
+            <button className={styles.menuItem} onClick={onSaveWorkScene} type="button">
+              Salvar Cena de trabalho
             </button>
           </div>
         </div>
