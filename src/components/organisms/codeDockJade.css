@@ -1,0 +1,44 @@
+@import '@jade/components/MenuBar.css';
+@import '@jade/components/EditorContextMenu.css';
+@import '@jade/components/SettingsDialog.css';
+@import '@jade/components/PreferencesDialog.css';
+@import '@jade/components/ThemesDialog.css';
+@import '@jade/components/AboutDialog.css';
+@import '@jade/components/GeneralEditPanel.css';
+@import '@jade/components/ParticleEditorPanel.css';
+
+/* Variáveis Jade só dentro do painel Código */
+.codeDockJadeScope {
+  --vscode-menu-background: #252526;
+  --vscode-menu-foreground: #cccccc;
+  --vscode-menu-border: #454545;
+  --vscode-editorWidget-background: #252526;
+  --vscode-editorWidget-foreground: #cccccc;
+  flex-shrink: 0;
+}
+
+.codeDockJadeScope .menu-bar {
+  border-bottom: 1px solid var(--border, #2a2a2a);
+  min-height: 28px;
+}
+
+.codeDockJadeScope .settings-nav-item.disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.codeDockJadeScope .settings-nav-badge {
+  font-size: 9px;
+  margin-left: 6px;
+  opacity: 0.7;
+}
+
+.codeDockNodeGraphLabel {
+  display: block;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  opacity: 0.65;
+  padding: 4px 12px 2px;
+  text-transform: uppercase;
+}

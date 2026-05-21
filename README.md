@@ -1,156 +1,78 @@
-# Documentação de Implementação — Abas de cena, persistência JSON e menu Grafo
+# node-graphs-lol
 
-Arquivo salvo em: `feature_md/feature/feature-abas-cena-json-menu-grafo.md`
+Editor de grafos de nós para League of Legends / ritobin, com painel de código ritual integrado ao **Jade-League-Bin-Editor**.
 
-## 1. Cabeçalho
+Documentação da feature mais recente: [`feature_md/feature/feature-menu-jade-codedock.md`](feature_md/feature/feature-menu-jade-codedock.md)
 
-| Campo | Valor |
+## Documentação de implementação por feature
+
+| Branch / tema | Documento |
 | --- | --- |
-| Nome da Branch | `feature/abas-cena-json-menu-grafo` |
-| Nome das Features | Abas de cena gráfica; menu Grafo (Nova Cena, recentes JSON, Salvar Cena de trabalho, Auto Save em ficheiro); bloco visual unificado abas + grade |
-| Versão atual | `1.5.0` |
-| Hash do Commit | `a869629` |
+| Menu Jade no CodeDock | [`feature-menu-jade-codedock.md`](feature_md/feature/feature-menu-jade-codedock.md) |
+| Abas de cena e menu Grafo | [`feature-abas-cena-json-menu-grafo.md`](feature_md/feature/feature-abas-cena-json-menu-grafo.md) |
+| Persistência cena / menu Grafo | [`feature-cena-persistencia-menu-grafo.md`](feature_md/feature/feature-cena-persistencia-menu-grafo.md) |
+| Workspace em disco | [`feature-workspace-disk-persistence.md`](feature_md/feature/feature-workspace-disk-persistence.md) |
 
-## 2. Definição e Resumo de Tags
+Índice completo em [`feature_md/feature/`](feature_md/feature/).
 
-| Tag | Definição |
-| --- | --- |
-| `[NOVO]` | Novo componente, arquivo, endpoint, função ou estrutura de dados criado nesta branch. |
-| `[ATUALIZADO]` | Componente, função, schema ou fluxo existente alterado para suportar a feature. |
-| `[REMOVIDO]` | Código, comportamento ou componente removido da aplicação. |
+## Menu e configurações Jade no editor de código (v1.5.0)
 
-Tags presentes nesta implementação:
+### Resumo
 
-- `[NOVO]`
-- `[ATUALIZADO]`
-- `[REMOVIDO]`
+O painel **Código** (`CodeDock`) inclui a barra de menus, atalhos, context menu, diálogos e painéis do Jade (Find/Replace, Particle Editor, General Edit, Settings, Themes, Preferences, About). As preferências usam `localStorage` no browser e podem sincronizar com `jade-http-bridge` (`GET/POST /preference`).
 
-## 3. Fluxograma de Funcionamento
+### Arranque rápido
 
-```mermaid
-flowchart TD
-  subgraph ui [Interface]
-    Menu[AppMenuBar Grafo]
-    Tabs[SceneTabBar]
-    Canvas[GraphCanvas]
-    Menu --> Nova[Nova Cena de trabalho]
-    Menu --> Recent[Carregar cenas recentes max 10]
-    Menu --> Save[Salvar Cena de trabalho]
-    Menu --> Auto[Auto Save]
-    FileOpen[File Open JSON] --> OpenTab[Nova aba]
-  end
-  subgraph tabsState [Multi-abas]
-    Hook[useSceneTabs]
-    Store[node-graphs-lol:scene-tabs-v1]
-    Hook --> Store
-    Tabs --> Hook
-    Canvas --> Hook
-  end
-  subgraph jsonPersist [Persistência JSON]
-    Manual[saveSceneJsonManual]
-    AutoJson[saveSceneJsonAuto debounce 500ms]
-    FS[File System Access API]
-    DL[triggerJsonDownload fallback]
-    Save --> Manual
-    Manual --> FS
-    Manual --> DL
-    Auto --> AutoJson
-    AutoJson --> FS
-  end
-  subgraph recent [Recentes]
-    Push[pushRecentScene FIFO 10]
-    OpenTab --> Push
-    Recent --> Push
-  end
+```bash
+pnpm install
+pnpm run dev
 ```
 
-## 4. Fluxograma de Acionamento de Funções
+Opcional — bridge Jade para abrir `.bin`:
 
-```mermaid
-sequenceDiagram
-  actor U as Utilizador
-  participant Menu as AppMenuBar
-  participant App as App.tsx
-  participant Tabs as useSceneTabs
-  participant Hist as useSceneHistory
-  participant Json as sceneJsonFileSave
-  participant Store as sceneTabsStorage
-
-  Note over U,Store: Nova cena
-  U->>Menu: Nova Cena de trabalho
-  Menu->>App: promptNewWorkScene
-  App->>Tabs: createWorkScene titulo
-  Tabs->>Hist: applyTabSnapshot cena vazia
-
-  Note over U,Store: Abrir JSON
-  U->>App: File Open
-  App->>Tabs: openSceneInNewTab nome ficheiro cena
-  Tabs->>Store: pushRecentScene max 10
-
-  Note over U,Json: Salvar manual
-  U->>Menu: Salvar Cena de trabalho
-  Menu->>App: handleSaveWorkScene
-  App->>Json: saveSceneJsonManual scene nome
-  Json-->>App: fileName handle
-  App->>Tabs: setTabJsonFileContext
-
-  Note over U,Json: Auto Save
-  U->>Hist: editar cena
-  Hist->>Tabs: onAutoSaveScene debounced
-  Tabs->>Json: saveSceneJsonAuto se handle existir
+```bash
+pnpm run jade:http-bridge   # ou jade-bridge:dev (mock)
 ```
 
-## 5. Tabela de Funções e Componentes
+Em `.env` (dev): `VITE_JADE_USE_PROXY=true` e reiniciar `npm run dev`.
 
-| Status | Nome | Feature Correspondente | Descrição Técnica | Parâmetros Recebidos / Retorno |
-| --- | --- | --- | --- | --- |
-| `[NOVO]` | `sceneTabsStorage.ts` | Abas + recentes | Persistência `scene-tabs-v1`, `recent-scenes`, migração de `node-graphs-lol:scene`, `stripExtension`, `uniqueTabTitle`, `pushRecentScene` (FIFO 10). | Funções puras; `SceneTabSnapshot`, `RecentSceneEntry` |
-| `[NOVO]` | `sceneJsonFileSave.ts` | Salvar JSON | `normalizeSceneJsonFileName`, `saveSceneJsonManual` (prompt + FS API ou download), `saveSceneJsonAuto` (write no handle). | `(scene, suggestedName)` → resultado manual/auto |
-| `[NOVO]` | `useSceneTabs.ts` | Multi-abas | Orquestra abas, flush/activate, recentes, handles JSON por `tabId`, delega edição a `useSceneHistory`. | Expõe API de `useSceneHistory` + operações de aba |
-| `[NOVO]` | `SceneTabBar.tsx` | UI abas | Barra horizontal com activação, fechar (confirma se undo), prop `attached`. | `tabs`, `onActivate`, `onClose`, `attached?` |
-| `[NOVO]` | `graphSurface` (`App.module.css`) | Visual unificado | Contentor único com borda e `border-radius`; abas + grade sem gap. | CSS |
-| `[ATUALIZADO]` | `useSceneHistory.ts` | Abas + Auto Save JSON | `getTabSnapshot` / `applyTabSnapshot`, `initialTabSnapshot`; `jsonFileAutoSave` + `onAutoSaveScene` (substitui sync workspace no auto-save). | Opções do hook |
-| `[ATUALIZADO]` | `AppMenuBar.tsx` | Menu Grafo | Nova Cena, submenu recentes (nome do ficheiro JSON), Salvar Cena de trabalho, Auto Save; removido Salvar grafo cena. | Props `onSaveWorkScene`, `recentScenes`, etc. |
-| `[ATUALIZADO]` | `App.tsx` | Orquestração | `useSceneTabs`, `graphSurface`, import JSON em nova aba, `handleSaveWorkScene`. | — |
-| `[ATUALIZADO]` | `GraphCanvas.tsx` | Visual unificado | Prop `attachedViewport` → classe `viewportAttached` (sem borda/cantos no topo). | `attachedViewport?: boolean` |
-| `[REMOVIDO]` | Menu «Salvar grafo cena» | Persistência workspace UI | Item e `handleSaveSceneGraph` / `onSaveSceneGraph` removidos; gravação DEV `workspace` deixa de ser acionada pelo menu ou Auto Save. | — |
-| `[REMOVIDO]` | «Exportar grafo JSON» (rótulo) | Renomeado | Substituído por «Salvar Cena de trabalho» com prompt de nome de ficheiro. | — |
+### Atalhos no painel Código (com foco no editor)
 
-## 6. Descrição Detalhada de Funcionamento
+| Atalho | Acção |
+| --- | --- |
+| Ctrl+F | Find |
+| Ctrl+H | Replace |
+| Ctrl+Z / Ctrl+Y | Undo / Redo |
+| Ctrl+O | General Editing |
+| Ctrl+P | Particle Editing |
 
-### Abas de cena gráfica
+### Tags da implementação
 
-Cada aba mantém snapshot independente (`past`, `present`, `future`, selecção de nós) em `node-graphs-lol:scene-tabs-v1`. A aba activa continua a sincronizar `node-graphs-lol:scene` para compatibilidade. Ao trocar de aba, `flush` grava o estado actual no array de abas e `applyTabSnapshot` restaura a destino. Fechar aba pede confirmação se existir histórico undo; a última aba não pode ser fechada.
+- `[NOVO]` — `useCodeDockJadeEditor`, backends de preferências, `CodeDockJadeDialogs`, endpoints `/preference`
+- `[ATUALIZADO]` — `CodeDock`, `App.tsx`, componentes Jade (`MenuBar`, `SettingsDialog`, …)
+- `[REMOVIDO]` — dropdown «Converter ▾» no header (movido para **Tools → Node Graph**)
 
-**File → Open…** (JSON) abre sempre numa **nova aba** com título = nome do ficheiro sem extensão. **Nova Cena de trabalho** (menu Grafo) pede nome via `window.prompt` e cria aba com `staticCanvasScene`.
+Ver fluxogramas, tabela de componentes e regras de erro no documento linked acima.
 
-### Recentes (últimos 10 JSON)
+## Scripts úteis
 
-`pushRecentScene` guarda snapshot `CanvasScene` + `sourceFileName` opcional; deduplica por ficheiro ou título; máximo 10 entradas (FIFO). O submenu lista o nome do ficheiro; reabrir usa snapshot (limitação do browser — sem caminho de disco).
+| Script | Descrição |
+| --- | --- |
+| `pnpm run dev` | Vite dev server |
+| `pnpm run test` | Vitest |
+| `pnpm run jade:http-bridge` | Bridge Rust (convert + preferences) |
+| `pnpm run jade-bridge:dev` | Mock bridge Node |
 
-### Persistência JSON (menu Grafo)
+## Estrutura relevante
 
-- **Salvar Cena de trabalho:** `window.prompt` para o nome → `serializeScene` v2 → File System Access API (`showSaveFilePicker`) quando disponível, senão `triggerJsonDownload`. O handle fica associado à aba activa para Auto Save.
-- **Auto Save:** debounce 500 ms na edição; grava no mesmo ficheiro via `FileSystemFileHandle` se existir na sessão. Sem handle (ex.: após reload), não dispara downloads automáticos — apenas `localStorage` / abas; cápsula informa ao activar Auto Save.
+```
+src/
+  components/organisms/CodeDock.tsx      # Painel código + MenuBar Jade
+  components/organisms/CodeDockJadeDialogs.tsx
+  hooks/useCodeDockJadeEditor.ts
+  hooks/buildMonacoOptions.ts
+  jade/webPreferenceBackend.ts
+  jade/compositePreferenceBackend.ts
+```
 
-O sync automático para `src/data/workspace/` (**logic/layout/graph**) foi **desligado** do fluxo Auto Save/menu; o load DEV no boot de `useSceneHistory` pode manter-se para migração legada.
-
-### Bloco visual unificado (`graphSurface`)
-
-Abas e grade partilham um contentor com borda exterior arredondada (`border-radius: 12px`). `SceneTabBar` com `attached` não tem borda inferior nem cantos; `GraphCanvas` com `attachedViewport` não tem borda superior. `gap: 0` entre abas e canvas. A barra fica na largura da coluna do grafo (acompanha redimensionamento do painel Código).
-
-### Tratamento de erros
-
-- Prompt de nome vazio: alerta e cancela criação de cena.
-- `saveSceneJsonManual` cancelado no picker: sem alteração.
-- Auto Save sem permissão de escrita no handle: falha silenciosa (sem spam de downloads).
-- JSON inválido no Open: `window.alert` com mensagem existente.
-
-### Tecnologias
-
-TypeScript, React 19, Vite, Vitest, File System Access API (opcional), `localStorage`, Mermaid nos fluxos deste documento.
-
-### Testes automatizados
-
-- `sceneTabsStorage.test.ts` — `stripExtension`, `uniqueTabTitle`, recentes FIFO/dedupe, migração.
-- `sceneJsonFileSave.test.ts` — `normalizeSceneJsonFileName`.
+Alias Vite: `@jade` → `../Jade-League-Bin-Editor/src`

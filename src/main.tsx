@@ -6,7 +6,12 @@ import { createRoot } from 'react-dom/client'
 import '@/styles/global.css'
 
 import App from './App.tsx'
+import { registerCompositePreferenceBackend } from './jade/compositePreferenceBackend.ts'
+import { registerWebPreferenceBackend } from './jade/webPreferenceBackend.ts'
 import { MessengerPopupProvider } from './messenger_popup/MessengerPopupProvider.tsx'
+
+registerWebPreferenceBackend()
+registerCompositePreferenceBackend()
 
 /** Usa Monaco do `node_modules` em vez do CDN (@monaco-editor/react default) — evita falhas offline/CSP/extensões. */
 loader.config({ monaco })

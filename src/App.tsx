@@ -5,7 +5,14 @@ import type { CSSProperties, PointerEvent } from 'react'
 import { ConsoleNotificationCapsule } from '@/components/molecules/ConsoleNotificationCapsule'
 import { SceneTabBar } from '@/components/molecules/SceneTabBar'
 import { AppMenuBar } from '@/components/organisms/AppMenuBar'
-import { CodeDock, CODE_DOCK_DEFAULT_WIDTH, CODE_DOCK_MIN_WIDTH } from '@/components/organisms/CodeDock'
+import {
+  CodeDock,
+  CODE_DOCK_DEFAULT_WIDTH,
+  CODE_DOCK_MIN_WIDTH,
+  type CodeDockFileBridge,
+} from '@/components/organisms/CodeDock'
+import { getPreference } from '@jade/lib/preferenceStore'
+import { pushCodeRecentFile, readCodeRecentFiles } from '@/jade/codeRecentFiles'
 import {
   NodeInstanceStringPicker,
   type NodeInstanceStringCandidate,
@@ -323,6 +330,9 @@ function App() {
     clampFloatingDockRect(createDefaultFloatingCodeDockRect()),
   )
   const [codeText, setCodeText] = useState('// Stub do editor League-Bin\n// Sincronização bidirecional chega na fase E.\n')
+  const [codeDockFileName, setCodeDockFileName] = useState('ritual.py')
+  const [codeRecentFiles, setCodeRecentFiles] = useState<string[]>(() => readCodeRecentFiles())
+  const codeDockFileInputRef = useRef<HTMLInputElement>(null)
   const [nodeConfigurationMode, setNodeConfigurationMode] = useState(false)
   const [parameterValueLinkSourceId, setParameterValueLinkSourceId] = useState<null | string>(null)
   const [nodeInstanceStringPickerNodeId, setNodeInstanceStringPickerNodeId] = useState<null | string>(null)
@@ -871,9 +881,107 @@ function App() {
   const loadRitobinTextIntoCodeDock = useCallback((ritualText: string, fileName: string, via: string) => {
     const maxPreview = 500_000
     setCodeText(ritualText.length > maxPreview ? `${ritualText.slice(0, maxPreview)}\n…` : ritualText)
+    setCodeDockFileName(fileName)
+    pushCodeRecentFile(fileName)
+    setCodeRecentFiles(readCodeRecentFiles())
     setCodeDockOpen(true)
     window.alert(`«${fileName}» carregado no painel Código (${via}). O grafo mock não foi alterado.`)
   }, [])
+
+  const downloadCodeDockText = useCallback(
+    (suggestedName: string) => {
+      const base = suggestedName.trim() || codeDockFileName || 'ritual'
+      const fileName = base.toLowerCase().endsWith('.py') ? base : `${base}.py`
+      const blob = new Blob([codeText], { type: 'text/plain;charset=utf-8' })
+      const url = URL.createObjectURL(blob)
+      const anchor = document.createElement('a')
+      anchor.href = url
+      anchor.download = fileName
+      anchor.click()
+      URL.revokeObjectURL(url)
+      setCodeDockFileName(fileName)
+      pushCodeRecentFile(fileName)
+      setCodeRecentFiles(readCodeRecentFiles())
+    },
+    [codeDockFileName, codeText],
+  )
+
+  const convertBinForCodeDock = useCallback(async (file: File): Promise<boolean> => {
+    const engine = (await getPreference('ConverterEngine', 'jade')).toLowerCase()
+    const jadeFirst = engine !== 'ltk'
+    const exeConfigured = getStoredRitobinExePath()
+
+    const tryRitobin = async () => {
+      if (!exeConfigured) return false
+      const rit = await convertBinViaRitobinExeBridge(file, exeConfigured)
+      if (rit.branch === 'success') {
+        loadRitobinTextIntoCodeDock(rit.text, file.name, 'ponte ritobin + executável local')
+        return true
+      }
+      return false
+    }
+
+    const tryJadeBridge = async () => {
+      const bridge = await convertBinViaOptionalBridge(file)
+      if (bridge.branch === 'success') {
+        loadRitobinTextIntoCodeDock(bridge.text, file.name, 'Jade bridge /convert')
+        return true
+      }
+      if (bridge.branch === 'not_configured') {
+        window.alert(
+          'Jade bridge não configurado: define `VITE_JADE_BIN_BRIDGE`, ou em dev `VITE_JADE_USE_PROXY=true`.',
+        )
+      } else if (bridge.branch === 'network_error' || bridge.branch === 'bridge_error') {
+        const detail =
+          bridge.branch === 'network_error' ? bridge.message : `${String(bridge.status)} — ${bridge.message}`
+        window.alert(`Jade bridge falhou.\n${detail}`)
+      }
+      return false
+    }
+
+    if (jadeFirst) {
+      if (await tryJadeBridge()) return true
+      return tryRitobin()
+    }
+    if (await tryRitobin()) return true
+    return tryJadeBridge()
+  }, [loadRitobinTextIntoCodeDock])
+
+  const handleCodeDockImportFile = useCallback(
+    async (file: File) => {
+      if (file.name.toLowerCase().endsWith('.bin')) {
+        await convertBinForCodeDock(file)
+        return
+      }
+      const text = await file.text()
+      loadRitobinTextIntoCodeDock(text, file.name, 'ficheiro texto')
+    },
+    [convertBinForCodeDock, loadRitobinTextIntoCodeDock],
+  )
+
+  const codeDockFileBridge = useMemo<CodeDockFileBridge>(
+    () => ({
+      onOpenFile: () => codeDockFileInputRef.current?.click(),
+      onNewFile: () => {
+        setCodeText('// Novo ritual\n')
+        setCodeDockFileName('untitled.py')
+        setCodeDockOpen(true)
+      },
+      onSaveFile: () => downloadCodeDockText(codeDockFileName),
+      onSaveFileAs: () => {
+        const suggested = window.prompt('Nome do ficheiro', codeDockFileName)
+        if (suggested) downloadCodeDockText(suggested)
+      },
+      onOpenLog: () => {
+        window.alert('Open Log File: disponível no Jade desktop ou ponte Tauri (Fase 2).')
+      },
+      recentFiles: codeRecentFiles,
+      onOpenRecentFile: (path) => {
+        window.alert(`Recente «${path}»: reabre com File → Open… (caminho completo não guardado no browser).`)
+      },
+    }),
+    [codeDockFileName, codeRecentFiles, downloadCodeDockText],
+  )
 
   const handleSaveWorkScene = useCallback(async () => {
     const suggested = activeTabJsonFileName ?? `${activeTabTitle}.json`
@@ -920,51 +1028,7 @@ function App() {
 
   const handleImportWorkspaceFile = async (file: File) => {
     if (file.name.toLowerCase().endsWith('.bin')) {
-      const exeConfigured = getStoredRitobinExePath()
-
-      if (exeConfigured) {
-        const rit = await convertBinViaRitobinExeBridge(file, exeConfigured)
-
-        if (rit.branch === 'success') {
-          loadRitobinTextIntoCodeDock(rit.text, file.name, 'ponte ritobin + executável local')
-          return
-        }
-
-        if (rit.branch === 'not_configured') {
-          window.alert(
-            'Executável ritobin guardado, mas o cliente não tem ponte Ritobin: corre `npm run ritobin-bridge:dev`. Em dev, `VITE_JADE_USE_PROXY=true` faz também uso de `/api/ritobin` (via `vite.config.ts` — reinicia `npm run dev` após alterar `.env`). Opcionalmente define `VITE_RITOBIN_USE_PROXY=false` só para Ritobin, ou `VITE_RITOBIN_INVOKE_BRIDGE` com URL absoluta.',
-          )
-        } else if (rit.branch === 'network_error' || rit.branch === 'bridge_error') {
-          const detail =
-            rit.branch === 'network_error' ? rit.message : `${String(rit.status)} — ${rit.message}`
-
-          window.alert(
-            `Ponte ritobin (executável local) falhou (${rit.branch}).\n${detail}\nA tentar o Jade bridge (/convert).`,
-          )
-        }
-      }
-
-      const bridge = await convertBinViaOptionalBridge(file)
-
-      if (bridge.branch === 'success') {
-        loadRitobinTextIntoCodeDock(bridge.text, file.name, 'Jade bridge /convert')
-        return
-      }
-
-      if (bridge.branch === 'not_configured') {
-        window.alert(
-          'Jade bridge não configurado: define `VITE_JADE_BIN_BRIDGE`, ou em dev `VITE_JADE_USE_PROXY=true` + proxy em `vite.config.ts` (reinicia `npm run dev`). Ou usa só a ponte Ritobin com.executável no menu Ritobin.',
-        )
-      } else if (bridge.branch === 'network_error' || bridge.branch === 'bridge_error') {
-        const detail =
-          bridge.branch === 'network_error' ? bridge.message : `${String(bridge.status)} — ${bridge.message}`
-
-        window.alert(
-          `Não foi possível obter texto ritual (${bridge.branch}).\n${detail}\nConfigura a ponte Ritobin e/ou ` +
-            '`VITE_JADE_BIN_BRIDGE` / proxy Jade, ou define executável no menu Ritobin.',
-        )
-      }
-
+      await convertBinForCodeDock(file)
       return
     }
 
@@ -2272,8 +2336,20 @@ function App() {
                 : { width: codeDockWidth, minWidth: CODE_DOCK_MIN_WIDTH }
             }
           >
+            <input
+              accept=".bin,.py,.txt,.json"
+              hidden
+              onChange={(e) => {
+                const picked = e.target.files?.[0]
+                e.target.value = ''
+                if (picked) void handleCodeDockImportFile(picked)
+              }}
+              ref={codeDockFileInputRef}
+              type="file"
+            />
             <CodeDock
               dockedWidth={codeDockWidth}
+              fileBridge={codeDockFileBridge}
               floatingActive={codeDockFloating}
               floatingRect={codeDockFloatingRect}
               nodeActions={{

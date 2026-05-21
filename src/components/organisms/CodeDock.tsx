@@ -7,19 +7,16 @@ import {
   useState,
 } from 'react'
 import { createPortal } from 'react-dom'
-import Editor, { type Monaco } from '@monaco-editor/react'
-import type * as MonacoType from 'monaco-editor'
-
-import {
-  setupRitobinMonacoBeforeMount,
-  updateRitobinSyntaxMarkers,
-  RITOBIN_LANGUAGE_ID,
-  RITOBIN_THEME_ID,
-} from '@/monaco/ritobinEditorSetup'
+import Editor from '@monaco-editor/react'
+import MenuBar from '@jade/components/MenuBar'
+import { RITOBIN_LANGUAGE_ID } from '@/monaco/ritobinEditorSetup'
+import { useCodeDockJadeEditor } from '@/hooks/useCodeDockJadeEditor'
 
 import { clampFloatingDockRect, type CodeDockFloatingRect } from './codeDockFloatingRect'
+import { CodeDockJadeDialogs } from './CodeDockJadeDialogs'
 
 import '@/monaco/jade-syntax-globals.css'
+import './codeDockJade.css'
 
 import styles from './CodeDock.module.css'
 
@@ -49,6 +46,17 @@ type FloatingDragPhase =
   | { kind: 'south'; sy: number; rh: number }
   | { kind: 'southEast'; sx: number; sy: number; rw: number; rh: number }
 
+export type CodeDockFileBridge = {
+  onOpenFile: () => void
+  onNewFile?: () => void
+  onSaveFile?: () => void
+  onSaveFileAs?: () => void
+  onOpenLog?: () => void
+  recentFiles?: string[]
+  onOpenRecentFile?: (path: string) => void
+  openFileDisabled?: boolean
+}
+
 type CodeDockProps = {
   dockedWidth: number
   floatingActive: boolean
@@ -61,6 +69,7 @@ type CodeDockProps = {
   onDockedWidthChange: (nextWidth: number) => void
   /** Ritual → tipos na paleta; eliminar pastas pack (exceto `default`) */
   nodeActions?: CodeDockNodeActions
+  fileBridge?: CodeDockFileBridge
   value: string
 }
 
@@ -70,7 +79,6 @@ export const CODE_DOCK_MAX_WIDTH = 760
 
 const MIN_DOCK_WIDTH = CODE_DOCK_MIN_WIDTH
 const MAX_DOCK_WIDTH = CODE_DOCK_MAX_WIDTH
-const DEBOUNCE_MS = 220
 const MODEL_PATH = '/workspace/opened.bin'
 
 export function CodeDock({
@@ -84,10 +92,10 @@ export function CodeDock({
   onResetFloatingDimensions,
   onDockedWidthChange,
   nodeActions,
+  fileBridge,
   value,
 }: CodeDockProps) {
-  const [converterMenuOpen, setConverterMenuOpen] = useState(false)
-  const converterMenuRef = useRef<HTMLDivElement | null>(null)
+  const jade = useCodeDockJadeEditor(value, onChange)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [deleteChoices, setDeleteChoices] = useState<string[]>([])
   const [deleteSelected, setDeleteSelected] = useState('')
@@ -112,11 +120,6 @@ export function CodeDock({
   floatingRectRef.current = floatingRect
 
   const shellRef = useRef<HTMLElement | null>(null)
-  const monacoRef = useRef<Monaco | null>(null)
-  const editorRef = useRef<MonacoType.editor.IStandaloneCodeEditor | null>(null)
-  const decorationIdsRef = useRef<string[]>([])
-  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const contentDisposableRef = useRef<MonacoType.IDisposable | null>(null)
 
   const applyFloatingRect = useCallback(
     (incoming: CodeDockFloatingRect) => {
@@ -209,37 +212,6 @@ export function CodeDock({
       window.removeEventListener('pointerup', stopDockWidth)
     }
   }, [floatingActive, onDockedWidthChange])
-
-  const closeConverterMenu = useCallback(() => {
-    setConverterMenuOpen(false)
-  }, [])
-
-  useEffect(() => {
-    if (!converterMenuOpen) {
-      return
-    }
-
-    const onDocMouseDown = (event: MouseEvent) => {
-      const el = converterMenuRef.current
-      if (el && !el.contains(event.target as Node)) {
-        setConverterMenuOpen(false)
-      }
-    }
-
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setConverterMenuOpen(false)
-      }
-    }
-
-    document.addEventListener('mousedown', onDocMouseDown)
-    document.addEventListener('keydown', onKeyDown)
-
-    return () => {
-      document.removeEventListener('mousedown', onDocMouseDown)
-      document.removeEventListener('keydown', onKeyDown)
-    }
-  }, [converterMenuOpen])
 
   const openDeleteDialog = useCallback(async () => {
     if (!nodeActions) {
@@ -413,70 +385,40 @@ export function CodeDock({
     [floatingActive],
   )
 
-  const runSyntaxPass = useCallback(() => {
-    const monaco = monacoRef.current
-    const editor = editorRef.current
-    if (!monaco || !editor) {
-      return
-    }
-    updateRitobinSyntaxMarkers(monaco, editor, decorationIdsRef)
-  }, [])
-
-  const scheduleSyntaxPass = useCallback(() => {
-    if (debounceTimerRef.current !== null) {
-      clearTimeout(debounceTimerRef.current)
-    }
-    debounceTimerRef.current = window.setTimeout(() => {
-      debounceTimerRef.current = null
-      runSyntaxPass()
-    }, DEBOUNCE_MS)
-  }, [runSyntaxPass])
-
-  const handleBeforeMount = useCallback((monaco: Monaco) => {
-    monacoRef.current = monaco
-    setupRitobinMonacoBeforeMount(monaco)
-  }, [])
-
-  const handleMount = useCallback(
-    (editor: MonacoType.editor.IStandaloneCodeEditor, monaco: Monaco) => {
-      editorRef.current = editor
-      monacoRef.current = monaco
-      decorationIdsRef.current = []
-
-      contentDisposableRef.current?.dispose()
-      const model = editor.getModel()
-      if (model) {
-        contentDisposableRef.current = model.onDidChangeContent(() => {
-          scheduleSyntaxPass()
-        })
-      }
-
-      runSyntaxPass()
-    },
-    [runSyntaxPass, scheduleSyntaxPass],
-  )
-
   useEffect(() => {
-    return () => {
-      if (debounceTimerRef.current !== null) {
-        clearTimeout(debounceTimerRef.current)
-      }
-      contentDisposableRef.current?.dispose()
-      contentDisposableRef.current = null
-      editorRef.current = null
-      monacoRef.current = null
-    }
-  }, [])
-
-  useEffect(() => {
-    scheduleSyntaxPass()
-  }, [scheduleSyntaxPass, value])
-
-  useEffect(() => {
-    editorRef.current?.layout()
-    const id = window.setTimeout(() => editorRef.current?.layout(), 72)
+    jade.editorRef.current?.layout()
+    const id = window.setTimeout(() => jade.editorRef.current?.layout(), 72)
     return () => window.clearTimeout(id)
-  }, [floatingActive, dockedWidth, floatingRect.height, floatingRect.width])
+  }, [floatingActive, dockedWidth, floatingRect.height, floatingRect.width, jade.editorRef])
+
+  const nodeGraphTools = nodeActions ? (
+    <>
+      <span className="codeDockNodeGraphLabel">Node Graph</span>
+      <button
+        className="menu-option"
+        type="button"
+        onClick={() => void nodeActions.onConvertJadeFxEditor()}
+      >
+        <span>Converter [Jade fx_editor]</span>
+      </button>
+      <button
+        className="menu-option"
+        type="button"
+        onClick={() => void nodeActions.onConvertClassGroup()}
+      >
+        <span>Converter [Class Group]</span>
+      </button>
+      <button className="menu-option" type="button" onClick={() => void openExtractDialog()}>
+        <span>Extrair Node Base</span>
+      </button>
+      <button className="menu-option" type="button" onClick={() => void openNomeDialog()}>
+        <span>Aplicar nomeclatura (.bin)</span>
+      </button>
+      <button className="menu-option" type="button" onClick={() => void openDeleteDialog()}>
+        <span>Deletar pack</span>
+      </button>
+    </>
+  ) : null
 
   const shellSizing: CSSProperties = floatingActive
     ? {
@@ -525,6 +467,42 @@ export function CodeDock({
         </>
       )}
 
+      <div className="codeDockJadeScope">
+        <MenuBar
+          findActive={jade.findActive}
+          generalEditActive={jade.generalEditActive}
+          openFileDisabled={fileBridge?.openFileDisabled}
+          particleDisabled={jade.particleDisabled}
+          particlePanelActive={jade.particlePanelActive}
+          recentFiles={fileBridge?.recentFiles}
+          replaceActive={jade.replaceActive}
+          toolsExtraContent={nodeGraphTools}
+          onAbout={() => jade.setShowAbout(true)}
+          onCompareFiles={jade.handleCompareFiles}
+          onCopy={jade.handleCopy}
+          onCut={jade.handleCut}
+          onExit={onClose}
+          onFind={jade.handleFind}
+          onGeneralEdit={jade.handleGeneralEdit}
+          onMaterialLibrary={jade.handleMaterialLibrary}
+          onNewFile={() => fileBridge?.onNewFile?.()}
+          onOpenFile={() => fileBridge?.onOpenFile?.()}
+          onOpenLog={() => fileBridge?.onOpenLog?.() ?? jade.showTauriToast()}
+          onOpenRecentFile={fileBridge?.onOpenRecentFile}
+          onPaste={jade.handlePaste}
+          onParticlePanel={jade.handleParticlePanel}
+          onPreferences={() => jade.setShowPreferences(true)}
+          onRedo={jade.handleRedo}
+          onReplace={jade.handleReplace}
+          onSaveFile={() => fileBridge?.onSaveFile?.()}
+          onSaveFileAs={() => fileBridge?.onSaveFileAs?.()}
+          onSelectAll={jade.handleSelectAll}
+          onSettings={() => jade.setShowSettings(true)}
+          onThemes={() => jade.setShowThemes(true)}
+          onUndo={jade.handleUndo}
+        />
+      </div>
+
       <header className={styles.header}>
         <div
           className={floatingActive ? `${styles.titleStrip} ${styles.titleStripFloating}` : styles.titleStrip}
@@ -534,101 +512,6 @@ export function CodeDock({
           código ritual (Monaco / Jade)
         </div>
         <div className={styles.headerActions}>
-          {nodeActions ? (
-            <div className={styles.nodeToolbar} role="group" aria-label="Acções pack nodeStructures">
-              <span className={styles.nodeToolbarLabel}>node</span>
-              <div className={styles.converterDropdown} ref={converterMenuRef}>
-                <button
-                  aria-expanded={converterMenuOpen}
-                  aria-haspopup="true"
-                  className={styles.headerGhostButton}
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setConverterMenuOpen((previous) => !previous)
-                  }}
-                  type="button"
-                  title="Converter ritual → paleta ou eliminar packs"
-                >
-                  Converter ▾
-                </button>
-                {converterMenuOpen ? (
-                  <ul className={styles.converterSubmenu} role="menu">
-                    <li role="presentation">
-                      <button
-                        className={styles.converterMenuItem}
-                        role="menuitem"
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          closeConverterMenu()
-                          void nodeActions.onConvertJadeFxEditor()
-                        }}
-                      >
-                        Converter [Jade fx_editor]
-                      </button>
-                    </li>
-                    <li role="presentation">
-                      <button
-                        className={styles.converterMenuItem}
-                        role="menuitem"
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          closeConverterMenu()
-                          void nodeActions.onConvertClassGroup()
-                        }}
-                      >
-                        Converter [Class Group]
-                      </button>
-                    </li>
-                    <li role="presentation">
-                      <button
-                        className={styles.converterMenuItem}
-                        role="menuitem"
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          closeConverterMenu()
-                          void openExtractDialog()
-                        }}
-                      >
-                        Extrair Node Base
-                      </button>
-                    </li>
-                    <li role="presentation">
-                      <button
-                        className={styles.converterMenuItem}
-                        role="menuitem"
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          closeConverterMenu()
-                          void openNomeDialog()
-                        }}
-                      >
-                        Aplicar nomeclatura (.bin)
-                      </button>
-                    </li>
-                    <li aria-hidden className={styles.converterDivider} />
-                    <li role="presentation">
-                      <button
-                        className={`${styles.converterMenuItem} ${styles.converterMenuItemDanger}`}
-                        role="menuitem"
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          closeConverterMenu()
-                          void openDeleteDialog()
-                        }}
-                      >
-                        Deletar
-                      </button>
-                    </li>
-                  </ul>
-                ) : null}
-              </div>
-            </div>
-          ) : null}
           <button
             className={styles.headerGhostButton}
             onClick={(e) => {
@@ -801,34 +684,22 @@ export function CodeDock({
           </div>
         </div>
       ) : null}
-      <div className={styles.editorHost}>
+      <div className={`${styles.editorHost} codeDockJadeScope`}>
         <Editor
-          beforeMount={handleBeforeMount}
+          beforeMount={jade.handleBeforeMount}
           defaultLanguage={RITOBIN_LANGUAGE_ID}
           height="100%"
           loading={<span className={styles.loading}>A carregar editor…</span>}
           onChange={(next) => onChange(next ?? '')}
-          onMount={handleMount}
-          options={{
-            minimap: { enabled: true },
-            glyphMargin: true,
-            lineNumbers: 'on',
-            scrollBeyondLastLine: false,
-            automaticLayout: true,
-            fontSize: 14,
-            fixedOverflowWidgets: true,
-            contextmenu: true,
-            largeFileOptimizations: false,
-            maxTokenizationLineLength: 100_000,
-            folding: true,
-            occurrencesHighlight: 'singleFile',
-            wordWrap: 'off',
-          }}
+          onMount={jade.handleMount}
+          options={jade.monacoOptions}
           path={MODEL_PATH}
-          theme={RITOBIN_THEME_ID}
+          theme={jade.editorTheme}
           value={value}
         />
       </div>
+
+      <CodeDockJadeDialogs editor={jade} value={value} />
     </aside>
   )
 
