@@ -9,7 +9,7 @@ Arquivo salvo em: `feature_md/feature/feature-menu-jade-codedock.md`
 | Nome da Branch | `feature/menu-jade-codedock` |
 | Nome das Features | Menu Jade no CodeDock; preferências web; painéis Particle/General Edit; Settings/Themes/Preferences; ponte HTTP `/preference` (Fase 2) |
 | Versão atual | `1.5.0` |
-| Hash do Commit | _(preencher após `git commit`)_ |
+| Hash do Commit | `a35062a` |
 
 ## 2. Definição e Resumo de Tags
 
