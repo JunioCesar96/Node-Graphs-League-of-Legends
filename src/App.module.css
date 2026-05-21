@@ -58,6 +58,16 @@
   display: contents;
 }
 
+.codeDockColumn {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  align-self: stretch;
+  width: 588px;
+  min-width: 446px;
+  min-height: 0;
+}
+
 
 .inspectorGrabFollow {
   position: fixed;

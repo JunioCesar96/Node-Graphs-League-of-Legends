@@ -5,7 +5,7 @@ import type { CSSProperties, PointerEvent } from 'react'
 import { ConsoleNotificationCapsule } from '@/components/molecules/ConsoleNotificationCapsule'
 import { SceneTabBar } from '@/components/molecules/SceneTabBar'
 import { AppMenuBar } from '@/components/organisms/AppMenuBar'
-import { CodeDock } from '@/components/organisms/CodeDock'
+import { CodeDock, CODE_DOCK_DEFAULT_WIDTH, CODE_DOCK_MIN_WIDTH } from '@/components/organisms/CodeDock'
 import {
   NodeInstanceStringPicker,
   type NodeInstanceStringCandidate,
@@ -317,7 +317,7 @@ function App() {
   const [sceneNodesOffset, setSceneNodesOffset] = useState<InspectorOffset>({ x: 0, y: 0 })
   const [sceneNodesViewportDocked, setSceneNodesViewportDocked] = useState(true)
   const [codeDockOpen, setCodeDockOpen] = useState(false)
-  const [codeDockWidth, setCodeDockWidth] = useState(360)
+  const [codeDockWidth, setCodeDockWidth] = useState(CODE_DOCK_DEFAULT_WIDTH)
   const [codeDockFloating, setCodeDockFloating] = useState(false)
   const [codeDockFloatingRect, setCodeDockFloatingRect] = useState(() =>
     clampFloatingDockRect(createDefaultFloatingCodeDockRect()),
@@ -2264,7 +2264,14 @@ function App() {
         </div>
 
         {codeDockOpen ? (
-          <div className={codeDockFloating ? styles.codeDockPortalSlot : styles.codeDockColumn}>
+          <div
+            className={codeDockFloating ? styles.codeDockPortalSlot : styles.codeDockColumn}
+            style={
+              codeDockFloating
+                ? undefined
+                : { width: codeDockWidth, minWidth: CODE_DOCK_MIN_WIDTH }
+            }
+          >
             <CodeDock
               dockedWidth={codeDockWidth}
               floatingActive={codeDockFloating}

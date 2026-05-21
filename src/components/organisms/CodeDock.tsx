@@ -64,8 +64,12 @@ type CodeDockProps = {
   value: string
 }
 
-const MIN_DOCK_WIDTH = 260
-const MAX_DOCK_WIDTH = 760
+export const CODE_DOCK_DEFAULT_WIDTH = 588
+export const CODE_DOCK_MIN_WIDTH = 446
+export const CODE_DOCK_MAX_WIDTH = 760
+
+const MIN_DOCK_WIDTH = CODE_DOCK_MIN_WIDTH
+const MAX_DOCK_WIDTH = CODE_DOCK_MAX_WIDTH
 const DEBOUNCE_MS = 220
 const MODEL_PATH = '/workspace/opened.bin'
 
