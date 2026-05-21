@@ -2,77 +2,78 @@
 
 Editor de grafos de nós para League of Legends / ritobin, com painel de código ritual integrado ao **Jade-League-Bin-Editor**.
 
-Documentação da feature mais recente: [`feature_md/feature/feature-menu-jade-codedock.md`](feature_md/feature/feature-menu-jade-codedock.md)
-
-## Documentação de implementação por feature
+## Documentação de implementação
 
 | Branch / tema | Documento |
 | --- | --- |
 | Menu Jade no CodeDock | [`feature-menu-jade-codedock.md`](feature_md/feature/feature-menu-jade-codedock.md) |
+| Ponte Jade automática (abrir `.bin` em dev) | [`feature-jade-bridge-auto-dev.md`](feature_md/feature/feature-jade-bridge-auto-dev.md) |
 | Abas de cena e menu Grafo | [`feature-abas-cena-json-menu-grafo.md`](feature_md/feature/feature-abas-cena-json-menu-grafo.md) |
-| Persistência cena / menu Grafo | [`feature-cena-persistencia-menu-grafo.md`](feature_md/feature/feature-cena-persistencia-menu-grafo.md) |
-| Workspace em disco | [`feature-workspace-disk-persistence.md`](feature_md/feature/feature-workspace-disk-persistence.md) |
 
 Índice completo em [`feature_md/feature/`](feature_md/feature/).
 
-## Menu e configurações Jade no editor de código (v1.5.0)
+---
 
-### Resumo
+## Documentação de Implementação — Ponte Jade automática e menu CodeDock (v1.5.0)
 
-O painel **Código** (`CodeDock`) inclui a barra de menus, atalhos, context menu, diálogos e painéis do Jade (Find/Replace, Particle Editor, General Edit, Settings, Themes, Preferences, About). As preferências usam `localStorage` no browser e podem sincronizar com `jade-http-bridge` (`GET/POST /preference`).
+Arquivo salvo em: `feature_md/feature/feature-jade-bridge-auto-dev.md` (ponte) e `feature_md/feature/feature-menu-jade-codedock.md` (menu Jade).
 
-### Arranque rápido
+### 1. Cabeçalho
+
+| Campo | Valor |
+| --- | --- |
+| Nome da Branch (ponte) | `feature/jade-bridge-auto-dev` |
+| Nome da Branch (menu) | `feature/menu-jade-codedock` |
+| Nome das Features | Menu Jade no CodeDock; ponte Jade automática em dev; abertura de `.bin` |
+| Versão atual | `1.5.0` |
+
+### 2. Definição e Resumo de Tags
+
+| Tag | Definição |
+| --- | --- |
+| `[NOVO]` | Novo componente, plugin, backend ou endpoint. |
+| `[ATUALIZADO]` | Fluxo ou configuração existente alterada. |
+| `[REMOVIDO]` | Comportamento ou UI substituída. |
+
+Tags presentes: `[NOVO]`, `[ATUALIZADO]`, `[REMOVIDO]` (menu CodeDock).
+
+### 3. Arranque rápido
 
 ```bash
 pnpm install
-pnpm run dev
+npm run dev
 ```
 
-Opcional — bridge Jade para abrir `.bin`:
+Com `npm run dev`:
+
+- Activado `VITE_JADE_USE_PROXY` (`.env.development` + `vite.config.ts`)
+- Arranca automaticamente a ponte em `http://127.0.0.1:8788` (Rust se compilado, senão mock)
+- **File → Open…** `.bin` → texto no painel **Código**
+
+Conversão real de `.bin` (uma vez):
 
 ```bash
-pnpm run jade:http-bridge   # ou jade-bridge:dev (mock)
+npm run jade:http-bridge
+npm run dev
 ```
 
-Em `.env` (dev): `VITE_JADE_USE_PROXY=true` e reiniciar `npm run dev`.
-
-### Atalhos no painel Código (com foco no editor)
-
-| Atalho | Acção |
-| --- | --- |
-| Ctrl+F | Find |
-| Ctrl+H | Replace |
-| Ctrl+Z / Ctrl+Y | Undo / Redo |
-| Ctrl+O | General Editing |
-| Ctrl+P | Particle Editing |
-
-### Tags da implementação
-
-- `[NOVO]` — `useCodeDockJadeEditor`, backends de preferências, `CodeDockJadeDialogs`, endpoints `/preference`
-- `[ATUALIZADO]` — `CodeDock`, `App.tsx`, componentes Jade (`MenuBar`, `SettingsDialog`, …)
-- `[REMOVIDO]` — dropdown «Converter ▾» no header (movido para **Tools → Node Graph**)
-
-Ver fluxogramas, tabela de componentes e regras de erro no documento linked acima.
-
-## Scripts úteis
+### 4. Scripts úteis
 
 | Script | Descrição |
 | --- | --- |
-| `pnpm run dev` | Vite dev server |
-| `pnpm run test` | Vitest |
-| `pnpm run jade:http-bridge` | Bridge Rust (convert + preferences) |
-| `pnpm run jade-bridge:dev` | Mock bridge Node |
+| `npm run dev` | Vite + ponte Jade automática |
+| `npm run jade:http-bridge` | Compila/executa Rust `jade-http-bridge` |
+| `npm run jade-bridge:dev` | Mock Node (placeholder em `/convert`) |
+| `npm run test` | Vitest |
 
-## Estrutura relevante
+### 5. Estrutura relevante
 
 ```
-src/
-  components/organisms/CodeDock.tsx      # Painel código + MenuBar Jade
-  components/organisms/CodeDockJadeDialogs.tsx
-  hooks/useCodeDockJadeEditor.ts
-  hooks/buildMonacoOptions.ts
-  jade/webPreferenceBackend.ts
-  jade/compositePreferenceBackend.ts
+vite.plugin.jadeBridgeDev.ts   # Arranque automático da ponte
+.env.development               # VITE_JADE_USE_PROXY=true
+src/core/jadeBinBridge.ts      # POST /convert via /api/jade
+src/components/organisms/CodeDock.tsx
+src/hooks/useCodeDockJadeEditor.ts
 ```
 
-Alias Vite: `@jade` → `../Jade-League-Bin-Editor/src`
+Fluxogramas, tabelas de componentes e regras de erro: ver os ficheiros em `feature_md/feature/` linkados acima.

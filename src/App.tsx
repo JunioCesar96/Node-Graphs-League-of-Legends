@@ -929,12 +929,19 @@ function App() {
       }
       if (bridge.branch === 'not_configured') {
         window.alert(
-          'Jade bridge não configurado: define `VITE_JADE_BIN_BRIDGE`, ou em dev `VITE_JADE_USE_PROXY=true`.',
+          'Jade bridge não configurado.\n\n' +
+            'Em dev: reinicia `npm run dev` (arranca a ponte em 127.0.0.1:8788 automaticamente).\n' +
+            'Ou define `VITE_JADE_BIN_BRIDGE=http://127.0.0.1:8788` / `VITE_JADE_USE_PROXY=true` no `.env`.',
         )
-      } else if (bridge.branch === 'network_error' || bridge.branch === 'bridge_error') {
-        const detail =
-          bridge.branch === 'network_error' ? bridge.message : `${String(bridge.status)} — ${bridge.message}`
-        window.alert(`Jade bridge falhou.\n${detail}`)
+      } else if (bridge.branch === 'network_error') {
+        window.alert(
+          `Não foi possível contactar o Jade bridge (${bridge.message}).\n\n` +
+            'Em dev: confirma que `npm run dev` está a correr (inicia a ponte automaticamente).\n' +
+            'Manual: noutro terminal `npm run jade:http-bridge` ou `npm run jade-bridge:dev`.\n' +
+            'Conversão real .bin: `npm run jade:http-bridge` (compila Rust se necessário).',
+        )
+      } else if (bridge.branch === 'bridge_error') {
+        window.alert(`Jade bridge respondeu com erro.\n${String(bridge.status)} — ${bridge.message}`)
       }
       return false
     }

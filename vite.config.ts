@@ -4,6 +4,7 @@ import react from '@vitejs/plugin-react'
 import { loadEnv } from 'vite'
 import { defineConfig } from 'vitest/config'
 
+import { vitePluginJadeBridgeDev } from './vite.plugin.jadeBridgeDev'
 import { vitePluginNodeStructuresWrite } from './vite.plugin.nodeStructuresWrite'
 import { vitePluginWorkspaceSync } from './vite.plugin.workspaceSync'
 
@@ -18,11 +19,15 @@ export default defineConfig(({ mode }) => {
   const ritobinProxyFlagEffective =
     typeof ritobinExplicit === 'string' && ritobinExplicit.trim() !== ''
       ? ritobinExplicit.trim()
-      : (env.VITE_JADE_USE_PROXY?.trim() ?? 'false')
+      : (env.VITE_JADE_USE_PROXY?.trim() ?? (mode === 'development' ? 'true' : 'false'))
+
+  const jadeUseProxyEffective =
+    env.VITE_JADE_USE_PROXY?.trim() ?? (mode === 'development' ? 'true' : 'false')
 
   return {
     define: {
-      'import.meta.env.VITE_LTK_HASH_AS_EDGE': JSON.stringify(env.VITE_LTK_HASH_AS_EDGE ?? 'true'),
+      'import.meta.env.VITE_JTK_HASH_AS_EDGE': JSON.stringify(env.VITE_LTK_HASH_AS_EDGE ?? 'true'),
+      'import.meta.env.VITE_JADE_USE_PROXY': JSON.stringify(jadeUseProxyEffective),
       'import.meta.env.VITE_RITOBIN_USE_PROXY': JSON.stringify(ritobinProxyFlagEffective),
     },
     optimizeDeps: {
@@ -36,6 +41,7 @@ export default defineConfig(({ mode }) => {
     },
     plugins: [
       react(),
+      ...(mode === 'development' ? [vitePluginJadeBridgeDev(path.resolve(__dirname))] : []),
       vitePluginNodeStructuresWrite(path.resolve(__dirname)),
       vitePluginWorkspaceSync(path.resolve(__dirname)),
     ],
