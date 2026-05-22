@@ -9,7 +9,7 @@ Arquivo salvo em: `feature_md/feature/feature-node-graphs-to-code.md`
 | Nome da Branch | `feature/node-graphs-to-code` |
 | Nome das Features | **Node Graphs to Code** (exportação cena → ritual Class Group); **Correcções de export ritual** (PascalCase, ordem `entries`, texto completo no CodeDock); **Correcção de portos de saída** (arrasto + routing com ícone de ligação) |
 | Versão atual | `1.0.0` |
-| Hash do Commit | `877db45` |
+| Hash do Commit | `2a47586` |
 
 Complemento: inversa de [feature-code-to-node-graph.md](./feature-code-to-node-graph.md) (Code To Node Graph).
 
