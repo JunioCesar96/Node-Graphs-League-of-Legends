@@ -9,7 +9,7 @@ Arquivo salvo em: `feature_md/feature/feature-cena-estados-routing-persistencia.
 | Nome da Branch | `feature/cena-estados-routing-persistencia` |
 | Nome das Features | **Estados de nós em cena** (presets com câmera), **Ocultar nós filhos ligados**, **Routing de ligações nos portos**, **Persistência leve de abas** (sem Auto Save JSON) |
 | Versão atual | `1.0.0` |
-| Hash do Commit | `PENDENTE` |
+| Hash do Commit | `c5337af` |
 
 ## 2. Definição e Resumo de Tags
 
