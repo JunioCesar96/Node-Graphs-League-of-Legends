@@ -2,7 +2,7 @@
 
 **Version:** 1.5.0 · **Status:** Work in progress
 
-![Tool Screenshot](./src/assets/preview.png)
+![Tool Screenshot](./src/assets/preview2.png)
 
 ## About the project
 
