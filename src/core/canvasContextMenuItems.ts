@@ -1,4 +1,4 @@
-import type { CanvasNode, CanvasScene } from '@/core/canvasScene'
+import type { CanvasConnection, CanvasNode, CanvasScene } from '@/core/canvasScene'
 import { isNodeLocked, isNodeRemovableFromScene } from '@/core/canvasNodePresentation'
 import {
   areAllCardElementsRetracted,
@@ -15,7 +15,27 @@ import {
   elementViewKeyForParameter,
   elementViewKeyForPointer,
 } from '@/core/elementViewState'
-import type { CanvasContextTarget, ContextMenuItem } from '@/core/canvasContextMenuTypes'
+import type {
+  CanvasContextTarget,
+  ContextMenuItem,
+  ContextMenuItemId,
+} from '@/core/canvasContextMenuTypes'
+import { findOutputSlotInNode } from '@/core/listEmbedSlots'
+import {
+  findConnectionFromOutputSlot,
+  findIncomingConnections,
+  focusPeerOutputSlotMenuId,
+  outputSlotIdFromElementTarget,
+} from '@/core/slotPeerFocus'
+import {
+  CONNECTION_ROUTING_LABELS,
+  effectiveConnectionRouting,
+  setConnectionRoutingMenuId,
+} from '@/core/connectionRoutingMenu'
+import {
+  collectLinkedChildNodeIds,
+  isStructuralSlotContextKind,
+} from '@/core/sceneNodeLinkVisibility'
 import { resolveNodeCardBodyLayout } from '@/core/nodeCardSections'
 import {
   CANVAS_TOOLBAR_TOOL_LABELS,
@@ -32,6 +52,7 @@ export type CanvasContextMenuBuildContext = {
   hasSelectAll: boolean
   isNodeBodyCollapsed?: boolean
   onCycleConnectionRouting?: (connectionId: string) => void
+  onSetConnectionRouting?: (connectionId: string, routing: import('@/core/canvasScene').ConnectionRouting) => void
   onRemoveConnection?: (connectionId: string) => void
   parameterStubCatalog?: readonly NodeParameterDefinition[]
   scene: CanvasScene
@@ -40,6 +61,10 @@ export type CanvasContextMenuBuildContext = {
   toolbarVisibility: CanvasToolbarVisibility
   hasPendingLink: boolean
   hasInspectorSlot: boolean
+  /** Todos os nós da cena com corpo efectivamente retraído (menu da grade). */
+  sceneAllNodesBodyCollapsed?: boolean
+  /** Pelo menos um nó da cena com corpo efectivamente retraído. */
+  sceneAnyNodeBodyCollapsed?: boolean
 }
 
 function findCanvasNode(scene: CanvasScene, nodeId: string): CanvasNode | undefined {
@@ -164,6 +189,26 @@ function buildCanvasItems(ctx: CanvasContextMenuBuildContext): ContextMenuItem[]
     hasSelection
       ? { id: 'canvas.clearSelection', label: 'Limpar seleção', shortcut: 'A' }
       : { id: 'canvas.selectAll', label: 'Seleccionar todos os nós', disabled: !ctx.hasSelectAll, shortcut: 'A' },
+    ...(hasSelection
+      ? [
+          {
+            id: 'canvas.collapseAllNodeBodies',
+            label: 'Retrair corpo de todos os nós',
+            disabled: ctx.sceneAllNodesBodyCollapsed === true,
+            separatorBefore: true,
+          },
+          {
+            id: 'canvas.expandAllNodeBodies',
+            label: 'Expandir corpo de todos os nós',
+            disabled: ctx.sceneAnyNodeBodyCollapsed !== true,
+          },
+          {
+            id: 'canvas.extractSceneNodesState',
+            label: 'Extrair estados de índice de listas em Estados',
+            separatorBefore: true,
+          },
+        ]
+      : []),
     { id: 'canvas.toggleNavigateMode', label: navigateLabel, separatorBefore: true },
     {
       id: 'canvas.exibir',
@@ -228,8 +273,25 @@ function buildNodeItems(
     })
   }
 
+  items.push({
+    id: 'node.extractSceneNodesState',
+    label: 'Extrair estados de índice de listas em Estados',
+    separatorBefore: true,
+  })
+
+  const linkedChildIds = collectLinkedChildNodeIds(ctx.scene, nodeId)
+
+  if (linkedChildIds.size > 0) {
+    items.push({
+      id: 'node.hideLinkedChildNodes',
+      label: 'Ocultar todos os nodes filhos',
+      disabled: !isSelected,
+      separatorBefore: true,
+    })
+  }
+
   items.push(
-    { id: 'node.focus', label: 'Focar nó na vista', shortcut: '.', separatorBefore: true },
+    { id: 'node.focus', label: 'Focar nó na vista', shortcut: '.' },
     { id: 'node.select', label: isSelected ? 'Já seleccionado' : 'Seleccionar nó', disabled: isSelected },
     { id: 'node.glue', label: isGlued ? 'Desactivar modo cola' : 'Modo cola (glue)', shortcut: 'G', separatorBefore: true },
     { id: 'node.addNode', label: 'Adicionar nó (raiz)', shortcut: 'Ctrl+K' },
@@ -245,17 +307,59 @@ function buildNodeItems(
   return items
 }
 
+function buildConnectionRoutingSubmenu(
+  ctx: CanvasContextMenuBuildContext,
+  connection: CanvasConnection,
+  separatorBefore = false,
+): ContextMenuItem | null {
+  if (!ctx.onSetConnectionRouting) {
+    return null
+  }
+
+  const current = effectiveConnectionRouting(connection.routing)
+
+  return {
+    id: 'slot.connectionRoutingMenu',
+    label: 'Forma de ligação',
+    separatorBefore,
+    children: (['flex', 'rigid', 'wireless'] as const).map((routing) => ({
+      id: setConnectionRoutingMenuId(connection.id, routing) as ContextMenuItemId,
+      label: CONNECTION_ROUTING_LABELS[routing],
+      selected: current === routing,
+    })),
+  }
+}
+
 function buildConnectionItems(
   ctx: CanvasContextMenuBuildContext,
+  connectionId: string,
+  scene: CanvasScene,
 ): ContextMenuItem[] {
   const items: ContextMenuItem[] = []
+  const connection = scene.connections.find((entry) => entry.id === connectionId)
+
+  if (connection) {
+    const routingMenu = buildConnectionRoutingSubmenu(ctx, connection, false)
+    if (routingMenu) {
+      items.push(routingMenu)
+    }
+  }
 
   if (ctx.onCycleConnectionRouting) {
-    items.push({ id: 'connection.cycleRouting', label: 'Alternar estilo do fio' })
+    items.push({
+      id: 'connection.cycleRouting',
+      label: 'Alternar estilo do fio',
+      separatorBefore: items.length > 0,
+    })
   }
 
   if (ctx.onRemoveConnection) {
-    items.push({ id: 'connection.remove', label: 'Remover ligação', danger: true })
+    items.push({
+      id: 'connection.remove',
+      label: 'Remover ligação',
+      danger: true,
+      separatorBefore: items.length > 0,
+    })
   }
 
   return items
@@ -289,8 +393,37 @@ function buildElementItems(
     })
   }
 
+  if (isStructuralSlotContextKind(target.kind)) {
+    items.push({
+      id: 'element.showOnlyConnectedComponent',
+      label: 'Mostrar apenas nós ligados',
+      separatorBefore: items.length > 0,
+    })
+    items.push({
+      id: 'element.showOnlySlotSubtree',
+      label: 'Mostrar apenas nós ligados deste slot',
+    })
+
+    const slotId = outputSlotIdFromElementTarget(target)
+    const outgoing =
+      slotId !== null ? findConnectionFromOutputSlot(ctx.scene, target.nodeId, slotId) : undefined
+
+    if (outgoing) {
+      const routingMenu = buildConnectionRoutingSubmenu(ctx, outgoing, items.length > 0)
+      if (routingMenu) {
+        items.push(routingMenu)
+      }
+
+      items.push({
+        id: 'element.focusPeerInputSlot',
+        label: 'Focar no slot de entrada',
+        separatorBefore: !routingMenu && items.length > 0,
+      })
+    }
+  }
+
   if (target.kind === 'internalStructure') {
-    items.push({ id: 'element.relink', label: 'Religar estrutura…', separatorBefore: items.length > 0 })
+    items.push({ id: 'element.relink', label: 'Religar estrutura…', separatorBefore: true })
     items.push({ id: 'element.removeConnections', label: 'Remover ligações do slot' })
   }
 
@@ -328,6 +461,89 @@ function buildElementItems(
   return items
 }
 
+function labelForPeerOutputConnection(
+  scene: CanvasScene,
+  connection: { fromNodeId: string; fromInternalStructureId: string },
+): string {
+  const parent = findCanvasNode(scene, connection.fromNodeId)
+  const slot = parent
+    ? findOutputSlotInNode(parent, connection.fromInternalStructureId, scene.connections)
+    : null
+  const parentTitle = parent?.node.schema.title ?? connection.fromNodeId
+  const slotName = slot?.name ?? connection.fromInternalStructureId
+
+  return `${parentTitle} · ${slotName}`
+}
+
+function buildPeerOutputFocusItems(
+  ctx: CanvasContextMenuBuildContext,
+  nodeId: string,
+): ContextMenuItem[] {
+  const incoming = findIncomingConnections(ctx.scene, nodeId)
+
+  if (incoming.length === 0) {
+    return []
+  }
+
+  const separatorBefore = true
+
+  if (incoming.length === 1) {
+    return [
+      {
+        id: 'nodeInputPort.focusPeerOutputSlot',
+        label: 'Focar no slot de saída',
+        separatorBefore,
+      },
+    ]
+  }
+
+  return [
+    {
+      id: 'nodeInputPort.focusPeerOutputSlot',
+      label: 'Focar no slot de saída',
+      separatorBefore,
+      children: incoming.map((connection) => ({
+        id: focusPeerOutputSlotMenuId(connection.id) as ContextMenuItemId,
+        label: labelForPeerOutputConnection(ctx.scene, connection),
+      })),
+    },
+  ]
+}
+
+function buildNodeInputPortItems(
+  ctx: CanvasContextMenuBuildContext,
+  nodeId: string,
+): ContextMenuItem[] {
+  const canvasNode = findCanvasNode(ctx.scene, nodeId)
+
+  if (!canvasNode) {
+    return []
+  }
+
+  const hasIncoming = ctx.scene.connections.some((connection) => connection.toNodeId === nodeId)
+
+  if (!hasIncoming) {
+    return []
+  }
+
+  const items: ContextMenuItem[] = [
+    { id: 'element.showOnlyConnectedComponent', label: 'Mostrar apenas nós ligados' },
+    { id: 'element.showOnlySlotSubtree', label: 'Mostrar apenas nós ligados deste slot' },
+    ...buildPeerOutputFocusItems(ctx, nodeId),
+  ]
+
+  const primaryIncoming = findIncomingConnections(ctx.scene, nodeId)[0]
+
+  if (primaryIncoming) {
+    const routingMenu = buildConnectionRoutingSubmenu(ctx, primaryIncoming, true)
+    if (routingMenu) {
+      items.push(routingMenu)
+    }
+  }
+
+  return items
+}
+
 export function buildContextMenuItems(
   target: CanvasContextTarget,
   ctx: CanvasContextMenuBuildContext,
@@ -337,8 +553,10 @@ export function buildContextMenuItems(
       return buildCanvasItems(ctx)
     case 'node':
       return buildNodeItems(ctx, target.nodeId)
+    case 'nodeInputPort':
+      return buildNodeInputPortItems(ctx, target.nodeId)
     case 'connection':
-      return buildConnectionItems(ctx)
+      return buildConnectionItems(ctx, target.connectionId, ctx.scene)
     case 'element':
       return buildElementItems(ctx, target)
     default:

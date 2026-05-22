@@ -18,7 +18,9 @@ import {
   restoreCompactWireless,
   syncSceneCollapsedBodyWireless,
 } from '@/core/compactConnectionRouting'
+import { collectBranchNodeIdsFromOutputSlots } from '@/core/compactElementBranchVisibility'
 import {
+  allSlotIdsForElement,
   collectCardElementViewKeys,
   isElementRetracted,
   isElementViewCompact,
@@ -27,6 +29,7 @@ import {
   patchElementRetracted,
   patchElementSelectedIndex,
   patchElementViewMode,
+  resolveElementViewModeChange,
   slotIdsForElement,
 } from '@/core/elementViewState'
 import type { ElementViewKey, ElementViewMode } from '@/core/nodeSchema'
@@ -38,13 +41,36 @@ import {
   type NodeCardBodyLayout,
   type NodeCardSectionId,
 } from '@/core/nodeCardSections'
-import { isNodeSelectableOnCanvas } from '@/core/canvasNodePresentation'
+import {
+  isNodeSelectableOnCanvas,
+  type NodeVisibilitySceneContext,
+} from '@/core/canvasNodePresentation'
+import { createCompactElementCanvasVisibility } from '@/core/compactElementBranchVisibility'
+import {
+  applySceneHiddenToNodeIds,
+  applyShowOnlyNodeIds,
+  clearLinkVisibilityFilter,
+  collectIncomingSlotBranchNodeIds,
+  collectLinkedChildNodeIds,
+  collectNodeLinkBranchIds,
+  collectSlotSubtreeNodeIds,
+  reapplyLinkVisibilityFilter,
+} from '@/core/sceneNodeLinkVisibility'
+import {
+  applySceneNodesStateSnapshot,
+  captureSceneNodesStateSnapshot,
+  createSceneNodesStatePreset,
+  defaultSceneNodesStatePresetName,
+  type SceneNodesStatePreset,
+} from '@/core/sceneNodesStatePresets'
+import { createUniqueNodeId } from '@/core/canvasNodeIds'
 import {
   emptyCanvasScene,
   hydrateScene,
   schemaJsonRelativePathBySchemaId,
 } from '@/core/canvasScene'
-import { loadStoredScene, SCENE_STORAGE_KEY } from '@/core/sceneStorage'
+import { clearStoredScene, loadStoredScene, persistStoredScene, SCENE_STORAGE_KEY } from '@/core/sceneStorage'
+import { applyLightModeToScene } from '@/core/sceneLightMode'
 import type { SceneTabSnapshot } from '@/core/sceneTabsStorage'
 import { workspaceService } from '@/services/workspaceService'
 import { fx_required_parameter, resolveRequiredParameterListId } from '@/core/fx_required_parameter'
@@ -160,17 +186,7 @@ const DETACHED_NODE_STEP: CanvasPosition = { x: 420, y: 220 }
 
 const NODE_COLLISION_GAP: CanvasPosition = { x: 380, y: 180 }
 
-export function createUniqueNodeId(schemaId: string, nodes: CanvasScene['nodes']) {
-  let nextIndex = nodes.filter((node) => node.node.schema.id === schemaId).length + 1
-  let instanceId = `${schemaId}-${String(nextIndex).padStart(2, '0')}`
-
-  while (nodes.some((node) => node.id === instanceId)) {
-    nextIndex += 1
-    instanceId = `${schemaId}-${String(nextIndex).padStart(2, '0')}`
-  }
-
-  return instanceId
-}
+export { createUniqueNodeId } from '@/core/canvasNodeIds'
 
 export function getNextDetachedNodePosition(scene: CanvasScene) {
   let attempt = scene.nodes.length
@@ -228,35 +244,72 @@ function selectionFromSnapshot(snapshot: SceneTabSnapshot): { ids: string[]; pri
 export function useSceneHistory(options?: {
   /** Registo efectivo `{ ...schemaRegistryEstático, ...convertidosLocal }`; omite só estático */
   extendSchemaLookup?: Record<string, NodeSchemaDefinition>
-  /** Auto Save: grava JSON da cena activa via callback (não workspace em disco). */
-  jsonFileAutoSave?: boolean
-  /** Chamado quando `jsonFileAutoSave` está activo e a cena muda. */
-  onAutoSaveScene?: (scene: CanvasScene) => void
   /** Estado inicial da aba activa (multi-abas); omitir para legacy `getInitialPresent()`. */
   initialTabSnapshot?: SceneTabSnapshot
+  /** Modo leve: mantém blocos estruturais em visualização compacta. */
+  lightModeEnabled?: boolean
 }) {
   const schemaLookup = options?.extendSchemaLookup ?? schemaRegistry
-  const jsonFileAutoSave = options?.jsonFileAutoSave === true
-  const onAutoSaveScene = options?.onAutoSaveScene
   const initialTabSnapshot = options?.initialTabSnapshot
+  const lightModeEnabled = options?.lightModeEnabled !== false
+
+  const applyLightModeIfEnabled = useCallback(
+    (
+      scene: CanvasScene,
+      options?: { initMainEntriesVfxIndex?: boolean },
+    ) => (lightModeEnabled ? applyLightModeToScene(scene, options) : scene),
+    [lightModeEnabled],
+  )
+
+  const hydratePresentScene = useCallback(
+    (raw: CanvasScene, options?: { initMainEntriesVfxIndex?: boolean }) =>
+      applyLightModeIfEnabled(syncSceneCollapsedBodyWireless(hydrateScene(raw)), options),
+    [applyLightModeIfEnabled],
+  )
 
   const [sceneHistory, setSceneHistory] = useState(() => {
     if (initialTabSnapshot) {
       return {
         future: initialTabSnapshot.future.map((s) => structuredClone(s)),
         past: initialTabSnapshot.past.map((s) => structuredClone(s)),
-        present: syncSceneCollapsedBodyWireless(hydrateScene(initialTabSnapshot.present)),
+        present: applyLightModeIfEnabled(
+          syncSceneCollapsedBodyWireless(hydrateScene(initialTabSnapshot.present)),
+          { initMainEntriesVfxIndex: true },
+        ),
       }
     }
 
     return {
       future: [] as CanvasScene[],
       past: [] as CanvasScene[],
-      present: syncSceneCollapsedBodyWireless(hydrateScene(emptyCanvasScene)),
+      present: applyLightModeIfEnabled(
+        syncSceneCollapsedBodyWireless(hydrateScene(emptyCanvasScene)),
+        { initMainEntriesVfxIndex: true },
+      ),
     }
   })
 
   const scene = sceneHistory.present
+
+  const compactVisibilityForSelection = useMemo(
+    () => createCompactElementCanvasVisibility(scene),
+    [scene],
+  )
+
+  const nodeVisibilityContext = useMemo(
+    (): NodeVisibilitySceneContext => ({
+      linkVisibilityFilter: scene.linkVisibilityFilter,
+      connections: scene.connections,
+      nodes: scene.nodes,
+    }),
+    [scene.linkVisibilityFilter, scene.connections, scene.nodes],
+  )
+
+  const isCanvasNodeSelectable = useCallback(
+    (node: CanvasNode) =>
+      isNodeSelectableOnCanvas(node, compactVisibilityForSelection, nodeVisibilityContext),
+    [compactVisibilityForSelection, nodeVisibilityContext],
+  )
 
   const [selectionState, setSelectionState] = useState(() => {
     if (initialTabSnapshot) {
@@ -300,16 +353,15 @@ export function useSceneHistory(options?: {
     })
   }, [scene])
 
-  useEffect(() => {
-    window.localStorage.setItem(SCENE_STORAGE_KEY, JSON.stringify(scene))
-  }, [scene])
+  const mirrorLegacySceneStorage = initialTabSnapshot === undefined
 
   useEffect(() => {
-    if (!jsonFileAutoSave || !onAutoSaveScene) {
+    if (!mirrorLegacySceneStorage) {
       return
     }
-    onAutoSaveScene(scene)
-  }, [scene, jsonFileAutoSave, onAutoSaveScene])
+
+    persistStoredScene(scene)
+  }, [mirrorLegacySceneStorage, scene])
 
   useEffect(() => {
     if (!import.meta.env.DEV) {
@@ -427,24 +479,45 @@ export function useSceneHistory(options?: {
     setSelectionState({ ids: [], primaryId: '' })
   }, [])
 
-  const updateScene = useCallback((updater: (currentScene: CanvasScene) => CanvasScene) => {
-    setSceneHistory((currentHistory) => {
-      const nextScene = updater(currentHistory.present)
+  const updateScene = useCallback(
+    (updater: (currentScene: CanvasScene) => CanvasScene) => {
+      setSceneHistory((currentHistory) => {
+        const nextScene = applyLightModeIfEnabled(updater(currentHistory.present))
 
-      if (nextScene === currentHistory.present) {
+        if (nextScene === currentHistory.present) {
+          return currentHistory
+        }
+
+        return {
+          future: [],
+          past: [...currentHistory.past, currentHistory.present],
+          present: nextScene,
+        }
+      })
+    },
+    [applyLightModeIfEnabled],
+  )
+
+  useEffect(() => {
+    if (!lightModeEnabled) {
+      return
+    }
+
+    setSceneHistory((currentHistory) => {
+      const nextPresent = applyLightModeToScene(currentHistory.present, {
+        initMainEntriesVfxIndex: true,
+      })
+      if (nextPresent === currentHistory.present) {
         return currentHistory
       }
 
-      return {
-        future: [],
-        past: [...currentHistory.past, currentHistory.present],
-        present: nextScene,
-      }
+      return { ...currentHistory, present: nextPresent }
     })
-  }, [])
+  }, [lightModeEnabled])
 
-  const replaceScene = useCallback((nextScene: CanvasScene, storageMeta?: Record<string, string>) => {
-    const hydrated = syncSceneCollapsedBodyWireless(hydrateScene(nextScene))
+  const replaceScene = useCallback(
+    (nextScene: CanvasScene, storageMeta?: Record<string, string>) => {
+    const hydrated = hydratePresentScene(nextScene, { initMainEntriesVfxIndex: true })
     const fallbackId = hydrated.nodes[0]?.id ?? ''
 
     setSceneHistory({
@@ -462,7 +535,7 @@ export function useSceneHistory(options?: {
     } catch {
       /** ignore */
     }
-  }, [])
+  }, [hydratePresentScene])
 
   const getTabSnapshot = useCallback(
     (tabId: string, title: string): SceneTabSnapshot => ({
@@ -479,8 +552,9 @@ export function useSceneHistory(options?: {
     [sceneHistory, selectionState],
   )
 
-  const applyTabSnapshot = useCallback((snapshot: SceneTabSnapshot) => {
-    const hydrated = syncSceneCollapsedBodyWireless(hydrateScene(snapshot.present))
+  const applyTabSnapshot = useCallback(
+    (snapshot: SceneTabSnapshot, options?: { initMainEntriesVfxIndex?: boolean }) => {
+    const hydrated = hydratePresentScene(snapshot.present, options)
     const validIds = new Set(hydrated.nodes.map((node) => node.id))
     let nextIds = snapshot.selection.ids.filter((id) => validIds.has(id))
     let primaryId = snapshot.selection.primaryId
@@ -496,12 +570,14 @@ export function useSceneHistory(options?: {
     }
 
     setSceneHistory({
-      past: snapshot.past.map((s) => syncSceneCollapsedBodyWireless(hydrateScene(s))),
+      past: snapshot.past.map((s) => hydratePresentScene(s)),
       present: hydrated,
-      future: snapshot.future.map((s) => syncSceneCollapsedBodyWireless(hydrateScene(s))),
+      future: snapshot.future.map((s) => hydratePresentScene(s)),
     })
     setSelectionState({ ids: nextIds, primaryId })
-  }, [])
+  },
+    [hydratePresentScene],
+  )
 
   const selectNode = useCallback(
     (nodeId: string, options?: { additive?: boolean; includeHidden?: boolean }) => {
@@ -554,7 +630,7 @@ export function useSceneHistory(options?: {
       const validIds = [...new Set(nodeIds)].filter((id) => {
         const node = scene.nodes.find((entry) => entry.id === id)
 
-        return node !== undefined && isNodeSelectableOnCanvas(node)
+        return node !== undefined && isCanvasNodeSelectable(node)
       })
 
       if (!additive) {
@@ -597,11 +673,11 @@ export function useSceneHistory(options?: {
         }
       })
     },
-    [scene.nodes],
+    [isCanvasNodeSelectable, scene.nodes],
   )
 
   const selectAllNodes = useCallback(() => {
-    const ids = scene.nodes.filter(isNodeSelectableOnCanvas).map((node) => node.id)
+    const ids = scene.nodes.filter(isCanvasNodeSelectable).map((node) => node.id)
 
     if (ids.length === 0) {
       return
@@ -610,7 +686,7 @@ export function useSceneHistory(options?: {
     const pivot = ids[0]!
 
     setSelectionState({ ids, primaryId: pivot })
-  }, [scene.nodes])
+  }, [isCanvasNodeSelectable, scene.nodes])
 
   const moveNode = useCallback(
     (nodeId: string, position: CanvasPosition, _modifiers?: { axisLock: string; snapGrid: boolean }) => {
@@ -636,7 +712,10 @@ export function useSceneHistory(options?: {
   )
 
   type NodeSceneOverlayPatch = Partial<
-    Pick<CanvasNode, 'sceneHidden' | 'displayLabel' | 'bodyColor' | 'bodyColorEnabled' | 'locked'>
+    Pick<
+      CanvasNode,
+      'sceneHidden' | 'branchForceVisible' | 'displayLabel' | 'bodyColor' | 'bodyColorEnabled' | 'locked'
+    >
   >
 
   const patchNodeSceneOverlay = useCallback(
@@ -661,12 +740,72 @@ export function useSceneHistory(options?: {
 
   const setAllNodesSceneHidden = useCallback(
     (hidden: boolean) => {
-      updateScene((currentScene) => ({
-        ...currentScene,
-        nodes: currentScene.nodes.map((node) =>
-          hidden ? { ...node, sceneHidden: true } : { ...node, sceneHidden: undefined },
-        ),
-      }))
+      updateScene((currentScene) => {
+        const base = hidden ? currentScene : clearLinkVisibilityFilter(currentScene)
+
+        return {
+          ...base,
+          nodes: base.nodes.map((node) =>
+            hidden
+              ? { ...node, sceneHidden: true, branchForceVisible: undefined }
+              : { ...node, sceneHidden: undefined, branchForceVisible: undefined },
+          ),
+        }
+      })
+    },
+    [updateScene],
+  )
+
+  const showOnlyConnectedComponent = useCallback(
+    (seedNodeId: string) => {
+      updateScene((currentScene) => {
+        const visibleIds = collectNodeLinkBranchIds(currentScene, seedNodeId)
+
+        return applyShowOnlyNodeIds(currentScene, visibleIds, {
+          mode: 'branch',
+          seedNodeId,
+        })
+      })
+    },
+    [updateScene],
+  )
+
+  const showOnlySlotSubtree = useCallback(
+    (fromNodeId: string, slotId: string) => {
+      updateScene((currentScene) => {
+        const visibleIds = collectSlotSubtreeNodeIds(currentScene, fromNodeId, slotId)
+
+        return applyShowOnlyNodeIds(currentScene, visibleIds, {
+          mode: 'slot',
+          fromNodeId,
+          slotId,
+        })
+      })
+    },
+    [updateScene],
+  )
+
+  const showOnlyIncomingSlotBranch = useCallback(
+    (toNodeId: string) => {
+      updateScene((currentScene) => {
+        const visibleIds = collectIncomingSlotBranchNodeIds(currentScene, toNodeId)
+
+        return applyShowOnlyNodeIds(currentScene, visibleIds, {
+          mode: 'incoming',
+          toNodeId,
+        })
+      })
+    },
+    [updateScene],
+  )
+
+  const hideLinkedChildNodes = useCallback(
+    (parentNodeId: string) => {
+      updateScene((currentScene) => {
+        const childIds = collectLinkedChildNodeIds(currentScene, parentNodeId)
+
+        return applySceneHiddenToNodeIds(currentScene, childIds, true)
+      })
     },
     [updateScene],
   )
@@ -710,6 +849,20 @@ export function useSceneHistory(options?: {
     })
   }, [])
 
+  const sceneNodesChromeEqual = useCallback((a?: SceneNodesChrome, b?: SceneNodesChrome): boolean => {
+    if (a === b) {
+      return true
+    }
+    if (!a || !b) {
+      return !a && !b
+    }
+    return (
+      a.minimized === b.minimized &&
+      a.sortMode === b.sortMode &&
+      JSON.stringify(a.presets ?? []) === JSON.stringify(b.presets ?? [])
+    )
+  }, [])
+
   const patchSceneChrome = useCallback(
     (patch: {
       sceneNodes?: Partial<SceneNodesChrome>
@@ -726,8 +879,7 @@ export function useSceneHistory(options?: {
           patch.toolbarVisibility !== undefined ? patch.toolbarVisibility : prev.toolbarVisibility
 
         if (
-          prev.sceneNodes?.minimized === nextSceneNodes?.minimized &&
-          prev.sceneNodes?.sortMode === nextSceneNodes?.sortMode &&
+          sceneNodesChromeEqual(prev.sceneNodes, nextSceneNodes) &&
           prev.toolbarVisibility === nextToolbar
         ) {
           return currentHistory
@@ -744,8 +896,90 @@ export function useSceneHistory(options?: {
         }
       })
     },
-    [],
+    [sceneNodesChromeEqual],
   )
+
+  const readSceneNodesStatePresets = useCallback((): SceneNodesStatePreset[] => {
+    return sceneHistory.present.sceneChrome?.sceneNodes?.presets ?? []
+  }, [sceneHistory.present.sceneChrome?.sceneNodes?.presets])
+
+  const writeSceneNodesStatePresets = useCallback(
+    (presets: SceneNodesStatePreset[]) => {
+      patchSceneChrome({ sceneNodes: { presets } })
+    },
+    [patchSceneChrome],
+  )
+
+  const saveSceneNodesStatePreset = useCallback(
+    (name: string) => {
+      const trimmed = name.trim()
+      if (trimmed.length === 0) {
+        return
+      }
+      const existing = readSceneNodesStatePresets()
+      const preset = createSceneNodesStatePreset(trimmed, sceneHistory.present)
+      writeSceneNodesStatePresets([...existing, preset])
+    },
+    [readSceneNodesStatePresets, sceneHistory.present, writeSceneNodesStatePresets],
+  )
+
+  const overwriteSceneNodesStatePreset = useCallback(
+    (presetId: string) => {
+      const now = new Date().toISOString()
+      const snapshot = captureSceneNodesStateSnapshot(sceneHistory.present)
+      writeSceneNodesStatePresets(
+        readSceneNodesStatePresets().map((preset) =>
+          preset.id === presetId ? { ...preset, snapshot, updatedAt: now } : preset,
+        ),
+      )
+    },
+    [readSceneNodesStatePresets, sceneHistory.present, writeSceneNodesStatePresets],
+  )
+
+  const renameSceneNodesStatePreset = useCallback(
+    (presetId: string, name: string) => {
+      const trimmed = name.trim()
+      if (trimmed.length === 0) {
+        return
+      }
+      const now = new Date().toISOString()
+      writeSceneNodesStatePresets(
+        readSceneNodesStatePresets().map((preset) =>
+          preset.id === presetId ? { ...preset, name: trimmed, updatedAt: now } : preset,
+        ),
+      )
+    },
+    [readSceneNodesStatePresets, writeSceneNodesStatePresets],
+  )
+
+  const deleteSceneNodesStatePreset = useCallback(
+    (presetId: string) => {
+      writeSceneNodesStatePresets(readSceneNodesStatePresets().filter((preset) => preset.id !== presetId))
+    },
+    [readSceneNodesStatePresets, writeSceneNodesStatePresets],
+  )
+
+  const applySceneNodesStatePreset = useCallback(
+    (presetId: string) => {
+      const preset = readSceneNodesStatePresets().find((entry) => entry.id === presetId)
+      if (preset === undefined) {
+        return
+      }
+      updateScene((currentScene) => applySceneNodesStateSnapshot(currentScene, preset.snapshot))
+    },
+    [readSceneNodesStatePresets, updateScene],
+  )
+
+  const replaceSceneNodesStatePresets = useCallback(
+    (presets: SceneNodesStatePreset[]) => {
+      writeSceneNodesStatePresets(presets)
+    },
+    [writeSceneNodesStatePresets],
+  )
+
+  const suggestSceneNodesStatePresetName = useCallback((): string => {
+    return defaultSceneNodesStatePresetName(readSceneNodesStatePresets())
+  }, [readSceneNodesStatePresets])
 
   const connectNodes = useCallback(
     (connection: CanvasConnection) => {
@@ -833,6 +1067,18 @@ export function useSceneHistory(options?: {
     [updateScene],
   )
 
+  const setConnectionRouting = useCallback(
+    (connectionId: string, routing: import('@/core/canvasScene').ConnectionRouting) => {
+      updateScene((currentScene) => ({
+        ...currentScene,
+        connections: currentScene.connections.map((connection) =>
+          connection.id === connectionId ? { ...connection, routing } : connection,
+        ),
+      }))
+    },
+    [updateScene],
+  )
+
   const setElementViewMode = useCallback(
     (canvasNodeId: string, elementKey: ElementViewKey, mode: ElementViewMode) => {
       updateScene((currentScene) => {
@@ -841,29 +1087,51 @@ export function useSceneHistory(options?: {
           return currentScene
         }
 
+        if (lightModeEnabled && mode === 'list') {
+          return currentScene
+        }
+
+        const resolvedMode = resolveElementViewModeChange(canvasNode.node, elementKey, mode)
+        if (resolvedMode === null) {
+          return currentScene
+        }
+        mode = resolvedMode
+
         const slotIds = slotIdsForElement(canvasNode.node, elementKey)
+        const branchNodeIds = collectBranchNodeIdsFromOutputSlots(currentScene, canvasNodeId, slotIds)
         let nextScene = currentScene
 
         if (mode === 'compact') {
           nextScene = applyCompactWireless(nextScene, canvasNodeId, slotIds)
-        } else if (!isElementRetracted(canvasNode.node, elementKey)) {
+        } else {
           nextScene = restoreCompactWireless(nextScene, canvasNodeId, slotIds)
         }
 
         return {
           ...nextScene,
-          nodes: nextScene.nodes.map((n) =>
-            n.id === canvasNodeId
-              ? {
-                  ...n,
-                  node: patchElementViewMode(n.node, elementKey, mode),
-                }
-              : n,
-          ),
+          nodes: nextScene.nodes.map((n) => {
+            if (n.id === canvasNodeId) {
+              return {
+                ...n,
+                node: patchElementRetracted(
+                  patchElementViewMode(n.node, elementKey, mode),
+                  elementKey,
+                  true,
+                ),
+              }
+            }
+
+            if (!branchNodeIds.has(n.id)) {
+              return n
+            }
+
+            const { branchForceVisible: _bfv, bodyCollapsed, ...rest } = n
+            return bodyCollapsed === false ? rest : { ...rest, branchForceVisible: undefined }
+          }),
         }
       })
     },
-    [updateScene],
+    [lightModeEnabled, updateScene],
   )
 
   const setElementRetracted = useCallback(
@@ -932,17 +1200,47 @@ export function useSceneHistory(options?: {
 
   const setElementSelectedIndex = useCallback(
     (canvasNodeId: string, elementKey: ElementViewKey, selectedIndex: number) => {
-      updateScene((currentScene) => ({
-        ...currentScene,
-        nodes: currentScene.nodes.map((n) =>
-          n.id === canvasNodeId
-            ? {
-                ...n,
-                node: patchElementSelectedIndex(n.node, elementKey, selectedIndex),
-              }
-            : n,
-        ),
-      }))
+      updateScene((currentScene) => {
+        const canvasNode = currentScene.nodes.find((n) => n.id === canvasNodeId)
+        if (!canvasNode) {
+          return currentScene
+        }
+
+        let nextScene = currentScene
+        const previousNode = canvasNode.node
+
+        if (isElementViewCompact(previousNode, elementKey)) {
+          nextScene = restoreCompactWireless(
+            nextScene,
+            canvasNodeId,
+            allSlotIdsForElement(previousNode, elementKey),
+          )
+        }
+
+        const nextNode = patchElementSelectedIndex(previousNode, elementKey, selectedIndex)
+        const updatedCanvasNode = { ...canvasNode, node: nextNode }
+
+        if (isElementViewCompact(nextNode, elementKey)) {
+          nextScene = applyCompactWireless(
+            nextScene,
+            canvasNodeId,
+            slotIdsForElement(nextNode, elementKey),
+          )
+        }
+
+        let result: CanvasScene = {
+          ...nextScene,
+          nodes: nextScene.nodes.map((n) =>
+            n.id === canvasNodeId ? updatedCanvasNode : n,
+          ),
+        }
+
+        if (result.linkVisibilityFilter) {
+          result = reapplyLinkVisibilityFilter(result)
+        }
+
+        return result
+      })
     },
     [updateScene],
   )
@@ -1267,6 +1565,43 @@ export function useSceneHistory(options?: {
           nextScene = reapplyElementViewWireless(nextScene, toggledNode)
         }
 
+        return nextScene
+      })
+    },
+    [updateScene],
+  )
+
+  const setAllNodesBodyCollapsed = useCallback(
+    (collapsed: boolean) => {
+      updateScene((currentScene) => {
+        if (currentScene.nodes.length === 0) {
+          return currentScene
+        }
+
+        if (collapsed) {
+          let nextScene: CanvasScene = {
+            ...currentScene,
+            nodes: currentScene.nodes.map((node) => ({ ...node, bodyCollapsed: true })),
+          }
+          for (const node of nextScene.nodes) {
+            nextScene = applyCollapsedBodyWireless(nextScene, node.id)
+          }
+          return nextScene
+        }
+
+        let nextScene: CanvasScene = {
+          ...currentScene,
+          nodes: currentScene.nodes.map((node) => ({ ...node, bodyCollapsed: false })),
+        }
+        for (const node of currentScene.nodes) {
+          if (node.bodyCollapsed === true) {
+            nextScene = restoreCollapsedBodyWireless(nextScene, node.id)
+            const expandedNode = nextScene.nodes.find((entry) => entry.id === node.id)
+            if (expandedNode) {
+              nextScene = reapplyElementViewWireless(nextScene, expandedNode)
+            }
+          }
+        }
         return nextScene
       })
     },
@@ -2430,20 +2765,18 @@ export function useSceneHistory(options?: {
   }, [])
 
   const resetScene = useCallback(() => {
-    window.localStorage.removeItem(SCENE_STORAGE_KEY)
+    clearStoredScene()
     setSceneHistory({
       future: [],
       past: [],
       present: emptyCanvasScene,
     })
     setSelectionState({ ids: [], primaryId: '' })
-    if (jsonFileAutoSave && onAutoSaveScene) {
-      onAutoSaveScene(emptyCanvasScene)
-    }
-  }, [jsonFileAutoSave, onAutoSaveScene])
+  }, [])
 
   return {
     cycleConnectionRouting,
+    setConnectionRouting,
     setElementViewMode,
     setElementRetracted,
     setAllNodeElementsRetracted,
@@ -2454,8 +2787,19 @@ export function useSceneHistory(options?: {
     moveNode,
     setSceneCamera,
     patchSceneChrome,
+    saveSceneNodesStatePreset,
+    overwriteSceneNodesStatePreset,
+    renameSceneNodesStatePreset,
+    deleteSceneNodesStatePreset,
+    applySceneNodesStatePreset,
+    replaceSceneNodesStatePresets,
+    suggestSceneNodesStatePresetName,
     patchNodeSceneOverlay,
     setAllNodesSceneHidden,
+    showOnlyConnectedComponent,
+    showOnlySlotSubtree,
+    showOnlyIncomingSlotBranch,
+    hideLinkedChildNodes,
     setAllNodesLocked,
     resetNodePosition,
     connectNodes,
@@ -2467,6 +2811,7 @@ export function useSceneHistory(options?: {
     deleteNodeIds,
     deleteSelectedNodes,
     toggleNodeBodyCollapsed,
+    setAllNodesBodyCollapsed,
     toggleNodeCardSection,
     setNodeCardBodyLayout,
     setNodeCardSectionOrder,

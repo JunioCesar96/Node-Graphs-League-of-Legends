@@ -8,6 +8,7 @@ export type CanvasContextMenuAnchor = {
 export type CanvasContextTarget =
   | { type: 'canvas' }
   | { type: 'node'; nodeId: string }
+  | { type: 'nodeInputPort'; nodeId: string }
   | { type: 'connection'; connectionId: string }
   | {
       type: 'element'
@@ -33,6 +34,9 @@ export type ContextMenuItemId =
   | 'canvas.focusSelection'
   | 'canvas.selectAll'
   | 'canvas.clearSelection'
+  | 'canvas.extractSceneNodesState'
+  | 'canvas.collapseAllNodeBodies'
+  | 'canvas.expandAllNodeBodies'
   | 'canvas.toggleNavigateMode'
   | 'canvas.toggleLegend'
   | 'canvas.exibir'
@@ -59,10 +63,17 @@ export type ContextMenuItemId =
   | 'node.organization.freeform'
   | 'node.retractAllElements'
   | 'node.expandAllElements'
+  | 'node.extractSceneNodesState'
+  | 'node.hideLinkedChildNodes'
   | 'connection.cycleRouting'
   | 'connection.remove'
   | 'element.toggleCompact'
   | 'element.toggleRetracted'
+  | 'element.showOnlyConnectedComponent'
+  | 'element.showOnlySlotSubtree'
+  | 'element.focusPeerInputSlot'
+  | 'slot.connectionRoutingMenu'
+  | 'nodeInputPort.focusPeerOutputSlot'
   | 'element.relink'
   | 'element.removeConnections'
   | 'element.remove'

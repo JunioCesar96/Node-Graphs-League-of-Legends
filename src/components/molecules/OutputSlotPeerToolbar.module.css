@@ -1,0 +1,38 @@
+.toolbar {
+  display: inline-flex;
+  flex-shrink: 0;
+  gap: 2px;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.action {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  opacity: 0.82;
+}
+
+.action:hover {
+  color: var(--color-text-primary);
+  background: rgb(255 255 255 / 6%);
+  border-color: var(--color-border-soft);
+  opacity: 1;
+}
+
+.actionActive {
+  color: var(--syntax-keyword);
+  opacity: 1;
+}
+
+.actionMuted {
+  color: var(--color-text-muted);
+  opacity: 0.72;
+}

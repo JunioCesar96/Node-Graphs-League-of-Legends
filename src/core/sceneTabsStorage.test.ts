@@ -10,6 +10,9 @@ import {
   loadRecentSceneList,
   loadSceneTabsPersisted,
   pushRecentScene,
+  countNodesInTabsPersist,
+  saveSceneTabsPersistedPresentOnly,
+  SCENE_TABS_PERSIST_MAX_NODES,
   stripExtension,
   uniqueTabTitle,
 } from '@/core/sceneTabsStorage'
@@ -124,5 +127,51 @@ describe('getInitialSceneTabsPersisted', () => {
 
     expect(loaded?.tabs).toHaveLength(0)
     expect(loaded?.activeTabId).toBe('')
+  })
+})
+
+describe('saveSceneTabsPersistedPresentOnly', () => {
+  beforeEach(() => {
+    localStorage.clear()
+  })
+
+  it('grava abas sem stacks undo no localStorage', () => {
+    const tab = createDefaultTabSnapshot('Cena teste')
+    tab.past = [emptyCanvasScene]
+    tab.future = [emptyCanvasScene]
+
+    saveSceneTabsPersistedPresentOnly({ activeTabId: tab.id, tabs: [tab] })
+
+    const raw = localStorage.getItem(STORAGE_SCENE_TABS_KEY)
+    expect(raw).not.toBeNull()
+
+    const parsed = JSON.parse(raw!) as { tabs: Array<{ past: unknown[]; future: unknown[] }> }
+    expect(parsed.tabs[0]?.past).toEqual([])
+    expect(parsed.tabs[0]?.future).toEqual([])
+  })
+
+  it('não grava quando o total de nós excede o limite', () => {
+    const tab = createDefaultTabSnapshot('Grande')
+    const stubNode = {
+      id: 'stub',
+      position: { x: 0, y: 0 },
+      node: {
+        schema: { id: 's', title: 's', parameters: [], internalStructures: [] },
+        values: [],
+      },
+    }
+    const manyNodes = Array.from({ length: SCENE_TABS_PERSIST_MAX_NODES + 1 }, (_, index) => ({
+      ...stubNode,
+      id: `n-${index}`,
+    }))
+    tab.present = { ...tab.present, nodes: manyNodes }
+
+    const ok = saveSceneTabsPersistedPresentOnly({ activeTabId: tab.id, tabs: [tab] })
+
+    expect(ok).toBe(false)
+    expect(localStorage.getItem(STORAGE_SCENE_TABS_KEY)).toBeNull()
+    expect(countNodesInTabsPersist({ activeTabId: tab.id, tabs: [tab] })).toBeGreaterThan(
+      SCENE_TABS_PERSIST_MAX_NODES,
+    )
   })
 })

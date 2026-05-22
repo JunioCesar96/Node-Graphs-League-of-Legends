@@ -6,7 +6,7 @@ import type {
   PointerEventHandler,
 } from 'react'
 
-import type { WirelessPeerHoverPayload } from '@/core/connectionDisplay'
+import type { PortPulseVariant, WirelessPeerHoverPayload } from '@/core/connectionDisplay'
 
 import styles from './Port.module.css'
 
@@ -42,6 +42,10 @@ type PortProps = {
   onWirePointerMove?: PointerEventHandler<HTMLButtonElement>
   onWirePointerUp?: PointerEventHandler<HTMLButtonElement>
   wirelessLink?: WirelessPortLinkProps
+  /** Pulso no porto (foco amarelo ou hover wireless azul). */
+  portPulseVariant?: PortPulseVariant
+  /** Atributos extra (ex.: menu de contexto no porto de entrada). */
+  extraDataAttrs?: Record<string, string>
 }
 
 function ChainIcon() {
@@ -74,13 +78,18 @@ export function Port({
   onWirePointerMove,
   onWirePointerUp,
   wirelessLink,
+  portPulseVariant,
+  extraDataAttrs,
 }: PortProps) {
   const wireMode = Boolean(onWirePointerDown)
+  const resolvedPulseVariant =
+    portPulseVariant ?? (wirelessLink?.wirelessPeerPulse ? 'wireless' : undefined)
   const classes = [
     styles.port,
     styles[direction],
     wirelessLink ? styles.wireless : '',
-    wirelessLink?.wirelessPeerPulse ? styles.wirelessPulse : '',
+    resolvedPulseVariant === 'wireless' ? styles.wirelessPulse : '',
+    resolvedPulseVariant === 'focus' ? styles.focusPulse : '',
     active ? styles.active : '',
     compatible ? styles.compatible : '',
     onClick || wireMode || wirelessLink ? styles.interactive : '',
@@ -105,6 +114,7 @@ export function Port({
     return (
       <button
         {...graphDataProps}
+        {...extraDataAttrs}
         aria-label={label ?? wirelessTitle}
         className={classes}
         onClick={(event) => {

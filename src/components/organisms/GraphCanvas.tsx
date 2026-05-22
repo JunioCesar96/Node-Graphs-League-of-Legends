@@ -12,7 +12,9 @@ import {
   canvasNodeBodyStyle,
   canvasNodeCardStyle,
   canvasNodeInputPortStyle,
+  createCompactElementCanvasVisibility,
   getNodeDisplayTitle,
+  isNodeBodyEffectivelyCollapsed,
   isNodeLocked,
   isNodeVisibleOnCanvas,
 } from '@/core/canvasNodePresentation'
@@ -133,6 +135,29 @@ import {
   type CanvasToolbarVisibility,
 } from '@/core/canvasToolbarVisibility'
 import { resolveContextTarget } from '@/core/canvasContextMenuResolve'
+import {
+  collectGraphPortAnchors,
+  emptyPortAnchorMaps,
+  outputAnchorKey,
+  type PortAnchorMaps,
+} from '@/core/graphPortAnchors'
+import { parseSetConnectionRoutingMenuId } from '@/core/connectionRoutingMenu'
+import {
+  buildPortFocusPulseTarget,
+  findConnectionFromOutputSlot,
+  findIncomingConnections,
+  outputSlotIdFromElementTarget,
+  parseFocusPeerOutputSlotMenuId,
+  peerInputFromConnection,
+  peerOutputFromConnection,
+} from '@/core/slotPeerFocus'
+import type { OutputSlotPeerActions } from '@/core/outputSlotPeerActions'
+import {
+  peerVisibilityOverlayPatch,
+  peerVisibilityState,
+  resolveOutputSlotPeer,
+} from '@/core/outputSlotPeerState'
+import { isStructuralSlotContextKind } from '@/core/sceneNodeLinkVisibility'
 import type {
   CanvasContextMenuAnchor,
   CanvasContextTarget,
@@ -197,6 +222,10 @@ type GraphCanvasProps = {
     targetNodeId: string,
   ) => void
   onCycleConnectionRouting?: (connectionId: string) => void
+  onSetConnectionRouting?: (
+    connectionId: string,
+    routing: import('@/core/canvasScene').ConnectionRouting,
+  ) => void
   onCreateChildNode: (
     fromNodeId: string,
     structure: InternalStructureDefinition,
@@ -205,6 +234,7 @@ type GraphCanvasProps = {
   onCreateRootNode: (schema: NodeSchemaDefinition, position?: CanvasPosition) => void
   onDeleteNodeIds?: (nodeIds: string[]) => void
   onToggleNodeBodyCollapsed?: (nodeId: string) => void
+  onSetAllNodesBodyCollapsed?: (collapsed: boolean) => void
   onToggleNodeCardSection?: (nodeId: string, sectionId: NodeCardSectionId) => void
   onSetNodeCardSectionOrder?: (nodeId: string, sectionId: NodeCardSectionId, oneBasedIndex: number) => void
   onSetNodeCardBodyLayout?: (nodeId: string, layout: NodeCardBodyLayout) => void
@@ -284,6 +314,11 @@ type GraphCanvasProps = {
     index: number,
   ) => void
   onRemoveConnectionsFromOutputSlot?: (canvasNodeId: string, structureId: string) => void
+  onShowOnlyConnectedComponent?: (canvasNodeId: string) => void
+  onShowOnlySlotSubtree?: (canvasNodeId: string, slotId: string) => void
+  onShowOnlyIncomingSlotBranch?: (canvasNodeId: string) => void
+  /** Oculta (`sceneHidden`) todos os descendentes ligados por saídas do nó. */
+  onHideLinkedChildNodes?: (canvasNodeId: string) => void
   /** Reordena parâmetros no card (índice 1-based na lista actual). */
   onSetNodeParameterOrder?: (
     canvasNodeId: string,
@@ -310,8 +345,17 @@ type GraphCanvasProps = {
   sceneNodesControlsSlot?: ReactNode
   /** Toast quando o utilizador tenta editar um nó travado. */
   onNodeLockedInteraction?: () => void
+  /** Overlay de visibilidade/lock (sincronizado com «Nodes em cena»). */
+  onPatchNodeSceneOverlay?: (
+    nodeId: string,
+    patch: Partial<
+      Pick<import('@/core/canvasScene').CanvasNode, 'sceneHidden' | 'branchForceVisible' | 'locked'>
+    >,
+  ) => void
   /** Abre/expande o painel «Nodes em cena» (ex.: ao activar no submenu Exibir). */
   onSceneNodesPanelRequest?: () => void
+  /** Grava preset de estados da cena (atalho no menu do card). */
+  onExtractSceneNodesStatePreset?: (nodeId: string) => void
   /** Visibilidade dos botões da barra do canvas (persistida em `scene.sceneChrome`). */
   toolbarVisibility?: CanvasToolbarVisibility
   onToolbarVisibilityChange?: (next: CanvasToolbarVisibility) => void
@@ -1194,62 +1238,6 @@ function createConnectionPath(
   }
 }
 
-type PortAnchorMaps = {
-  inputs: Map<string, PanPoint>
-  outputs: Map<string, PanPoint>
-}
-
-function graphPointFromElementCenter(canvasEl: HTMLElement, scale: number, innerEl: HTMLElement): PanPoint {
-  const canvasRect = canvasEl.getBoundingClientRect()
-  const bounds = innerEl.getBoundingClientRect()
-  const clientX = bounds.left + bounds.width / 2
-  const clientY = bounds.top + bounds.height / 2
-
-  return {
-    x: (clientX - canvasRect.left) / scale,
-    y: (clientY - canvasRect.top) / scale,
-  }
-}
-
-function outputAnchorKey(nodeId: string, structureId: string): string {
-  return `${nodeId}|${structureId}`
-}
-
-function collectGraphPortAnchors(canvasEl: HTMLElement, scale: number): PortAnchorMaps {
-  const outputs = new Map<string, PanPoint>()
-  const inputs = new Map<string, PanPoint>()
-  const elements = canvasEl.querySelectorAll('[data-graph-node-id][data-graph-port]')
-
-  elements.forEach((node) => {
-    if (!(node instanceof HTMLElement)) {
-      return
-    }
-
-    const nodeId = node.getAttribute('data-graph-node-id')
-    const kind = node.getAttribute('data-graph-port')
-
-    if (!nodeId || !kind) {
-      return
-    }
-
-    const p = graphPointFromElementCenter(canvasEl, scale, node)
-
-    if (kind === 'output') {
-      const structureId = node.getAttribute('data-graph-internal-structure-id')
-      if (structureId) {
-        outputs.set(outputAnchorKey(nodeId, structureId), p)
-      }
-      return
-    }
-
-    if (kind === 'input') {
-      inputs.set(nodeId, p)
-    }
-  })
-
-  return { inputs, outputs }
-}
-
 function createAnchoredConnectionPath(id: string, sx: number, sy: number, ix: number, iy: number): ConnectionPath {
   const exitX = sx + RIGID_SEGMENT_LENGTH
   const entryY = iy - RIGID_SEGMENT_LENGTH
@@ -1347,7 +1335,12 @@ function intersectsCanvasNodeRect(
   )
 }
 
-function collectNodesInMarquee(scene: CanvasScene, start: CanvasPosition, end: CanvasPosition): string[] {
+function collectNodesInMarquee(
+  scene: CanvasScene,
+  start: CanvasPosition,
+  end: CanvasPosition,
+  compactElementVisibility?: ReturnType<typeof createCompactElementCanvasVisibility>,
+): string[] {
   const marquee = normalizeMarqueeRect(start, end)
 
   if (marquee.width < 4 && marquee.height < 4) {
@@ -1355,6 +1348,7 @@ function collectNodesInMarquee(scene: CanvasScene, start: CanvasPosition, end: C
   }
 
   return scene.nodes
+    .filter((node) => isNodeVisibleOnCanvas(node, compactElementVisibility, scene))
     .filter((node) => intersectsCanvasNodeRect(marquee, node, scene.connections))
     .map((node) => node.id)
 }
@@ -1374,10 +1368,12 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     onConnectNodes,
     onRelinkInternalStructure,
     onCycleConnectionRouting,
+    onSetConnectionRouting,
     onCreateChildNode,
     onCreateRootNode,
     onDeleteNodeIds,
     onToggleNodeBodyCollapsed,
+    onSetAllNodesBodyCollapsed,
     onToggleNodeCardSection,
     onSetNodeCardSectionOrder,
     onSetNodeCardBodyLayout,
@@ -1408,6 +1404,10 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     onSetAllNodeElementsRetracted,
     onSetElementSelectedIndex,
     onRemoveConnectionsFromOutputSlot,
+    onShowOnlyConnectedComponent,
+    onShowOnlySlotSubtree,
+    onShowOnlyIncomingSlotBranch,
+    onHideLinkedChildNodes,
     scene,
     onSceneCameraChange,
     selectedNodeIds,
@@ -1415,7 +1415,9 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     viewportControlsSlot,
     sceneNodesControlsSlot,
     onNodeLockedInteraction,
+    onPatchNodeSceneOverlay,
     onSceneNodesPanelRequest,
+    onExtractSceneNodesStatePreset,
     toolbarVisibility: toolbarVisibilityProp,
     onToolbarVisibilityChange,
     attachedViewport = false,
@@ -1471,6 +1473,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
   const [paletteSpawnPosition, setPaletteSpawnPosition] = useState<CanvasPosition | null>(null)
   const navigatePanOriginRef = useRef<{ x: number; y: number } | null>(null)
   const [wirelessPortPulse, setWirelessPortPulse] = useState<WirelessPortPulseTarget | null>(null)
+  const portFocusPulseTimeoutRef = useRef<ReturnType<typeof window.setTimeout> | null>(null)
 
   const panRef = useRef(pan)
   const scaleRef = useRef(scale)
@@ -1527,10 +1530,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
   }, [selectedNodeIds.length])
 
   const canvasBounds = getCanvasBounds(scene)
-  const [portAnchors, setPortAnchors] = useState<PortAnchorMaps>(() => ({
-    inputs: new Map(),
-    outputs: new Map(),
-  }))
+  const [portAnchors, setPortAnchors] = useState<PortAnchorMaps>(emptyPortAnchorMaps)
 
   useLayoutEffect(() => {
     const el = canvasRef.current
@@ -1592,9 +1592,19 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     setWirelessPortPulse(null)
   }, [])
 
+  const compactElementVisibility = useMemo(
+    () => createCompactElementCanvasVisibility(scene),
+    [scene],
+  )
+
   const visibleNodeIds = useMemo(
-    () => new Set(scene.nodes.filter(isNodeVisibleOnCanvas).map((node) => node.id)),
-    [scene.nodes],
+    () =>
+      new Set(
+        scene.nodes
+          .filter((node) => isNodeVisibleOnCanvas(node, compactElementVisibility, scene))
+          .map((node) => node.id),
+      ),
+    [compactElementVisibility, scene.nodes],
   )
 
   const connectionPaths = useMemo(() => {
@@ -2148,6 +2158,14 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       }
 
       if (drag.maxScreenDelta < DROP_TO_OPEN_LINK_PALETTE_PX) {
+        const existing = findConnectionFromOutputSlot(scene, fromNodeId, entity.id)
+
+        if (existing) {
+          onCycleConnectionRouting?.(existing.id)
+          endLinkDraft()
+          return
+        }
+
         openCollectionTypeLinkMenu(fromNodeId, entity, event.currentTarget)
         endLinkDraft()
         return
@@ -2155,7 +2173,14 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
 
       resolveOutputWireDrop(drag, event.clientX, event.clientY)
     },
-    [detachOutputWireWindowMove, endLinkDraft, openCollectionTypeLinkMenu, resolveOutputWireDrop],
+    [
+      detachOutputWireWindowMove,
+      endLinkDraft,
+      onCycleConnectionRouting,
+      openCollectionTypeLinkMenu,
+      resolveOutputWireDrop,
+      scene.connections,
+    ],
   )
 
   const handleOutputWirePointerCancel = useCallback(
@@ -2469,7 +2494,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
 
       if (canvasEl) {
         const end = graphClientToPosition(canvasEl, scale, event.clientX, event.clientY)
-        const hits = collectNodesInMarquee(scene, marqueeGest.start, end)
+        const hits = collectNodesInMarquee(scene, marqueeGest.start, end, compactElementVisibility)
 
         onMarqueeCommit({
           additive: marqueeGest.additive,
@@ -2623,6 +2648,191 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     }
   }
 
+  const PORT_FOCUS_PULSE_MS = 2600
+
+  const schedulePortFocusPulse = useCallback((target: WirelessPortPulseTarget) => {
+    if (portFocusPulseTimeoutRef.current !== null) {
+      window.clearTimeout(portFocusPulseTimeoutRef.current)
+    }
+
+    setWirelessPortPulse(target)
+    portFocusPulseTimeoutRef.current = window.setTimeout(() => {
+      portFocusPulseTimeoutRef.current = null
+      setWirelessPortPulse((current) => {
+        if (
+          !current ||
+          current.connectionId !== target.connectionId ||
+          current.nodeId !== target.nodeId ||
+          current.portKind !== target.portKind ||
+          current.outputSlotId !== target.outputSlotId
+        ) {
+          return current
+        }
+
+        return null
+      })
+    }, PORT_FOCUS_PULSE_MS)
+  }, [])
+
+  const focusGraphPointIntoView = useCallback(
+    (point: PanPoint) => {
+      const viewport = viewportBodyRef.current
+
+      if (!viewport) {
+        return
+      }
+
+      const viewportWidth = viewport.clientWidth
+      const viewportHeight = viewport.clientHeight
+      const pad = 80
+      const bboxWidth = 320
+      const bboxHeight = 240
+      const minLeft = point.x - bboxWidth / 2
+      const minTop = point.y - bboxHeight / 2
+      const maxRight = point.x + bboxWidth / 2
+      const maxBottom = point.y + bboxHeight / 2
+
+      const widthScale = viewportWidth / (maxRight - minLeft + pad * 2)
+      const heightScale = viewportHeight / (maxBottom - minTop + pad * 2)
+      const targetScale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, Math.min(widthScale, heightScale)))
+
+      const centerX = (minLeft + maxRight) / 2
+      const centerY = (minTop + maxBottom) / 2
+      const nextPan = {
+        x: Math.round(viewportWidth / 2 - centerX * targetScale),
+        y: Math.round(viewportHeight / 2 - centerY * targetScale),
+      }
+
+      panRef.current = nextPan
+      scaleRef.current = targetScale
+      setPan(nextPan)
+      setScale(targetScale)
+      persistSceneCamera({ pan: nextPan, scale: targetScale })
+    },
+    [persistSceneCamera],
+  )
+
+  const focusInputPort = useCallback(
+    (nodeId: string, connection: CanvasConnection) => {
+      const anchor = portAnchors.inputs.get(nodeId)
+      if (anchor) {
+        focusGraphPointIntoView(anchor)
+      } else {
+        const canvasNode = scene.nodes.find((node) => node.id === nodeId)
+        if (!canvasNode) {
+          return
+        }
+
+        focusGraphPointIntoView({
+          x: canvasNode.position.x + CARD_WIDTH / 2,
+          y: canvasNode.position.y,
+        })
+      }
+
+      schedulePortFocusPulse(buildPortFocusPulseTarget(connection, 'input', scene.nodes))
+    },
+    [focusGraphPointIntoView, portAnchors.inputs, scene.nodes, schedulePortFocusPulse],
+  )
+
+  const focusOutputPort = useCallback(
+    (nodeId: string, structureId: string, connection: CanvasConnection) => {
+      const anchor = portAnchors.outputs.get(outputAnchorKey(nodeId, structureId))
+      if (anchor) {
+        focusGraphPointIntoView(anchor)
+      } else {
+        const canvasNode = scene.nodes.find((node) => node.id === nodeId)
+        if (!canvasNode) {
+          return
+        }
+
+        focusGraphPointIntoView({
+          x: canvasNode.position.x + CARD_WIDTH - PORT_OVERLAP,
+          y: getOutputPortY(canvasNode, structureId, scene.connections),
+        })
+      }
+
+      schedulePortFocusPulse(buildPortFocusPulseTarget(connection, 'output', scene.nodes))
+    },
+    [
+      focusGraphPointIntoView,
+      portAnchors.outputs,
+      scene.connections,
+      scene.nodes,
+      schedulePortFocusPulse,
+    ],
+  )
+
+  const buildOutputSlotPeerActions = useCallback(
+    (fromNodeId: string): OutputSlotPeerActions | undefined => {
+      if (!onPatchNodeSceneOverlay) {
+        return undefined
+      }
+
+      return {
+        getPeerState: (slotId) => {
+          const resolved = resolveOutputSlotPeer(scene, fromNodeId, slotId)
+
+          if (!resolved) {
+            return undefined
+          }
+
+          const visibility = peerVisibilityState(
+            resolved.peerCanvasNode,
+            compactElementVisibility,
+            scene,
+          )
+
+          return {
+            peerNodeId: resolved.peerNodeId,
+            ...visibility,
+          }
+        },
+        onToggleLock: (slotId) => {
+          const resolved = resolveOutputSlotPeer(scene, fromNodeId, slotId)
+
+          if (!resolved) {
+            return
+          }
+
+          const locked = resolved.peerCanvasNode.locked === true
+          onPatchNodeSceneOverlay(
+            resolved.peerNodeId,
+            locked ? { locked: undefined } : { locked: true },
+          )
+        },
+        onToggleVisibility: (slotId) => {
+          const resolved = resolveOutputSlotPeer(scene, fromNodeId, slotId)
+
+          if (!resolved) {
+            return
+          }
+
+          const visibility = peerVisibilityState(
+            resolved.peerCanvasNode,
+            compactElementVisibility,
+            scene,
+          )
+
+          onPatchNodeSceneOverlay(
+            resolved.peerNodeId,
+            peerVisibilityOverlayPatch(visibility.hidden, visibility.policyHidden),
+          )
+        },
+        onFocusPeer: (slotId) => {
+          const resolved = resolveOutputSlotPeer(scene, fromNodeId, slotId)
+
+          if (!resolved) {
+            return
+          }
+
+          onSelectNode(resolved.peerNodeId)
+          focusInputPort(resolved.peerNodeId, resolved.connection)
+        },
+      }
+    },
+    [compactElementVisibility, focusInputPort, onPatchNodeSceneOverlay, onSelectNode, scene],
+  )
+
   const focusSelectionIntoView = useCallback(
     (focusIds: string[]) => {
       const ids = [...new Set(focusIds)].filter((id) =>
@@ -2709,14 +2919,23 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       contextMenu.target.type === 'node'
         ? scene.nodes.find((node) => node.id === contextMenu.target.nodeId)
         : undefined
+    const sceneBodyCollapsedFlags = scene.nodes.map((node) =>
+      isNodeBodyEffectivelyCollapsed(node, compactElementVisibility),
+    )
+    const sceneAllNodesBodyCollapsed =
+      sceneBodyCollapsedFlags.length > 0 && sceneBodyCollapsedFlags.every(Boolean)
+    const sceneAnyNodeBodyCollapsed = sceneBodyCollapsedFlags.some(Boolean)
 
     return buildContextMenuItems(contextMenu.target, {
       canRedo,
       canUndo,
       glueNodeId,
-      hasSelectAll: scene.nodes.some(isNodeVisibleOnCanvas),
-      isNodeBodyCollapsed: contextNode ? isCanvasNodeBodyCollapsed(contextNode) : false,
+      hasSelectAll: scene.nodes.some((node) => isNodeVisibleOnCanvas(node, compactElementVisibility, scene)),
+      isNodeBodyCollapsed: contextNode
+        ? isNodeBodyEffectivelyCollapsed(contextNode, compactElementVisibility)
+        : false,
       onCycleConnectionRouting,
+      onSetConnectionRouting,
       onRemoveConnection,
       parameterStubCatalog: stubCatalogSchemaId
         ? schemaBaseParameterCatalogBySchemaId?.[stubCatalogSchemaId]
@@ -2727,13 +2946,17 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       toolbarVisibility,
       hasPendingLink: Boolean(pendingLink),
       hasInspectorSlot: Boolean(viewportControlsSlot),
+      sceneAllNodesBodyCollapsed,
+      sceneAnyNodeBodyCollapsed,
     })
   }, [
     canRedo,
     canUndo,
     contextMenu,
     glueNodeId,
+    compactElementVisibility,
     onCycleConnectionRouting,
+    onSetConnectionRouting,
     onRemoveConnection,
     scene,
     schemaBaseParameterCatalogBySchemaId,
@@ -2750,6 +2973,25 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       const target = contextMenu?.target
 
       if (!target) {
+        return
+      }
+
+      const routingChoice = parseSetConnectionRoutingMenuId(actionId)
+      if (routingChoice) {
+        onSetConnectionRouting?.(routingChoice.connectionId, routingChoice.routing)
+        closeContextMenu()
+        return
+      }
+
+      const peerOutputConnectionId = parseFocusPeerOutputSlotMenuId(actionId)
+      if (peerOutputConnectionId) {
+        const connection = scene.connections.find((entry) => entry.id === peerOutputConnectionId)
+        if (connection) {
+          const peer = peerOutputFromConnection(connection)
+          focusOutputPort(peer.nodeId, peer.structureId, connection)
+          onSelectNode(peer.nodeId)
+        }
+        closeContextMenu()
         return
       }
 
@@ -2789,6 +3031,17 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
         case 'canvas.clearSelection':
           onClearSelection?.()
           break
+        case 'canvas.collapseAllNodeBodies':
+          onSetAllNodesBodyCollapsed?.(true)
+          break
+        case 'canvas.expandAllNodeBodies':
+          onSetAllNodesBodyCollapsed?.(false)
+          break
+        case 'canvas.extractSceneNodesState':
+          if (selectedNodeId) {
+            onExtractSceneNodesStatePreset?.(selectedNodeId)
+          }
+          break
         case 'canvas.toggleNavigateMode':
           setViewportNavigateMode((active) => !active)
           break
@@ -2824,6 +3077,11 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
         case 'node.toggleBodyCollapse':
           if (target.type === 'node') {
             onToggleNodeBodyCollapsed?.(target.nodeId)
+          }
+          break
+        case 'node.hideLinkedChildNodes':
+          if (target.type === 'node') {
+            onHideLinkedChildNodes?.(target.nodeId)
           }
           break
         case 'node.focus':
@@ -2878,6 +3136,11 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
             onSetAllNodeElementsRetracted?.(target.nodeId, false)
           }
           break
+        case 'node.extractSceneNodesState':
+          if (target.type === 'node') {
+            onExtractSceneNodesStatePreset?.(target.nodeId)
+          }
+          break
         case 'connection.cycleRouting':
           if (target.type === 'connection') {
             onCycleConnectionRouting?.(target.connectionId)
@@ -2930,6 +3193,52 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
           onSetElementRetracted(target.nodeId, viewKey, !retracted)
           break
         }
+        case 'element.showOnlyConnectedComponent':
+          if (target.type === 'nodeInputPort') {
+            onShowOnlyConnectedComponent?.(target.nodeId)
+            onSelectNode(target.nodeId)
+            focusSelectionIntoView([target.nodeId])
+          } else if (target.type === 'element' && isStructuralSlotContextKind(target.kind)) {
+            onShowOnlyConnectedComponent?.(target.nodeId)
+            onSelectNode(target.nodeId)
+            focusSelectionIntoView([target.nodeId])
+          }
+          break
+        case 'element.showOnlySlotSubtree':
+          if (target.type === 'nodeInputPort') {
+            onShowOnlyIncomingSlotBranch?.(target.nodeId)
+            onSelectNode(target.nodeId)
+            focusSelectionIntoView([target.nodeId])
+          } else if (target.type === 'element' && isStructuralSlotContextKind(target.kind)) {
+            onShowOnlySlotSubtree?.(target.nodeId, target.elementId)
+            onSelectNode(target.nodeId)
+            focusSelectionIntoView([target.nodeId])
+          }
+          break
+        case 'element.focusPeerInputSlot':
+          if (target.type === 'element') {
+            const slotId = outputSlotIdFromElementTarget(target)
+            if (slotId) {
+              const connection = findConnectionFromOutputSlot(scene, target.nodeId, slotId)
+              if (connection) {
+                const peer = peerInputFromConnection(connection)
+                focusInputPort(peer.nodeId, connection)
+                onSelectNode(peer.nodeId)
+              }
+            }
+          }
+          break
+        case 'nodeInputPort.focusPeerOutputSlot':
+          if (target.type === 'nodeInputPort') {
+            const incoming = findIncomingConnections(scene, target.nodeId)
+            const connection = incoming[0]
+            if (connection) {
+              const peer = peerOutputFromConnection(connection)
+              focusOutputPort(peer.nodeId, peer.structureId, connection)
+              onSelectNode(peer.nodeId)
+            }
+          }
+          break
         case 'element.relink': {
           if (target.type !== 'element' || target.kind !== 'internalStructure') {
             break
@@ -3003,18 +3312,27 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     },
     [
       contextMenu,
+      focusInputPort,
+      focusOutputPort,
       focusSelectionIntoView,
       onClearSelection,
       onCycleConnectionRouting,
+      onSetConnectionRouting,
       onDeleteNodeIds,
       onNodeLockedInteraction,
       onSceneNodesPanelRequest,
+      onExtractSceneNodesStatePreset,
+      onSetAllNodesBodyCollapsed,
       onToggleNodeBodyCollapsed,
       onToggleNodeCardSection,
       onSetNodeCardBodyLayout,
       onRedo,
       onRemoveConnection,
       onRemoveConnectionsFromOutputSlot,
+      onShowOnlyConnectedComponent,
+      onShowOnlySlotSubtree,
+      onShowOnlyIncomingSlotBranch,
+      onHideLinkedChildNodes,
       onRemoveList2EmbedInstance,
       onRemoveList2PointerInstance,
       onRequestRemoveElement,
@@ -3481,7 +3799,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
         ) : null}
 
         {scene.nodes.map((canvasNode) => {
-          if (!isNodeVisibleOnCanvas(canvasNode)) {
+          if (!isNodeVisibleOnCanvas(canvasNode, compactElementVisibility, scene)) {
             return null
           }
 
@@ -3680,7 +3998,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
                   wirelessPortPulse?.nodeId === canvasNode.id ? wirelessPortPulse : undefined
                 }
                 parameterHints={hints}
-                bodyCollapsed={isCanvasNodeBodyCollapsed(canvasNode)}
+                bodyCollapsed={isNodeBodyEffectivelyCollapsed(canvasNode, compactElementVisibility)}
                 cardSectionExpanded={canvasNode.cardSectionExpanded}
                 cardSectionOrder={canvasNode.cardSectionOrder}
                 cardBodyLayout={resolveNodeCardBodyLayout(canvasNode)}
@@ -3696,6 +4014,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
                     : undefined
                 }
                 selected={isSelected}
+                outputSlotPeerActions={buildOutputSlotPeerActions(canvasNode.id)}
               />
             </div>
           )

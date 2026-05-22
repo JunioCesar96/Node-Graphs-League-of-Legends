@@ -2,8 +2,6 @@ import type { CanvasScene } from '@/core/canvasScene'
 import { serializeScene } from '@/core/leagueBinScene'
 import { triggerJsonDownload } from '@/core/workspaceStorage'
 
-export const JSON_AUTO_SAVE_DEBOUNCE_MS = 500
-
 export type SceneJsonFileContext = {
   fileName: string
   handle: FileSystemFileHandle | null
@@ -74,20 +72,13 @@ async function writeSceneToHandle(handle: FileSystemFileHandle, scene: CanvasSce
 }
 
 /**
- * Salvar manual: prompt do nome → picker FS API ou download.
+ * Salvar manual: escolhe local (picker) ou download; o nome sugerido vem da aba.
  */
 export async function saveSceneJsonManual(
   scene: CanvasScene,
   suggestedName: string,
 ): Promise<SceneJsonManualSaveResult> {
-  const defaultName = normalizeSceneJsonFileName(suggestedName)
-  const raw = window.prompt('Nome do ficheiro:', defaultName)
-
-  if (raw === null) {
-    return { cancelled: true }
-  }
-
-  const fileName = normalizeSceneJsonFileName(raw)
+  const fileName = normalizeSceneJsonFileName(suggestedName)
 
   if (supportsFileSystemAccess()) {
     try {
@@ -117,24 +108,4 @@ export async function saveSceneJsonManual(
   triggerJsonDownload(documentPayload, fileName)
 
   return { cancelled: false, fileName, handle: null, usedDownload: true }
-}
-
-/**
- * Auto-save: grava no handle da aba se existir; sem download automático.
- */
-export async function saveSceneJsonAuto(
-  scene: CanvasScene,
-  context: SceneJsonFileContext | null,
-): Promise<{ ok: boolean; reason?: 'no_handle' | 'permission_denied' | 'write_failed' }> {
-  if (!context?.handle) {
-    return { ok: false, reason: 'no_handle' }
-  }
-
-  try {
-    const ok = await writeSceneToHandle(context.handle, scene)
-
-    return ok ? { ok: true } : { ok: false, reason: 'permission_denied' }
-  } catch {
-    return { ok: false, reason: 'write_failed' }
-  }
 }

@@ -9,8 +9,17 @@ import {
 } from '@/components/atoms/SceneNodesRowIcons'
 import { ViewportDockPinIcon } from '@/components/atoms/ViewportDockPinIcon'
 import { SceneNodesOptionsMenu } from '@/components/molecules/SceneNodesOptionsMenu'
+import { SceneNodesStatesSection } from '@/components/molecules/SceneNodesStatesSection'
 import type { CanvasNode, CanvasScene } from '@/core/canvasScene'
-import { getNodeDisplayTitle, resolveCanvasNodeBodyCssColor } from '@/core/canvasNodePresentation'
+import type { SceneNodesStatePreset } from '@/core/sceneNodesStatePresets'
+import {
+  createCompactElementCanvasVisibility,
+  getNodeDisplayTitle,
+  isNodeVisibleOnCanvas,
+  type NodeVisibilitySceneContext,
+  resolveCanvasNodeBodyCssColor,
+  type CompactElementCanvasVisibility,
+} from '@/core/canvasNodePresentation'
 import {
   filterSceneNodesByQuery,
   sortSceneNodes,
@@ -20,6 +29,8 @@ import {
 import styles from '@/components/organisms/SceneNodesPanel.module.css'
 
 const SCENE_NODES_FLOAT_Z = 17
+
+export type SceneNodesPanelTab = 'nodes' | 'states'
 
 type SceneNodesPanelProps = {
   dragHandleProps: HTMLAttributes<HTMLElement>
@@ -32,7 +43,15 @@ type SceneNodesPanelProps = {
   onPatchNodeOverlay: (
     nodeId: string,
     patch: Partial<
-      Pick<CanvasNode, 'displayLabel' | 'bodyColor' | 'bodyColorEnabled' | 'sceneHidden' | 'locked'>
+      Pick<
+        CanvasNode,
+        | 'displayLabel'
+        | 'bodyColor'
+        | 'bodyColorEnabled'
+        | 'sceneHidden'
+        | 'branchForceVisible'
+        | 'locked'
+      >
     >,
   ) => void
   onFocusNode: (nodeId: string) => void
@@ -43,12 +62,21 @@ type SceneNodesPanelProps = {
   onToggleMinimized: () => void
   onUndockFromViewportToolbar?: () => void
   onUnlockAll: () => void
+  sceneNodesStatePresets: SceneNodesStatePreset[]
+  onSaveNewSceneNodesState: () => void
+  onLoadSceneNodesState: (presetId: string) => void
+  onDeleteSceneNodesState: (presetId: string) => void
+  onOverwriteSceneNodesState: (presetId: string) => void
+  onExportSceneNodesStatesJson: () => void
+  onImportSceneNodesStatesJson: (file: File) => void
   primarySelectedId: string
   scene: CanvasScene
   selectedNodeIds: string[]
   sortMode: SceneNodesSortMode
   onSortModeChange: (mode: SceneNodesSortMode) => void
   viewportDocked?: boolean
+  activeTab?: SceneNodesPanelTab
+  onActiveTabChange?: (tab: SceneNodesPanelTab) => void
 }
 
 function readCssSpacePx(vars: string[]): number | null {
@@ -145,6 +173,7 @@ function renderFloatingBody(flyout: ReactNode) {
 }
 
 function PanelBody({
+  activeTab,
   canDeleteSelected,
   headerActions,
   onDeleteSelected,
@@ -152,6 +181,7 @@ function PanelBody({
   onOpenOptions,
   onPatchNodeOverlay,
   onRequestAddNode,
+  onTabChange,
   optionsOpen,
   optionsButtonRef,
   panelDragHandleProps,
@@ -160,9 +190,19 @@ function PanelBody({
   setSortMode,
   sortMode,
   sortedNodes,
+  compactVisibility,
+  sceneVisibilityContext,
   onSelectNode,
   selectedNodeIds,
+  sceneNodesStatePresets,
+  onSaveNewSceneNodesState,
+  onLoadSceneNodesState,
+  onDeleteSceneNodesState,
+  onOverwriteSceneNodesState,
+  onExportSceneNodesStatesJson,
+  onImportSceneNodesStatesJson,
 }: {
+  activeTab: SceneNodesPanelTab
   headerActions?: ReactNode
   canDeleteSelected: boolean
   onDeleteSelected: () => void
@@ -170,6 +210,7 @@ function PanelBody({
   onOpenOptions: () => void
   onPatchNodeOverlay: SceneNodesPanelProps['onPatchNodeOverlay']
   onRequestAddNode: () => void
+  onTabChange: (tab: SceneNodesPanelTab) => void
   optionsOpen: boolean
   optionsButtonRef: RefObject<HTMLButtonElement | null>
   panelDragHandleProps: HTMLAttributes<HTMLElement>
@@ -178,11 +219,23 @@ function PanelBody({
   setSortMode: (mode: SceneNodesSortMode) => void
   sortMode: SceneNodesSortMode
   sortedNodes: CanvasNode[]
+  compactVisibility: CompactElementCanvasVisibility
+  sceneVisibilityContext: NodeVisibilitySceneContext
   onSelectNode: (nodeId: string) => void
   selectedNodeIds: string[]
+  sceneNodesStatePresets: SceneNodesStatePreset[]
+  onSaveNewSceneNodesState: () => void
+  onLoadSceneNodesState: (presetId: string) => void
+  onDeleteSceneNodesState: (presetId: string) => void
+  onOverwriteSceneNodesState: (presetId: string) => void
+  onExportSceneNodesStatesJson: () => void
+  onImportSceneNodesStatesJson: (file: File) => void
 }) {
+  const nodesTabActive = activeTab === 'nodes'
   return (
-    <div className={styles.bodyLayout}>
+    <div
+      className={[styles.bodyLayout, !nodesTabActive ? styles.bodyLayoutFull : ''].filter(Boolean).join(' ')}
+    >
       <div className={styles.mainColumn}>
         <div className={styles.header}>
           <div className={styles.headerMain}>
@@ -194,13 +247,54 @@ function PanelBody({
           <div className={styles.headerActions}>{headerActions}</div>
         </div>
 
+        <div
+          aria-label="Secções do painel"
+          className={styles.tabBar}
+          role="tablist"
+        >
+          <button
+            aria-selected={nodesTabActive}
+            className={[styles.tab, nodesTabActive ? styles.tabActive : ''].filter(Boolean).join(' ')}
+            id="scene-nodes-tab-nodes"
+            onClick={() => onTabChange('nodes')}
+            role="tab"
+            type="button"
+          >
+            Nós ({sortedNodes.length})
+          </button>
+          <button
+            aria-selected={!nodesTabActive}
+            className={[styles.tab, !nodesTabActive ? styles.tabActive : ''].filter(Boolean).join(' ')}
+            id="scene-nodes-tab-states"
+            onClick={() => onTabChange('states')}
+            role="tab"
+            type="button"
+          >
+            Estados ({sceneNodesStatePresets.length})
+          </button>
+        </div>
+
+        {nodesTabActive ? (
+          <div
+            aria-labelledby="scene-nodes-tab-nodes"
+            className={styles.tabPanel}
+            role="tabpanel"
+          >
         <ul className={styles.list} role="listbox" aria-label="Lista de nós na cena">
           {sortedNodes.length === 0 ? (
             <li className={styles.empty}>Nenhum nó corresponde à pesquisa.</li>
           ) : (
             sortedNodes.map((canvasNode) => {
               const selected = selectedNodeIds.includes(canvasNode.id)
-              const hidden = canvasNode.sceneHidden === true
+              const visibleOnCanvas = isNodeVisibleOnCanvas(
+                canvasNode,
+                compactVisibility,
+                sceneVisibilityContext,
+              )
+              const hidden = !visibleOnCanvas
+              const policyHidden =
+                compactVisibility.hiddenNodeIds?.has(canvasNode.id) === true &&
+                canvasNode.sceneHidden !== true
               const locked = canvasNode.locked === true
               const orbColor = resolveCanvasNodeBodyCssColor(canvasNode)
 
@@ -273,7 +367,12 @@ function PanelBody({
                         event.stopPropagation()
                         onPatchNodeOverlay(
                           canvasNode.id,
-                          hidden ? { sceneHidden: undefined } : { sceneHidden: true },
+                          hidden
+                            ? {
+                                sceneHidden: undefined,
+                                ...(policyHidden ? { branchForceVisible: true } : {}),
+                              }
+                            : { sceneHidden: true, branchForceVisible: undefined },
                         )
                       }}
                       title={hidden ? 'Mostrar' : 'Ocultar'}
@@ -309,38 +408,61 @@ function PanelBody({
             <option value="position">Posição</option>
           </select>
         </footer>
+          </div>
+        ) : (
+          <div
+            aria-labelledby="scene-nodes-tab-states"
+            className={[styles.tabPanel, styles.tabPanelStates].join(' ')}
+            role="tabpanel"
+          >
+            <SceneNodesStatesSection
+              onDelete={onDeleteSceneNodesState}
+              onExportLibrary={onExportSceneNodesStatesJson}
+              onImportLibrary={onImportSceneNodesStatesJson}
+              onLoad={onLoadSceneNodesState}
+              onOverwrite={onOverwriteSceneNodesState}
+              onSaveNew={onSaveNewSceneNodesState}
+              presets={sceneNodesStatePresets}
+            />
+          </div>
+        )}
       </div>
 
-      <aside aria-label="Acções da lista" className={styles.sideRail}>
-        <button
-          aria-label="Adicionar nó"
-          className={styles.railButton}
-          onClick={onRequestAddNode}
-          type="button"
-        >
-          +
-        </button>
-        <button
-          aria-label="Remover nó seleccionado"
-          className={[styles.railButton, styles.railButtonDanger].join(' ')}
-          disabled={!canDeleteSelected}
-          onClick={onDeleteSelected}
-          type="button"
-        >
-          −
-        </button>
-        <button
-          aria-expanded={optionsOpen}
-          aria-haspopup="menu"
-          aria-label="Opções da ferramenta"
-          className={styles.railButton}
-          onClick={onOpenOptions}
-          ref={optionsButtonRef}
-          type="button"
-        >
-          ⋯
-        </button>
+      {nodesTabActive ? (
+      <aside
+        aria-label="Acções da lista"
+        className={[styles.sideRail, styles.sideRailOffsetNodes].join(' ')}
+      >
+            <button
+              aria-label="Adicionar nó"
+              className={styles.railButton}
+              onClick={onRequestAddNode}
+              type="button"
+            >
+              +
+            </button>
+            <button
+              aria-label="Remover nó seleccionado"
+              className={[styles.railButton, styles.railButtonDanger].join(' ')}
+              disabled={!canDeleteSelected}
+              onClick={onDeleteSelected}
+              type="button"
+            >
+              −
+            </button>
+            <button
+              aria-expanded={optionsOpen}
+              aria-haspopup="menu"
+              aria-label="Opções da ferramenta"
+              className={styles.railButton}
+              onClick={onOpenOptions}
+              ref={optionsButtonRef}
+              type="button"
+            >
+              ⋯
+            </button>
       </aside>
+      ) : null}
     </div>
   )
 }
@@ -362,16 +484,34 @@ export function SceneNodesPanel({
   onToggleMinimized,
   onUndockFromViewportToolbar,
   onUnlockAll,
+  sceneNodesStatePresets,
+  onSaveNewSceneNodesState,
+  onLoadSceneNodesState,
+  onDeleteSceneNodesState,
+  onOverwriteSceneNodesState,
+  onExportSceneNodesStatesJson,
+  onImportSceneNodesStatesJson,
   primarySelectedId,
   scene,
   selectedNodeIds,
   sortMode,
   onSortModeChange,
   viewportDocked = false,
+  activeTab: activeTabProp,
+  onActiveTabChange,
 }: SceneNodesPanelProps) {
   const [query, setQuery] = useState('')
   const [optionsOpen, setOptionsOpen] = useState(false)
+  const [internalTab, setInternalTab] = useState<SceneNodesPanelTab>('nodes')
+  const activeTab = activeTabProp ?? internalTab
   const optionsButtonRef = useRef<HTMLButtonElement>(null)
+
+  const handleTabChange = (tab: SceneNodesPanelTab) => {
+    if (activeTabProp === undefined) {
+      setInternalTab(tab)
+    }
+    onActiveTabChange?.(tab)
+  }
 
   const { flyoutStyle, stripRef } = useDockedFloatingLayout(viewportDocked, minimized)
   const panelDragHandleProps = viewportDocked ? {} : dragHandleProps
@@ -384,6 +524,20 @@ export function SceneNodesPanel({
   const sortedNodes = useMemo(
     () => sortSceneNodes(filteredNodes, sortMode),
     [filteredNodes, sortMode],
+  )
+
+  const compactVisibility = useMemo(
+    () => createCompactElementCanvasVisibility(scene),
+    [scene],
+  )
+
+  const sceneVisibilityContext = useMemo(
+    (): NodeVisibilitySceneContext => ({
+      linkVisibilityFilter: scene.linkVisibilityFilter,
+      connections: scene.connections,
+      nodes: scene.nodes,
+    }),
+    [scene.linkVisibilityFilter, scene.connections, scene.nodes],
   )
 
   const selectedNode = useMemo(
@@ -451,6 +605,7 @@ export function SceneNodesPanel({
 
   const panelContent = (
     <PanelBody
+      activeTab={activeTab}
       canDeleteSelected={canDeleteSelected}
       headerActions={toolbarActions}
       onDeleteSelected={onDeleteSelected}
@@ -458,6 +613,7 @@ export function SceneNodesPanel({
       onPatchNodeOverlay={onPatchNodeOverlay}
       onOpenOptions={() => setOptionsOpen((open) => !open)}
       onRequestAddNode={onRequestAddNode}
+      onTabChange={handleTabChange}
       optionsButtonRef={optionsButtonRef}
       optionsOpen={optionsOpen}
       panelDragHandleProps={panelDragHandleProps}
@@ -466,8 +622,20 @@ export function SceneNodesPanel({
       setSortMode={onSortModeChange}
       sortMode={sortMode}
       sortedNodes={sortedNodes}
+      compactVisibility={compactVisibility}
+      sceneVisibilityContext={sceneVisibilityContext}
       onSelectNode={onSelectNode}
       selectedNodeIds={selectedNodeIds}
+      sceneNodesStatePresets={sceneNodesStatePresets}
+      onSaveNewSceneNodesState={() => {
+        onSaveNewSceneNodesState()
+        handleTabChange('states')
+      }}
+      onLoadSceneNodesState={onLoadSceneNodesState}
+      onDeleteSceneNodesState={onDeleteSceneNodesState}
+      onOverwriteSceneNodesState={onOverwriteSceneNodesState}
+      onExportSceneNodesStatesJson={onExportSceneNodesStatesJson}
+      onImportSceneNodesStatesJson={onImportSceneNodesStatesJson}
     />
   )
 

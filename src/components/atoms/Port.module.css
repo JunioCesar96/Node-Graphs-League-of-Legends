@@ -94,6 +94,27 @@
   animation: wireless-port-pulse 0.85s ease-in-out infinite;
 }
 
+.focusPulse {
+  animation: focus-port-pulse 0.85s ease-in-out infinite;
+}
+
+@keyframes focus-port-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    box-shadow:
+      0 0 0 1px rgb(250 204 21 / 35%),
+      0 0 12px rgb(250 204 21 / 28%);
+  }
+
+  50% {
+    opacity: 0.55;
+    box-shadow:
+      0 0 0 2px rgb(250 204 21 / 85%),
+      0 0 16px rgb(250 204 21 / 55%);
+  }
+}
+
 @keyframes wireless-port-pulse {
   0%,
   100% {

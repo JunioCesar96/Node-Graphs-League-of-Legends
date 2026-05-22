@@ -12,6 +12,8 @@ export type WirelessPortLink = {
   peerPulseOutputSlotId?: string
 }
 
+export type PortPulseVariant = 'wireless' | 'focus'
+
 export type WirelessPortPulseTarget = {
   connectionId: string
   nodeId: string
@@ -19,6 +21,8 @@ export type WirelessPortPulseTarget = {
   outputSlotId?: string
   /** Elemento retraído no card cujo slot de saída deve piscar (em vez do Port oculto). */
   retractedElementViewKey?: ElementViewKey
+  /** Amarelo no foco entre portos; azul no hover wireless (defeito). */
+  pulseVariant?: PortPulseVariant
 }
 
 export type WirelessPeerHoverPayload = {
@@ -61,10 +65,6 @@ export function buildWirelessDisplayByNode(
   }
 
   for (const connection of connections) {
-    if (connection.routing !== 'wireless') {
-      continue
-    }
-
     const fromDisplay = ensure(connection.fromNodeId)
     const toDisplay = ensure(connection.toNodeId)
     const link: WirelessPortLink = {
@@ -100,6 +100,36 @@ export type WirelessPortHandlers = {
   onWirelessPeerHoverEnd?: () => void
 }
 
+export function isPortPulsing(
+  pulse: WirelessPortPulseTarget | null | undefined,
+  nodeId: string,
+  portKind: 'input' | 'output',
+  outputSlotId?: string,
+): boolean {
+  if (!pulse || pulse.nodeId !== nodeId || pulse.portKind !== portKind) {
+    return false
+  }
+
+  if (pulse.retractedElementViewKey) {
+    return false
+  }
+
+  if (portKind === 'output') {
+    return pulse.outputSlotId === outputSlotId
+  }
+
+  return true
+}
+
+export function portPulseVariantForTarget(
+  pulse: WirelessPortPulseTarget | null | undefined,
+  nodeId: string,
+  portKind: 'input' | 'output',
+  outputSlotId?: string,
+): PortPulseVariant | undefined {
+  return isPortPulsing(pulse, nodeId, portKind, outputSlotId) ? (pulse?.pulseVariant ?? 'wireless') : undefined
+}
+
 export function isWirelessPortPulsing(
   pulse: WirelessPortPulseTarget | null | undefined,
   connectionId: string,
@@ -130,6 +160,13 @@ export function isRetractedElementPulsing(
   elementViewKey: ElementViewKey,
 ): boolean {
   return Boolean(pulse?.retractedElementViewKey && pulse.retractedElementViewKey === elementViewKey)
+}
+
+export function retractedElementPulseVariant(
+  pulse: WirelessPortPulseTarget | null | undefined,
+  elementViewKey: ElementViewKey,
+): PortPulseVariant | undefined {
+  return isRetractedElementPulsing(pulse, elementViewKey) ? (pulse?.pulseVariant ?? 'wireless') : undefined
 }
 
 export function toWirelessPortLinkProps(

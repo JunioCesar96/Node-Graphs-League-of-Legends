@@ -21,6 +21,7 @@ import {
 } from '@/core/canvasToolbarVisibility'
 import type { NodeInstance } from '@/core/nodeSchema'
 import type { SceneNodesSortMode } from '@/core/sceneNodesListSort'
+import { parseSceneNodesStatePresets } from '@/core/sceneNodesStatePresets'
 
 export type { SceneChromeState, SceneNodesChrome } from '@/core/canvasScene'
 
@@ -32,6 +33,7 @@ export type CanvasNodePresentationEntry = {
   cardSectionOrder?: NodeCardSectionId[]
   cardBodyLayout: NodeCardBodyLayout
   sceneHidden?: boolean
+  branchForceVisible?: boolean
   displayLabel?: string
   bodyColor?: string
   bodyColorEnabled?: boolean
@@ -115,10 +117,12 @@ export function parseSceneChrome(raw: unknown): SceneChromeState | undefined {
           ? false
           : undefined
     const sortMode = parseSceneNodesSortMode(sceneNodesRaw.sortMode)
-    if (minimized !== undefined || sortMode !== undefined) {
+    const presets = parseSceneNodesStatePresets(sceneNodesRaw.presets)
+    if (minimized !== undefined || sortMode !== undefined || presets !== undefined) {
       sceneNodes = {
         ...(minimized !== undefined ? { minimized } : {}),
         ...(sortMode ? { sortMode } : {}),
+        ...(presets !== undefined ? { presets } : {}),
       }
     }
   }
@@ -164,6 +168,7 @@ export function canvasNodePresentationFromNode(canvasNode: CanvasNode): CanvasNo
       : {}),
     cardBodyLayout: resolveNodeCardBodyLayout(canvasNode),
     ...(canvasNode.sceneHidden ? { sceneHidden: true } : {}),
+    ...(canvasNode.branchForceVisible ? { branchForceVisible: true } : {}),
     ...(canvasNode.displayLabel !== undefined ? { displayLabel: canvasNode.displayLabel } : {}),
     ...(canvasNode.bodyColor !== undefined ? { bodyColor: canvasNode.bodyColor } : {}),
     ...(canvasNode.bodyColorEnabled === false
@@ -200,6 +205,7 @@ export function canvasNodeOverlayFromPresentation(
     ...(cardSectionExpanded ? { cardSectionExpanded } : {}),
     ...(cardSectionOrder ? { cardSectionOrder } : {}),
     ...(entry.sceneHidden ? { sceneHidden: true } : {}),
+    ...(entry.branchForceVisible ? { branchForceVisible: true } : {}),
     ...(entry.displayLabel !== undefined ? { displayLabel: entry.displayLabel } : {}),
     ...(entry.bodyColor !== undefined ? { bodyColor: entry.bodyColor } : {}),
     ...(entry.bodyColorEnabled === false
@@ -233,6 +239,9 @@ export function isValidPresentationEntry(raw: unknown): raw is CanvasNodePresent
     return false
   }
   if (raw.sceneHidden !== undefined && raw.sceneHidden !== true) {
+    return false
+  }
+  if (raw.branchForceVisible !== undefined && raw.branchForceVisible !== true) {
     return false
   }
   if (raw.displayLabel !== undefined && typeof raw.displayLabel !== 'string') {
@@ -270,6 +279,7 @@ export function presentationEntryFromRawLayout(raw: unknown): CanvasNodePresenta
         : {}),
       cardBodyLayout,
       ...(raw.sceneHidden === true ? { sceneHidden: true } : {}),
+      ...(raw.branchForceVisible === true ? { branchForceVisible: true } : {}),
       ...(typeof raw.displayLabel === 'string' ? { displayLabel: raw.displayLabel } : {}),
       ...(typeof raw.bodyColor === 'string' ? { bodyColor: raw.bodyColor } : {}),
       ...(raw.bodyColorEnabled === false

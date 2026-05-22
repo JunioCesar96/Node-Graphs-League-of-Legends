@@ -1,12 +1,32 @@
 import type { CanvasScene } from '@/core/canvasScene'
 import { emptyCanvasScene, hydrateScene } from '@/core/canvasScene'
 import { syncSceneCollapsedBodyWireless } from '@/core/compactConnectionRouting'
-import { isCanvasScene, loadStoredScene, SCENE_STORAGE_KEY } from '@/core/sceneStorage'
+import {
+  clearStoredScene,
+  isCanvasScene,
+  loadStoredScene,
+  SCENE_LEGACY_STORAGE_MAX_BYTES,
+  SCENE_STORAGE_KEY,
+} from '@/core/sceneStorage'
 
 export const STORAGE_SCENE_TABS_KEY = 'node-graphs-lol:scene-tabs-v1'
 export const STORAGE_RECENT_SCENES_KEY = 'node-graphs-lol:recent-scenes'
 
 export const MAX_RECENT_SCENES = 10
+
+/** Limite de snapshots undo/redo por aba ao persistir (evita QuotaExceeded). */
+export const MAX_TAB_HISTORY_STACK = 24
+
+/** Total de nós (soma das abas) acima disto: não grava abas em localStorage. */
+export const SCENE_TABS_PERSIST_MAX_NODES = 80
+
+/** Tamanho máximo do JSON de abas antes de `setItem` (evita bloqueio longo + quota). */
+export const SCENE_TABS_STORAGE_MAX_BYTES = Math.min(
+  SCENE_LEGACY_STORAGE_MAX_BYTES,
+  1_500_000,
+)
+
+let tabsPersistQuotaWarned = false
 
 export type SceneTabSelection = {
   ids: string[]
@@ -262,26 +282,148 @@ export function getInitialSceneTabsPersisted(): SceneTabsPersisted {
   return { activeTabId: '', tabs: [] }
 }
 
-export function saveSceneTabsPersisted(data: SceneTabsPersisted): void {
-  try {
-    const payload: SceneTabsPersisted = {
-      activeTabId: data.activeTabId,
-      tabs: data.tabs.map((tab) => ({
-        ...tab,
-        past: tab.past.map(cloneScene),
-        present: cloneScene(tab.present),
-        future: tab.future.map(cloneScene),
+function trimTabHistoryStacks(tab: SceneTabSnapshot): SceneTabSnapshot {
+  const past =
+    tab.past.length > MAX_TAB_HISTORY_STACK
+      ? tab.past.slice(tab.past.length - MAX_TAB_HISTORY_STACK)
+      : tab.past
+  const future =
+    tab.future.length > MAX_TAB_HISTORY_STACK
+      ? tab.future.slice(0, MAX_TAB_HISTORY_STACK)
+      : tab.future
+
+  return { ...tab, past, future }
+}
+
+function buildTabsPersistPayload(data: SceneTabsPersisted, options?: { stripHistory?: boolean }): SceneTabsPersisted {
+  return {
+    activeTabId: data.activeTabId,
+    tabs: data.tabs.map((tab) => {
+      const trimmed = trimTabHistoryStacks(tab)
+
+      return {
+        ...trimmed,
+        past: options?.stripHistory ? [] : trimmed.past.map(cloneScene),
+        present: cloneScene(trimmed.present),
+        future: options?.stripHistory ? [] : trimmed.future.map(cloneScene),
         selection: {
-          ids: [...tab.selection.ids],
-          primaryId: tab.selection.primaryId,
+          ids: [...trimmed.selection.ids],
+          primaryId: trimmed.selection.primaryId,
         },
-      })),
+      }
+    }),
+  }
+}
+
+/** Payload leve: sem `structuredClone`, só `present` (sem undo). */
+function buildTabsPersistPayloadLean(data: SceneTabsPersisted): SceneTabsPersisted {
+  return {
+    activeTabId: data.activeTabId,
+    tabs: data.tabs.map((tab) => ({
+      id: tab.id,
+      title: tab.title,
+      past: [],
+      present: tab.present,
+      future: [],
+      selection: {
+        ids: [...tab.selection.ids],
+        primaryId: tab.selection.primaryId,
+      },
+      ...(tab.jsonFileName?.trim() ? { jsonFileName: tab.jsonFileName.trim() } : {}),
+    })),
+  }
+}
+
+export function countNodesInTabsPersist(data: SceneTabsPersisted): number {
+  return data.tabs.reduce((sum, tab) => sum + tab.present.nodes.length, 0)
+}
+
+function warnTabsPersistSkippedOnce(): void {
+  if (tabsPersistQuotaWarned) {
+    return
+  }
+
+  tabsPersistQuotaWarned = true
+
+  if (import.meta.env.DEV) {
+    console.warn(
+      '[Scene tabs] Cena demasiado grande para localStorage — persistência de abas omitida. Usa «Salvar Cena de trabalho».',
+    )
+  }
+}
+
+function tryFreeLocalStorageForTabs(): void {
+  try {
+    window.localStorage.removeItem(STORAGE_RECENT_SCENES_KEY)
+    clearStoredScene()
+  } catch {
+    /** ignore */
+  }
+}
+
+function tryPersistTabsPayload(raw: string): boolean {
+  try {
+    window.localStorage.setItem(STORAGE_SCENE_TABS_KEY, raw)
+    clearStoredScene()
+    return true
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Persiste abas em localStorage (apenas `present` por aba; sem stacks undo).
+ * Devolve `false` se a cena for grande demais ou a quota falhar (sem bloquear a UI).
+ */
+export function saveSceneTabsPersistedPresentOnly(data: SceneTabsPersisted): boolean {
+  if (data.tabs.length === 0) {
+    return tryPersistTabsPayload(JSON.stringify({ activeTabId: '', tabs: [] }))
+  }
+
+  if (countNodesInTabsPersist(data) > SCENE_TABS_PERSIST_MAX_NODES) {
+    warnTabsPersistSkippedOnce()
+
+    try {
+      window.localStorage.removeItem(STORAGE_SCENE_TABS_KEY)
+    } catch {
+      /** ignore */
     }
 
-    window.localStorage.setItem(STORAGE_SCENE_TABS_KEY, JSON.stringify(payload))
-  } catch {
-    /** ignore quota */
+    return false
   }
+
+  const payload = buildTabsPersistPayloadLean(data)
+  let raw: string
+
+  try {
+    raw = JSON.stringify(payload)
+  } catch {
+    warnTabsPersistSkippedOnce()
+    return false
+  }
+
+  if (raw.length > SCENE_TABS_STORAGE_MAX_BYTES) {
+    warnTabsPersistSkippedOnce()
+    return false
+  }
+
+  if (tryPersistTabsPayload(raw)) {
+    return true
+  }
+
+  tryFreeLocalStorageForTabs()
+
+  if (tryPersistTabsPayload(raw)) {
+    return true
+  }
+
+  warnTabsPersistSkippedOnce()
+  return false
+}
+
+/** @deprecated Alias — usar `saveSceneTabsPersistedPresentOnly`. */
+export function saveSceneTabsPersisted(data: SceneTabsPersisted): void {
+  saveSceneTabsPersistedPresentOnly(data)
 }
 
 export function loadRecentSceneList(): RecentSceneListItem[] {
@@ -388,6 +530,11 @@ export function pushRecentScene(
 ): void {
   const normalizedTitle = title.trim() || 'Cena'
   const hydrated = hydrateTabScene(scene)
+
+  if (hydrated.nodes.length > SCENE_TABS_PERSIST_MAX_NODES) {
+    return
+  }
+
   const key = recentEntryKey(normalizedTitle, sourceFileName)
   const existing = loadRecentSceneEntries().filter(
     (entry) => recentEntryKey(entry.title, entry.sourceFileName) !== key,

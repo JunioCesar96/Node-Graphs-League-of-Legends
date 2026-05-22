@@ -10,6 +10,7 @@ Editor de grafos de nós para League of Legends / ritobin, com painel de código
 | Ponte Jade automática (abrir `.bin` em dev) | [`feature-jade-bridge-auto-dev.md`](feature_md/feature/feature-jade-bridge-auto-dev.md) |
 | Abas de cena e menu Grafo | [`feature-abas-cena-json-menu-grafo.md`](feature_md/feature/feature-abas-cena-json-menu-grafo.md) |
 | Nodes Configurar, Class Group e pack `default` | [`feature-nodes-configurar-pack-default.md`](feature_md/feature/feature-nodes-configurar-pack-default.md) |
+| Estados de cena, routing e persistência de abas | [`feature-cena-estados-routing-persistencia.md`](feature_md/feature/feature-cena-estados-routing-persistencia.md) |
 
 Índice completo em [`feature_md/feature/`](feature_md/feature/).
 
@@ -25,6 +26,19 @@ Arquivo salvo em: `feature_md/feature/feature-nodes-configurar-pack-default.md`.
 | Versão | `1.5.0` |
 
 Com **Nodes → Configurar** activo: **Converter [Class Group]** pede a pasta (inclui `default`), **Extrair Node Base** lista `default`, cena nova fica **vazia** (sem `particle-root` obrigatório). Detalhes, fluxogramas Mermaid e tabela de componentes no documento linkado acima.
+
+---
+
+## Documentação de Implementação — Estados, routing e persistência (v1.0.0)
+
+Arquivo salvo em: `feature_md/feature/feature-cena-estados-routing-persistencia.md`.
+
+| Campo | Valor |
+| --- | --- |
+| Branch | `feature/cena-estados-routing-persistencia` |
+| Versão | `1.0.0` |
+
+**Estados** guardam visibilidade, travas, cores, filtros de ligação e **posição da câmera**. Menu **Ocultar todos os nodes filhos**, **routing** nos portos (clique + submenu), persistência de abas **sem Auto Save** (payload present-only com limites). Fluxogramas e tabela completa no documento linkado.
 
 ---
 

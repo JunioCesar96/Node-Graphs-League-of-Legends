@@ -1,6 +1,8 @@
 import type { CSSProperties, MouseEvent as ReactMouseEvent, PointerEventHandler } from 'react'
 
 import { Port, type WirelessPortLinkProps } from '@/components/atoms/Port'
+import { canvasContextNodeInputPortProps } from '@/core/canvasContextMenuAttributes'
+import type { PortPulseVariant } from '@/core/connectionDisplay'
 
 import styles from './NodeHeader.module.css'
 
@@ -16,6 +18,7 @@ type NodeHeaderProps = {
   inputPortStyle?: CSSProperties
   title: string
   wirelessLink?: WirelessPortLinkProps
+  inputPortPulseVariant?: PortPulseVariant
 }
 
 export function NodeHeader({
@@ -30,6 +33,7 @@ export function NodeHeader({
   inputPortStyle,
   title,
   wirelessLink,
+  inputPortPulseVariant,
 }: NodeHeaderProps) {
   return (
     <header
@@ -50,11 +54,13 @@ export function NodeHeader({
       <Port
         compatible={canAcceptLink}
         direction="input"
+        extraDataAttrs={canvasContextNodeInputPortProps(canvasNodeId)}
         graphNodeId={canvasNodeId}
         graphPortKind="input"
         label={`Connect to ${title}`}
         onClick={wirelessLink ? undefined : onInputPortClick}
         style={inputPortStyle}
+        portPulseVariant={inputPortPulseVariant}
         wirelessLink={wirelessLink}
       />
       <h2 className={styles.title}>{title}</h2>

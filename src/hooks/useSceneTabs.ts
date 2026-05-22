@@ -1,18 +1,16 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 
-import {
-  JSON_AUTO_SAVE_DEBOUNCE_MS,
-  saveSceneJsonAuto,
-  type SceneJsonFileContext,
-} from '@/core/sceneJsonFileSave'
+import type { SceneJsonFileContext } from '@/core/sceneJsonFileSave'
 import {
   createDefaultTabSnapshot,
+  createEmptyWorkspaceSnapshot,
   getInitialSceneTabsPersisted,
   loadRecentSceneList,
   loadRecentSceneById,
   pushRecentScene,
-  saveSceneTabsPersisted,
+  saveSceneTabsPersistedPresentOnly,
   snapshotFromScene,
+  stripExtension,
   uniqueTabTitle,
   type RecentSceneListItem,
   type SceneTabSnapshot,
@@ -20,55 +18,30 @@ import {
 } from '@/core/sceneTabsStorage'
 import type { CanvasScene } from '@/core/canvasScene'
 import type { NodeSchemaDefinition } from '@/core/nodeSchema'
+import { saveSceneJsonManual } from '@/core/sceneJsonFileSave'
 import { useSceneHistory } from '@/hooks/useSceneHistory'
-
-const TABS_PERSIST_DEBOUNCE_MS = 300
 
 export type UseSceneTabsOptions = {
   extendSchemaLookup?: Record<string, NodeSchemaDefinition>
-  jsonFileAutoSave?: boolean
+  lightModeEnabled?: boolean
 }
 
 export function useSceneTabs(options?: UseSceneTabsOptions) {
-  const jsonFileAutoSave = options?.jsonFileAutoSave === true
   const initialPersisted = useMemo(() => getInitialSceneTabsPersisted(), [])
-  const activeInitial = initialPersisted.tabs.find((tab) => tab.id === initialPersisted.activeTabId) ??
-    initialPersisted.tabs[0]!
+  const activeInitial = initialPersisted.tabs.find((tab) => tab.id === initialPersisted.activeTabId)
 
   const [tabsPersisted, setTabsPersisted] = useState<SceneTabsPersisted>(initialPersisted)
   const [recentScenes, setRecentScenes] = useState<RecentSceneListItem[]>(() => loadRecentSceneList())
-  const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const jsonAutoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const jsonFileContextByTabRef = useRef<Map<string, SceneJsonFileContext>>(new Map())
 
-  const activeTab =
-    tabsPersisted.tabs.find((tab) => tab.id === tabsPersisted.activeTabId) ?? tabsPersisted.tabs[0]!
+  const hasOpenSceneTabs = tabsPersisted.tabs.length > 0
 
-  const scheduleJsonAutoSave = useCallback(
-    (scene: CanvasScene) => {
-      if (!jsonFileAutoSave) {
-        return
-      }
-
-      if (jsonAutoSaveTimerRef.current !== null) {
-        clearTimeout(jsonAutoSaveTimerRef.current)
-      }
-
-      jsonAutoSaveTimerRef.current = setTimeout(() => {
-        jsonAutoSaveTimerRef.current = null
-        const context = jsonFileContextByTabRef.current.get(activeTab.id) ?? null
-
-        void saveSceneJsonAuto(scene, context)
-      }, JSON_AUTO_SAVE_DEBOUNCE_MS)
-    },
-    [activeTab.id, jsonFileAutoSave],
-  )
+  const activeTab = tabsPersisted.tabs.find((tab) => tab.id === tabsPersisted.activeTabId)
 
   const sceneHistoryApi = useSceneHistory({
     extendSchemaLookup: options?.extendSchemaLookup,
-    jsonFileAutoSave,
-    onAutoSaveScene: scheduleJsonAutoSave,
     initialTabSnapshot: activeInitial,
+    lightModeEnabled: options?.lightModeEnabled,
   })
 
   const { getTabSnapshot, applyTabSnapshot, sceneHistory, scene } = sceneHistoryApi
@@ -83,59 +56,23 @@ export function useSceneTabs(options?: UseSceneTabsOptions) {
     }))
   }, [])
 
-  const activeTabTitle = activeTab.title
-  const activeTabJsonFileName = activeTab.jsonFileName
+  const activeTabTitle = activeTab?.title ?? ''
+  const activeTabJsonFileName = activeTab?.jsonFileName
 
   const tabBarItems = useMemo(
     () =>
       tabsPersisted.tabs.map((tab) => ({
         id: tab.id,
-        title: tab.id === activeTab.id ? activeTabTitle : tab.title,
+        title: tab.id === activeTab?.id ? activeTabTitle : tab.title,
         isActive: tab.id === tabsPersisted.activeTabId,
-        hasUndo: tab.id === activeTab.id ? sceneHistory.past.length > 0 : tab.past.length > 0,
+        hasUndo: tab.id === activeTab?.id ? sceneHistory.past.length > 0 : tab.past.length > 0,
       })),
     [tabsPersisted.tabs, tabsPersisted.activeTabId, activeTab, activeTabTitle, sceneHistory.past.length],
   )
 
-  const schedulePersistTabs = useCallback(() => {
-    if (persistTimerRef.current !== null) {
-      clearTimeout(persistTimerRef.current)
-    }
-
-    persistTimerRef.current = setTimeout(() => {
-      persistTimerRef.current = null
-      const snap = getTabSnapshot(activeTab.id, activeTab.title)
-      const withFileName = activeTab.jsonFileName
-        ? { ...snap, jsonFileName: activeTab.jsonFileName }
-        : snap
-      const merged: SceneTabsPersisted = {
-        activeTabId: tabsPersisted.activeTabId,
-        tabs: tabsPersisted.tabs.map((tab) => (tab.id === withFileName.id ? withFileName : tab)),
-      }
-
-      saveSceneTabsPersisted(merged)
-    }, TABS_PERSIST_DEBOUNCE_MS)
-  }, [
-    activeTab.id,
-    activeTab.title,
-    activeTab.jsonFileName,
-    getTabSnapshot,
-    tabsPersisted.activeTabId,
-    tabsPersisted.tabs,
-  ])
-
-  useEffect(() => {
-    schedulePersistTabs()
-
-    return () => {
-      if (persistTimerRef.current !== null) {
-        clearTimeout(persistTimerRef.current)
-      }
-      if (jsonAutoSaveTimerRef.current !== null) {
-        clearTimeout(jsonAutoSaveTimerRef.current)
-      }
-    }
-  }, [sceneHistory, tabsPersisted.activeTabId, schedulePersistTabs])
+  const flushTabsToLocalStorage = useCallback((data: SceneTabsPersisted) => {
+    saveSceneTabsPersistedPresentOnly(data)
+  }, [])
 
   const refreshRecentList = useCallback(() => {
     setRecentScenes(loadRecentSceneList())
@@ -143,12 +80,16 @@ export function useSceneTabs(options?: UseSceneTabsOptions) {
 
   const mergeActiveSnapshotIntoTabs = useCallback(
     (tabs: SceneTabSnapshot[]): SceneTabSnapshot[] => {
+      if (!activeTab) {
+        return tabs
+      }
+
       const snap = getTabSnapshot(activeTab.id, activeTab.title)
       const withFileName = activeTab.jsonFileName ? { ...snap, jsonFileName: activeTab.jsonFileName } : snap
 
       return tabs.map((tab) => (tab.id === withFileName.id ? withFileName : tab))
     },
-    [activeTab.id, activeTab.title, activeTab.jsonFileName, getTabSnapshot],
+    [activeTab, getTabSnapshot],
   )
 
   const activateTab = useCallback(
@@ -165,9 +106,17 @@ export function useSceneTabs(options?: UseSceneTabsOptions) {
       }
 
       applyTabSnapshot(target)
-      setTabsPersisted({ activeTabId: tabId, tabs: mergedTabs })
+      const next: SceneTabsPersisted = { activeTabId: tabId, tabs: mergedTabs }
+      setTabsPersisted(next)
+      flushTabsToLocalStorage(next)
     },
-    [applyTabSnapshot, mergeActiveSnapshotIntoTabs, tabsPersisted.activeTabId, tabsPersisted.tabs],
+    [
+      applyTabSnapshot,
+      flushTabsToLocalStorage,
+      mergeActiveSnapshotIntoTabs,
+      tabsPersisted.activeTabId,
+      tabsPersisted.tabs,
+    ],
   )
 
   const createWorkScene = useCallback(
@@ -179,13 +128,15 @@ export function useSceneTabs(options?: UseSceneTabsOptions) {
       )
       const newTab = createDefaultTabSnapshot(title)
 
-      applyTabSnapshot(newTab)
-      setTabsPersisted({
+      applyTabSnapshot(newTab, { initMainEntriesVfxIndex: true })
+      const next: SceneTabsPersisted = {
         activeTabId: newTab.id,
         tabs: [...mergedTabs, newTab],
-      })
+      }
+      setTabsPersisted(next)
+      flushTabsToLocalStorage(next)
     },
-    [applyTabSnapshot, mergeActiveSnapshotIntoTabs, tabsPersisted.tabs],
+    [applyTabSnapshot, flushTabsToLocalStorage, mergeActiveSnapshotIntoTabs, tabsPersisted.tabs],
   )
 
   const openSceneInNewTab = useCallback(
@@ -193,7 +144,7 @@ export function useSceneTabs(options?: UseSceneTabsOptions) {
       requestedTitle: string,
       nextScene: CanvasScene,
       options?: { addToRecents?: boolean; sourceFileName?: string },
-    ) => {
+    ): string => {
       const mergedTabs = mergeActiveSnapshotIntoTabs(tabsPersisted.tabs)
       const title = uniqueTabTitle(
         requestedTitle,
@@ -211,13 +162,59 @@ export function useSceneTabs(options?: UseSceneTabsOptions) {
         jsonFileContextByTabRef.current.set(newTab.id, { fileName: jsonFileName, handle: null })
       }
 
-      applyTabSnapshot(newTab)
-      setTabsPersisted({
+      applyTabSnapshot(newTab, { initMainEntriesVfxIndex: true })
+      const next: SceneTabsPersisted = {
         activeTabId: newTab.id,
         tabs: [...mergedTabs, newTab],
-      })
+      }
+      setTabsPersisted(next)
+      flushTabsToLocalStorage(next)
+      return newTab.id
     },
-    [applyTabSnapshot, mergeActiveSnapshotIntoTabs, refreshRecentList, tabsPersisted.tabs],
+    [
+      applyTabSnapshot,
+      flushTabsToLocalStorage,
+      mergeActiveSnapshotIntoTabs,
+      refreshRecentList,
+      tabsPersisted.tabs,
+    ],
+  )
+
+  const openOrReplaceSceneByTitle = useCallback(
+    (requestedTitle: string, nextScene: CanvasScene): string => {
+      const mergedTabs = mergeActiveSnapshotIntoTabs(tabsPersisted.tabs)
+      const title = requestedTitle.trim() || 'Cena'
+      const existing = mergedTabs.find((tab) => tab.title === title)
+
+      if (existing) {
+        const replacement = snapshotFromScene(title, nextScene, existing.jsonFileName)
+        const updatedTab: SceneTabSnapshot = {
+          ...replacement,
+          id: existing.id,
+        }
+
+        applyTabSnapshot(updatedTab, { initMainEntriesVfxIndex: true })
+        const next: SceneTabsPersisted = {
+          activeTabId: existing.id,
+          tabs: mergedTabs.map((tab) => (tab.id === existing.id ? updatedTab : tab)),
+        }
+        setTabsPersisted(next)
+        flushTabsToLocalStorage(next)
+        pushRecentScene(title, nextScene)
+        refreshRecentList()
+        return existing.id
+      }
+
+      return openSceneInNewTab(title, nextScene, { addToRecents: true })
+    },
+    [
+      applyTabSnapshot,
+      flushTabsToLocalStorage,
+      mergeActiveSnapshotIntoTabs,
+      openSceneInNewTab,
+      refreshRecentList,
+      tabsPersisted.tabs,
+    ],
   )
 
   const openRecentScene = useCallback(
@@ -251,10 +248,6 @@ export function useSceneTabs(options?: UseSceneTabsOptions) {
 
   const closeTab = useCallback(
     (tabId: string): boolean => {
-      if (tabsPersisted.tabs.length <= 1) {
-        return false
-      }
-
       const mergedTabs = mergeActiveSnapshotIntoTabs(tabsPersisted.tabs)
       const closing = mergedTabs.find((tab) => tab.id === tabId)
 
@@ -278,21 +271,101 @@ export function useSceneTabs(options?: UseSceneTabsOptions) {
       jsonFileContextByTabRef.current.delete(tabId)
       const remaining = mergedTabs.filter((tab) => tab.id !== tabId)
 
+      if (remaining.length === 0) {
+        applyTabSnapshot(createEmptyWorkspaceSnapshot())
+        const next: SceneTabsPersisted = { activeTabId: '', tabs: [] }
+        setTabsPersisted(next)
+        flushTabsToLocalStorage(next)
+        return true
+      }
+
       if (tabId === tabsPersisted.activeTabId) {
         const nextActive = remaining[remaining.length - 1]!
 
         applyTabSnapshot(nextActive)
-        setTabsPersisted({ activeTabId: nextActive.id, tabs: remaining })
+        const next: SceneTabsPersisted = { activeTabId: nextActive.id, tabs: remaining }
+        setTabsPersisted(next)
+        flushTabsToLocalStorage(next)
       } else {
-        setTabsPersisted({ activeTabId: tabsPersisted.activeTabId, tabs: remaining })
+        const next: SceneTabsPersisted = {
+          activeTabId: tabsPersisted.activeTabId,
+          tabs: remaining,
+        }
+        setTabsPersisted(next)
+        flushTabsToLocalStorage(next)
       }
 
       return true
     },
     [
       applyTabSnapshot,
+      flushTabsToLocalStorage,
       mergeActiveSnapshotIntoTabs,
       sceneHistory.past.length,
+      tabsPersisted.activeTabId,
+      tabsPersisted.tabs,
+    ],
+  )
+
+  const renameTab = useCallback(
+    (tabId: string, requestedTitle: string) => {
+      const trimmed = requestedTitle.trim()
+
+      if (!trimmed) {
+        return false
+      }
+
+      const mergedTabs = mergeActiveSnapshotIntoTabs(tabsPersisted.tabs)
+      const others = mergedTabs.filter((tab) => tab.id !== tabId).map((tab) => tab.title)
+      const title = uniqueTabTitle(trimmed, others)
+
+      setTabsPersisted((previous) => ({
+        ...previous,
+        tabs: previous.tabs.map((tab) => (tab.id === tabId ? { ...tab, title } : tab)),
+      }))
+
+      return true
+    },
+    [mergeActiveSnapshotIntoTabs, tabsPersisted.tabs],
+  )
+
+  const saveSceneTab = useCallback(
+    async (tabId: string) => {
+      const mergedTabs = mergeActiveSnapshotIntoTabs(tabsPersisted.tabs)
+      const tab = mergedTabs.find((entry) => entry.id === tabId)
+
+      if (!tab) {
+        return { cancelled: true as const }
+      }
+
+      const sceneToSave =
+        tabId === tabsPersisted.activeTabId ? sceneHistory.present : tab.present
+      const suggested = tab.jsonFileName ?? `${tab.title}.json`
+      const result = await saveSceneJsonManual(sceneToSave, suggested)
+
+      if (!result.cancelled) {
+        jsonFileContextByTabRef.current.set(tabId, {
+          fileName: result.fileName,
+          handle: result.handle,
+        })
+
+        const displayTitle = stripExtension(result.fileName)
+        const others = mergedTabs.filter((entry) => entry.id !== tabId).map((entry) => entry.title)
+        const title = uniqueTabTitle(displayTitle, others)
+
+        setTabsPersisted((previous) => ({
+          ...previous,
+          tabs: previous.tabs.map((entry) =>
+            entry.id === tabId ? { ...entry, title, jsonFileName: result.fileName } : entry,
+          ),
+        }))
+      }
+
+      return result
+    },
+    [
+      mergeActiveSnapshotIntoTabs,
+      sceneHistory.present,
       tabsPersisted.activeTabId,
       tabsPersisted.tabs,
     ],
@@ -320,13 +393,17 @@ export function useSceneTabs(options?: UseSceneTabsOptions) {
     scene,
     tabBarItems,
     recentScenes,
+    hasOpenSceneTabs,
     activeTabId: tabsPersisted.activeTabId,
     activeTabTitle,
     activeTabJsonFileName,
     activateTab,
     closeTab,
     createWorkScene,
+    renameTab,
+    saveSceneTab,
     openSceneInNewTab,
+    openOrReplaceSceneByTitle,
     openRecentScene,
     promptNewWorkScene,
     setTabJsonFileContext,

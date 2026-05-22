@@ -1,4 +1,5 @@
 import type { CanvasToolbarVisibility } from '@/core/canvasToolbarVisibility'
+import type { SceneNodesStatePreset } from '@/core/sceneNodesStatePresets'
 import type { SceneNodesSortMode } from '@/core/sceneNodesListSort'
 import type {
   NodeCardBodyLayout,
@@ -86,6 +87,8 @@ export type CanvasNode = {
   cardBodyLayout?: NodeCardBodyLayout
   /** Oculto no canvas (continua na lista «Nodes em cena»). */
   sceneHidden?: boolean
+  /** Mostra no canvas mesmo quando política compacta ocultaria o ramo. */
+  branchForceVisible?: boolean
   /** Título fictício no cabeçalho; vazio/ausente usa `schema.title`. */
   displayLabel?: string
   /** Cor do corpo (RGBA); aplicada só com `bodyColorEnabled`. */
@@ -162,12 +165,20 @@ function migrateConnection(connection: CanvasConnection): CanvasConnection {
 export type SceneNodesChrome = {
   minimized?: boolean
   sortMode?: SceneNodesSortMode
+  /** Presets nomeados de overlay/visibilidade dos nós em cena. */
+  presets?: SceneNodesStatePreset[]
 }
 
 export type SceneChromeState = {
   sceneNodes?: SceneNodesChrome
   toolbarVisibility?: CanvasToolbarVisibility
 }
+
+/** Filtro activo «Mostrar apenas nós ligados» (reavaliado ao mudar índice / modo compacto). */
+export type LinkVisibilityFilter =
+  | { mode: 'branch'; seedNodeId: string }
+  | { mode: 'slot'; fromNodeId: string; slotId: string }
+  | { mode: 'incoming'; toNodeId: string }
 
 export type CanvasScene = {
   width: number
@@ -180,6 +191,8 @@ export type CanvasScene = {
   camera?: SceneCamera
   /** UI global: painel Nodes em cena, visibilidade da toolbar, etc. */
   sceneChrome?: SceneChromeState
+  /** Quando definido, só nós do conjunto calculado ficam visíveis (além de `sceneHidden`). */
+  linkVisibilityFilter?: LinkVisibilityFilter
 }
 
 function hydrateNodeInstanceFromEmbeddedLinks(node: NodeInstance): NodeInstance {

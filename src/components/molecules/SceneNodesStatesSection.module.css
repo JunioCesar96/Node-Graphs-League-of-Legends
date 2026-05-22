@@ -1,0 +1,157 @@
+.section {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: var(--space-2);
+  min-height: 0;
+}
+
+.sectionHeader {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.sectionTitle {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-family: var(--font-data);
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.sectionHint {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+  line-height: 1.4;
+}
+
+.primaryAction {
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  color: var(--color-text-primary);
+  font-family: var(--font-data);
+  font-size: 0.76rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  background: color-mix(in srgb, var(--syntax-keyword) 12%, rgb(255 255 255 / 6%));
+  border: 1px solid color-mix(in srgb, var(--syntax-keyword) 28%, var(--color-border-soft));
+  border-radius: var(--radius-control);
+  transition:
+    background 140ms ease,
+    border-color 140ms ease;
+}
+
+.primaryAction:hover {
+  background: color-mix(in srgb, var(--syntax-keyword) 18%, rgb(255 255 255 / 6%));
+  border-color: var(--syntax-keyword);
+}
+
+.list {
+  display: grid;
+  gap: var(--space-1);
+  min-height: 0;
+  max-height: min(360px, 48vh);
+  padding: 0;
+  margin: 0;
+  overflow: auto;
+  list-style: none;
+}
+
+.listItem {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-1);
+  align-items: center;
+  padding: 2px;
+  background: rgb(0 0 0 / 10%);
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  transition:
+    background 140ms ease,
+    border-color 140ms ease;
+}
+
+.listItem:hover {
+  background: rgb(255 255 255 / 4%);
+  border-color: var(--color-border-soft);
+}
+
+.rowName {
+  min-width: 0;
+  padding: var(--space-2) var(--space-3);
+  overflow: hidden;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rowActions {
+  display: inline-flex;
+  flex-shrink: 0;
+  gap: 2px;
+  align-items: center;
+  padding-right: var(--space-1);
+}
+
+.rowAction {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+}
+
+.rowAction:hover {
+  color: var(--color-text-primary);
+  background: rgb(255 255 255 / 6%);
+  border-color: var(--color-border-soft);
+}
+
+.rowActionDanger:hover {
+  color: rgb(255 180 180);
+  border-color: rgb(255 140 140);
+}
+
+.empty {
+  margin: 0;
+  padding: var(--space-4);
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+  text-align: center;
+}
+
+.footer {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-2);
+}
+
+.footerButton {
+  padding: var(--space-2) var(--space-3);
+  color: var(--color-text-secondary);
+  font-family: var(--font-data);
+  font-size: 0.72rem;
+  text-align: center;
+  cursor: pointer;
+  background: rgb(0 0 0 / 16%);
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-control);
+}
+
+.footerButton:hover {
+  color: var(--color-text-primary);
+  border-color: var(--port-child);
+}
+
+.hiddenFileInput {
+  display: none;
+}

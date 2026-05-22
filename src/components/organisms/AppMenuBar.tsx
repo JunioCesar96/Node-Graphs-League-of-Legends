@@ -10,7 +10,7 @@ import type { RecentSceneListItem } from '@/core/sceneTabsStorage'
 import styles from './AppMenuBar.module.css'
 
 export type AppMenuBarProps = {
-  autoSaveEnabled: boolean
+  nodeLightModeEnabled: boolean
   nodeConfigurationMode: boolean
   onDeleteSelection: () => void
   onImportGraph: (file: File) => void
@@ -19,7 +19,7 @@ export type AppMenuBarProps = {
   onOpenStubBin: () => void
   onRequestAddNode: () => void
   onSaveWorkScene: () => void
-  onToggleAutoSave: () => void
+  onToggleNodeLightMode: () => void
   onToggleNodeConfigurationMode: () => void
   onEditClassGroupPackFolder?: () => void
   onToggleCodeDock: () => void
@@ -27,7 +27,7 @@ export type AppMenuBarProps = {
 }
 
 export function AppMenuBar({
-  autoSaveEnabled,
+  nodeLightModeEnabled,
   nodeConfigurationMode,
   onDeleteSelection,
   onImportGraph,
@@ -36,7 +36,7 @@ export function AppMenuBar({
   onOpenStubBin,
   onRequestAddNode,
   onSaveWorkScene,
-  onToggleAutoSave,
+  onToggleNodeLightMode,
   onToggleNodeConfigurationMode,
   onEditClassGroupPackFolder,
   onToggleCodeDock,
@@ -231,24 +231,6 @@ export function AppMenuBar({
               </div>
             </div>
             <div aria-hidden className={styles.menuSeparator} />
-            <button
-              aria-checked={autoSaveEnabled}
-              className={styles.menuItemConfig}
-              onClick={onToggleAutoSave}
-              role="menuitemcheckbox"
-              type="button"
-            >
-              <span
-                aria-hidden
-                className={[
-                  styles.menuCheckbox,
-                  autoSaveEnabled ? styles.menuCheckboxChecked : '',
-                ]
-                  .filter(Boolean)
-                  .join(' ')}
-              />
-              <span>Auto Save</span>
-            </button>
             <button className={styles.menuItem} onClick={onSaveWorkScene} type="button">
               Salvar Cena de trabalho
             </button>
@@ -271,6 +253,24 @@ export function AppMenuBar({
             </button>
             <button className={styles.menuItemDanger} onClick={onDeleteSelection} type="button">
               Remover selecionados
+            </button>
+            <button
+              aria-checked={nodeLightModeEnabled}
+              className={styles.menuItemConfig}
+              onClick={onToggleNodeLightMode}
+              role="menuitemcheckbox"
+              type="button"
+            >
+              <span
+                aria-hidden
+                className={[
+                  styles.menuCheckbox,
+                  nodeLightModeEnabled ? styles.menuCheckboxChecked : '',
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
+              />
+              <span>Modo leve</span>
             </button>
             <button
               aria-checked={nodeConfigurationMode}

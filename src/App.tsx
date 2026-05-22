@@ -28,7 +28,7 @@ import { GraphCanvas } from '@/components/organisms/GraphCanvas'
 import { DEFAULT_CANVAS_TOOLBAR_VISIBILITY } from '@/core/canvasToolbarVisibility'
 import { ParameterValueLinkPicker } from '@/components/molecules/ParameterValueLinkPicker'
 import { NodeInspector } from '@/components/organisms/NodeInspector'
-import { SceneNodesPanel } from '@/components/organisms/SceneNodesPanel'
+import { SceneNodesPanel, type SceneNodesPanelTab } from '@/components/organisms/SceneNodesPanel'
 import {
   filterRemovableNodeIds,
   getNodeDisplayTitle,
@@ -94,15 +94,25 @@ import {
 } from '@/messenger_popup/messengerCatalog'
 import { useMessengerPopup } from '@/messenger_popup/MessengerPopupProvider'
 import {
-  getSceneAutoSaveEnabled,
-  setSceneAutoSaveEnabled,
-} from '@/core/sceneAutoSavePreference'
+  getNodeLightModeEnabled,
+  setNodeLightModeEnabled,
+} from '@/core/nodeLightModePreference'
+import { codeToCanvasScene } from '@/core/codeToCanvasScene'
+import { codeToNewNodeGraph, prepareCodeToNewNodeGraph } from '@/core/codeToNewNodeGraph'
+import { CodeToCanvasWizardPanel } from '@/components/molecules/CodeToCanvasWizardPanel'
+import { useCodeToCanvasWizard } from '@/hooks/useCodeToCanvasWizard'
+import { useCodeToNewNodeGraphWizard } from '@/hooks/useCodeToNewNodeGraphWizard'
 import {
   getClassGroupConverterPackFolder,
+  getCodeToNewNodeGraphPackFolder,
+  getCodeToNodeGraphPackFolder,
   parseClassGroupPackFolderName,
   setClassGroupConverterPackFolder,
+  setCodeToNewNodeGraphPackFolder,
+  setCodeToNodeGraphPackFolder,
 } from '@/core/nodeConfigurationPreference'
 import { STORAGE_LAST_STRUCTURE_META, triggerJsonDownload } from '@/core/workspaceStorage'
+import { workspaceService } from '@/services/workspaceService'
 import {
   CODE_DOCK_FILE_INPUT_ACCEPT,
   defaultContentForNewFile,
@@ -112,6 +122,11 @@ import {
   normalizeCodeDockFileName,
 } from '@/core/codeDockFileTypes'
 import { stripExtension } from '@/core/sceneTabsStorage'
+import { saveCodeDockTextManual } from '@/core/codeDockFileSave'
+import {
+  parseSceneNodesStatePresetsFile,
+  serializeSceneNodesStatePresetsFile,
+} from '@/core/sceneNodesStatePresets'
 import { isCanvasScene } from '@/hooks/useSceneHistory'
 import { useCodeDockTabs } from '@/hooks/useCodeDockTabs'
 import { useSceneTabs } from '@/hooks/useSceneTabs'
@@ -222,10 +237,11 @@ function App() {
     [dynamicStructurePacks],
   )
 
-  const [jsonFileAutoSave, setJsonFileAutoSave] = useState(() => getSceneAutoSaveEnabled())
+  const [nodeLightModeEnabled, setNodeLightModeEnabled] = useState(() => getNodeLightModeEnabled())
 
   const {
     cycleConnectionRouting,
+    setConnectionRouting,
     setElementViewMode,
     setElementRetracted,
     setAllNodeElementsRetracted,
@@ -236,6 +252,12 @@ function App() {
     moveNode,
     setSceneCamera,
     patchSceneChrome,
+    saveSceneNodesStatePreset,
+    overwriteSceneNodesStatePreset,
+    deleteSceneNodesStatePreset,
+    applySceneNodesStatePreset,
+    replaceSceneNodesStatePresets,
+    suggestSceneNodesStatePresetName,
     connectNodes,
     relinkInternalStructureSlot,
     removeConnection,
@@ -246,9 +268,14 @@ function App() {
     deleteNodeIds,
     patchNodeSceneOverlay,
     setAllNodesSceneHidden,
+    showOnlyConnectedComponent,
+    showOnlySlotSubtree,
+    showOnlyIncomingSlotBranch,
+    hideLinkedChildNodes,
     setAllNodesLocked,
     resetNodePosition,
     toggleNodeBodyCollapsed,
+    setAllNodesBodyCollapsed,
     toggleNodeCardSection,
     setNodeCardSectionOrder,
     setNodeCardBodyLayout,
@@ -277,6 +304,7 @@ function App() {
     renameTab: renameSceneTab,
     saveSceneTab,
     openSceneInNewTab,
+    openOrReplaceSceneByTitle,
     openRecentScene,
     promptNewWorkScene,
     activeTabId,
@@ -301,7 +329,7 @@ function App() {
     removeListEmbedBlock,
     removeListPointerSlot,
     removeListPointerBlock,
-  } = useSceneTabs({ extendSchemaLookup, jsonFileAutoSave })
+  } = useSceneTabs({ extendSchemaLookup, lightModeEnabled: nodeLightModeEnabled })
 
   const { showConfirmByCatalogId, showToastByCatalogId } = useMessengerPopup()
 
@@ -348,6 +376,7 @@ function App() {
   const [inspectorGrabFollowCoords, setInspectorGrabFollowCoords] = useState({ x: 0, y: 0 })
   const sceneNodesMinimized = scene.sceneChrome?.sceneNodes?.minimized ?? true
   const sceneNodesSortMode = scene.sceneChrome?.sceneNodes?.sortMode ?? 'name'
+  const [sceneNodesPanelTab, setSceneNodesPanelTab] = useState<SceneNodesPanelTab>('nodes')
   const [sceneNodesOffset, setSceneNodesOffset] = useState<InspectorOffset>({ x: 0, y: 0 })
   const [sceneNodesViewportDocked, setSceneNodesViewportDocked] = useState(true)
   const [codeDockOpen, setCodeDockOpen] = useState(false)
@@ -386,6 +415,10 @@ function App() {
   const [hashStringPickerNodeId, setHashStringPickerNodeId] = useState<null | string>(null)
   const [hashStringNoticeStamp, setHashStringNoticeStamp] = useState<number | null>(null)
   const [paletteSignal, setPaletteSignal] = useState(0)
+  const [codeToNewNodeGraphProgress, setCodeToNewNodeGraphProgress] = useState<{
+    label: string
+    ratio: number
+  } | null>(null)
   const [tooltipHints, setTooltipHints] = useState<TooltipDictionary>({})
   const [bootConsoleTestStamp, setBootConsoleTestStamp] = useState<number | null>(() => Date.now())
   const [saveStatusNotice, setSaveStatusNotice] = useState<{
@@ -417,6 +450,14 @@ function App() {
   const openClassGroupPackFolderDialog = useCallback(() => {
     setClassGroupPackFolderDialogMode('settings')
     setClassGroupPackFolderDialogOpen(true)
+  }, [])
+
+  const toggleNodeLightMode = useCallback(() => {
+    setNodeLightModeEnabled((previous) => {
+      const next = !previous
+      setNodeLightModeEnabled(next)
+      return next
+    })
   }, [])
 
   const toggleNodeConfigurationMode = useCallback(() => {
@@ -548,6 +589,7 @@ function App() {
       warnings: string[],
       modeBanner: string,
       rootSchemaIds?: string[],
+      options?: { silent?: boolean },
     ) => {
       setDynamicStructurePacks((previous) => {
         const next = previous.filter((pack) => pack.folder !== folder)
@@ -585,7 +627,9 @@ function App() {
 
             diskLine =
               `\n\nDisco (dev): src/nodeStructures/${folder}/ (${list}).` +
-              '\nRecarrega (F5) se a paleta não actualizar logo.'
+              (options?.silent
+                ? ''
+                : '\nRecarrega (F5) se a paleta não actualizar logo.')
 
             if (Array.isArray(skipped) && skipped.length > 0) {
               diskLine += `\nIgnorados: ${skipped.slice(0, 8).join(', ')}${skipped.length > 8 ? '…' : ''}`
@@ -611,9 +655,11 @@ function App() {
           ? `\n\nNotas:\n${warnings.slice(0, 15).join('\n')}${warnings.length > 15 ? '\n…' : ''}`
           : ''
 
-      window.alert(
-        `${modeBanner}Pack «${folder}» · ${String(schemas.length)} tipo(s) na paleta (📂 [${folder}]).${diskLine}${warnPreview}`,
-      )
+      if (!options?.silent) {
+        window.alert(
+          `${modeBanner}Pack «${folder}» · ${String(schemas.length)} tipo(s) na paleta (📂 [${folder}]).${diskLine}${warnPreview}`,
+        )
+      }
     },
     [],
   )
@@ -792,6 +838,196 @@ function App() {
   )
 
   const listDeletablePackFolders = useCallback(() => listPackFolders(false), [listPackFolders])
+
+  const handleCodeToNodeGraphPack = useCallback(
+    async (folder: string) => {
+      const converted = codeToCanvasScene(
+        codeText,
+        folder,
+        extendSchemaLookup,
+        mergedPackFolderBySchemaId,
+      )
+
+      if (converted.ok === false) {
+        window.alert(converted.error)
+        return false
+      }
+
+      const sceneTitle = stripExtension(codeDockFileName).trim() || 'Cena'
+      openOrReplaceSceneByTitle(sceneTitle, converted.scene)
+
+      if (converted.warnings.length > 0) {
+        const preview = converted.warnings.slice(0, 30).join('\n')
+        const suffix =
+          converted.warnings.length > 30
+            ? `\n… e mais ${String(converted.warnings.length - 30)} aviso(s).`
+            : ''
+        window.alert(`[Code To Node Graph]\n\n${preview}${suffix}`)
+      }
+
+      setCodeToNodeGraphPackFolder(folder)
+      return true
+    },
+    [codeDockFileName, codeText, extendSchemaLookup, mergedPackFolderBySchemaId, openOrReplaceSceneByTitle],
+  )
+
+  const focusCodeToCanvasNodes = useCallback(
+    (nodeIds: string[]) => {
+      if (nodeIds.length === 0) {
+        return
+      }
+      selectNode(nodeIds[0]!)
+      graphCanvasRef.current?.focusSelectionIntoView(nodeIds)
+    },
+    [selectNode],
+  )
+
+  const { startWizard: startCodeToCanvasWizard, controller: codeToCanvasWizardController } =
+    useCodeToCanvasWizard({
+      codeText,
+      codeDockFileName,
+      registry: extendSchemaLookup,
+      packFolderBySchemaId: mergedPackFolderBySchemaId,
+      openOrReplaceSceneByTitle,
+      selectNode,
+      focusNodes: focusCodeToCanvasNodes,
+    })
+
+  const handleCodeToNodeGraphStepByStep = useCallback(
+    async (folder: string) => startCodeToCanvasWizard(folder),
+    [startCodeToCanvasWizard],
+  )
+
+  const handleDismissCodeToCanvasWizard = useCallback(() => {
+    const summary = codeToCanvasWizardController.summary
+    if (!summary || summary.buildWarnings.length === 0) {
+      return
+    }
+
+    const preview = summary.buildWarnings.slice(0, 30).join('\n')
+    const suffix =
+      summary.buildWarnings.length > 30
+        ? `\n… e mais ${String(summary.buildWarnings.length - 30)} aviso(s).`
+        : ''
+    window.alert(`[Code To Node Graph · passo a passo]\n\n${preview}${suffix}`)
+  }, [codeToCanvasWizardController.summary])
+
+  const persistPackForNewNodeGraph = useCallback(
+    async (
+      folder: string,
+      schemas: NodeSchemaDefinition[],
+      warnings: string[],
+      rootSchemaIds: string[],
+      options?: { silent?: boolean },
+    ) => {
+      await persistConvertedStructurePack(
+        folder,
+        schemas,
+        warnings,
+        '[Code to new node graph]\n\n',
+        rootSchemaIds,
+        options,
+      )
+    },
+    [persistConvertedStructurePack],
+  )
+
+  const persistSceneAfterCodeToNewNodeGraph = useCallback((nextScene: CanvasScene) => {
+    workspaceService.saveSceneNow(nextScene)
+  }, [])
+
+  const handleCodeToNewNodeGraph = useCallback(
+    async (folder: string) => {
+      setCodeToNewNodeGraphProgress({ label: 'A analisar ritual…', ratio: 0.08 })
+
+      try {
+        const prepared = prepareCodeToNewNodeGraph(codeText)
+        if (!prepared.ok) {
+          window.alert(prepared.error)
+          return false
+        }
+
+        setCodeToNewNodeGraphProgress({ label: 'A gravar pack de tipos…', ratio: 0.28 })
+        await persistPackForNewNodeGraph(
+          folder,
+          prepared.schemas,
+          prepared.warnings,
+          prepared.rootSchemaIds,
+          { silent: true },
+        )
+
+        setCodeToNewNodeGraphProgress({ label: 'A gerar nós e ligações…', ratio: 0.55 })
+        await new Promise<void>((resolve) => {
+          window.requestAnimationFrame(() => resolve())
+        })
+
+        const built = codeToNewNodeGraph(codeText)
+        if (!built.ok) {
+          window.alert(built.error)
+          return false
+        }
+
+        setCodeToNewNodeGraphProgress({ label: 'A abrir cena…', ratio: 0.82 })
+        const sceneTitle = stripExtension(codeDockFileName).trim() || 'Cena'
+        openOrReplaceSceneByTitle(sceneTitle, built.scene)
+
+        setCodeToNewNodeGraphProgress({ label: 'A guardar cena no disco…', ratio: 0.95 })
+        persistSceneAfterCodeToNewNodeGraph(built.scene)
+
+        if (built.warnings.length > 0) {
+          const preview = built.warnings.slice(0, 30).join('\n')
+          const suffix =
+            built.warnings.length > 30
+              ? `\n… e mais ${String(built.warnings.length - 30)} aviso(s).`
+              : ''
+          window.alert(`[Code to new node graph]\n\n${preview}${suffix}`)
+        }
+
+        setCodeToNewNodeGraphPackFolder(folder)
+        setCodeToNewNodeGraphProgress({ label: 'Concluído', ratio: 1 })
+        return true
+      } finally {
+        setCodeToNewNodeGraphProgress(null)
+      }
+    },
+    [
+      codeDockFileName,
+      codeText,
+      openOrReplaceSceneByTitle,
+      persistPackForNewNodeGraph,
+      persistSceneAfterCodeToNewNodeGraph,
+    ],
+  )
+
+  const { startWizard: startCodeToNewNodeGraphWizard, controller: codeToNewNodeGraphWizardController } =
+    useCodeToNewNodeGraphWizard({
+      codeText,
+      codeDockFileName,
+      persistPack: persistPackForNewNodeGraph,
+      openOrReplaceSceneByTitle,
+      selectNode,
+      focusNodes: focusCodeToCanvasNodes,
+      onSceneBuilt: persistSceneAfterCodeToNewNodeGraph,
+    })
+
+  const handleCodeToNewNodeGraphStepByStep = useCallback(
+    async (folder: string) => startCodeToNewNodeGraphWizard(folder),
+    [startCodeToNewNodeGraphWizard],
+  )
+
+  const handleDismissCodeToNewNodeGraphWizard = useCallback(() => {
+    const summary = codeToNewNodeGraphWizardController.summary
+    if (!summary || summary.buildWarnings.length === 0) {
+      return
+    }
+
+    const preview = summary.buildWarnings.slice(0, 30).join('\n')
+    const suffix =
+      summary.buildWarnings.length > 30
+        ? `\n… e mais ${String(summary.buildWarnings.length - 30)} aviso(s).`
+        : ''
+    window.alert(`[Code to new node graph · passo a passo]\n\n${preview}${suffix}`)
+  }, [codeToNewNodeGraphWizardController.summary])
 
   const deleteNodeStructurePackFolder = useCallback(async (folder: string) => {
     const safe = sanitizeStructurePackFolderName(folder)
@@ -1309,22 +1545,6 @@ function App() {
     },
     [renameCodeDockTab, renameSceneTab, tabRenameTarget],
   )
-
-  const handleToggleJsonFileAutoSave = useCallback(() => {
-    setJsonFileAutoSave((current) => {
-      const next = !current
-      setSceneAutoSaveEnabled(next)
-
-      if (next) {
-        showSaveStatusNotice(
-          'Auto Save activo: grava no ficheiro JSON após o primeiro «Salvar Cena de trabalho» nesta sessão (por aba).',
-          12,
-        )
-      }
-
-      return next
-    })
-  }, [showSaveStatusNotice])
 
   const handleImportWorkspaceFile = async (file: File) => {
     if (file.name.toLowerCase().endsWith('.bin')) {
@@ -2223,11 +2443,112 @@ function App() {
     [selectNode],
   )
 
+  const sceneNodesStatePresets = scene.sceneChrome?.sceneNodes?.presets ?? []
+
+  const suggestSceneNodesStateNameFromNode = useCallback(
+    (nodeId: string) => {
+      const canvasNode = scene.nodes.find((node) => node.id === nodeId)
+      const title = canvasNode ? getNodeDisplayTitle(canvasNode) : 'Nó'
+      const used = new Set(
+        sceneNodesStatePresets.map((preset) => preset.name.trim().toLowerCase()),
+      )
+
+      for (let index = 1; index < 10_000; index += 1) {
+        const candidate = index === 1 ? `${title} — Estado` : `${title} — Estado ${index}`
+        if (!used.has(candidate.toLowerCase())) {
+          return candidate
+        }
+      }
+
+      return suggestSceneNodesStatePresetName()
+    },
+    [scene.nodes, sceneNodesStatePresets, suggestSceneNodesStatePresetName],
+  )
+
+  const expandSceneNodesPanel = useCallback(() => {
+    patchSceneChrome({ sceneNodes: { minimized: false } })
+  }, [patchSceneChrome])
+
+  const openSceneNodesStatesTab = useCallback(() => {
+    expandSceneNodesPanel()
+    setSceneNodesPanelTab('states')
+  }, [expandSceneNodesPanel])
+
+  const handleSaveNewSceneNodesState = useCallback(() => {
+    const suggested = suggestSceneNodesStatePresetName()
+    const name = window.prompt('Nome do novo estado de nodes em cena:', suggested)
+    if (name === null) {
+      return
+    }
+    saveSceneNodesStatePreset(name)
+    openSceneNodesStatesTab()
+  }, [openSceneNodesStatesTab, saveSceneNodesStatePreset, suggestSceneNodesStatePresetName])
+
+  const handleExtractSceneNodesStateFromNode = useCallback(
+    (nodeId: string) => {
+      const suggested = suggestSceneNodesStateNameFromNode(nodeId)
+      const name = window.prompt('Nome do estado de nodes em cena:', suggested)
+      if (name === null) {
+        return
+      }
+      saveSceneNodesStatePreset(name)
+      openSceneNodesStatesTab()
+    },
+    [
+      openSceneNodesStatesTab,
+      saveSceneNodesStatePreset,
+      suggestSceneNodesStateNameFromNode,
+    ],
+  )
+
+  const handleExportSceneNodesStatesJson = useCallback(async () => {
+    await saveCodeDockTextManual(
+      serializeSceneNodesStatePresetsFile(sceneNodesStatePresets),
+      'scene-nodes-states.json',
+    )
+  }, [sceneNodesStatePresets])
+
+  const handleImportSceneNodesStatesJson = useCallback(
+    (file: File) => {
+      const reader = new FileReader()
+      reader.onload = () => {
+        try {
+          const raw = JSON.parse(String(reader.result ?? ''))
+          const parsed = parseSceneNodesStatePresetsFile(raw)
+          if (parsed === undefined) {
+            window.alert('Ficheiro JSON inválido para estados de nodes em cena.')
+            return
+          }
+          if (sceneNodesStatePresets.length > 0) {
+            const ok = window.confirm(
+              'Substituir a lista de estados guardada na cena pela do ficheiro?',
+            )
+            if (!ok) {
+              return
+            }
+          }
+          replaceSceneNodesStatePresets(parsed.presets)
+        } catch {
+          window.alert('Não foi possível ler o ficheiro JSON.')
+        }
+      }
+      reader.readAsText(file)
+    },
+    [replaceSceneNodesStatePresets, sceneNodesStatePresets.length],
+  )
+
   const sceneNodesPanelProps = {
     ...sceneNodesPickHandlers,
     canDeleteSelected: sceneNodesCanDelete,
     dragHandleProps: sceneNodesDragHandleProps,
     minimized: sceneNodesMinimized,
+    sceneNodesStatePresets,
+    onSaveNewSceneNodesState: handleSaveNewSceneNodesState,
+    onLoadSceneNodesState: applySceneNodesStatePreset,
+    onDeleteSceneNodesState: deleteSceneNodesStatePreset,
+    onOverwriteSceneNodesState: overwriteSceneNodesStatePreset,
+    onExportSceneNodesStatesJson: handleExportSceneNodesStatesJson,
+    onImportSceneNodesStatesJson: handleImportSceneNodesStatesJson,
     onSortModeChange: (sortMode) => patchSceneChrome({ sceneNodes: { sortMode } }),
     onDeleteSelected: handleSceneNodesDelete,
     onFocusNode: handleFocusSceneNode,
@@ -2244,6 +2565,8 @@ function App() {
     scene,
     selectedNodeIds,
     sortMode: sceneNodesSortMode,
+    activeTab: sceneNodesPanelTab,
+    onActiveTabChange: setSceneNodesPanelTab,
   }
 
   return (
@@ -2273,7 +2596,7 @@ function App() {
         />
       ) : null}
       <AppMenuBar
-        autoSaveEnabled={jsonFileAutoSave}
+        nodeLightModeEnabled={nodeLightModeEnabled}
         nodeConfigurationMode={nodeConfigurationMode}
         onDeleteSelection={() => deleteSelectedNodes()}
         onImportGraph={handleImportWorkspaceFile}
@@ -2282,7 +2605,7 @@ function App() {
         onOpenStubBin={handleStubPipeline}
         onRequestAddNode={requestPalette}
         onSaveWorkScene={handleSaveWorkScene}
-        onToggleAutoSave={handleToggleJsonFileAutoSave}
+        onToggleNodeLightMode={toggleNodeLightMode}
         onToggleNodeConfigurationMode={toggleNodeConfigurationMode}
         onEditClassGroupPackFolder={
           nodeConfigurationMode ? openClassGroupPackFolderDialog : undefined
@@ -2348,10 +2671,12 @@ function App() {
             onCreateRootNode={createRootNode}
             onDeleteNodeIds={deleteNodeIds}
             onToggleNodeBodyCollapsed={toggleNodeBodyCollapsed}
+            onSetAllNodesBodyCollapsed={setAllNodesBodyCollapsed}
             onToggleNodeCardSection={toggleNodeCardSection}
             onSetNodeCardSectionOrder={setNodeCardSectionOrder}
             onSetNodeCardBodyLayout={setNodeCardBodyLayout}
             onCycleConnectionRouting={cycleConnectionRouting}
+            onSetConnectionRouting={setConnectionRouting}
             onMarqueeCommit={commitMarqueeSelection}
             onMoveNode={moveNode}
             onSceneCameraChange={setSceneCamera}
@@ -2362,9 +2687,9 @@ function App() {
               scene.sceneChrome?.toolbarVisibility ?? DEFAULT_CANVAS_TOOLBAR_VISIBILITY
             }
             onNodeLockedInteraction={() => showToastByCatalogId(MESSENGER_TOAST_NODE_LOCKED)}
-            onSceneNodesPanelRequest={() =>
-              patchSceneChrome({ sceneNodes: { minimized: false } })
-            }
+            onPatchNodeSceneOverlay={patchNodeSceneOverlay}
+            onSceneNodesPanelRequest={expandSceneNodesPanel}
+            onExtractSceneNodesStatePreset={handleExtractSceneNodesStateFromNode}
             onRedo={redoScene}
             onRemoveConnection={removeConnection}
             onResetScene={resetScene}
@@ -2378,6 +2703,10 @@ function App() {
             onSetAllNodeElementsRetracted={setAllNodeElementsRetracted}
             onSetElementSelectedIndex={setElementSelectedIndex}
             onRemoveConnectionsFromOutputSlot={removeConnectionsFromOutputSlot}
+            onShowOnlyConnectedComponent={showOnlyConnectedComponent}
+            onShowOnlySlotSubtree={showOnlySlotSubtree}
+            onShowOnlyIncomingSlotBranch={showOnlyIncomingSlotBranch}
+            onHideLinkedChildNodes={hideLinkedChildNodes}
             onSetNodeParameterOrder={setNodeParameterOrder}
             paletteRequestSignal={paletteSignal}
             scene={scene}
@@ -2581,6 +2910,7 @@ function App() {
             <CodeDock
               activeFileName={codeDockFileName}
               activeTabId={activeCodeDockTabId}
+              codeToNewGraphProgress={codeToNewNodeGraphProgress}
               dockedWidth={codeDockWidth}
               fileBridge={codeDockFileBridge}
               floatingActive={codeDockFloating}
@@ -2593,6 +2923,12 @@ function App() {
                 onConvertJadeFxEditor: handleConvertJadeFxEditorPack,
                 onApplyBinNomenclatura: handleApplyBinNomenclaturaPack,
                 onExtractNodeBase: handleExtractNodeBasePack,
+                onCodeToNodeGraph: handleCodeToNodeGraphPack,
+                onCodeToNodeGraphStepByStep: handleCodeToNodeGraphStepByStep,
+                onCodeToNewNodeGraph: handleCodeToNewNodeGraph,
+                onCodeToNewNodeGraphStepByStep: handleCodeToNewNodeGraphStepByStep,
+                getDefaultStructurePackFolder: getCodeToNodeGraphPackFolder,
+                getDefaultNewNodeGraphPackFolder: getCodeToNewNodeGraphPackFolder,
               }}
               onActivateTab={activateCodeDockTab}
               onChange={setCodeText}
@@ -2600,7 +2936,7 @@ function App() {
               onCloseTab={closeCodeDockTab}
               onDockedWidthChange={setCodeDockWidth}
               onFloatingRectChange={setCodeDockFloatingRect}
-              onNewTab={openNewCodeDockTab}
+              onNewTab={() => openNewCodeDockTab()}
               onTabAction={handleCodeDockTabAction}
               onResetFloatingDimensions={resetFloatingDockDimensions}
               onToggleFloating={() => setCodeDockFloating((v) => !v)}
@@ -2610,6 +2946,17 @@ function App() {
           </div>
         ) : null}
       </div>
+
+      <CodeToCanvasWizardPanel
+        controller={codeToCanvasWizardController}
+        onDismissDone={handleDismissCodeToCanvasWizard}
+      />
+
+      <CodeToCanvasWizardPanel
+        controller={codeToNewNodeGraphWizardController as typeof codeToCanvasWizardController}
+        onDismissDone={handleDismissCodeToNewNodeGraphWizard}
+        title="Code to new node graph — passo a passo"
+      />
 
       <NewCodeFileDialog
         isOpen={newCodeFileDialogOpen}

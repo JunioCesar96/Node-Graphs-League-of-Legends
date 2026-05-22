@@ -1,0 +1,41 @@
+.slot {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  max-width: 336px;
+  min-height: 42px;
+  padding: var(--space-3);
+  cursor: default;
+  background: rgb(255 255 255 / 2%);
+  border: 1px solid var(--color-border-soft);
+  border-radius: 2px;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease;
+}
+
+.slot:hover {
+  background: var(--color-node-hover);
+  border-color: rgb(255 193 7 / 42%);
+}
+
+.slotName {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.slotTrailing {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+  padding-right: 0.35rem;
+  min-height: 1.75rem;
+}

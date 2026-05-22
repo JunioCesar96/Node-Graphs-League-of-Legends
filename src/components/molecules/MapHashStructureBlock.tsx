@@ -2,9 +2,11 @@ import type { PointerEvent as ReactPointerEvent } from 'react'
 import { useCallback, useMemo, useState } from 'react'
 
 import { Port } from '@/components/atoms/Port'
+import { OutputSlotPeerToolbar } from '@/components/molecules/OutputSlotPeerToolbar'
 import { StructureViewToggle } from '@/components/atoms/StructureViewToggle'
 import {
   isWirelessPortPulsing,
+  portPulseVariantForTarget,
   toWirelessPortLinkProps,
   type WirelessPortHandlers,
   type WirelessPortLink,
@@ -22,6 +24,7 @@ import {
   MapHashStructurePicker,
   type MapHashParameterKind,
 } from '@/components/molecules/MapHashStructurePicker'
+import type { OutputSlotPeerActions } from '@/core/outputSlotPeerActions'
 import type { InternalStructureDefinition } from '@/core/nodeSchema'
 import type { NodeElementListItem } from '@/core/listNodeElements'
 import { elementTitleDoubleClickRetractProps } from '@/core/elementTitleInteraction'
@@ -85,6 +88,7 @@ type MapHashStructureBlockProps = MapHashStructureBlockConfig & {
   interactionLocked?: boolean
   onBlockedInteraction?: () => void
   onRetractFromTitle?: () => void
+  outputSlotPeerActions?: OutputSlotPeerActions
 }
 
 function slotForEntry(
@@ -139,6 +143,7 @@ export function MapHashStructureBlock({
   interactionLocked = false,
   onBlockedInteraction,
   onRetractFromTitle,
+  outputSlotPeerActions,
 }: MapHashStructureBlockProps) {
   const blockInteraction = (action: () => void) => {
     if (interactionLocked) {
@@ -297,7 +302,18 @@ export function MapHashStructureBlock({
             <span className={styles.structureName} title={entry.typeName}>
               {entry.typeName || entry.schemaId}
             </span>
-            <Port
+            <div className={styles.structureSlotTrailing}>
+              {outputSlotPeerActions?.getPeerState(slot.id) ? (
+                <OutputSlotPeerToolbar
+                  peer={outputSlotPeerActions.getPeerState(slot.id)!}
+                  onFocusPeer={() => outputSlotPeerActions.onFocusPeer(slot.id)}
+                  onToggleLock={() => outputSlotPeerActions.onToggleLock(slot.id)}
+                  onToggleVisibility={() =>
+                    outputSlotPeerActions.onToggleVisibility(slot.id)
+                  }
+                />
+              ) : null}
+              <Port
               active={slot.id === activeSlotId}
               direction="output"
               graphInternalStructureId={slot.id}
@@ -325,6 +341,12 @@ export function MapHashStructureBlock({
               onWirePointerUp={
                 onOutputWirePointerUp ? (event) => onOutputWirePointerUp(slot, event) : undefined
               }
+              portPulseVariant={portPulseVariantForTarget(
+                wirelessPortPulse,
+                canvasNodeId,
+                'output',
+                slot.id,
+              )}
               wirelessLink={toWirelessPortLinkProps(
                 wirelessOutputLinks?.get(slot.id),
                 wirelessPortHandlers,
@@ -335,7 +357,8 @@ export function MapHashStructureBlock({
                   slot.id,
                 ),
               )}
-            />
+              />
+            </div>
           </div>
         ) : null}
       </li>
