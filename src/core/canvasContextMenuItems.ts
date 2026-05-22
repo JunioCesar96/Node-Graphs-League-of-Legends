@@ -65,6 +65,8 @@ export type CanvasContextMenuBuildContext = {
   sceneAllNodesBodyCollapsed?: boolean
   /** Pelo menos um nó da cena com corpo efectivamente retraído. */
   sceneAnyNodeBodyCollapsed?: boolean
+  /** Exportar cena (Main) para ritual no CodeDock. */
+  onGraphsToCode?: () => void
 }
 
 function findCanvasNode(scene: CanvasScene, nodeId: string): CanvasNode | undefined {
@@ -177,6 +179,15 @@ function buildCanvasItems(ctx: CanvasContextMenuBuildContext): ContextMenuItem[]
 
   return [
     { id: 'canvas.addNode', label: 'Adicionar nó', shortcut: 'Ctrl+K' },
+    ...(ctx.onGraphsToCode
+      ? [
+          {
+            id: 'canvas.graphsToCode' as const,
+            label: 'Node Graphs to Code',
+            separatorBefore: true,
+          },
+        ]
+      : []),
     { id: 'canvas.undo', label: 'Desfazer', disabled: !ctx.canUndo, shortcut: 'Ctrl+Z', separatorBefore: true },
     { id: 'canvas.redo', label: 'Refazer', disabled: !ctx.canRedo, shortcut: 'Ctrl+Y' },
     {
@@ -278,6 +289,13 @@ function buildNodeItems(
     label: 'Extrair estados de índice de listas em Estados',
     separatorBefore: true,
   })
+
+  if (ctx.onGraphsToCode && canvasNode?.node.schema.id === 'main') {
+    items.push({
+      id: 'node.graphsToCode',
+      label: 'Node Graphs to Code',
+    })
+  }
 
   const linkedChildIds = collectLinkedChildNodeIds(ctx.scene, nodeId)
 

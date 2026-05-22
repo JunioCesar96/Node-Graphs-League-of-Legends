@@ -138,6 +138,7 @@ import { resolveContextTarget } from '@/core/canvasContextMenuResolve'
 import {
   collectGraphPortAnchors,
   emptyPortAnchorMaps,
+  graphPointFromElementCenter,
   outputAnchorKey,
   type PortAnchorMaps,
 } from '@/core/graphPortAnchors'
@@ -356,6 +357,8 @@ type GraphCanvasProps = {
   onSceneNodesPanelRequest?: () => void
   /** Grava preset de estados da cena (atalho no menu do card). */
   onExtractSceneNodesStatePreset?: (nodeId: string) => void
+  /** Serializa Main → ritual Class Group e abre no CodeDock. */
+  onGraphsToCode?: () => void
   /** Visibilidade dos botões da barra do canvas (persistida em `scene.sceneChrome`). */
   toolbarVisibility?: CanvasToolbarVisibility
   onToolbarVisibilityChange?: (next: CanvasToolbarVisibility) => void
@@ -1418,6 +1421,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     onPatchNodeSceneOverlay,
     onSceneNodesPanelRequest,
     onExtractSceneNodesStatePreset,
+    onGraphsToCode,
     toolbarVisibility: toolbarVisibilityProp,
     onToolbarVisibilityChange,
     attachedViewport = false,
@@ -2948,6 +2952,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       hasInspectorSlot: Boolean(viewportControlsSlot),
       sceneAllNodesBodyCollapsed,
       sceneAnyNodeBodyCollapsed,
+      onGraphsToCode,
     })
   }, [
     canRedo,
@@ -2966,6 +2971,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     toolbarVisibility,
     pendingLink,
     viewportControlsSlot,
+    onGraphsToCode,
   ])
 
   const runContextMenuAction = useCallback(
@@ -3041,6 +3047,9 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
           if (selectedNodeId) {
             onExtractSceneNodesStatePreset?.(selectedNodeId)
           }
+          break
+        case 'canvas.graphsToCode':
+          onGraphsToCode?.()
           break
         case 'canvas.toggleNavigateMode':
           setViewportNavigateMode((active) => !active)
@@ -3140,6 +3149,9 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
           if (target.type === 'node') {
             onExtractSceneNodesStatePreset?.(target.nodeId)
           }
+          break
+        case 'node.graphsToCode':
+          onGraphsToCode?.()
           break
         case 'connection.cycleRouting':
           if (target.type === 'connection') {
@@ -3322,6 +3334,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       onNodeLockedInteraction,
       onSceneNodesPanelRequest,
       onExtractSceneNodesStatePreset,
+      onGraphsToCode,
       onSetAllNodesBodyCollapsed,
       onToggleNodeBodyCollapsed,
       onToggleNodeCardSection,

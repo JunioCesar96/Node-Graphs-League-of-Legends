@@ -54,6 +54,24 @@
   outline-offset: 6px;
 }
 
+.linked {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  color: var(--port-child);
+  background: var(--color-node-surface);
+}
+
+.linked.input {
+  top: -8px;
+}
+
+.linked.output {
+  right: -8px;
+}
+
 .wireless {
   display: flex;
   align-items: center;

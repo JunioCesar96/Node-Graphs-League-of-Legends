@@ -97,9 +97,11 @@ import {
   getNodeLightModeEnabled,
   setNodeLightModeEnabled,
 } from '@/core/nodeLightModePreference'
+import { canvasToClassGroupRitualWithProgress } from '@/core/canvasToClassGroupRitual'
 import { codeToCanvasScene } from '@/core/codeToCanvasScene'
 import { codeToNewNodeGraph, prepareCodeToNewNodeGraph } from '@/core/codeToNewNodeGraph'
 import { CodeToCanvasWizardPanel } from '@/components/molecules/CodeToCanvasWizardPanel'
+import { GraphsToCodeProgressDialog } from '@/components/molecules/GraphsToCodeProgressDialog'
 import { useCodeToCanvasWizard } from '@/hooks/useCodeToCanvasWizard'
 import { useCodeToNewNodeGraphWizard } from '@/hooks/useCodeToNewNodeGraphWizard'
 import {
@@ -416,6 +418,10 @@ function App() {
   const [hashStringNoticeStamp, setHashStringNoticeStamp] = useState<number | null>(null)
   const [paletteSignal, setPaletteSignal] = useState(0)
   const [codeToNewNodeGraphProgress, setCodeToNewNodeGraphProgress] = useState<{
+    label: string
+    ratio: number
+  } | null>(null)
+  const [graphsToCodeProgress, setGraphsToCodeProgress] = useState<{
     label: string
     ratio: number
   } | null>(null)
@@ -1255,9 +1261,12 @@ function App() {
   )
 
   const loadTextIntoCodeDock = useCallback(
-    (text: string, fileName: string, via: string) => {
+    (text: string, fileName: string, via: string, options?: { fullText?: boolean }) => {
       const maxPreview = 500_000
-      const content = text.length > maxPreview ? `${text.slice(0, maxPreview)}\n…` : text
+      const content =
+        options?.fullText || text.length <= maxPreview
+          ? text
+          : `${text.slice(0, maxPreview)}\n…`
       const normalized = normalizeCodeDockFileName(fileName)
       openCodeDockTab(content, normalized)
       pushCodeRecentFile(normalized)
@@ -1270,6 +1279,48 @@ function App() {
     },
     [openCodeDockTab],
   )
+
+  const handleGraphsToCode = useCallback(async () => {
+    if (!hasOpenSceneTabs) {
+      window.alert('Abra uma cena de trabalho antes de exportar.')
+      return
+    }
+
+    const defaultName = `${stripExtension(activeTabTitle).trim() || 'export'}.bin`
+    const raw = window.prompt('Nome da aba no editor de código:', defaultName)
+
+    if (raw === null || !raw.trim()) {
+      return
+    }
+
+    setGraphsToCodeProgress({ label: 'A preparar…', ratio: 0 })
+
+    try {
+      const result = await canvasToClassGroupRitualWithProgress(
+        hydrateScene(scene),
+        extendSchemaLookup,
+        setGraphsToCodeProgress,
+      )
+
+      if (!result.ok) {
+        window.alert(result.error)
+        return
+      }
+
+      loadTextIntoCodeDock(result.text, raw.trim(), 'Node Graphs to Code', { fullText: true })
+
+      if (result.warnings.length > 0) {
+        const preview = result.warnings.slice(0, 30).join('\n')
+        const suffix =
+          result.warnings.length > 30
+            ? `\n… e mais ${String(result.warnings.length - 30)} aviso(s).`
+            : ''
+        window.alert(`[Node Graphs to Code]\n\n${preview}${suffix}`)
+      }
+    } finally {
+      setGraphsToCodeProgress(null)
+    }
+  }, [activeTabTitle, extendSchemaLookup, hasOpenSceneTabs, loadTextIntoCodeDock, scene])
 
   const saveCodeDockTabById = useCallback(
     async (tabId: string) => {
@@ -2610,6 +2661,7 @@ function App() {
         onEditClassGroupPackFolder={
           nodeConfigurationMode ? openClassGroupPackFolderDialog : undefined
         }
+        onGraphsToCode={() => void handleGraphsToCode()}
         onToggleCodeDock={() => setCodeDockOpen((isOpen) => !isOpen)}
         recentScenes={recentScenes}
       />
@@ -2690,6 +2742,7 @@ function App() {
             onPatchNodeSceneOverlay={patchNodeSceneOverlay}
             onSceneNodesPanelRequest={expandSceneNodesPanel}
             onExtractSceneNodesStatePreset={handleExtractSceneNodesStateFromNode}
+            onGraphsToCode={() => void handleGraphsToCode()}
             onRedo={redoScene}
             onRemoveConnection={removeConnection}
             onResetScene={resetScene}
@@ -2946,6 +2999,10 @@ function App() {
           </div>
         ) : null}
       </div>
+
+      {graphsToCodeProgress ? (
+        <GraphsToCodeProgressDialog progress={graphsToCodeProgress} />
+      ) : null}
 
       <CodeToCanvasWizardPanel
         controller={codeToCanvasWizardController}

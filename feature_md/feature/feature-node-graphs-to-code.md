@@ -11,7 +11,7 @@ Arquivo salvo em: `feature_md/feature/feature-node-graphs-to-code.md`
 | Versão atual | `1.0.0` |
 | Hash do Commit | `877db45` |
 
-Complemento: inversa de [feature-code-to-node-graph.md](./feature_md/feature/feature-code-to-node-graph.md).
+Complemento: inversa de [feature-code-to-node-graph.md](./feature-code-to-node-graph.md) (Code To Node Graph).
 
 ## 2. Definição e Resumo de Tags
 

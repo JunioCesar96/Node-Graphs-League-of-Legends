@@ -1,10 +1,11 @@
 import type { WirelessPortLinkProps } from '@/components/atoms/Port'
 
-import type { CanvasConnection, CanvasNode } from '@/core/canvasScene'
+import type { CanvasConnection, CanvasNode, ConnectionRouting } from '@/core/canvasScene'
 import type { ElementViewKey } from '@/core/nodeSchema'
 
 export type WirelessPortLink = {
   connectionId: string
+  routing: ConnectionRouting
   peerNodeId: string
   peerTitle: string
   /** Porta do par que deve piscar quando este slot recebe hover. */
@@ -69,6 +70,7 @@ export function buildWirelessDisplayByNode(
     const toDisplay = ensure(connection.toNodeId)
     const link: WirelessPortLink = {
       connectionId: connection.id,
+      routing: connection.routing ?? 'flex',
       peerTitle: '',
     }
 
@@ -180,6 +182,7 @@ export function toWirelessPortLinkProps(
 
   return {
     connectionId: link.connectionId,
+    routing: link.routing,
     peerNodeId: link.peerNodeId,
     peerTitle: link.peerTitle,
     peerPulsePortKind: link.peerPulsePortKind,

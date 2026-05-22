@@ -39,7 +39,7 @@ export function formatVector3RitualBrace(item: Vector3): string {
   const parts = formatVector3String(item)
     .split(',')
     .map((part) => part.trim())
-  return `{ ${parts.join(' , ')} }`
+  return `{ ${parts.join(', ')} }`
 }
 
 export function formatListVector3Preview(items: readonly Vector3[], maxItems = 2): string {

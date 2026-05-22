@@ -58,7 +58,7 @@ export function NodeHeader({
         graphNodeId={canvasNodeId}
         graphPortKind="input"
         label={`Connect to ${title}`}
-        onClick={wirelessLink ? undefined : onInputPortClick}
+        onClick={wirelessLink?.routing === 'wireless' ? undefined : onInputPortClick}
         style={inputPortStyle}
         portPulseVariant={inputPortPulseVariant}
         wirelessLink={wirelessLink}

@@ -22,6 +22,7 @@ export type AppMenuBarProps = {
   onToggleNodeLightMode: () => void
   onToggleNodeConfigurationMode: () => void
   onEditClassGroupPackFolder?: () => void
+  onGraphsToCode?: () => void
   onToggleCodeDock: () => void
   recentScenes: RecentSceneListItem[]
 }
@@ -39,6 +40,7 @@ export function AppMenuBar({
   onToggleNodeLightMode,
   onToggleNodeConfigurationMode,
   onEditClassGroupPackFolder,
+  onGraphsToCode,
   onToggleCodeDock,
   recentScenes,
 }: AppMenuBarProps) {
@@ -234,6 +236,14 @@ export function AppMenuBar({
             <button className={styles.menuItem} onClick={onSaveWorkScene} type="button">
               Salvar Cena de trabalho
             </button>
+            {onGraphsToCode ? (
+              <>
+                <div aria-hidden className={styles.menuSeparator} />
+                <button className={styles.menuItem} onClick={onGraphsToCode} type="button">
+                  Node Graphs to Code
+                </button>
+              </>
+            ) : null}
           </div>
         </div>
 

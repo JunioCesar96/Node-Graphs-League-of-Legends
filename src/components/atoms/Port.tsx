@@ -2,10 +2,12 @@ import type {
   CSSProperties,
   KeyboardEvent as ReactKeyboardEvent,
   KeyboardEventHandler,
+  MouseEvent,
   MouseEventHandler,
   PointerEventHandler,
 } from 'react'
 
+import type { ConnectionRouting } from '@/core/canvasScene'
 import type { PortPulseVariant, WirelessPeerHoverPayload } from '@/core/connectionDisplay'
 
 import styles from './Port.module.css'
@@ -14,6 +16,7 @@ type PortDirection = 'input' | 'output'
 
 export type WirelessPortLinkProps = {
   connectionId: string
+  routing: ConnectionRouting
   peerNodeId: string
   peerTitle: string
   peerPulsePortKind: 'input' | 'output'
@@ -62,6 +65,21 @@ function ChainIcon() {
   )
 }
 
+function handleWirelessLinkClick(
+  event: MouseEvent<HTMLButtonElement>,
+  wirelessLink: WirelessPortLinkProps,
+) {
+  event.preventDefault()
+  event.stopPropagation()
+
+  if (event.ctrlKey || event.metaKey) {
+    wirelessLink.onRemoveConnection?.(wirelessLink.connectionId)
+    return
+  }
+
+  wirelessLink.onCycleRouting?.(wirelessLink.connectionId)
+}
+
 export function Port({
   active = false,
   compatible = false,
@@ -82,17 +100,21 @@ export function Port({
   extraDataAttrs,
 }: PortProps) {
   const wireMode = Boolean(onWirePointerDown)
+  const hasConnectedLink = Boolean(wirelessLink)
+  const isWirelessRouting = wirelessLink?.routing === 'wireless'
   const resolvedPulseVariant =
     portPulseVariant ?? (wirelessLink?.wirelessPeerPulse ? 'wireless' : undefined)
+  const isInteractive = wireMode || Boolean(onClick) || hasConnectedLink
+
   const classes = [
     styles.port,
     styles[direction],
-    wirelessLink ? styles.wireless : '',
+    isWirelessRouting ? styles.wireless : hasConnectedLink ? styles.linked : '',
     resolvedPulseVariant === 'wireless' ? styles.wirelessPulse : '',
     resolvedPulseVariant === 'focus' ? styles.focusPulse : '',
     active ? styles.active : '',
     compatible ? styles.compatible : '',
-    onClick || wireMode || wirelessLink ? styles.interactive : '',
+    isInteractive ? styles.interactive : '',
   ]
     .filter(Boolean)
     .join(' ')
@@ -110,90 +132,86 @@ export function Port({
     ? `Este nó está conectado ao nó: ${wirelessLink.peerTitle}`
     : undefined
 
-  if (wirelessLink) {
-    return (
-      <button
-        {...graphDataProps}
-        {...extraDataAttrs}
-        aria-label={label ?? wirelessTitle}
-        className={classes}
-        onClick={(event) => {
-          event.preventDefault()
-          event.stopPropagation()
-
-          if (event.ctrlKey || event.metaKey) {
-            wirelessLink.onRemoveConnection?.(wirelessLink.connectionId)
-            return
-          }
-
-          wirelessLink.onCycleRouting?.(wirelessLink.connectionId)
-        }}
-        onMouseEnter={() =>
-          wirelessLink.onWirelessPeerHoverStart?.({
-            peerNodeId: wirelessLink.peerNodeId,
-            pulseOnPeer: {
-              connectionId: wirelessLink.connectionId,
-              portKind: wirelessLink.peerPulsePortKind,
-              outputSlotId: wirelessLink.peerPulseOutputSlotId,
-            },
-          })
-        }
-        onMouseLeave={() => wirelessLink.onWirelessPeerHoverEnd?.()}
-        style={style}
-        title={wirelessTitle}
-        type="button"
-      >
-        <ChainIcon />
-      </button>
-    )
+  if (!isInteractive) {
+    return <span {...graphDataProps} aria-hidden="true" className={classes} style={style} />
   }
 
-  if (wireMode || onClick) {
-    return (
-      <button
-        {...graphDataProps}
-        aria-label={label}
-        className={classes}
-        onClick={
-          wireMode || !onClick
+  const useWirelessOnlyClick = hasConnectedLink && !wireMode && !onClick
+
+  return (
+    <button
+      {...graphDataProps}
+      {...extraDataAttrs}
+      aria-label={label ?? wirelessTitle}
+      className={classes}
+      onClick={
+        useWirelessOnlyClick
+          ? (event) => handleWirelessLinkClick(event, wirelessLink!)
+          : wireMode || !onClick
             ? undefined
             : (event) => {
                 event.stopPropagation()
                 onClick(event)
               }
-        }
-        onKeyDown={
-          wireMode && onWireActivateKeyboard
-            ? ((event: ReactKeyboardEvent<HTMLButtonElement>) => {
-                if (event.key === 'Enter' || event.key === ' ') {
-                  event.preventDefault()
-                  event.stopPropagation()
-                  onWireActivateKeyboard()
-                }
-              }) satisfies KeyboardEventHandler<HTMLButtonElement>
-            : undefined
-        }
-        onPointerCancel={(event) => {
-          event.stopPropagation()
-          onWirePointerCancel?.(event)
-        }}
-        onPointerDown={(event) => {
-          event.stopPropagation()
-          onWirePointerDown?.(event)
-        }}
-        onPointerMove={(event) => {
-          event.stopPropagation()
-          onWirePointerMove?.(event)
-        }}
-        onPointerUp={(event) => {
-          event.stopPropagation()
-          onWirePointerUp?.(event)
-        }}
-        style={style}
-        type="button"
-      />
-    )
-  }
-
-  return <span {...graphDataProps} aria-hidden="true" className={classes} style={style} />
+      }
+      onKeyDown={
+        wireMode && onWireActivateKeyboard
+          ? ((event: ReactKeyboardEvent<HTMLButtonElement>) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault()
+                event.stopPropagation()
+                onWireActivateKeyboard()
+              }
+            }) satisfies KeyboardEventHandler<HTMLButtonElement>
+          : undefined
+      }
+      onPointerCancel={(event) => {
+        event.stopPropagation()
+        onWirePointerCancel?.(event)
+      }}
+      onPointerDown={
+        wireMode
+          ? (event) => {
+              event.stopPropagation()
+              onWirePointerDown?.(event)
+            }
+          : undefined
+      }
+      onPointerMove={
+        wireMode
+          ? (event) => {
+              event.stopPropagation()
+              onWirePointerMove?.(event)
+            }
+          : undefined
+      }
+      onPointerUp={
+        wireMode
+          ? (event) => {
+              event.stopPropagation()
+              onWirePointerUp?.(event)
+            }
+          : undefined
+      }
+      onMouseEnter={
+        wirelessLink
+          ? () =>
+              wirelessLink.onWirelessPeerHoverStart?.({
+                peerNodeId: wirelessLink.peerNodeId,
+                pulseOnPeer: {
+                  connectionId: wirelessLink.connectionId,
+                  portKind: wirelessLink.peerPulsePortKind,
+                  outputSlotId: wirelessLink.peerPulseOutputSlotId,
+                },
+              })
+          : undefined
+      }
+      onMouseLeave={wirelessLink ? () => wirelessLink.onWirelessPeerHoverEnd?.() : undefined}
+      style={style}
+      title={wirelessTitle}
+      type="button"
+    >
+      {hasConnectedLink ? <ChainIcon /> : null}
+    </button>
+  )
 }
