@@ -1,164 +1,288 @@
-# Documentação de Implementação — Node Graphs to Code
+# League BIN Node Editor
 
-Arquivo salvo em: `feature_md/feature/feature-node-graphs-to-code.md`
+**Version:** 1.5.0 · **Status:** Work in progress
 
-## 1. Cabeçalho
+![Tool Screenshot](./src/assets/preview.png)
 
-| Campo | Valor |
-| --- | --- |
-| Nome da Branch | `feature/node-graphs-to-code` |
-| Nome das Features | **Node Graphs to Code** (exportação cena → ritual Class Group); **Correcções de export ritual** (PascalCase, ordem `entries`, texto completo no CodeDock); **Correcção de portos de saída** (arrasto + routing com ícone de ligação) |
-| Versão atual | `1.0.0` |
-| Hash do Commit | `2a47586` |
+## About the project
 
-Complemento: inversa de [feature-code-to-node-graph.md](./feature_md/feature/feature-code-to-node-graph.md).
+An interactive web editor for League of Legends `.bin` / **Class Group** ritual files. You can turn structured text (ritual) into a **visual node graph**, edit properties and links on a canvas, and export back to ritual text—similar in spirit to [Jade-League-Bin-Editor](https://github.com/RitoShark/Jade-League-Bin-Editor), which powers parsing and Jade integration in this app.
 
-## 2. Definição e Resumo de Tags
+Built with **Vite** + **React** + **Monaco** (CodeDock).
 
-| Tag | Definição |
-| --- | --- |
-| `[NOVO]` | Novo componente, arquivo, função ou tipo criado nesta branch. |
-| `[ATUALIZADO]` | Componente ou fluxo existente alterado para suportar a feature. |
-| `[REMOVIDO]` | Código ou comportamento removido ou descontinuado. |
+---
 
-Tags presentes nesta implementação:
+## Quick start
 
-- `[NOVO]`
-- `[ATUALIZADO]`
+### Prerequisites
 
-## 3. Fluxograma de Funcionamento
+- [Node.js](https://nodejs.org/) 18+
+- [pnpm](https://pnpm.io/) (recommended; see `packageManager` in `package.json`)
 
-```mermaid
-flowchart TD
-  subgraph export [Node Graphs to Code]
-    U[Utilizador] --> MG[Menu Grafo / contexto cena ou Main]
-    MG --> PN[Prompt nome da aba .bin]
-    PN --> PR[GraphsToCodeProgressDialog]
-    PR --> EXP[canvasToClassGroupRitualWithProgress]
-    EXP --> RIT[Texto #PROP_text]
-    RIT --> DOCK[loadTextIntoCodeDock fullText true]
-  end
-
-  subgraph ritual [Serialização ritual]
-    MAIN[Nó Main único] --> META[type version linked]
-    MAIN --> ENT[entries map hash embed]
-    ENT --> CAT[Ordem catálogo mapHashEmbed]
-    ENT --> BODY[emitTypeBody recursivo]
-    BODY --> FMT[ritualFieldNames + ritualValueFormat]
-  end
-
-  subgraph ports [Portos de saída]
-    PD[pointerdown Port] --> BPL[beginPendingLink graphPointFromElementCenter]
-    PU[pointerup] --> SHORT{arrasto menor que 12px?}
-    SHORT -->|sim ligado| CYC[cycleConnectionRouting]
-    SHORT -->|sim livre| MENU[CollectionTypeLinkMenu]
-    SHORT -->|não| DROP[resolveOutputWireDrop / paleta createChildNode]
-    LINK[wirelessLink com routing] --> PORT[Port unificado wire + corrente]
-  end
-```
-
-## 4. Fluxograma de Acionamento de Funções
-
-```mermaid
-sequenceDiagram
-  actor U as Utilizador
-  participant MB as AppMenuBar
-  participant App as App
-  participant PR as GraphsToCodeProgressDialog
-  participant EXP as canvasToClassGroupRitual
-  participant RF as ritualFieldNames
-  participant RV as ritualValueFormat
-  participant DOCK as CodeDock
-
-  U->>MB: Node Graphs to Code
-  MB->>App: handleGraphsToCode
-  App->>App: prompt nome aba
-  App->>PR: progresso async
-  App->>EXP: canvasToClassGroupRitualWithProgress scene registry
-  EXP->>RF: ritualExportFieldNameFromParameter
-  EXP->>RV: formatRitualScalarAssignment
-  EXP-->>App: text warnings
-  App->>DOCK: loadTextIntoCodeDock fullText true
-
-  Note over U,DOCK: Arrasto slot de saída
-  U->>Port: onWirePointerDown
-  Port->>App: handleOutputWirePointerDown via GraphCanvas
-  GraphCanvas->>GraphCanvas: graphPointFromElementCenter
-  GraphCanvas->>GraphCanvas: beginPendingLink
-  U->>Port: onWirePointerUp
-  alt arrasto curto e slot ligado
-    GraphCanvas->>App: onCycleConnectionRouting
-  else arrasto curto e slot livre
-    GraphCanvas->>GraphCanvas: openCollectionTypeLinkMenu
-  else arrasto longo
-    GraphCanvas->>GraphCanvas: resolveOutputWireDrop ou AddNodePalette
-  end
-```
-
-## 5. Tabela de Funções e Componentes
-
-| Status | Nome | Feature Correspondente | Descrição Técnica | Parâmetros / Retorno |
-| --- | --- | --- | --- | --- |
-| `[NOVO]` | `canvasToClassGroupRitual` | Node Graphs to Code | Serializa nó Main e subárvore ligada para ritual `#PROP_text`. | `(scene, registry)` → `{ ok, text, warnings }` \| `{ ok: false, error }` |
-| `[NOVO]` | `canvasToClassGroupRitualWithProgress` | Node Graphs to Code | Variante async com callback de progresso por lotes de nós. | `(scene, registry, onProgress)` → mesmo resultado |
-| `[NOVO]` | `ritualFieldNames.ts` | Export ritual | PascalCase ritual (`ParticleName`); preserva prefixo `m` (`mResourceResolver`). | `ritualExportFieldNameFromParameter(parameter)` → `string` |
-| `[NOVO]` | `ritualValueFormat.ts` | Export ritual | Formata escalares, listas, maps, vec/mtx para linhas ritual; cabeçalho Main em minúsculas via `fieldName` override. | `formatRitualScalarAssignment(parameter, raw, indent, options?)` → linha ritual |
-| `[NOVO]` | `nodeDataTypeToRitType.ts` | Export ritual | Mapeia `NodeDataType` do editor para tipo ritual; `bool` e `flag` distintos. | `(type, fieldName?)` → tipo ritual |
-| `[NOVO]` | `GraphsToCodeProgressDialog` | Node Graphs to Code | Modal com rótulo e barra de progresso durante export. | Props: `open`, `label`, `ratio` |
-| `[ATUALIZADO]` | `App.tsx` | Node Graphs to Code | `handleGraphsToCode`; `loadTextIntoCodeDock(..., { fullText: true })` sem limite 500k. | — |
-| `[ATUALIZADO]` | `AppMenuBar.tsx` | Node Graphs to Code | Item «Node Graphs to Code» no menu Grafo. | `onGraphsToCode` |
-| `[ATUALIZADO]` | `GraphCanvas.tsx` | Export + portos | Handlers `graphsToCode`; `graphPointFromElementCenter` importado; `beginPendingLink` com âncora DOM. | — |
-| `[ATUALIZADO]` | `canvasContextMenuItems.ts` | Node Graphs to Code | Itens `canvas.graphsToCode` e `node.graphsToCode`. | — |
-| `[ATUALIZADO]` | `Port.tsx` | Portos de saída | Port unificado: `wireMode` + `wirelessLink` (corrente em flex/rigid/wireless); arrasto não bloqueado. | `wirelessLink.routing` distingue estilo `.linked` / `.wireless` |
-| `[ATUALIZADO]` | `connectionDisplay.ts` | Portos de saída | `WirelessPortLink.routing`; `buildWirelessDisplayByNode` inclui routing por ligação. | `(connections, nodes)` → `Map` |
-| `[ATUALIZADO]` | `NodeHeader.tsx` | Portos de entrada | `onInputPortClick` activo excepto quando `routing === 'wireless'`. | — |
-| `[ATUALIZADO]` | `graphPortAnchors.ts` | Portos / SVG | Export de `graphPointFromElementCenter` para rascunho de fio. | `(canvasEl, scale, innerEl)` → `{ x, y }` |
-| `[ATUALIZADO]` | `listVector3Value.ts` | Export ritual | Formato vec3 ritual `{ a, b, c }` sem espaços extra. | — |
-
-## 6. Descrição Detalhada de Funcionamento
-
-### Node Graphs to Code
-
-A feature exporta a **cena visual activa** que contém exactamente **um** nó com `schema.id === 'main'` e todos os descendentes alcançáveis por ligações de saída. O motor `canvasToClassGroupRitual` percorre a árvore, emite o cabeçalho ritual (`#PROP_text`, `type`, `version`, `linked`, `entries`) e, para cada entrada de `mapHashEmbed`, o corpo do tipo filho com indentação de 4 espaços.
-
-**Regras de serialização (alinhamento com `estrutura_bin.py`):**
-
-- Cabeçalho Main: nomes `type`, `version`, `linked`, `entries` em **minúsculas**.
-- Campos aninhados: **PascalCase** via `parameter.id` (`*_parameter_FieldName`).
-- `bool` / `flag`: tipo ritual conforme schema, sem heurística `disable*` → `flag`.
-- Ordem de `entries`: catálogo `mapHashEmbed` do Main (`buildOrderedEntryLinks`), não ordenação alfabética.
-- Blocos embed/pointer/list: títulos em PascalCase (`ritualExportBlockTitle`).
-
-O utilizador escolhe o nome da aba (ex. `Zac.bin`). O texto é carregado no CodeDock com **`fullText: true`**, evitando truncagem aos 500k caracteres que cortavam exportações grandes.
-
-### Correcção dos portos de saída
-
-`buildWirelessDisplayByNode` passou a expor ligações em **todas** as routings (flex, rigid, wireless) com ícone de corrente. A implementação anterior em `Port.tsx` substituía o botão de arrasto por um botão só de corrente, quebrando:
-
-- clique curto para ciclar routing ou abrir menu de religar;
-- arrasto para fio temporário, ligar a outro nó ou abrir paleta (`createChildNode`).
-
-A correcção unifica um único `<button>` interactivo: handlers `onWirePointer*` quando `wireMode`; ícone de corrente quando há ligação; classe `.wireless` só se `routing === 'wireless'`; classe `.linked` para flex/rigid.
-
-`graphPointFromElementCenter` foi **exportado** de `graphPortAnchors.ts` e importado em `GraphCanvas` para `beginPendingLink` calcular a âncora do fio a partir do centro do port DOM.
-
-### Tratamento de erros
-
-- Sem nó Main ou mais de um Main: export falha com mensagem clara.
-- Avisos de serialização (slots sem catálogo, filhos em falta): agregados; até 30 mostrados em `alert` após sucesso.
-- Cena sem aba activa / sem cena: `handleGraphsToCode` aborta com feedback.
-- Nó travado: `handleOutputWirePointerDown` ignora início de ligação na origem.
-- Importações em falta (`formatVector3String`, `graphPointFromElementCenter`): corrigidas com exports/imports explícitos.
-
-### Testes
+### Install and run
 
 ```bash
-npx vitest run src/core/canvasToClassGroupRitual.test.ts src/core/ritualFieldNames.test.ts src/core/nodeDataTypeToRitType.test.ts src/core/connectionDisplay.test.ts
+git clone https://github.com/JunioCesar96/Node-Graphs-League-of-Legends.git
+cd Node-Graphs-League-of-Legends
+pnpm install
+pnpm dev
 ```
 
-### Uso manual
+Open the URL shown in the terminal (usually `http://localhost:5173`).
 
-1. Abrir cena com Main e filhos (ex. após **Code To Node Graph** com pack `default`).
-2. **Grafo → Node Graphs to Code** (ou contexto da grade / nó Main).
-3. Indicar nome da aba; aguardar progresso; rever ritual no CodeDock.
-4. Validar opcionalmente com **Code To Node Graph** na mesma cena.
+### Optional (development)
+
+| Script | Purpose |
+| --- | --- |
+| `pnpm jade-bridge:dev` | Mock Jade bridge for opening `.bin` in dev |
+| `pnpm jade:http-bridge` | HTTP bridge from Jade-League-Bin-Editor (Rust) |
+| `pnpm test` | Run Vitest unit tests |
+
+---
+
+## Step-by-step guide
+
+### 1. First look at the workspace
+
+- **Center:** graph canvas (nodes, connections, pan/zoom).
+- **Right:** CodeDock (Monaco editor) — toggle with the **Code** menu button.
+- **Left / panels:** scene tabs, nodes list, inspector, scene states (depending on layout).
+
+### 2. Scenes (work files)
+
+Use the **Graph** menu:
+
+| Action | What it does |
+| --- | --- |
+| **New work scene** | Empty tab with a fresh canvas |
+| **Load recent scenes** | Re-open a recently used scene JSON (up to 10) |
+| **Save work scene** | Export the full scene to a `.json` file on disk |
+
+**Note:** Continuous auto-save of large scenes to `localStorage` was removed to avoid quota errors. Save explicitly when you need a backup. Tab snapshots are kept lightly on lifecycle events (small scenes only).
+
+### 3. Import ritual text → node graph
+
+Typical flow (Code → graph):
+
+1. Open **Code** panel and paste or load ritual text (e.g. from a `.bin` PROP file).
+2. In CodeDock **Tools**, run **Converter [Class Group]** (choose a pack folder, e.g. `default` under `src/nodeStructures/`).
+3. Run **Code To Node Graph** (bulk or step-by-step wizard) to build the canvas from the ritual.
+4. You should see a **Main** node and child nodes connected from `entries` and internal structures.
+
+Enable **Nodes → Configure** if you want a fixed Class Group folder and catalog-driven extraction (see step 6).
+
+### 4. Edit the graph
+
+| Task | How |
+| --- | --- |
+| Add a node | **Nodes → Add…** or drag from palette when linking |
+| Start a link | **Drag** from an **output** slot (right side of a structure row) |
+| Finish a link | Drop on another node’s **input** port (top of card) or pick a type from the palette on empty canvas |
+| Change link style | **Short click** on a connected output slot: cycles **flex → rigid → wireless** (chain icon when linked) |
+| Relink / pick existing node | Short click on a **free** output slot → collection-type menu |
+| Context actions | Right-click canvas, node header, slots, or wires (hide children, routing, focus peer, etc.) |
+| Delete | Select nodes → **Nodes → Remove selected** |
+
+**Wireless** links hide the SVG wire and show a chain icon; hover highlights the peer node.
+
+### 5. Export node graph → ritual text
+
+1. Ensure the scene has **exactly one** Main node (`schema id: main`) with the subtree you want exported.
+2. **Graph → Node Graphs to Code**.
+3. Enter the tab name (e.g. `Zac.bin`).
+4. Wait for the progress dialog; ritual text opens in CodeDock (full file, no 500k preview cut).
+
+Export uses PascalCase field names and Main `entries` order from the catalog, aligned with production `.bin` style.
+
+### 6. Nodes → Configure (schemas & packs)
+
+1. **Nodes → Configure** (confirm if prompted).
+2. **Pasta Converter Class Group…** — set the default folder for Class Group conversion (can be `default`).
+3. In CodeDock: **Extrair Node Base** to pull base schemas from the catalog into the pack.
+4. **Converter [Class Group]** uses that folder when Configure is on.
+
+New scenes in Configure mode start **empty** (no forced placeholder root).
+
+### 7. Scene states (presets)
+
+In the **States** area of the nodes panel:
+
+- **Save** a named preset (node visibility, locks, labels, card layout, link filter, **camera** pan/zoom).
+- **Load** a preset to restore that view.
+- Import/export presets as JSON from the context menu when needed.
+
+### 8. Nodes in scene
+
+The **Nodes in scene** list helps you:
+
+- Select and focus nodes without hunting on the canvas
+- Hide or show nodes (scene overlay)
+- Lock nodes (blocks dragging and new output links)
+- Use **peer toolbar** on output slots (focus/lock/hide the connected child)
+
+### 9. Jade integration
+
+In CodeDock **Tools**:
+
+- Jade path / engine settings
+- Open `.bin` via bridge (dev workflow with `pnpm jade-bridge:dev` or Rust HTTP bridge)
+
+---
+
+## What’s new since the previous `main` (plain language)
+
+Features landed after the old English-only README on `main`, grouped newest first:
+
+- **Node Graphs to Code** — export Main + subtree to `#PROP_text` ritual; menu + context menu; progress UI; full CodeDock load.
+- **Export & port fixes** — PascalCase fields, correct `entries` order, `bool`/`flag` from schema; output slots drag + route cycling with chain icon on all link types; `graphPointFromElementCenter` for wire draft.
+- **Scene states, routing, light tab save** — named presets with camera; flex/rigid/wireless links; submenu “link shape”; hide all linked children; no heavy auto-save.
+- **Nodes Configure + `default` pack** — configuration mode, Class Group folder, empty new scenes, Extract Node Base.
+- **Jade bridge (dev) + CodeDock Jade menu** — open `.bin` from the editor in development.
+- **Scene tabs + Graph menu** — multiple scenes, recent JSON, save work scene, unified tab bar + canvas chrome.
+- **Scene persistence & notifications** — save/load UX (auto-save to disk later simplified).
+- **Retract element in card** — collapse embed/list rows; wireless pulse on retracted slots.
+- **Nodes in scene panel** — overlay list, lock/hide/focus, selection rules.
+- **Main / inspector / map hash UX** — Main Class Group entry, canvas legend, inspector, `mapHashEmbed` entry linking.
+- **Compact structure view** — dense internal structure rows; auto wireless in compact mode.
+- **Wireless connection** — third routing mode; chain icon; peer hover highlight.
+- **Class Group building blocks** — map hash/embed/u64, LIST2 embed/pointer, POINTER, list embed, primitive list pickers, element menus + search, dynamic collection-type linking, parameter suffixes, canvas context menu, hash/string inspector, workspace disk hooks, and related schema/UI work.
+
+---
+
+## Technical documentation
+
+Implementation notes (Mermaid diagrams, commit hashes, API tables) live under [`feature_md/feature/`](feature_md/feature/):
+
+| Topic | Document |
+| --- | --- |
+| Node Graphs to Code | [feature-node-graphs-to-code.md](feature_md/feature/feature-node-graphs-to-code.md) |
+| Code To Node Graph | [feature-code-to-node-graph.md](feature_md/feature/feature-code-to-node-graph.md) |
+| Scene tabs & Graph menu | [feature-abas-cena-json-menu-grafo.md](feature_md/feature/feature-abas-cena-json-menu-grafo.md) |
+| Scene save / Graph menu (earlier) | [feature-cena-persistencia-menu-grafo.md](feature_md/feature/feature-cena-persistencia-menu-grafo.md) |
+| States, routing, tab persistence | [feature-cena-estados-routing-persistencia.md](feature_md/feature/feature-cena-estados-routing-persistencia.md) |
+| Nodes Configure & default pack | [feature-nodes-configurar-pack-default.md](feature_md/feature/feature-nodes-configurar-pack-default.md) |
+| Nodes in scene | [feature-nodes-em-cena.md](feature_md/feature/feature-nodes-em-cena.md) |
+| Jade CodeDock menu | [feature-menu-jade-codedock.md](feature_md/feature/feature-menu-jade-codedock.md) |
+| Jade auto bridge (dev) | [feature-jade-bridge-auto-dev.md](feature_md/feature/feature-jade-bridge-auto-dev.md) |
+| Wireless links | [feature-wireless-connection.md](feature_md/feature/feature-wireless-connection.md) |
+| Compact structures | [feature-compact-structure-view.md](feature_md/feature/feature-compact-structure-view.md) |
+| Retract element | [feature-retrair-elemento-card.md](feature_md/feature/feature-retrair-elemento-card.md) |
+| Main / inspector UX | [feature-canvas-inspector-main-ux.md](feature_md/feature/feature-canvas-inspector-main-ux.md) |
+| Canvas context menu | [feature-canvas-context-menu.md](feature_md/feature/feature-canvas-context-menu.md) |
+| Dynamic collection linking | [feature-dynamic-collection-type-linking.md](feature_md/feature/feature-dynamic-collection-type-linking.md) |
+| Map hash / u64 primitives | [feature-class-group-map-hash-u64-primitives.md](feature_md/feature/feature-class-group-map-hash-u64-primitives.md) |
+| LIST2 embed / pointer | [feature-list2-embed-pointer-class-group.md](feature_md/feature/feature-list2-embed-pointer-class-group.md) |
+| LIST embed | [feature-list-embed-class-group.md](feature_md/feature/feature-list-embed-class-group.md) |
+| POINTER | [feature-pointer-class-group.md](feature_md/feature/feature-pointer-class-group.md) |
+| EMBED | [feature-embed-class-group.md](feature_md/feature/feature-embed-class-group.md) |
+| Parameter pickers | [feature-parameter-pickers-class-group.md](feature_md/feature/feature-parameter-pickers-class-group.md) |
+| Element menu | [feature-element-menu.md](feature_md/feature/feature-element-menu.md) |
+| Element menu search | [feature-element-menu-search.md](feature_md/feature/feature-element-menu-search.md) |
+| Workspace disk | [feature-workspace-disk-persistence.md](feature_md/feature/feature-workspace-disk-persistence.md) |
+| Node instance | [feature-node-instance-feature.md](feature_md/feature/feature-node-instance-feature.md) |
+| Main Class Group | [feature-main-class-group.md](feature_md/feature/feature-main-class-group.md) |
+
+---
+
+---
+
+# Português — Guia do utilizador
+
+## O que é esta aplicação?
+
+É um **editor visual de grafos de nós** para ficheiros de dados do League of Legends (ritual Class Group / `.bin`). Em vez de editar só texto enorme, vês **cartões ligados por fios**: cada nó é um tipo de dados (VFX, skin, animação, etc.) e cada **slot de saída** liga ao nó filho correcto.
+
+Serve para **ir e voltar** entre código ritual e grafo: importar texto → editar na cena → exportar de novo.
+
+## Como executar
+
+```bash
+pnpm install
+pnpm dev
+```
+
+Requisitos: Node 18+ e pnpm. Abre o endereço que o terminal mostrar.
+
+## Passo a passo (uso diário)
+
+### 1. Primeira abertura
+
+- **Meio:** cena gráfica (nós e ligações).
+- **Code:** painel de código à direita (botão **Código** no menu).
+- **Abas** no topo da zona do grafo: cada aba é uma cena de trabalho.
+
+### 2. Cenas de trabalho
+
+Menu **Grafo**:
+
+- **Nova Cena de trabalho** — começar do zero.
+- **Carregar cenas recentes** — reabrir um JSON guardado antes.
+- **Salvar Cena de trabalho** — gravar a cena completa num ficheiro `.json`.
+
+Grava explicitamente quando quiseres backup; o auto-save pesado em `localStorage` foi removido para não encher a quota do browser.
+
+### 3. Do código para o grafo (importar)
+
+1. Cola ou abre o ritual no **CodeDock**.
+2. **Converter [Class Group]** — escolhe a pasta do pack (ex.: `default`).
+3. **Code To Node Graph** — gera os nós na cena (inclui o nó **Main** e os filhos ligados).
+4. Explora o grafo: zoom com a roda, arrasta o fundo para mover a vista.
+
+### 4. Editar ligações e nós
+
+- **Adicionar nó:** menu **Nodes → Adicionar…**
+- **Ligar:** arrasta do **slot de saída** (bolinha/ícone à direita da estrutura) até ao nó filho ou solta no canvas vazio para escolher o tipo na paleta.
+- **Completar ligação:** com um fio a meio, clica na **entrada** do nó destino (topo do cartão).
+- **Forma da ligação:** clique **curto** num slot já ligado (ícone de corrente) alterna **flexível → rígida → sem fio**.
+- **Religar:** clique curto num slot **livre** abre o menu de tipos compatíveis.
+- **Menu de contexto:** botão direito no canvas, nó, slot ou fio.
+
+### 5. Do grafo para o código (exportar) — funcionalidade mais recente
+
+1. A cena deve ter **um único** nó **Main** com a subárvore que queres exportar.
+2. **Grafo → Node Graphs to Code**.
+3. Indica o nome da aba (ex.: `Zac.bin`).
+4. O ritual completo aparece no CodeDock (sem cortar ficheiros grandes).
+
+O texto gerado segue o estilo do `.bin` de referência (campos em PascalCase, ordem das `entries` do catálogo Main).
+
+### 6. Modo Configurar (schemas)
+
+1. **Nodes → Configurar** (activar).
+2. **Pasta Converter Class Group…** — pasta predefinida do pack.
+3. No CodeDock: **Extrair Node Base** e **Converter [Class Group]** usam essa pasta.
+
+### 7. Estados de cena
+
+Guarda **presets** com nome: quais nós estão ocultos, travados, cores, secções do cartão, filtro de ligações e **posição da câmera** (zoom/pan). Útil para comparar layouts ou voltar a uma vista de trabalho.
+
+### 8. Nodes em cena
+
+Lista lateral para seleccionar, focar, ocultar ou travar nós. Nos slots ligados, a barra de **peer** foca/oculta/trava o filho ligado.
+
+### 9. Jade
+
+Ferramentas no CodeDock para caminhos do Jade e abrir `.bin` em desenvolvimento (`pnpm jade-bridge:dev`).
+
+---
+
+## Funcionalidades desde a última `main` (resumo simples)
+
+Tudo o que a branch `main` antiga ainda **não** tinha, explicado por tema:
+
+| Tema | O que ganhaste |
+| --- | --- |
+| **Código ↔ Grafo** | **Code To Node Graph** (texto → cena) e **Node Graphs to Code** (cena → texto), inversos um do outro. |
+| **Cena** | Várias abas; menu Grafo; guardar/abrir JSON; estados nomeados com câmera; persistência leve de abas. |
+| **Nós** | Painel “em cena”; modo Configurar + pack `default`; elementos retraídos no cartão. |
+| **Ligações** | Tipos flex/rigid/wireless; ícone de corrente; ocultar filhos ligados; foco no par; arrasto e clique nos slots corrigidos. |
+| **Class Group** | Map hash/embed, listas, pointers, pickers, menus de elemento, ligação por collection type, inspector. |
+| **Jade** | Menu e ponte em dev para abrir `.bin`. |
+
+A **última** grande entrega é **Node Graphs to Code**: exportar a árvore do Main para ritual `#PROP_text` como no `estrutura_bin.py`, com correcções de formato e portos de saída a funcionar de novo.
+
+Documentação técnica detalhada (diagramas, commits): pasta [`feature_md/feature/`](feature_md/feature/).
+
+---
+
+*League BIN Node Editor — community tool, not affiliated with Riot Games.*
