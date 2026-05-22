@@ -26,6 +26,7 @@ import {
   isMapU64PointerSlotId,
   mapU64PointerSlotsForParameter,
 } from '@/core/mapU64PointerSlots'
+import { populatedSlotsForListPointer } from '@/core/listPointerSlots'
 import { populatedSlotsForPointer } from '@/core/pointerSlots'
 
 export const LIST_EMBED_SLOT_ID_PREFIX = '__slot__'

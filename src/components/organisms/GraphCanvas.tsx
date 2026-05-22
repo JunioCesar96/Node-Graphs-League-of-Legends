@@ -5,7 +5,10 @@ import { CanvasContextMenu } from '@/components/molecules/CanvasContextMenu'
 import { CollectionTypeLinkMenu } from '@/components/molecules/CollectionTypeLinkMenu'
 import { SceneCameraPanel } from '@/components/molecules/SceneCameraPanel'
 import { AddNodePalette } from '@/components/organisms/AddNodePalette'
+import { RitualNeekoStagingPreview } from '@/components/molecules/RitualNeekoStagingPreview'
 import { NodeCard } from '@/components/organisms/NodeCard'
+import { useRitualDragOptional } from '@/ritualDrag/RitualDragContext'
+import { useRitualDragCanvasDrop } from '@/hooks/useRitualDragCanvasDrop'
 import type { CanvasConnection, CanvasNode, CanvasPosition, CanvasScene, SceneCamera } from '@/core/canvasScene'
 import { isCanvasNodeBodyCollapsed } from '@/core/canvasScene'
 import {
@@ -128,6 +131,7 @@ import {
   ELEMENT_MENU_TRIGGER_ATTR,
 } from '@/core/canvasContextMenuAttributes'
 import { buildContextMenuItems } from '@/core/canvasContextMenuItems'
+import { isNeekoSchemaId } from '@/core/neekoNodeTransform'
 import {
   DEFAULT_CANVAS_TOOLBAR_VISIBILITY,
   toggleToolbarVisibility,
@@ -204,6 +208,7 @@ type GraphCanvasProps = {
   availableSchemas: NodeSchemaDefinition[]
   /** Nome da pasta sob `src/nodeStructures/` por id de schema (filtro 📂 na paleta). */
   schemaPackFolderBySchemaId?: Record<string, string>
+  schemaJsonRelativePathBySchemaId?: Record<string, string>
   /** Subpasta imediata dentro do pack (`''` = raiz); `temp` não aparece como etiqueta. */
   schemaStructureSubfolderBySchemaId?: Record<string, string>
   /** Módulo = JSON na raiz do pack; base = subpasta `pack_Type/Type.json` (exceto temp). */
@@ -355,6 +360,14 @@ type GraphCanvasProps = {
   ) => void
   /** Abre/expande o painel «Nodes em cena» (ex.: ao activar no submenu Exibir). */
   onSceneNodesPanelRequest?: () => void
+  /** Drop/colar ritual Class Group num Neeko Node. */
+  onNeekoDropCode?: (canvasNodeId: string, text: string) => void
+  /** Ritual drag: cria Neeko na grade após staging (posição canvas). */
+  onBuildNeekoAtPosition?: (position: CanvasPosition) => string | null
+  onNeekoBuildFailed?: () => void
+  neekoTransformingNodeId?: string | null
+  /** Packs só em memória (localStorage), sem pasta em nodeStructures. */
+  memoryPackFolders?: readonly string[]
   /** Grava preset de estados da cena (atalho no menu do card). */
   onExtractSceneNodesStatePreset?: (nodeId: string) => void
   /** Serializa Main → ritual Class Group e abre no CodeDock. */
@@ -1360,6 +1373,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
   {
     availableSchemas,
     schemaPackFolderBySchemaId,
+    schemaJsonRelativePathBySchemaId,
     schemaStructureSubfolderBySchemaId,
     schemaNodeKindBySchemaId,
     schemaBaseParameterCatalogBySchemaId,
@@ -1422,6 +1436,11 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     onSceneNodesPanelRequest,
     onExtractSceneNodesStatePreset,
     onGraphsToCode,
+    onNeekoDropCode,
+    onBuildNeekoAtPosition,
+    onNeekoBuildFailed,
+    neekoTransformingNodeId = null,
+    memoryPackFolders = [],
     toolbarVisibility: toolbarVisibilityProp,
     onToolbarVisibilityChange,
     attachedViewport = false,
@@ -1448,6 +1467,26 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
   const marqueeGestureRef = useRef<{ additive: boolean; pointerId: number; start: CanvasPosition } | null>(null)
   const viewportRef = useRef<HTMLElement | null>(null)
   const viewportBodyRef = useRef<HTMLDivElement | null>(null)
+  const ritualDrag = useRitualDragOptional()
+
+  useRitualDragCanvasDrop({
+    ritualDrag,
+    scale,
+    sceneNodes: scene.nodes,
+    canvasRef,
+    viewportBodyRef,
+    onNeekoDropCode,
+    onBuildNeekoAtPosition,
+    onNeekoBuildFailed,
+  })
+
+  const ritualDropHoverNeekoId =
+    ritualDrag?.phase === 'dragging' ||
+    ritualDrag?.phase === 'buildingNeeko' ||
+    ritualDrag?.phase === 'readyNeeko'
+      ? ritualDrag.hoveredNeekoCanvasNodeId
+      : null
+
   const [marqueeOverlay, setMarqueeOverlay] = useState<null | { current: CanvasPosition; start: CanvasPosition }>(
     null,
   )
@@ -3547,6 +3586,44 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     viewportNavigateMode,
   ])
 
+  useEffect(() => {
+    if (!onNeekoDropCode || !selectedNodeId) {
+      return
+    }
+
+    const handleNeekoPaste = async (event: KeyboardEvent) => {
+      if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== 'v') {
+        return
+      }
+      if (shouldIgnoreCanvasKeyboardShortcut(event)) {
+        return
+      }
+
+      const canvasNode = scene.nodes.find((node) => node.id === selectedNodeId)
+      if (!canvasNode || !isNeekoSchemaId(canvasNode.node.schema.id) || isNodeLocked(canvasNode)) {
+        return
+      }
+
+      event.preventDefault()
+      event.stopPropagation()
+
+      try {
+        const text = (await navigator.clipboard.readText()).trim()
+        if (text.length > 0) {
+          onNeekoDropCode(selectedNodeId, text)
+        }
+      } catch {
+        /** clipboard indisponível */
+      }
+    }
+
+    window.addEventListener('keydown', handleNeekoPaste, true)
+
+    return () => {
+      window.removeEventListener('keydown', handleNeekoPaste, true)
+    }
+  }, [onNeekoDropCode, scene.nodes, selectedNodeId])
+
   return (
     <section
       aria-label="Static node graph canvas"
@@ -3648,6 +3725,8 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
           onClose={closePalette}
           onPickSchema={handlePalettePick}
           packFolderBySchemaId={schemaPackFolderBySchemaId}
+          jsonRelativePathBySchemaId={schemaJsonRelativePathBySchemaId}
+          memoryPackFolders={memoryPackFolders}
           structureSubfolderBySchemaId={schemaStructureSubfolderBySchemaId}
           schemas={paletteSchemas}
         />
@@ -3724,6 +3803,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
         ref={viewportBodyRef}
       >
       <div className={styles.canvas} ref={canvasRef} style={canvasStyle}>
+        <RitualNeekoStagingPreview />
         <svg
           className={styles.connections}
           height={canvasBounds.height}
@@ -4027,6 +4107,15 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
                     : undefined
                 }
                 selected={isSelected}
+                neekoTransformPhase={canvasNode.neekoTransformPhase}
+                neekoTransformError={canvasNode.neekoTransformError}
+                isNeekoTransforming={neekoTransformingNodeId === canvasNode.id}
+                ritualDropHover={ritualDropHoverNeekoId === canvasNode.id}
+                onNeekoDropCode={
+                  onNeekoDropCode && !nodeLocked
+                    ? (text) => onNeekoDropCode(canvasNode.id, text)
+                    : undefined
+                }
                 outputSlotPeerActions={buildOutputSlotPeerActions(canvasNode.id)}
               />
             </div>

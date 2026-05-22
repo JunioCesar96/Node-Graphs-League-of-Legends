@@ -7,15 +7,37 @@ import GeneralEditPanel from '@jade/components/GeneralEditPanel'
 import ParticleEditorPanel from '@jade/components/ParticleEditorPanel'
 
 import type { useCodeDockJadeEditor } from '@/hooks/useCodeDockJadeEditor'
+import { useJadeBridgeCapabilities } from '@/hooks/useJadeBridgeCapabilities'
 
 type JadeEditor = ReturnType<typeof useCodeDockJadeEditor>
 
 type CodeDockJadeDialogsProps = {
   editor: JadeEditor
   value: string
+  neekoSendTarget?: { canvasNodeId: string } | null
+  onSendCodeToNeeko?: (canvasNodeId: string, text: string) => void
 }
 
-export function CodeDockJadeDialogs({ editor, value }: CodeDockJadeDialogsProps) {
+export function CodeDockJadeDialogs({
+  editor,
+  value,
+  neekoSendTarget = null,
+  onSendCodeToNeeko,
+}: CodeDockJadeDialogsProps) {
+  const { capabilities, httpBridgeEnabled } = useJadeBridgeCapabilities()
+  const bridgeFeatures = httpBridgeEnabled ? capabilities?.features : undefined
+
+  const ctxSelectedText = editor.ctxMenu?.selectedText ?? ''
+  const showToNeekoNode =
+    Boolean(neekoSendTarget && onSendCodeToNeeko && ctxSelectedText.length > 0)
+
+  const handleToNeekoNode = () => {
+    if (!neekoSendTarget || !onSendCodeToNeeko || ctxSelectedText.length === 0) {
+      return
+    }
+    onSendCodeToNeeko(neekoSendTarget.canvasNodeId, ctxSelectedText)
+  }
+
   return (
     <>
       {editor.ctxMenu ? (
@@ -27,7 +49,9 @@ export function CodeDockJadeDialogs({ editor, value }: CodeDockJadeDialogsProps)
           onFoldEmitters={editor.foldAllEmitters}
           onPaste={editor.handlePaste}
           onSelectAll={editor.handleSelectAll}
+          onToNeekoNode={showToNeekoNode ? handleToNeekoNode : undefined}
           onUnfoldEmitters={editor.unfoldAllEmitters}
+          showToNeekoNode={showToNeekoNode}
           x={editor.ctxMenu.x}
           y={editor.ctxMenu.y}
         />
@@ -36,6 +60,7 @@ export function CodeDockJadeDialogs({ editor, value }: CodeDockJadeDialogsProps)
       <GeneralEditPanel
         docked
         editorContent={value}
+        httpBridgeEnabled={httpBridgeEnabled && capabilities?.features?.materialOverride === true}
         isOpen={editor.generalEditOpen}
         onClose={() => editor.setGeneralEditOpen(false)}
         onContentChange={editor.handlePanelContentChange}
@@ -51,12 +76,14 @@ export function CodeDockJadeDialogs({ editor, value }: CodeDockJadeDialogsProps)
       />
 
       <SettingsDialog
+        httpBridgeFeatures={bridgeFeatures}
         isOpen={editor.showSettings}
         onClose={() => editor.setShowSettings(false)}
         tauriFeaturesEnabled={false}
       />
 
       <PreferencesDialog
+        httpBridgeEnabled={httpBridgeEnabled}
         isOpen={editor.showPreferences}
         onClose={() => editor.setShowPreferences(false)}
         onEmitterHintsChange={editor.onEmitterHintsChange}

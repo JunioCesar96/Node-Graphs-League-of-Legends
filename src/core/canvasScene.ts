@@ -6,6 +6,7 @@ import type {
   NodeCardSectionExpandedMap,
   NodeCardSectionId,
 } from './nodeCardSections'
+import type { NewNodeMaterializePhase } from './codeToNewNodeGraph'
 import type {
   InternalStructureDefinition,
   NodeInstance,
@@ -96,6 +97,10 @@ export type CanvasNode = {
   bodyColorEnabled?: boolean
   /** Trava movimento, edição de valores e ligações de saída. */
   locked?: boolean
+  /** Fase de materialização durante transformação Neeko (não persistir). */
+  neekoTransformPhase?: NewNodeMaterializePhase
+  /** Erro de parse/drop Neeko (não persistir). */
+  neekoTransformError?: string
 }
 
 export function isCanvasNodeBodyCollapsed(canvasNode: CanvasNode): boolean {

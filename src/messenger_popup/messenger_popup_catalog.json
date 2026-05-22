@@ -41,6 +41,24 @@
       "message": "Nó bloqueado.",
       "durationMs": 3500,
       "kind": "toast"
+    },
+    {
+      "id": "toast_neeko_transform_error",
+      "message": "[Neeko Node] {error}",
+      "durationMs": 8000,
+      "kind": "toast"
+    },
+    {
+      "id": "toast_neeko_transform_warnings",
+      "message": "[Neeko Node] {summary}",
+      "durationMs": 10000,
+      "kind": "toast"
+    },
+    {
+      "id": "toast_neeko_build_failed",
+      "message": "Falha ao construir Neeko node.",
+      "durationMs": 6000,
+      "kind": "toast"
     }
   ]
 }

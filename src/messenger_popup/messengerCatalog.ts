@@ -14,6 +14,15 @@ export const MESSENGER_TOAST_HASH_STRING_REQUIRES_STRING_PARAM =
 
 export const MESSENGER_TOAST_NODE_LOCKED = 'toast_node_locked' as const
 
+export const MESSENGER_CONFIRM_SPAWN_NEEKO_FROM_RITUAL_DRAG =
+  'confirm_spawn_neeko_from_ritual_drag' as const
+
+export const MESSENGER_TOAST_NEEKO_TRANSFORM_ERROR = 'toast_neeko_transform_error' as const
+
+export const MESSENGER_TOAST_NEEKO_TRANSFORM_WARNINGS = 'toast_neeko_transform_warnings' as const
+
+export const MESSENGER_TOAST_NEEKO_BUILD_FAILED = 'toast_neeko_build_failed' as const
+
 export type MessengerPopupKind = 'confirm' | 'toast'
 
 export type MessengerPopupCatalogEntry = {

@@ -11,6 +11,9 @@ import Editor from '@monaco-editor/react'
 import MenuBar from '@jade/components/MenuBar'
 import { getMonacoLanguageForFileName } from '@/core/codeDockFileTypes'
 import { useCodeDockJadeEditor } from '@/hooks/useCodeDockJadeEditor'
+import { useRitualDragOptional } from '@/ritualDrag/RitualDragContext'
+
+import { sanitizeStructurePackFolderName } from '@/core/nodeStructurePackStorage'
 
 import { clampFloatingDockRect, type CodeDockFloatingRect } from './codeDockFloatingRect'
 import { CodeDockTabBar } from '@/components/molecules/CodeDockTabBar'
@@ -41,6 +44,15 @@ export type CodeDockNodeActions = {
   listStructurePackFolders: () => Promise<string[]>
   onExtractNodeBase: (folder: string) => boolean | Promise<boolean>
   deleteFolder: (folder: string) => Promise<{ ok: boolean; error?: string; notice?: string }>
+  /** Ritual Class Group → cena gráfica (pack de schemas). */
+  onCodeToNodeGraph: (folder: string) => boolean | Promise<boolean>
+  /** Ritual Class Group → cena incremental com revisão por passo. */
+  onCodeToNodeGraphStepByStep?: (folder: string) => boolean | Promise<boolean>
+  getDefaultStructurePackFolder?: () => string
+  /** Ritual → novo pack + instâncias na cena (sem pack existente). */
+  onCodeToNewNodeGraph?: (folder: string) => boolean | Promise<boolean>
+  onCodeToNewNodeGraphStepByStep?: (folder: string) => boolean | Promise<boolean>
+  getDefaultNewNodeGraphPackFolder?: () => string
 }
 
 type FloatingDragPhase =
@@ -61,6 +73,11 @@ export type CodeDockFileBridge = {
   openFileDisabled?: boolean
 }
 
+export type CodeToNewNodeGraphProgress = {
+  label: string
+  ratio: number
+}
+
 type CodeDockProps = {
   dockedWidth: number
   floatingActive: boolean
@@ -73,6 +90,8 @@ type CodeDockProps = {
   onDockedWidthChange: (nextWidth: number) => void
   /** Ritual → tipos na paleta; eliminar pastas pack (exceto `default`) */
   nodeActions?: CodeDockNodeActions
+  /** Barra de progresso do fluxo «Code to new node graph» (gerar). */
+  codeToNewGraphProgress?: CodeToNewNodeGraphProgress | null
   fileBridge?: CodeDockFileBridge
   tabs: CodeDockTabBarItem[]
   activeTabId: string
@@ -82,6 +101,9 @@ type CodeDockProps = {
   onNewTab?: () => void
   onTabAction?: (tabId: string, action: TabContextMenuAction) => void
   value: string
+  /** Neeko Node seleccionado no canvas — activa «To Neeko node» no menu do editor. */
+  neekoSendTarget?: { canvasNodeId: string } | null
+  onSendCodeToNeeko?: (canvasNodeId: string, text: string) => void
 }
 
 export const CODE_DOCK_DEFAULT_WIDTH = 588
@@ -101,6 +123,7 @@ export function CodeDock({
   onResetFloatingDimensions,
   onDockedWidthChange,
   nodeActions,
+  codeToNewGraphProgress = null,
   fileBridge,
   tabs,
   activeTabId,
@@ -110,10 +133,14 @@ export function CodeDock({
   onNewTab,
   onTabAction,
   value,
+  neekoSendTarget = null,
+  onSendCodeToNeeko,
 }: CodeDockProps) {
   const monacoModelPath = `/workspace/code-dock/${activeTabId}/${activeFileName}`
   const editorLanguage = getMonacoLanguageForFileName(activeFileName)
   const jade = useCodeDockJadeEditor(value, onChange, editorLanguage)
+  const ritualDrag = useRitualDragOptional()
+  const ritualDragPhase = ritualDrag?.phase ?? 'idle'
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [deleteChoices, setDeleteChoices] = useState<string[]>([])
   const [deleteSelected, setDeleteSelected] = useState('')
@@ -129,6 +156,15 @@ export function CodeDock({
   const [nomeSelected, setNomeSelected] = useState('')
   const [nomeBusy, setNomeBusy] = useState(false)
   const [nomeListError, setNomeListError] = useState<string | null>(null)
+  const [codeToGraphDialogOpen, setCodeToGraphDialogOpen] = useState(false)
+  const [codeToGraphChoices, setCodeToGraphChoices] = useState<string[]>([])
+  const [codeToGraphSelected, setCodeToGraphSelected] = useState('')
+  const [codeToGraphBusy, setCodeToGraphBusy] = useState(false)
+  const [codeToGraphListError, setCodeToGraphListError] = useState<string | null>(null)
+  const [codeToNewGraphDialogOpen, setCodeToNewGraphDialogOpen] = useState(false)
+  const [codeToNewGraphFolder, setCodeToNewGraphFolder] = useState('')
+  const [codeToNewGraphBusy, setCodeToNewGraphBusy] = useState(false)
+  const [codeToNewGraphError, setCodeToNewGraphError] = useState<string | null>(null)
 
   const dragPhaseRef = useRef<FloatingDragPhase>(null)
   const floatMovePendingRef = useRef<{
@@ -164,6 +200,14 @@ export function CodeDock({
 
       const pending = floatMovePendingRef.current
       if (pending && !dragPhaseRef.current) {
+        if (
+          ritualDragPhase === 'dragging' ||
+          ritualDragPhase === 'buildingNeeko' ||
+          ritualDragPhase === 'readyNeeko'
+        ) {
+          floatMovePendingRef.current = null
+          return
+        }
         const dx = event.clientX - pending.sx
         const dy = event.clientY - pending.sy
         if (Math.hypot(dx, dy) >= FLOAT_DRAG_THRESHOLD_PX) {
@@ -232,7 +276,7 @@ export function CodeDock({
       window.removeEventListener('pointercancel', stopFloatingDrag)
       window.removeEventListener('pointerup', stopFloatingDrag)
     }
-  }, [applyFloatingRect, floatingActive])
+  }, [applyFloatingRect, floatingActive, ritualDragPhase])
 
   useEffect(() => {
     if (!floatingActive) {
@@ -376,6 +420,145 @@ export function CodeDock({
     setNomeBusy(false)
   }, [])
 
+  const pickDefaultPackFolder = useCallback(
+    (folders: string[]) => {
+      const preferred = nodeActions?.getDefaultStructurePackFolder?.()
+      if (preferred && folders.includes(preferred)) {
+        return preferred
+      }
+      if (folders.includes('default')) {
+        return 'default'
+      }
+      return folders[0] ?? ''
+    },
+    [nodeActions],
+  )
+
+  const openCodeToGraphDialog = useCallback(async () => {
+    if (!nodeActions) {
+      return
+    }
+    setCodeToGraphListError(null)
+    setCodeToGraphBusy(false)
+    setCodeToGraphDialogOpen(true)
+    try {
+      const folders = await nodeActions.listStructurePackFolders()
+      setCodeToGraphChoices(folders)
+      setCodeToGraphSelected(pickDefaultPackFolder(folders))
+    } catch {
+      setCodeToGraphChoices([])
+      setCodeToGraphSelected('')
+      setCodeToGraphListError('Não foi possível obter a lista de pastas.')
+    }
+  }, [nodeActions, pickDefaultPackFolder])
+
+  const closeCodeToGraphDialog = useCallback(() => {
+    setCodeToGraphDialogOpen(false)
+    setCodeToGraphListError(null)
+    setCodeToGraphBusy(false)
+  }, [])
+
+  const confirmCodeToNodeGraph = useCallback(async () => {
+    if (!nodeActions || !codeToGraphSelected) {
+      return
+    }
+    setCodeToGraphBusy(true)
+    try {
+      const okOutcome = await nodeActions.onCodeToNodeGraph(codeToGraphSelected)
+      if (okOutcome) {
+        closeCodeToGraphDialog()
+      }
+    } finally {
+      setCodeToGraphBusy(false)
+    }
+  }, [closeCodeToGraphDialog, codeToGraphSelected, nodeActions])
+
+  const confirmCodeToNodeGraphStepByStep = useCallback(async () => {
+    if (!nodeActions?.onCodeToNodeGraphStepByStep || !codeToGraphSelected) {
+      return
+    }
+    setCodeToGraphBusy(true)
+    try {
+      const okOutcome = await nodeActions.onCodeToNodeGraphStepByStep(codeToGraphSelected)
+      if (okOutcome) {
+        closeCodeToGraphDialog()
+      }
+    } finally {
+      setCodeToGraphBusy(false)
+    }
+  }, [closeCodeToGraphDialog, codeToGraphSelected, nodeActions])
+
+  const openCodeToNewGraphDialog = useCallback(() => {
+    if (!nodeActions?.onCodeToNewNodeGraph) {
+      return
+    }
+    setCodeToNewGraphError(null)
+    setCodeToNewGraphBusy(false)
+    const defaultFolder = nodeActions.getDefaultNewNodeGraphPackFolder?.() ?? 'importado'
+    setCodeToNewGraphFolder(defaultFolder)
+    setCodeToNewGraphDialogOpen(true)
+  }, [nodeActions])
+
+  const closeCodeToNewGraphDialog = useCallback(() => {
+    setCodeToNewGraphDialogOpen(false)
+    setCodeToNewGraphError(null)
+    setCodeToNewGraphBusy(false)
+  }, [])
+
+  const resolveNewGraphFolder = useCallback((): string | null => {
+    const folder = sanitizeStructurePackFolderName(codeToNewGraphFolder)
+    if (!folder) {
+      setCodeToNewGraphError(
+        'Nome inválido. Usa letras minúsculas, números, hífen (-) e sublinhado (_), até 48 caracteres.',
+      )
+      return null
+    }
+    if (folder === 'default') {
+      setCodeToNewGraphError('«default» é reservada; escolhe outro nome de pasta.')
+      return null
+    }
+    setCodeToNewGraphError(null)
+    return folder
+  }, [codeToNewGraphFolder])
+
+  const confirmCodeToNewNodeGraph = useCallback(async () => {
+    if (!nodeActions?.onCodeToNewNodeGraph) {
+      return
+    }
+    const folder = resolveNewGraphFolder()
+    if (!folder) {
+      return
+    }
+    setCodeToNewGraphBusy(true)
+    try {
+      const okOutcome = await nodeActions.onCodeToNewNodeGraph(folder)
+      if (okOutcome) {
+        closeCodeToNewGraphDialog()
+      }
+    } finally {
+      setCodeToNewGraphBusy(false)
+    }
+  }, [closeCodeToNewGraphDialog, nodeActions, resolveNewGraphFolder])
+
+  const confirmCodeToNewNodeGraphStepByStep = useCallback(async () => {
+    if (!nodeActions?.onCodeToNewNodeGraphStepByStep) {
+      return
+    }
+    const folder = resolveNewGraphFolder()
+    if (!folder) {
+      return
+    }
+    setCodeToNewGraphBusy(true)
+    try {
+      const okOutcome = await nodeActions.onCodeToNewNodeGraphStepByStep(folder)
+      if (okOutcome) {
+        closeCodeToNewGraphDialog()
+      }
+    } finally {
+      setCodeToNewGraphBusy(false)
+    }
+  }, [closeCodeToNewGraphDialog, nodeActions, resolveNewGraphFolder])
+
   const confirmApplyNome = useCallback(async () => {
     if (!nodeActions || !nomeSelected) {
       return
@@ -392,13 +575,26 @@ export function CodeDock({
   }, [closeNomeDialog, nomeSelected, nodeActions])
 
   const beginDockWidthResize = useCallback((event: ReactPointerEvent) => {
+    if (
+      ritualDragPhase === 'dragging' ||
+      ritualDragPhase === 'buildingNeeko' ||
+      ritualDragPhase === 'readyNeeko'
+    ) {
+      return
+    }
     event.preventDefault()
     dockedResizePhaseRef.current = true
-  }, [])
+  }, [ritualDragPhase])
 
   const beginFloatMovePending = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {
-      if (!floatingActive || event.button !== 0) {
+      if (
+        !floatingActive ||
+        event.button !== 0 ||
+        ritualDragPhase === 'dragging' ||
+        ritualDragPhase === 'buildingNeeko' ||
+        ritualDragPhase === 'readyNeeko'
+      ) {
         return
       }
       const r = floatingRectRef.current
@@ -409,12 +605,12 @@ export function CodeDock({
         sy: event.clientY,
       }
     },
-    [floatingActive],
+    [floatingActive, ritualDragPhase],
   )
 
   const startFloatResize = useCallback(
     (corner: CodeDockFloatingResizeCorner, event: ReactPointerEvent<HTMLButtonElement>) => {
-      if (!floatingActive) {
+      if (!floatingActive || ritualDragPhase === 'dragging') {
         return
       }
       event.preventDefault()
@@ -438,7 +634,7 @@ export function CodeDock({
 
       event.currentTarget.setPointerCapture(event.pointerId)
     },
-    [floatingActive],
+    [floatingActive, ritualDragPhase],
   )
 
   useEffect(() => {
@@ -472,6 +668,16 @@ export function CodeDock({
       </button>
       <button className="menu-option" type="button" onClick={() => void openDeleteDialog()}>
         <span>Deletar pack</span>
+      </button>
+      <div className="menu-separator" role="separator" />
+      <span className="codeDockCodeToNodeGraphSectionLabel">Code To Node Graph</span>
+      <button className="menu-option" type="button" onClick={() => void openCodeToGraphDialog()}>
+        <span>Code To Node Graph</span>
+      </button>
+      <div className="menu-separator" role="separator" />
+      <span className="codeDockCodeToNodeGraphSectionLabel">Code to new node graph</span>
+      <button className="menu-option" type="button" onClick={() => openCodeToNewGraphDialog()}>
+        <span>Code to new node graph</span>
       </button>
     </>
   ) : null
@@ -705,6 +911,132 @@ export function CodeDock({
           </div>
         </div>
       ) : null}
+      {codeToGraphDialogOpen ? (
+        <div aria-modal className={styles.dialogBackdrop} role="dialog">
+          <div className={styles.dialogPanel}>
+            <p className={styles.dialogTitle}>Code To Node Graph</p>
+            {codeToGraphListError ? (
+              <p className={styles.dialogHint}>{codeToGraphListError}</p>
+            ) : codeToGraphChoices.length === 0 ? (
+              <p className={styles.dialogHint}>
+                Nenhum pack disponível. Converte ritual para um pack ou activa Nodes → Configurar para
+                incluir «default».
+              </p>
+            ) : (
+              <>
+                <label className={styles.dialogField}>
+                  Pasta do pack
+                  <select
+                    className={styles.dialogSelect}
+                    onChange={(e) => setCodeToGraphSelected(e.target.value)}
+                    value={codeToGraphSelected || codeToGraphChoices[0]}
+                  >
+                    {codeToGraphChoices.map((f) => (
+                      <option key={f} value={f}>
+                        {f}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <p className={styles.dialogHint}>
+                  Gera a cena a partir do ritual Class Group (raiz main), com ligações sem fio e um nó
+                  por estrutura. Só entram parâmetros definidos no código — sem defaults do pack JSON. A
+                  aba de cena usa o nome do ficheiro de código.
+                </p>
+              </>
+            )}
+            <div className={styles.dialogActions}>
+              <button className={styles.headerGhostButton} onClick={closeCodeToGraphDialog} type="button">
+                Cancelar
+              </button>
+              {nodeActions?.onCodeToNodeGraphStepByStep ? (
+                <button
+                  className={styles.headerGhostButton}
+                  disabled={codeToGraphBusy || codeToGraphChoices.length === 0 || !codeToGraphSelected}
+                  onClick={() => void confirmCodeToNodeGraphStepByStep()}
+                  type="button"
+                >
+                  {codeToGraphBusy ? 'A iniciar…' : 'Passo a passo'}
+                </button>
+              ) : null}
+              <button
+                className={styles.headerGhostButton}
+                disabled={codeToGraphBusy || codeToGraphChoices.length === 0 || !codeToGraphSelected}
+                onClick={() => void confirmCodeToNodeGraph()}
+                type="button"
+              >
+                {codeToGraphBusy ? 'A gerar…' : 'Gerar grafo'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+      {codeToNewGraphDialogOpen ? (
+        <div aria-modal className={styles.dialogBackdrop} role="dialog">
+          <div className={styles.dialogPanel}>
+            <p className={styles.dialogTitle}>Code to new node graph</p>
+            {codeToNewGraphError ? <p className={styles.dialogHint}>{codeToNewGraphError}</p> : null}
+            <label className={styles.dialogField}>
+              Nome da pasta (novo pack)
+              <input
+                className={styles.dialogSelect}
+                onChange={(e) => setCodeToNewGraphFolder(e.target.value)}
+                placeholder="ex.: meu-pack"
+                type="text"
+                value={codeToNewGraphFolder}
+              />
+            </label>
+            <p className={styles.dialogHint}>
+              Cria schemas em <code>nodeStructures/&lt;nome&gt;/</code> a partir do ritual e gera a cena
+              com instâncias (elementos → valores → estruturas internas). Não usa um pack existente.
+            </p>
+            {codeToNewGraphProgress ? (
+              <div className={styles.dialogProgress}>
+                <p className={styles.dialogProgressMeta}>{codeToNewGraphProgress.label}</p>
+                <div
+                  aria-valuemax={100}
+                  aria-valuemin={0}
+                  aria-valuenow={Math.round(codeToNewGraphProgress.ratio * 100)}
+                  className={styles.dialogProgressBar}
+                  role="progressbar"
+                >
+                  <div
+                    className={styles.dialogProgressFill}
+                    style={{ width: `${String(Math.round(codeToNewGraphProgress.ratio * 100))}%` }}
+                  />
+                </div>
+              </div>
+            ) : null}
+            <div className={styles.dialogActions}>
+              <button className={styles.headerGhostButton} onClick={closeCodeToNewGraphDialog} type="button">
+                Cancelar
+              </button>
+              {nodeActions?.onCodeToNewNodeGraphStepByStep ? (
+                <button
+                  className={styles.headerGhostButton}
+                disabled={
+                  codeToNewGraphBusy || codeToNewGraphProgress !== null || !codeToNewGraphFolder.trim()
+                }
+                onClick={() => void confirmCodeToNewNodeGraphStepByStep()}
+                type="button"
+              >
+                {codeToNewGraphBusy ? 'A iniciar…' : 'Passo a passo'}
+              </button>
+              ) : null}
+              <button
+                className={styles.headerGhostButton}
+                disabled={
+                  codeToNewGraphBusy || codeToNewGraphProgress !== null || !codeToNewGraphFolder.trim()
+                }
+                onClick={() => void confirmCodeToNewNodeGraph()}
+                type="button"
+              >
+                {codeToNewGraphProgress?.label ?? (codeToNewGraphBusy ? 'A gerar…' : 'Gerar')}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
       {extractDialogOpen ? (
         <div aria-modal className={styles.dialogBackdrop} role="dialog">
           <div className={styles.dialogPanel}>
@@ -777,7 +1109,12 @@ export function CodeDock({
         )}
       </div>
 
-      <CodeDockJadeDialogs editor={jade} value={value} />
+      <CodeDockJadeDialogs
+        editor={jade}
+        neekoSendTarget={neekoSendTarget}
+        onSendCodeToNeeko={onSendCodeToNeeko}
+        value={value}
+      />
     </aside>
   )
 

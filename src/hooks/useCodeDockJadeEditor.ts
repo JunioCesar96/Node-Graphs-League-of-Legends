@@ -3,7 +3,7 @@ import type { Monaco } from '@monaco-editor/react'
 import type * as MonacoType from 'monaco-editor'
 
 import { getPreference } from '@jade/lib/preferenceStore'
-import { registerRitobinTheme, RITOBIN_THEME_ID } from '@jade/lib/ritobinLanguage'
+import { registerRitobinTheme, RITOBIN_LANGUAGE_ID, RITOBIN_THEME_ID } from '@jade/lib/ritobinLanguage'
 import { applyTheme } from '@jade/lib/themeApplicator'
 
 import {
@@ -18,10 +18,21 @@ import {
   type PerfKey,
   type PerfPrefs,
 } from './buildMonacoOptions'
+import { useCodeDockRitualDrag } from './useCodeDockRitualDrag'
 
-export type CodeDockCtxMenu = { x: number; y: number } | null
+export type CodeDockCtxMenu = {
+  x: number
+  y: number
+  /** Texto ritual da selecção activa (só se o clique foi dentro da selecção). */
+  selectedText: string
+} | null
 
-export function useCodeDockJadeEditor(value: string, onContentChange: (next: string) => void) {
+export function useCodeDockJadeEditor(
+  value: string,
+  onContentChange: (next: string) => void,
+  editorLanguage: string = RITOBIN_LANGUAGE_ID,
+) {
+  const isRitobinEditor = editorLanguage === RITOBIN_LANGUAGE_ID
   const editorRef = useRef<MonacoType.editor.IStandaloneCodeEditor | null>(null)
   const monacoRef = useRef<Monaco | null>(null)
   const decorationIdsRef = useRef<string[]>([])
@@ -50,8 +61,11 @@ export function useCodeDockJadeEditor(value: string, onContentChange: (next: str
   const [showAbout, setShowAbout] = useState(false)
 
   const [focused, setFocused] = useState(false)
+  const [editorMounted, setEditorMounted] = useState(false)
 
   const monacoOptions = buildMonacoOptions(perfPrefs, lineCount, editorFontFamily || undefined)
+
+  useCodeDockRitualDrag(editorRef, editorMounted)
 
   const loadPerfPrefs = useCallback(async () => {
     const next: PerfPrefs = { ...PERF_DEFAULTS }
@@ -158,18 +172,22 @@ export function useCodeDockJadeEditor(value: string, onContentChange: (next: str
     const editor = editorRef.current
     if (!monaco || !editor) return
 
-    if (!syntaxCheckingEnabledRef.current) {
-      const model = editor.getModel()
-      if (model && !model.isDisposed()) {
-        monaco.editor.setModelMarkers(model, 'syntax-checker', [])
-        decorationIdsRef.current = model.deltaDecorations(decorationIdsRef.current, [])
-      }
+    const model = editor.getModel()
+
+    if (!model || model.isDisposed()) {
+      return
+    }
+
+    if (!isRitobinEditor || !syntaxCheckingEnabledRef.current) {
+      monaco.editor.setModelMarkers(model, 'syntax-checker', [])
+      decorationIdsRef.current = model.deltaDecorations(decorationIdsRef.current, [])
+      emitterDecorationIdsRef.current = model.deltaDecorations(emitterDecorationIdsRef.current, [])
       return
     }
 
     updateRitobinSyntaxMarkers(monaco, editor, decorationIdsRef)
     updateEmitterNameDecorations(editor)
-  }, [updateEmitterNameDecorations])
+  }, [isRitobinEditor, updateEmitterNameDecorations])
 
   const scheduleSyntaxPass = useCallback(() => {
     if (debounceTimerRef.current !== null) clearTimeout(debounceTimerRef.current)
@@ -391,7 +409,26 @@ export function useCodeDockJadeEditor(value: string, onContentChange: (next: str
       const ctxDisposable = editor.onContextMenu((e) => {
         e.event.preventDefault()
         e.event.stopPropagation()
-        setCtxMenu({ x: e.event.posx, y: e.event.posy })
+
+        const selection = editor.getSelection()
+        const model = editor.getModel()
+        let selectedText = ''
+
+        if (selection && model && !selection.isEmpty()) {
+          const clickPosition = e.target.position
+          const clickOnSelection =
+            clickPosition !== undefined && selection.containsPosition(clickPosition)
+
+          if (clickOnSelection) {
+            selectedText = model.getValueInRange(selection).trim()
+          }
+        }
+
+        setCtxMenu({
+          x: e.event.posx,
+          y: e.event.posy,
+          selectedText,
+        })
       })
       editorDisposablesRef.current.push(ctxDisposable)
 
@@ -399,6 +436,7 @@ export function useCodeDockJadeEditor(value: string, onContentChange: (next: str
       const focusOut = editor.onDidBlurEditorText(() => setFocused(false))
       editorDisposablesRef.current.push(focusIn, focusOut)
 
+      setEditorMounted(true)
       runSyntaxPass()
     },
     [runSyntaxPass, scheduleSyntaxPass, syncLineCount],
@@ -407,7 +445,11 @@ export function useCodeDockJadeEditor(value: string, onContentChange: (next: str
   useEffect(() => {
     scheduleSyntaxPass()
     syncLineCount()
-  }, [scheduleSyntaxPass, syncLineCount, value])
+  }, [isRitobinEditor, scheduleSyntaxPass, syncLineCount, value])
+
+  useEffect(() => {
+    runSyntaxPass()
+  }, [editorLanguage, isRitobinEditor, runSyntaxPass])
 
   useEffect(() => {
     return () => {
@@ -422,6 +464,7 @@ export function useCodeDockJadeEditor(value: string, onContentChange: (next: str
       })
       editorRef.current = null
       monacoRef.current = null
+      setEditorMounted(false)
     }
   }, [])
 

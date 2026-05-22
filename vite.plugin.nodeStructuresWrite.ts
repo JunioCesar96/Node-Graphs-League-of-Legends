@@ -21,6 +21,12 @@ import {
   readPointerBlocksFromSchemaJson,
 } from './src/core/extractNodeBaseParameters'
 import type { NodeStructureNomenclature } from './src/core/nodeSchema'
+import {
+  isNeekoCardSchemaId,
+  NEEKO_DISK_PACK_FOLDER,
+  neekoFileName,
+  neekoSubfolderName,
+} from './src/core/neekoNodeDiskLayout'
 import { nodeParameterDefinitionFromJsonStub, parseNomenclatureFromStructureJson } from './src/core/nodeStructureJson'
 
 /** Pastas dentro de `src/nodeStructures/` que não podem ser criadas/eliminadas via API */
@@ -1557,9 +1563,17 @@ export function vitePluginNodeStructuresWrite(projectRoot: string): Plugin {
                 return
               }
 
-              const folder = safePackFolder(String(parsed.folder ?? ''))
+              const layoutRaw = parsed.layout
+              const layout =
+                layoutRaw === 'neeko' ? 'neeko' : layoutRaw === 'standard' ? 'standard' : 'standard'
+
+              let folder = safePackFolder(String(parsed.folder ?? ''))
               const schemasRaw = parsed.schemas
               const rootSchemaIdsRaw = parsed.rootSchemaIds
+
+              if (layout === 'neeko') {
+                folder = NEEKO_DISK_PACK_FOLDER
+              }
               const rootSchemaIdSet = new Set<string>()
               if (Array.isArray(rootSchemaIdsRaw)) {
                 for (const entry of rootSchemaIdsRaw) {
@@ -1590,10 +1604,18 @@ export function vitePluginNodeStructuresWrite(projectRoot: string): Plugin {
 
               const written: string[] = []
               const skipped: string[] = []
+              const usedNeekoFileNames = new Set<string>()
 
               for (const item of schemasRaw) {
                 if (!isRecord(item) || typeof item.id !== 'string') {
                   skipped.push('(schema sem id)')
+                  continue
+                }
+
+                const schemaId = String(item.id).trim()
+
+                if (isNeekoCardSchemaId(schemaId)) {
+                  skipped.push(schemaId)
                   continue
                 }
 
@@ -1607,12 +1629,26 @@ export function vitePluginNodeStructuresWrite(projectRoot: string): Plugin {
                 const titleRaw = typeof item.title === 'string' ? item.title.trim() : ''
                 const typeDirSegment = safeCollectionTypeDirSegment(titleRaw || stem)
                 const isRootEntity =
-                  rootSchemaIdSet.size === 0 ? true : rootSchemaIdSet.has(String(item.id).trim())
+                  layout === 'neeko'
+                    ? false
+                    : rootSchemaIdSet.size === 0
+                      ? true
+                      : rootSchemaIdSet.has(schemaId)
 
                 let filePath: string
                 let writtenLabel: string
 
-                if (isRootEntity) {
+                if (layout === 'neeko') {
+                  const subDirName = neekoSubfolderName(folder, titleRaw || stem)
+                  const subDir = path.resolve(targetDir, subDirName)
+                  const fileName = neekoFileName(
+                    { id: schemaId, title: titleRaw || stem },
+                    usedNeekoFileNames,
+                  )
+                  filePath = path.resolve(subDir, fileName)
+                  writtenLabel = `${subDirName}/${fileName}`
+                  await fs.mkdir(subDir, { recursive: true })
+                } else if (isRootEntity) {
                   const fileName = `${stem}.json`
                   filePath = path.resolve(targetDir, fileName)
                   writtenLabel = fileName

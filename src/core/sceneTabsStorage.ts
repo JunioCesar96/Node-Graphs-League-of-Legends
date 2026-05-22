@@ -1,6 +1,7 @@
 import type { CanvasScene } from '@/core/canvasScene'
 import { emptyCanvasScene, hydrateScene } from '@/core/canvasScene'
 import { syncSceneCollapsedBodyWireless } from '@/core/compactConnectionRouting'
+import { stripNeekoTransientFromScene } from '@/core/neekoNodeTransform'
 import {
   clearStoredScene,
   isCanvasScene,
@@ -148,7 +149,7 @@ export function snapshotFromScene(
   scene: CanvasScene,
   jsonFileName?: string,
 ): SceneTabSnapshot {
-  const present = hydrateTabScene(scene)
+  const present = hydrateTabScene(stripNeekoTransientFromScene(scene))
   const primaryId =
     present.nodes[0]?.id ?? ''
 

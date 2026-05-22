@@ -131,7 +131,14 @@ import {
 } from '@/core/sceneNodesStatePresets'
 import { isCanvasScene } from '@/hooks/useSceneHistory'
 import { useCodeDockTabs } from '@/hooks/useCodeDockTabs'
+import { RitualDragOverlay } from '@/components/molecules/RitualDragOverlay'
+import { useNeekoTransform } from '@/hooks/useNeekoTransform'
 import { useSceneTabs } from '@/hooks/useSceneTabs'
+import {
+  MESSENGER_TOAST_NEEKO_BUILD_FAILED,
+  MESSENGER_TOAST_NEEKO_TRANSFORM_ERROR,
+  MESSENGER_TOAST_NEEKO_TRANSFORM_WARNINGS,
+} from '@/messenger_popup/messengerCatalog'
 
 import styles from './App.module.css'
 
@@ -223,6 +230,11 @@ function App() {
     [dynamicStructurePacks],
   )
 
+  const [paletteSignal, setPaletteSignal] = useState(0)
+  const requestPalette = useCallback(() => {
+    setPaletteSignal((ticket) => ticket + 1)
+  }, [])
+
   const mergedPackFolderBySchemaId = useMemo(
     () => ({
       ...schemaPackFolderBySchemaId,
@@ -236,6 +248,14 @@ function App() {
       ...schemaStructureSubfolderBySchemaId,
       ...dynamicPackStructureSubfolderMap(dynamicStructurePacks),
     }),
+    [dynamicStructurePacks],
+  )
+
+  const memoryPackFolders = useMemo(
+    () =>
+      [...new Set(dynamicStructurePacks.map((pack) => pack.folder.trim()).filter(Boolean))].sort(
+        (a, b) => a.localeCompare(b),
+      ),
     [dynamicStructurePacks],
   )
 
@@ -266,6 +286,7 @@ function App() {
     removeConnectionsFromOutputSlot,
     createChildNode,
     createRootNode,
+    spawnNeekoNodeAtPosition,
     deleteSelectedNodes,
     deleteNodeIds,
     patchNodeSceneOverlay,
@@ -331,9 +352,72 @@ function App() {
     removeListEmbedBlock,
     removeListPointerSlot,
     removeListPointerBlock,
+    updateCanvasNodeNeekoPhase,
+    applyNeekoTransform,
   } = useSceneTabs({ extendSchemaLookup, lightModeEnabled: nodeLightModeEnabled })
 
   const { showConfirmByCatalogId, showToastByCatalogId } = useMessengerPopup()
+
+  const neekoTransformCallbacks = useMemo(
+    () => ({
+      updateCanvasNodeNeekoPhase,
+      applyNeekoTransform,
+    }),
+    [applyNeekoTransform, updateCanvasNodeNeekoPhase],
+  )
+
+  const {
+    transformingNodeId: neekoTransformingNodeId,
+    runTransform: runNeekoTransform,
+    canTransformNode: canNeekoTransformNode,
+  } = useNeekoTransform(neekoTransformCallbacks)
+
+  const neekoSendTarget = useMemo(() => {
+    if (!primarySelectedId || neekoTransformingNodeId === primarySelectedId) {
+      return null
+    }
+
+    const node = scene.nodes.find((canvasNode) => canvasNode.id === primarySelectedId)
+    if (!node || !canNeekoTransformNode(node.node.schema.id, node.locked)) {
+      return null
+    }
+
+    return { canvasNodeId: primarySelectedId }
+  }, [canNeekoTransformNode, neekoTransformingNodeId, primarySelectedId, scene.nodes])
+
+  const handleNeekoBuildFailed = useCallback(() => {
+    showToastByCatalogId(MESSENGER_TOAST_NEEKO_BUILD_FAILED)
+  }, [showToastByCatalogId])
+
+  const handleBuildNeekoAtPosition = useCallback(
+    (position: CanvasPosition) => spawnNeekoNodeAtPosition(position),
+    [spawnNeekoNodeAtPosition],
+  )
+
+  const handleNeekoDropCode = useCallback(
+    (canvasNodeId: string, text: string) => {
+      void runNeekoTransform(canvasNodeId, text).then((result) => {
+        if (!result?.ok) {
+          if (result?.error) {
+            showToastByCatalogId(MESSENGER_TOAST_NEEKO_TRANSFORM_ERROR, { error: result.error })
+          }
+          return
+        }
+        requestPalette()
+        if (result.warnings.length > 0) {
+          const preview = result.warnings.slice(0, 30).join('\n')
+          const suffix =
+            result.warnings.length > 30
+              ? `\n… e mais ${String(result.warnings.length - 30)} aviso(s).`
+              : ''
+          showToastByCatalogId(MESSENGER_TOAST_NEEKO_TRANSFORM_WARNINGS, {
+            summary: `${preview}${suffix}`,
+          })
+        }
+      })
+    },
+    [requestPalette, runNeekoTransform, showToastByCatalogId],
+  )
 
   const availableSchemas = useMemo(() => Object.values(extendSchemaLookup), [extendSchemaLookup])
 
@@ -416,7 +500,6 @@ function App() {
   const [nodeInstanceStringPickerNodeId, setNodeInstanceStringPickerNodeId] = useState<null | string>(null)
   const [hashStringPickerNodeId, setHashStringPickerNodeId] = useState<null | string>(null)
   const [hashStringNoticeStamp, setHashStringNoticeStamp] = useState<number | null>(null)
-  const [paletteSignal, setPaletteSignal] = useState(0)
   const [codeToNewNodeGraphProgress, setCodeToNewNodeGraphProgress] = useState<{
     label: string
     ratio: number
@@ -583,10 +666,6 @@ function App() {
 
     void loadTooltips()
   }, [])
-
-  const requestPalette = () => {
-    setPaletteSignal((ticket) => ticket + 1)
-  }
 
   const persistConvertedStructurePack = useCallback(
     async (
@@ -2646,6 +2725,7 @@ function App() {
           onDismiss={dismissSaveStatusNotice}
         />
       ) : null}
+      <RitualDragOverlay />
       <AppMenuBar
         nodeLightModeEnabled={nodeLightModeEnabled}
         nodeConfigurationMode={nodeConfigurationMode}
@@ -2743,6 +2823,11 @@ function App() {
             onSceneNodesPanelRequest={expandSceneNodesPanel}
             onExtractSceneNodesStatePreset={handleExtractSceneNodesStateFromNode}
             onGraphsToCode={() => void handleGraphsToCode()}
+            onNeekoDropCode={handleNeekoDropCode}
+            onBuildNeekoAtPosition={handleBuildNeekoAtPosition}
+            onNeekoBuildFailed={handleNeekoBuildFailed}
+            neekoTransformingNodeId={neekoTransformingNodeId}
+            memoryPackFolders={memoryPackFolders}
             onRedo={redoScene}
             onRemoveConnection={removeConnection}
             onResetScene={resetScene}
@@ -2767,6 +2852,7 @@ function App() {
             schemaBaseParameterCatalogBySchemaId={mergedBaseParameterCatalogBySchemaId}
             schemaNodeKindBySchemaId={mergedSchemaNodeKindBySchemaId}
             schemaPackFolderBySchemaId={mergedPackFolderBySchemaId}
+            schemaJsonRelativePathBySchemaId={schemaJsonRelativePathBySchemaId}
             schemaStructureSubfolderBySchemaId={mergedStructureSubfolderBySchemaId}
             selectedNodeId={primarySelectedId}
             selectedNodeIds={selectedNodeIds}
@@ -2993,6 +3079,8 @@ function App() {
               onTabAction={handleCodeDockTabAction}
               onResetFloatingDimensions={resetFloatingDockDimensions}
               onToggleFloating={() => setCodeDockFloating((v) => !v)}
+              neekoSendTarget={neekoSendTarget}
+              onSendCodeToNeeko={handleNeekoDropCode}
               tabs={codeDockTabBarItems}
               value={codeText}
             />

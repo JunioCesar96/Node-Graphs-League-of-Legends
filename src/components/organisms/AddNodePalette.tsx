@@ -4,6 +4,11 @@ import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent, PointerEvent }
 import { ExpandActionCapsule, type ExpandActionCapsuleKind } from '@/components/molecules/ExpandActionCapsule'
 import { PaletteAddNodeOption } from '@/components/molecules/PaletteAddNodeOption'
 import {
+  fetchNodeStructurePackFoldersFromDisk,
+  schemaBelongsToPalettePack,
+} from '@/core/nodeStructurePackFolders'
+import {
+  listPalettePackFolders,
   matchesSchemaQuery,
   type PaletteOrganizationMode,
   sortSchemasByOrganization,
@@ -35,8 +40,12 @@ type AddNodePaletteProps = {
   onPickSchema: (schema: NodeSchemaDefinition) => void
   /** Por schema id: nome da pasta imediata sob `src/nodeStructures/`. Ativa filtros 📂 [...]. */
   packFolderBySchemaId?: Record<string, string>
+  /** Caminho relativo do JSON no pack (`default/neeko.json`). Fallback do filtro por pasta. */
+  jsonRelativePathBySchemaId?: Record<string, string>
   /** Por schema id: primeira subpasta sob o pack (`''` = raiz). `temp` não gera etiqueta. */
   structureSubfolderBySchemaId?: Record<string, string>
+  /** Packs convertidos só em memória/localStorage (não existem como pasta no disco). */
+  memoryPackFolders?: readonly string[]
   schemas: NodeSchemaDefinition[]
 }
 
@@ -45,7 +54,9 @@ export function AddNodePalette({
   onClose,
   onPickSchema,
   packFolderBySchemaId,
+  jsonRelativePathBySchemaId,
   structureSubfolderBySchemaId,
+  memoryPackFolders = [],
   schemas,
 }: AddNodePaletteProps) {
   const [palettePackFolder, setPalettePackFolder] = useState<string | null>(null)
@@ -58,6 +69,9 @@ export function AddNodePalette({
   const [paletteScrollDirection, setPaletteScrollDirection] = useState<PaletteScrollDirection>('idle')
   const [paletteScrollIntensity, setPaletteScrollIntensity] = useState(0)
   const [isPaletteScrollActive, setIsPaletteScrollActive] = useState(false)
+  const [diskPackFolders, setDiskPackFolders] = useState<string[]>([])
+  const [diskPackFoldersLoading, setDiskPackFoldersLoading] = useState(true)
+  const [diskPackFoldersError, setDiskPackFoldersError] = useState<string | null>(null)
 
   const [structureSubfolderMenuOpen, setStructureSubfolderMenuOpen] = useState(false)
   const [structureSubfolderMenuQuery, setStructureSubfolderMenuQuery] = useState('')
@@ -82,18 +96,73 @@ export function AddNodePalette({
     stamp: number
   } | null>(null)
 
-  const palettePackFolders = packFolderBySchemaId
-    ? [...new Set(schemas.map((s) => packFolderBySchemaId[s.id]).filter((f): f is string => Boolean(f)))].sort(
-        (a, b) => a.localeCompare(b),
-      )
-    : []
+  useEffect(() => {
+    let cancelled = false
+    setDiskPackFoldersLoading(true)
+    setDiskPackFoldersError(null)
 
-  const schemasInSelectedPack = useMemo(() => {
-    if (palettePackFolder === null) {
-      return schemas
+    void fetchNodeStructurePackFoldersFromDisk().then((result) => {
+      if (cancelled) {
+        return
+      }
+
+      setDiskPackFoldersLoading(false)
+
+      if (result.ok) {
+        setDiskPackFolders(result.folders)
+        return
+      }
+
+      setDiskPackFolders([])
+      setDiskPackFoldersError(result.error)
+    })
+
+    return () => {
+      cancelled = true
     }
-    return schemas.filter((s) => (packFolderBySchemaId?.[s.id] ?? '') === palettePackFolder)
-  }, [schemas, packFolderBySchemaId, palettePackFolder])
+  }, [])
+
+  const palettePackFolders = useMemo(
+    () =>
+      listPalettePackFolders(diskPackFolders, {
+        memoryPackFolders,
+        packFolderBySchemaId,
+        schemas,
+      }),
+    [diskPackFolders, memoryPackFolders, packFolderBySchemaId, schemas],
+  )
+
+  const packFilterOptions = useMemo(
+    () => ({
+      packFolderBySchemaId,
+      jsonRelativePathBySchemaId,
+      diskPackFolders,
+      memoryPackFolders,
+    }),
+    [diskPackFolders, jsonRelativePathBySchemaId, memoryPackFolders, packFolderBySchemaId],
+  )
+
+  const schemaMatchesPackFilter = useCallback(
+    (schemaId: string) => schemaBelongsToPalettePack(schemaId, palettePackFolder, packFilterOptions),
+    [packFilterOptions, palettePackFolder],
+  )
+
+  useEffect(() => {
+    if (
+      palettePackFolder !== null &&
+      palettePackFolders.length > 0 &&
+      !palettePackFolders.includes(palettePackFolder)
+    ) {
+      setPalettePackFolder(null)
+      setHighlightedSchemaIndex(0)
+      setPaletteHoveredOptionIndex(null)
+    }
+  }, [palettePackFolder, palettePackFolders])
+
+  const schemasInSelectedPack = useMemo(
+    () => schemas.filter((s) => schemaMatchesPackFilter(s.id)),
+    [schemaMatchesPackFilter, schemas],
+  )
 
   const paletteStructureSubfolderTags = useMemo(() => {
     if (!structureSubfolderBySchemaId) {
@@ -200,11 +269,7 @@ export function AddNodePalette({
 
   const filteredSchemas = sortSchemasByOrganization(
     schemas
-      .filter(
-        (schema) =>
-          palettePackFolder === null ||
-          (packFolderBySchemaId?.[schema.id] ?? '') === palettePackFolder,
-      )
+      .filter((schema) => schemaMatchesPackFilter(schema.id))
       .filter((schema) => {
         if (!structureSubfolderBySchemaId || paletteStructureSubfolder === null) {
           return true
@@ -569,6 +634,14 @@ export function AddNodePalette({
                 Tipo de valor
               </button>
             </div>
+            {diskPackFoldersLoading ? (
+              <p className={styles.packFoldersStatus}>A ler pastas em nodeStructures…</p>
+            ) : null}
+            {!diskPackFoldersLoading && diskPackFoldersError ? (
+              <p className={styles.packFoldersStatus} role="status">
+                Pastas pelo registo ({diskPackFoldersError})
+              </p>
+            ) : null}
             {palettePackFolders.length > 0 ? (
               <div className={styles.tags} aria-label="Filtrar por pasta de estruturas">
                 <button

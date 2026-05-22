@@ -140,6 +140,14 @@ import type {
 } from '@/core/nodeSchema'
 import { addHashStringInNode, syncHashStringMirrorFromValues } from '@/core/hashString'
 import { STORAGE_LAST_STRUCTURE_META } from '@/core/workspaceStorage'
+import type { NewNodeMaterializePhase } from '@/core/codeToNewNodeGraph'
+import type { MutableClassGroupSchema } from '@/core/classGroupRitualStackParser'
+import {
+  buildNeekoTransformScene,
+  isNeekoSchemaId,
+  materializeNeekoRootAtPhase,
+  NEEKO_SCHEMA_ID,
+} from '@/core/neekoNodeTransform'
 
 export { isCanvasScene, loadStoredScene, SCENE_STORAGE_KEY } from '@/core/sceneStorage'
 
@@ -1422,6 +1430,42 @@ export function useSceneHistory(options?: {
       })
     },
     [updateScene, schemaLookup],
+  )
+
+  const spawnNeekoNodeAtPosition = useCallback(
+    (position: CanvasPosition): string | null => {
+      const instanceId = createUniqueNodeId(NEEKO_SCHEMA_ID, sceneHistory.present.nodes)
+      const node = createNodeInstanceFromRegistry(schemaLookup, NEEKO_SCHEMA_ID, instanceId)
+
+      if (!node) {
+        return null
+      }
+
+      updateScene((currentScene) => {
+        queueMicrotask(() =>
+          setSelectionState({
+            ids: [instanceId],
+            primaryId: instanceId,
+          }),
+        )
+
+        return {
+          ...currentScene,
+          nodes: [
+            ...currentScene.nodes,
+            {
+              id: instanceId,
+              node,
+              position,
+              ...defaultNewCanvasNodeLayout(node),
+            },
+          ],
+        }
+      })
+
+      return instanceId
+    },
+    [schemaLookup, updateScene],
   )
 
   const deleteNodeIds = useCallback(
@@ -2774,6 +2818,85 @@ export function useSceneHistory(options?: {
     setSelectionState({ ids: [], primaryId: '' })
   }, [])
 
+  const updateCanvasNodeNeekoPhase = useCallback(
+    (
+      nodeId: string,
+      phase: NewNodeMaterializePhase,
+      parseRegistry: Map<string, MutableClassGroupSchema>,
+      rootParsedId: string,
+      options?: { error?: string; clearError?: boolean },
+    ) => {
+      updateScene((currentScene) => {
+        const canvasNode = currentScene.nodes.find((node) => node.id === nodeId)
+        if (!canvasNode) {
+          return currentScene
+        }
+
+        const stillNeeko = isNeekoSchemaId(canvasNode.node.schema.id)
+        const transforming = canvasNode.neekoTransformPhase !== undefined
+
+        if (!stillNeeko && !transforming) {
+          return currentScene
+        }
+
+        if (options?.error) {
+          return {
+            ...currentScene,
+            nodes: currentScene.nodes.map((node) =>
+              node.id !== nodeId
+                ? node
+                : {
+                    ...node,
+                    neekoTransformPhase: phase,
+                    neekoTransformError: options.error,
+                  },
+            ),
+          }
+        }
+
+        const materialized = materializeNeekoRootAtPhase(
+          parseRegistry,
+          rootParsedId,
+          nodeId,
+          phase,
+        )
+
+        if (!materialized) {
+          return currentScene
+        }
+
+        return {
+          ...currentScene,
+          nodes: currentScene.nodes.map((node) =>
+            node.id !== nodeId
+              ? node
+              : {
+                  ...node,
+                  node: materialized,
+                  neekoTransformPhase: phase,
+                  neekoTransformError: options?.clearError ? undefined : node.neekoTransformError,
+                  ...defaultNewCanvasNodeLayout(materialized),
+                },
+          ),
+        }
+      })
+    },
+    [updateScene],
+  )
+
+  const applyNeekoTransform = useCallback(
+    async (nodeId: string, source: string) => {
+      const result = await buildNeekoTransformScene(scene, nodeId, source)
+      if (!result.ok) {
+        return { ok: false as const, error: result.error }
+      }
+
+      updateScene(() => result.scene)
+      return { ok: true as const, warnings: result.warnings }
+    },
+    [scene, updateScene],
+  )
+
   return {
     cycleConnectionRouting,
     setConnectionRouting,
@@ -2808,6 +2931,7 @@ export function useSceneHistory(options?: {
     relinkInternalStructureSlot,
     createChildNode,
     createRootNode,
+    spawnNeekoNodeAtPosition,
     deleteNodeIds,
     deleteSelectedNodes,
     toggleNodeBodyCollapsed,
@@ -2857,5 +2981,7 @@ export function useSceneHistory(options?: {
     getTabSnapshot,
     applyTabSnapshot,
     clearSelection,
+    updateCanvasNodeNeekoPhase,
+    applyNeekoTransform,
   }
 }

@@ -8,7 +8,7 @@
   background: var(--color-node-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-node);
-  box-shadow: 0 24px 80px var(--color-shadow);
+  box-shadow: none;
 }
 
 .body {
@@ -69,4 +69,64 @@
   padding: 0;
   margin: 0;
   list-style: none;
+}
+
+.neekoDropZone {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: 4.5rem;
+  padding: var(--space-3);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--color-node-surface) 88%, var(--color-accent) 12%);
+}
+
+.neekoDropZoneActive {
+  border-color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-node-surface) 70%, var(--color-accent) 30%);
+}
+
+.neekoDropZoneTransforming {
+  border-style: solid;
+  animation: neeko-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes neeko-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.72;
+  }
+}
+
+.neekoDropHint {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+  line-height: 1.45;
+  text-align: center;
+}
+
+.neekoDropError {
+  margin: var(--space-2) 0 0;
+  color: var(--color-danger, #e85d5d);
+  font-size: 0.75rem;
+  line-height: 1.35;
+  text-align: center;
+}
+
+.neekoIcon {
+  width: 5.5rem;
+  height: 5.5rem;
+  margin-top: var(--space-1);
+  object-fit: contain;
+  opacity: 0.9;
+  pointer-events: none;
+  user-select: none;
 }

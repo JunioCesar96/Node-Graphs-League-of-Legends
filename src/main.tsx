@@ -9,6 +9,7 @@ import App from './App.tsx'
 import { registerCompositePreferenceBackend } from './jade/compositePreferenceBackend.ts'
 import { registerWebPreferenceBackend } from './jade/webPreferenceBackend.ts'
 import { MessengerPopupProvider } from './messenger_popup/MessengerPopupProvider.tsx'
+import { RitualDragProvider } from './ritualDrag/RitualDragContext.tsx'
 
 registerWebPreferenceBackend()
 registerCompositePreferenceBackend()
@@ -19,7 +20,9 @@ loader.config({ monaco })
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <MessengerPopupProvider>
-      <App />
+      <RitualDragProvider>
+        <App />
+      </RitualDragProvider>
     </MessengerPopupProvider>
   </StrictMode>,
 )
