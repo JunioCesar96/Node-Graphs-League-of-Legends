@@ -9,7 +9,7 @@ Arquivo salvo em: `feature_md/feature/feature-neeko-ditto-node.md`
 | Nome da Branch | `feature/neeko-ditto-node` |
 | Nome das Features | Neeko Node / Ditto Node; Ritual Drag (CodeDock → canvas) |
 | Versão atual | `1.0.0` |
-| Hash do Commit | _(preencher após commit)_ |
+| Hash do Commit | `5466e2a` |
 
 ## 2. Definição e Resumo de Tags
 
