@@ -38,6 +38,8 @@ export type CodeDockNodeActions = {
   onConvertJadeFxEditor: () => void | Promise<void>
   /** Preenche group/collection nos JSON do pack a partir do texto ritual (VFX Jade). */
   onApplyBinNomenclatura: (folder: string) => boolean | Promise<boolean>
+  /** PROP com hashes FNV → nomes legíveis no editor (emitterName, VfxSystemDefinitionData, …). */
+  onHumanizePropRitual?: () => void
   /** Pastas em `src/nodeStructures/` (exceto `default`) — eliminar pack */
   listDeletableFolders: () => Promise<string[]>
   /** Igual à lista de packs; usado por «Extrair Node Base». */
@@ -78,9 +80,15 @@ export type CodeToNewNodeGraphProgress = {
   ratio: number
 }
 
+export type CodeDockJadeEditorBanner = {
+  message: string
+  tone: 'fnv' | 'jade' | 'mock'
+}
+
 type CodeDockProps = {
   dockedWidth: number
   floatingActive: boolean
+  jadeEditorBanner?: CodeDockJadeEditorBanner | null
   floatingRect: CodeDockFloatingRect
   onFloatingRectChange: (next: CodeDockFloatingRect) => void
   onChange: (value: string) => void
@@ -104,6 +112,9 @@ type CodeDockProps = {
   /** Neeko Node seleccionado no canvas — activa «To Neeko node» no menu do editor. */
   neekoSendTarget?: { canvasNodeId: string } | null
   onSendCodeToNeeko?: (canvasNodeId: string, text: string) => void
+  /** Nó primário no canvas — activa «Replace Value to Graph» no menu do editor. */
+  primarySelectedNodeId?: string | null
+  onReplaceValueToGraph?: (snippet: string) => void
 }
 
 export const CODE_DOCK_DEFAULT_WIDTH = 588
@@ -115,6 +126,7 @@ const MAX_DOCK_WIDTH = CODE_DOCK_MAX_WIDTH
 export function CodeDock({
   dockedWidth,
   floatingActive,
+  jadeEditorBanner = null,
   floatingRect,
   onFloatingRectChange,
   onChange,
@@ -135,6 +147,8 @@ export function CodeDock({
   value,
   neekoSendTarget = null,
   onSendCodeToNeeko,
+  primarySelectedNodeId = null,
+  onReplaceValueToGraph,
 }: CodeDockProps) {
   const monacoModelPath = `/workspace/code-dock/${activeTabId}/${activeFileName}`
   const editorLanguage = getMonacoLanguageForFileName(activeFileName)
@@ -202,6 +216,7 @@ export function CodeDock({
       if (pending && !dragPhaseRef.current) {
         if (
           ritualDragPhase === 'dragging' ||
+          ritualDragPhase === 'linkDragging' ||
           ritualDragPhase === 'buildingNeeko' ||
           ritualDragPhase === 'readyNeeko'
         ) {
@@ -577,6 +592,7 @@ export function CodeDock({
   const beginDockWidthResize = useCallback((event: ReactPointerEvent) => {
     if (
       ritualDragPhase === 'dragging' ||
+      ritualDragPhase === 'linkDragging' ||
       ritualDragPhase === 'buildingNeeko' ||
       ritualDragPhase === 'readyNeeko'
     ) {
@@ -592,6 +608,7 @@ export function CodeDock({
         !floatingActive ||
         event.button !== 0 ||
         ritualDragPhase === 'dragging' ||
+        ritualDragPhase === 'linkDragging' ||
         ritualDragPhase === 'buildingNeeko' ||
         ritualDragPhase === 'readyNeeko'
       ) {
@@ -610,7 +627,11 @@ export function CodeDock({
 
   const startFloatResize = useCallback(
     (corner: CodeDockFloatingResizeCorner, event: ReactPointerEvent<HTMLButtonElement>) => {
-      if (!floatingActive || ritualDragPhase === 'dragging') {
+      if (
+        !floatingActive ||
+        ritualDragPhase === 'dragging' ||
+        ritualDragPhase === 'linkDragging'
+      ) {
         return
       }
       event.preventDefault()
@@ -666,6 +687,15 @@ export function CodeDock({
       <button className="menu-option" type="button" onClick={() => void openNomeDialog()}>
         <span>Aplicar nomeclatura (.bin)</span>
       </button>
+      {nodeActions.onHumanizePropRitual ? (
+        <button
+          className="menu-option"
+          type="button"
+          onClick={() => nodeActions.onHumanizePropRitual?.()}
+        >
+          <span>Resolver hashes PROP (Jade)</span>
+        </button>
+      ) : null}
       <button className="menu-option" type="button" onClick={() => void openDeleteDialog()}>
         <span>Deletar pack</span>
       </button>
@@ -698,7 +728,13 @@ export function CodeDock({
   const shellClassNames = floatingActive ? `${styles.shell} ${styles.shellFloating}` : styles.shell
 
   const aside = (
-    <aside aria-label="Editor ritual (Monaco Jade)" className={shellClassNames} ref={shellRef} style={shellSizing}>
+    <aside
+      aria-label="Editor ritual (Monaco Jade)"
+      className={shellClassNames}
+      data-code-dock-editor-root=""
+      ref={shellRef}
+      style={shellSizing}
+    >
       {!floatingActive ? (
         <button
           aria-label="Redimensionar largura do painel"
@@ -822,6 +858,30 @@ export function CodeDock({
           </button>
         </div>
       </header>
+      {jadeEditorBanner ? (
+        <div
+          className={[
+            styles.jadeEditorBanner,
+            jadeEditorBanner.tone === 'jade'
+              ? styles.jadeEditorBannerJade
+              : jadeEditorBanner.tone === 'mock'
+                ? styles.jadeEditorBannerMock
+                : styles.jadeEditorBannerFnv,
+          ].join(' ')}
+          role="status"
+        >
+          <span>{jadeEditorBanner.message}</span>
+          {nodeActions?.onHumanizePropRitual ? (
+            <button
+              className={styles.jadeEditorBannerAction}
+              onClick={() => nodeActions.onHumanizePropRitual?.()}
+              type="button"
+            >
+              Resolver hashes (Jade)
+            </button>
+          ) : null}
+        </div>
+      ) : null}
       {deleteDialogOpen ? (
         <div aria-modal className={styles.dialogBackdrop} role="dialog">
           <div className={styles.dialogPanel}>
@@ -1113,6 +1173,8 @@ export function CodeDock({
         editor={jade}
         neekoSendTarget={neekoSendTarget}
         onSendCodeToNeeko={onSendCodeToNeeko}
+        onReplaceValueToGraph={onReplaceValueToGraph}
+        primarySelectedNodeId={primarySelectedNodeId}
         value={value}
       />
     </aside>

@@ -14,6 +14,11 @@ import {
   CODE_DOCK_MIN_WIDTH,
   type CodeDockFileBridge,
 } from '@/components/organisms/CodeDock'
+import {
+  VfxDock,
+  VFX_DOCK_DEFAULT_WIDTH,
+  VFX_DOCK_MIN_WIDTH,
+} from '@/components/organisms/VfxDock'
 import { getPreference } from '@jade/lib/preferenceStore'
 import { pushCodeRecentFile, readCodeRecentFiles } from '@/jade/codeRecentFiles'
 import {
@@ -35,7 +40,6 @@ import {
   isNodeLocked,
 } from '@/core/canvasNodePresentation'
 import { stubBinStructureDocument } from '@/core/binImportStub'
-import { convertBinViaOptionalBridge } from '@/core/jadeBinBridge'
 import { binTreeJsonToCanvasScene } from '@/core/ltkBinTreeScene'
 import { getStoredRitobinExePath } from '@/core/ritobinExePreference'
 import { convertBinViaRitobinExeBridge } from '@/core/ritobinInvokeBridge'
@@ -119,10 +123,18 @@ import {
   CODE_DOCK_FILE_INPUT_ACCEPT,
   defaultContentForNewFile,
   getFileExtension,
+  isRitobinEditorPath,
   needsBinConversionOnOpen,
   needsBinConversionOnSave,
   normalizeCodeDockFileName,
+  sanitizeCodeDockBaseName,
 } from '@/core/codeDockFileTypes'
+import { applyRitualSnippetScalarsToNode } from '@/core/applyRitualSnippetScalarsToNode'
+import {
+  emitNodeRitualViewCodeText,
+  syncNodeToBoundCodeRange,
+  type NodeCodeEditorBinding,
+} from '@/core/nodeCodeEditorBinding'
 import { stripExtension } from '@/core/sceneTabsStorage'
 import { saveCodeDockTextManual } from '@/core/codeDockFileSave'
 import {
@@ -130,9 +142,19 @@ import {
   serializeSceneNodesStatePresetsFile,
 } from '@/core/sceneNodesStatePresets'
 import { isCanvasScene } from '@/hooks/useSceneHistory'
+import { isCodeDockEditorFocused } from '@/core/canvasKeyboardGuard'
+import {
+  ensureJadeHashesLoaded,
+  getJadeEditorResolveStatus,
+  resolveBinFileForEditor,
+  resolveRitualTextForEditor,
+  type JadeEditorResolveStatus,
+} from '@/core/jadeEditorTextResolve'
+import { ritualContainsVfxSystem } from '@/core/vfx/ritualParseVfx'
+import { resolveVfxRitualText } from '@/core/vfx/resolveVfxRitualText'
 import { useCodeDockTabs } from '@/hooks/useCodeDockTabs'
-import { RitualDragOverlay } from '@/components/molecules/RitualDragOverlay'
 import { useNeekoTransform } from '@/hooks/useNeekoTransform'
+import { RitualDragOverlay } from '@/components/molecules/RitualDragOverlay'
 import { useSceneTabs } from '@/hooks/useSceneTabs'
 import {
   MESSENGER_TOAST_NEEKO_BUILD_FAILED,
@@ -184,6 +206,9 @@ function isEditableTarget(target: EventTarget | null) {
 }
 
 function shouldIgnoreAppKeyboardShortcut(event: KeyboardEvent): boolean {
+  if (isCodeDockEditorFocused()) {
+    return true
+  }
   if (isEditableTarget(event.target)) {
     return true
   }
@@ -471,6 +496,17 @@ function App() {
   const [codeDockFloatingRect, setCodeDockFloatingRect] = useState(() =>
     clampFloatingDockRect(createDefaultFloatingCodeDockRect()),
   )
+  const [codeDockJadeBanner, setCodeDockJadeBanner] = useState<{
+    message: string
+    tone: 'fnv' | 'jade' | 'mock'
+  } | null>(null)
+  const [vfxDockOpen, setVfxDockOpen] = useState(false)
+  const [vfxRitualOverride, setVfxRitualOverride] = useState<string | null>(null)
+  const [vfxDockWidth, setVfxDockWidth] = useState(VFX_DOCK_DEFAULT_WIDTH)
+  const [vfxDockFloating, setVfxDockFloating] = useState(false)
+  const [vfxDockFloatingRect, setVfxDockFloatingRect] = useState(() =>
+    clampFloatingDockRect(createDefaultFloatingCodeDockRect()),
+  )
   const {
     activateTab: activateCodeDockTab,
     activeTabId: activeCodeDockTabId,
@@ -487,6 +523,7 @@ function App() {
     tabBarItems: codeDockTabBarItems,
     tabs: codeDockTabs,
   } = useCodeDockTabs()
+
   const [tabRenameTarget, setTabRenameTarget] = useState<TabRenameTarget | null>(null)
   const [newCodeFileDialogOpen, setNewCodeFileDialogOpen] = useState(false)
   const [codeRecentFiles, setCodeRecentFiles] = useState<string[]>(() => readCodeRecentFiles())
@@ -515,6 +552,9 @@ function App() {
     message: string
     stamp: number
   } | null>(null)
+  const [nodeCodeBindings, setNodeCodeBindings] = useState<
+    Record<string, NodeCodeEditorBinding>
+  >({})
 
   const dismissBootConsoleTest = useCallback(() => {
     setBootConsoleTestStamp(null)
@@ -535,6 +575,99 @@ function App() {
     [],
   )
 
+  const applySnippetScalarsToCanvasNode = useCallback(
+    (canvasNodeId: string, snippet: string) => {
+      const canvasNode = scene.nodes.find((entry) => entry.id === canvasNodeId)
+      if (!canvasNode) {
+        return
+      }
+
+      const result = applyRitualSnippetScalarsToNode(canvasNode.node, snippet)
+      if (!result.ok) {
+        window.alert(result.error)
+        return
+      }
+
+      for (const update of result.updates) {
+        updateNodeParameter(canvasNodeId, update.parameterId, update.value)
+      }
+
+      showSaveStatusNotice(
+        `${String(result.updates.length)} valor(es) do código aplicado(s) ao nó «${canvasNode.node.schema.title}».`,
+      )
+
+      if (result.warnings.length > 0) {
+        const preview = result.warnings.slice(0, 20).join('\n')
+        const suffix =
+          result.warnings.length > 20
+            ? `\n… e mais ${String(result.warnings.length - 20)} aviso(s).`
+            : ''
+        window.alert(`[Replace Value to Graph]\n\n${preview}${suffix}`)
+      }
+    },
+    [scene.nodes, showSaveStatusNotice, updateNodeParameter],
+  )
+
+  const handleReplaceValueToGraph = useCallback(
+    (snippet: string) => {
+      if (!hasOpenSceneTabs) {
+        window.alert('Abra uma cena de trabalho antes de aplicar valores ao grafo.')
+        return
+      }
+
+      if (!primarySelectedId) {
+        window.alert('Seleccione um nó no canvas antes de aplicar valores do código.')
+        return
+      }
+
+      if (selectedNodeIds.length > 1) {
+        window.alert('Em selecção múltipla, use apenas o nó primário seleccionado.')
+        return
+      }
+
+      applySnippetScalarsToCanvasNode(primarySelectedId, snippet)
+    },
+    [
+      applySnippetScalarsToCanvasNode,
+      hasOpenSceneTabs,
+      primarySelectedId,
+      selectedNodeIds.length,
+    ],
+  )
+
+  const handleBindCodeRangeToNode = useCallback(
+    (
+      canvasNodeId: string,
+      payload: {
+        text: string
+        textRange: NodeCodeEditorBinding['range']
+      },
+    ) => {
+      if (!activeCodeDockTabId) {
+        window.alert('Abra uma aba no editor de código antes de vincular a área.')
+        return
+      }
+
+      const canvasNode = scene.nodes.find((entry) => entry.id === canvasNodeId)
+      if (!canvasNode) {
+        return
+      }
+
+      setNodeCodeBindings((previous) => ({
+        ...previous,
+        [canvasNodeId]: {
+          canvasNodeId,
+          codeDockTabId: activeCodeDockTabId,
+          range: payload.textRange,
+        },
+      }))
+
+      showSaveStatusNotice(
+        `Área do código vinculada ao nó «${canvasNode.node.schema.title}». Use «Sincronizar valores para o código» para actualizar o trecho.`,
+      )
+    },
+    [activeCodeDockTabId, scene.nodes, showSaveStatusNotice],
+  )
 
   const openClassGroupPackFolderDialog = useCallback(() => {
     setClassGroupPackFolderDialogMode('settings')
@@ -1339,24 +1472,66 @@ function App() {
     [codeText, dynamicStructurePacks],
   )
 
+  const refreshJadeResolveStatus = useCallback(() => getJadeEditorResolveStatus(), [])
+
+  const applyCodeDockJadeBanner = useCallback(
+    (via: 'unchanged' | 'jade-bridge' | 'fnv-fallback' | 'convert-only', status: JadeEditorResolveStatus | null) => {
+      if (via === 'fnv-fallback') {
+        setCodeDockJadeBanner({
+          tone: 'fnv',
+          message:
+            'Hashes parciais (fallback FNV). Use `npm run jade:http-bridge:build` e preload de hashes no Jade (Settings → Hashes).',
+        })
+        return
+      }
+      if (status?.isMockBridge) {
+        setCodeDockJadeBanner({
+          tone: 'mock',
+          message:
+            'Mock bridge activo — conversão/unhash incompletos. `npm run jade:http-bridge:build` e reinicia `npm run dev`.',
+        })
+        return
+      }
+      if (status?.provider === 'jade-http-bridge' && status.unhashText) {
+        const count =
+          status.fnvCount !== null && status.fnvCount !== undefined
+            ? String(status.fnvCount)
+            : '?'
+        setCodeDockJadeBanner({
+          tone: 'jade',
+          message: `Motor Jade (${count} hashes em cache).`,
+        })
+        return
+      }
+      setCodeDockJadeBanner(null)
+    },
+    [],
+  )
+
   const loadTextIntoCodeDock = useCallback(
-    (text: string, fileName: string, via: string, options?: { fullText?: boolean }) => {
+    async (text: string, fileName: string, via: string, options?: { fullText?: boolean }) => {
       const maxPreview = 500_000
-      const content =
+      const raw =
         options?.fullText || text.length <= maxPreview
           ? text
           : `${text.slice(0, maxPreview)}\n…`
+      const status = await refreshJadeResolveStatus()
+      const unhashed = await resolveRitualTextForEditor(raw)
+      const content = unhashed.text
       const normalized = normalizeCodeDockFileName(fileName)
       openCodeDockTab(content, normalized)
       pushCodeRecentFile(normalized)
       setCodeRecentFiles(readCodeRecentFiles())
       setCodeDockOpen(true)
+      applyCodeDockJadeBanner(unhashed.via, status)
 
       if (needsBinConversionOnOpen(normalized)) {
         window.alert(`«${normalized}» convertido e aberto no painel Código (${via}).`)
+      } else if (unhashed.changed && unhashed.via === 'fnv-fallback' && unhashed.warning) {
+        console.warn('[jadeEditorTextResolve] fallback FNV:', unhashed.warning)
       }
     },
-    [openCodeDockTab],
+    [applyCodeDockJadeBanner, openCodeDockTab, refreshJadeResolveStatus],
   )
 
   const handleGraphsToCode = useCallback(async () => {
@@ -1400,6 +1575,147 @@ function App() {
       setGraphsToCodeProgress(null)
     }
   }, [activeTabTitle, extendSchemaLookup, hasOpenSceneTabs, loadTextIntoCodeDock, scene])
+
+  const handleViewNodeCode = useCallback(
+    (nodeId: string) => {
+      if (!hasOpenSceneTabs) {
+        window.alert('Abra uma cena de trabalho antes de pré-visualizar código.')
+        return
+      }
+
+      const canvasNode = scene.nodes.find((entry) => entry.id === nodeId)
+
+      if (!canvasNode) {
+        return
+      }
+
+      const title = canvasNode.node.schema.title
+      const fileName = `preview_${sanitizeCodeDockBaseName(title)}.bin`
+
+      const result = emitNodeRitualViewCodeText(
+        hydrateScene(scene),
+        extendSchemaLookup,
+        nodeId,
+      )
+
+      if (!result.ok) {
+        window.alert(result.error)
+        return
+      }
+
+      loadTextIntoCodeDock(result.text, fileName, 'Ver código', { fullText: true })
+
+      if (result.warnings.length > 0) {
+        const preview = result.warnings.slice(0, 30).join('\n')
+        const suffix =
+          result.warnings.length > 30
+            ? `\n… e mais ${String(result.warnings.length - 30)} aviso(s).`
+            : ''
+        window.alert(`[Ver código]\n\n${preview}${suffix}`)
+      }
+    },
+    [extendSchemaLookup, hasOpenSceneTabs, loadTextIntoCodeDock, scene],
+  )
+
+  const primaryNodeCodeBinding = primarySelectedId
+    ? nodeCodeBindings[primarySelectedId]
+    : undefined
+
+  const canSyncNodeToCode = Boolean(
+    codeDockOpen &&
+      isRitobinEditorPath(codeDockFileName) &&
+      codeText.trim().length > 0 &&
+      primaryNodeCodeBinding &&
+      primaryNodeCodeBinding.codeDockTabId === activeCodeDockTabId,
+  )
+
+  const handleSyncNodeValueToCode = useCallback(
+    (nodeId: string) => {
+      if (!hasOpenSceneTabs) {
+        window.alert('Abra uma cena de trabalho antes de sincronizar valores.')
+        return
+      }
+
+      if (!selectedNodeIds.includes(nodeId)) {
+        window.alert('Seleccione o nó antes de sincronizar valores para o código.')
+        return
+      }
+
+      if (selectedNodeIds.length > 1 && primarySelectedId !== nodeId) {
+        window.alert('Em selecção múltipla, sincronize apenas o nó primário seleccionado.')
+        return
+      }
+
+      if (!codeDockOpen) {
+        window.alert('Abra o painel Código com o ficheiro ritual antes de sincronizar.')
+        return
+      }
+
+      if (!isRitobinEditorPath(codeDockFileName)) {
+        window.alert('A aba activa do CodeDock deve ser um ficheiro ritual (.bin ou .py).')
+        return
+      }
+
+      if (!codeText.trim()) {
+        window.alert('O editor de código está vazio.')
+        return
+      }
+
+      const binding = nodeCodeBindings[nodeId]
+      if (!binding) {
+        window.alert(
+          'Nenhuma área vinculada a este nó. Seleccione o trecho no editor e use Shift+arrasto até ao nó para vincular.',
+        )
+        return
+      }
+
+      if (binding.codeDockTabId !== activeCodeDockTabId) {
+        window.alert(
+          'A vinculação pertence a outra aba do editor. Active a aba correcta ou vincule de novo.',
+        )
+        return
+      }
+
+      const result = syncNodeToBoundCodeRange(
+        hydrateScene(scene),
+        extendSchemaLookup,
+        nodeId,
+        codeText,
+        binding,
+      )
+
+      if (!result.ok) {
+        window.alert(result.error)
+        return
+      }
+
+      setCodeText(result.newText)
+      showSaveStatusNotice('Valores sincronizados na área vinculada do código.')
+
+      if (result.warnings.length > 0) {
+        const preview = result.warnings.slice(0, 30).join('\n')
+        const suffix =
+          result.warnings.length > 30
+            ? `\n… e mais ${String(result.warnings.length - 30)} aviso(s).`
+            : ''
+        window.alert(`[Sync value to code]\n\n${preview}${suffix}`)
+      }
+    },
+    [
+      activeCodeDockTabId,
+      codeDockFileName,
+      codeDockOpen,
+      codeText,
+      extendSchemaLookup,
+      hasOpenSceneTabs,
+      nodeCodeBindings,
+      primarySelectedId,
+      scene,
+      selectedNodeIds,
+      setCodeText,
+      showSaveStatusNotice,
+    ],
+  )
 
   const saveCodeDockTabById = useCallback(
     async (tabId: string) => {
@@ -1512,8 +1828,8 @@ function App() {
     }
 
     const tryJadeBridge = async () => {
-      const bridge = await convertBinViaOptionalBridge(file)
-      if (bridge.branch === 'success') {
+      const bridge = await resolveBinFileForEditor(file)
+      if (bridge.ok) {
         loadTextIntoCodeDock(bridge.text, file.name, 'Jade bridge /convert')
         return true
       }
@@ -1527,11 +1843,13 @@ function App() {
         window.alert(
           `Não foi possível contactar o Jade bridge (${bridge.message}).\n\n` +
             'Em dev: confirma que `npm run dev` está a correr (inicia a ponte automaticamente).\n' +
-            'Manual: noutro terminal `npm run jade:http-bridge` ou `npm run jade-bridge:dev`.\n' +
-            'Conversão real .bin: `npm run jade:http-bridge` (compila Rust se necessário).',
+            'Manual: `npm run jade:http-bridge` ou `npm run jade:http-bridge:build` + `npm run dev`.\n' +
+            'Conversão real .bin exige `jade-http-bridge` Rust (não o mock Node).',
         )
       } else if (bridge.branch === 'bridge_error') {
-        window.alert(`Jade bridge respondeu com erro.\n${String(bridge.status)} — ${bridge.message}`)
+        window.alert(
+          `Jade bridge respondeu com erro.\n${bridge.status !== undefined ? String(bridge.status) : ''} — ${bridge.message}`,
+        )
       }
       return false
     }
@@ -1892,7 +2210,145 @@ function App() {
     setCodeDockOpen(false)
   }, [])
 
+  const handleCloseVfxDock = useCallback(() => {
+    setVfxDockOpen(false)
+  }, [])
+
+  const handleClosePanelShortcut = useCallback(() => {
+    if (vfxDockOpen) {
+      setVfxDockOpen(false)
+      return
+    }
+    handleCloseCodeDock()
+  }, [handleCloseCodeDock, vfxDockOpen])
+
+  const skipPropHumanizeOnceRef = useRef(false)
+
+  const handleHumanizePropRitualInEditor = useCallback(async () => {
+    if (!codeText.trim()) {
+      window.alert('O editor de código está vazio.')
+      return
+    }
+    const status = await refreshJadeResolveStatus()
+    const result = await resolveRitualTextForEditor(codeText)
+    if (!result.changed) {
+      window.alert(
+        result.warning
+          ? `Nenhuma hash foi convertida.\n\n${result.warning}`
+          : 'Nenhuma hash foi convertida (nomes já legíveis ou hashes desconhecidas).',
+      )
+      return
+    }
+    skipPropHumanizeOnceRef.current = true
+    setCodeText(result.text)
+    applyCodeDockJadeBanner(result.via, status)
+    const viaLabel =
+      result.via === 'jade-bridge'
+        ? 'parser Jade + tabelas de hash'
+        : 'fallback FNV (bridge Jade indisponível)'
+    showSaveStatusNotice(`Hashes convertidas (${viaLabel}).`)
+    if (result.warning) {
+      console.warn('[jadeEditorTextResolve]', result.warning)
+    }
+  }, [applyCodeDockJadeBanner, codeText, refreshJadeResolveStatus, setCodeText, showSaveStatusNotice])
+
+  const prevCodeTextForVfxRef = useRef(codeText)
+  useEffect(() => {
+    if (prevCodeTextForVfxRef.current === codeText) return
+    prevCodeTextForVfxRef.current = codeText
+    if (vfxRitualOverride && ritualContainsVfxSystem(codeText)) {
+      setVfxRitualOverride(null)
+    }
+  }, [codeText, vfxRitualOverride])
+
+  useEffect(() => {
+    if (!codeDockOpen) {
+      return
+    }
+    void ensureJadeHashesLoaded()
+    void refreshJadeResolveStatus()
+  }, [codeDockOpen, refreshJadeResolveStatus])
+
+  useEffect(() => {
+    if (!codeDockOpen || !codeText.trim()) {
+      return
+    }
+    if (skipPropHumanizeOnceRef.current) {
+      skipPropHumanizeOnceRef.current = false
+      return
+    }
+
+    let cancelled = false
+
+    void (async () => {
+      const status = await refreshJadeResolveStatus()
+      const result = await resolveRitualTextForEditor(codeText)
+      if (cancelled || !result.changed || result.text === codeText) {
+        return
+      }
+      skipPropHumanizeOnceRef.current = true
+      setCodeText(result.text)
+      applyCodeDockJadeBanner(result.via, status)
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [applyCodeDockJadeBanner, codeDockOpen, codeText, refreshJadeResolveStatus, setCodeText])
+
+  const vfxPreviewRitualText = useMemo(
+    () =>
+      resolveVfxRitualText({
+        codeText,
+        vfxRitualOverride,
+        scene,
+        registry: extendSchemaLookup,
+        primarySelectedId,
+        nodeCodeBindings,
+        activeCodeDockTabId,
+      }),
+    [
+      activeCodeDockTabId,
+      codeText,
+      extendSchemaLookup,
+      nodeCodeBindings,
+      primarySelectedId,
+      scene,
+      vfxRitualOverride,
+    ],
+  )
+
+  const handlePreviewNodeVfx = useCallback(
+    (nodeId: string) => {
+      if (!hasOpenSceneTabs) {
+        window.alert('Abra uma cena de trabalho antes de pré-visualizar VFX.')
+        return
+      }
+
+      const result = emitNodeRitualViewCodeText(
+        hydrateScene(scene),
+        extendSchemaLookup,
+        nodeId,
+      )
+
+      if (!result.ok) {
+        window.alert(result.error)
+        return
+      }
+
+      if (!ritualContainsVfxSystem(result.text)) {
+        window.alert('O nó seleccionado não contém VfxSystemDefinitionData.')
+        return
+      }
+
+      setVfxRitualOverride(result.text)
+      setVfxDockOpen(true)
+    },
+    [extendSchemaLookup, hasOpenSceneTabs, scene],
+  )
+
   const prevDockFloatingRef = useRef(codeDockFloating)
+  const prevVfxDockFloatingRef = useRef(vfxDockFloating)
 
   useEffect(() => {
     const was = prevDockFloatingRef.current
@@ -1916,6 +2372,31 @@ function App() {
 
     prevDockFloatingRef.current = codeDockFloating
   }, [codeDockFloating, codeDockFloatingRect.width, codeDockWidth])
+
+  useEffect(() => {
+    const was = prevVfxDockFloatingRef.current
+
+    if (was === vfxDockFloating) {
+      return
+    }
+
+    if (was && !vfxDockFloating) {
+      setVfxDockWidth(Math.round(vfxDockFloatingRect.width))
+    }
+
+    if (!was && vfxDockFloating) {
+      const defaultRect = createDefaultFloatingCodeDockRect()
+      setVfxDockFloatingRect(
+        clampFloatingDockRect({
+          ...defaultRect,
+          width: Math.max(vfxDockWidth, VFX_DOCK_MIN_WIDTH),
+          height: Math.max(defaultRect.height, 520),
+        }),
+      )
+    }
+
+    prevVfxDockFloatingRef.current = vfxDockFloating
+  }, [vfxDockFloating, vfxDockFloatingRect.width, vfxDockWidth])
 
   const resetFloatingDockDimensions = useCallback(() => {
     setCodeDockFloatingRect(clampFloatingDockRect(createDefaultFloatingCodeDockRect()))
@@ -2743,6 +3224,7 @@ function App() {
         }
         onGraphsToCode={() => void handleGraphsToCode()}
         onToggleCodeDock={() => setCodeDockOpen((isOpen) => !isOpen)}
+        onToggleVfxDock={() => setVfxDockOpen((isOpen) => !isOpen)}
         recentScenes={recentScenes}
       />
 
@@ -2796,7 +3278,7 @@ function App() {
               addDynamicParameter(canvasNodeId, definition)
             }
             onRequestRemoveElement={handleRequestRemoveNodeElement}
-            onCloseCodePanelShortcut={handleCloseCodeDock}
+            onCloseCodePanelShortcut={handleClosePanelShortcut}
             onConnectNodes={connectNodes}
             onRelinkInternalStructure={relinkInternalStructureSlot}
             onCreateChildNode={createChildNode}
@@ -2823,7 +3305,12 @@ function App() {
             onSceneNodesPanelRequest={expandSceneNodesPanel}
             onExtractSceneNodesStatePreset={handleExtractSceneNodesStateFromNode}
             onGraphsToCode={() => void handleGraphsToCode()}
+            onViewNodeCode={handleViewNodeCode}
+            onPreviewNodeVfx={handlePreviewNodeVfx}
+            onSyncNodeValueToCode={handleSyncNodeValueToCode}
+            canSyncNodeToCode={canSyncNodeToCode}
             onNeekoDropCode={handleNeekoDropCode}
+            onBindCodeRangeToNode={handleBindCodeRangeToNode}
             onBuildNeekoAtPosition={handleBuildNeekoAtPosition}
             onNeekoBuildFailed={handleNeekoBuildFailed}
             neekoTransformingNodeId={neekoTransformingNodeId}
@@ -3026,6 +3513,32 @@ function App() {
         ) : null}
         </div>
 
+        {vfxDockOpen ? (
+          <div
+            className={vfxDockFloating ? styles.vfxDockPortalSlot : styles.vfxDockColumn}
+            style={
+              vfxDockFloating
+                ? undefined
+                : { width: vfxDockWidth, minWidth: VFX_DOCK_MIN_WIDTH }
+            }
+          >
+            <VfxDock
+              dockOpen={vfxDockOpen}
+              dockedWidth={vfxDockWidth}
+              floatingActive={vfxDockFloating}
+              floatingRect={vfxDockFloatingRect}
+              onClose={handleCloseVfxDock}
+              onDockedWidthChange={setVfxDockWidth}
+              onFloatingRectChange={setVfxDockFloatingRect}
+              onResetFloatingDimensions={() =>
+                setVfxDockFloatingRect(clampFloatingDockRect(createDefaultFloatingCodeDockRect()))
+              }
+              onToggleFloating={() => setVfxDockFloating((value) => !value)}
+              ritualText={vfxPreviewRitualText}
+            />
+          </div>
+        ) : null}
+
         {codeDockOpen ? (
           <div
             className={codeDockFloating ? styles.codeDockPortalSlot : styles.codeDockColumn}
@@ -3051,6 +3564,7 @@ function App() {
               activeTabId={activeCodeDockTabId}
               codeToNewGraphProgress={codeToNewNodeGraphProgress}
               dockedWidth={codeDockWidth}
+              jadeEditorBanner={codeDockJadeBanner}
               fileBridge={codeDockFileBridge}
               floatingActive={codeDockFloating}
               floatingRect={codeDockFloatingRect}
@@ -3060,6 +3574,7 @@ function App() {
                 listStructurePackFolders,
                 onConvertClassGroup: handleConvertClassGroupPack,
                 onConvertJadeFxEditor: handleConvertJadeFxEditorPack,
+                onHumanizePropRitual: handleHumanizePropRitualInEditor,
                 onApplyBinNomenclatura: handleApplyBinNomenclaturaPack,
                 onExtractNodeBase: handleExtractNodeBasePack,
                 onCodeToNodeGraph: handleCodeToNodeGraphPack,
@@ -3081,6 +3596,8 @@ function App() {
               onToggleFloating={() => setCodeDockFloating((v) => !v)}
               neekoSendTarget={neekoSendTarget}
               onSendCodeToNeeko={handleNeekoDropCode}
+              onReplaceValueToGraph={handleReplaceValueToGraph}
+              primarySelectedNodeId={primarySelectedId}
               tabs={codeDockTabBarItems}
               value={codeText}
             />
@@ -3108,6 +3625,7 @@ function App() {
         onCancel={() => setNewCodeFileDialogOpen(false)}
         onCreate={handleCreateCodeDockFile}
       />
+
 
       <TextInputDialog
         cancelLabel="Cancelar"

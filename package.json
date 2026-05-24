@@ -10,25 +10,31 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
+    "vfx:coverage": "vitest run src/core/vfx/vfxCoverageMatrix.test.ts",
     "reconvert:class": "npx vite-node scripts/reconvert-class-pack.ts class",
     "reconvert:ccg": "npx vite-node scripts/reconvert-class-pack.ts ccg",
     "jade-bridge:dev": "node scripts/jade/mock-bridge-server.mjs",
     "ritobin-bridge:dev": "node scripts/ritobin/invoke-server.mjs",
     "jade-export:bintree:build": "cd ../Jade-League-Bin-Editor/src-tauri && cargo build --release --bin jade-export-bintree-json",
     "jade:http-bridge": "cd ../Jade-League-Bin-Editor/src-tauri && cargo run --release --bin jade-http-bridge",
+    "jade:http-bridge:build": "cd ../Jade-League-Bin-Editor/src-tauri && cargo build --release --bin jade-http-bridge",
     "jade:tools:check": "cd ../Jade-League-Bin-Editor/src-tauri && cargo check --bins"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",
+    "@react-three/drei": "^10.0.6",
+    "@react-three/fiber": "^9.1.2",
     "monaco-editor": "^0.55.1",
     "react": "^19.2.5",
-    "react-dom": "^19.2.5"
+    "react-dom": "^19.2.5",
+    "three": "^0.175.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@types/node": "^24.12.2",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
+    "@types/three": "^0.175.0",
     "@vitejs/plugin-react": "^6.0.1",
     "eslint": "^10.2.1",
     "eslint-plugin-react-hooks": "^7.1.1",

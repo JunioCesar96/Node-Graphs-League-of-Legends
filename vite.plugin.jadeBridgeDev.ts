@@ -26,7 +26,8 @@ function resolveRustBridgeExe(projectRoot: string): string | null {
 /**
  * Em `vite dev`, arranca automaticamente a ponte Jade em 127.0.0.1:8788:
  * - `jade-http-bridge` (Rust, conversão real de .bin) se já estiver compilado;
- * - senão `scripts/jade/mock-bridge-server.mjs` (placeholder em /convert).
+ * - senão `scripts/jade/mock-bridge-server.mjs` (placeholder em /convert, sem `/unhash-text` real).
+ *   Conversão e resolução de hashes exigem `npm run jade:http-bridge:build` (ou exe em `target/release/`).
  */
 export function vitePluginJadeBridgeDev(projectRoot: string): Plugin {
   let child: ChildProcess | null = null
@@ -43,7 +44,19 @@ export function vitePluginJadeBridgeDev(projectRoot: string): Plugin {
 
         const rustExe = resolveRustBridgeExe(projectRoot)
         const mockScript = path.join(projectRoot, 'scripts', 'jade', 'mock-bridge-server.mjs')
-        const env = { ...process.env, PORT: String(PORT) }
+        const jadeAppExe = path.join(
+          projectRoot,
+          '..',
+          'Jade-League-Bin-Editor',
+          'src-tauri',
+          'target',
+          'release',
+          process.platform === 'win32' ? 'jade-rust.exe' : 'jade-rust',
+        )
+        const env: NodeJS.ProcessEnv = { ...process.env, PORT: String(PORT) }
+        if (fs.existsSync(jadeAppExe)) {
+          env.JADE_APP_EXE = jadeAppExe
+        }
 
         if (rustExe) {
           modeLabel = 'rust'
@@ -77,7 +90,7 @@ export function vitePluginJadeBridgeDev(projectRoot: string): Plugin {
         const label =
           modeLabel === 'rust'
             ? `Rust jade-http-bridge (${rustExe})`
-            : `mock Node (${mockScript}) — conversão real: npm run jade:http-bridge`
+            : `mock Node (${mockScript}) — conversão real: npm run jade:http-bridge:build && npm run dev`
 
         console.log(`[jade-bridge-dev] ${label} → http://127.0.0.1:${PORT}`)
       }

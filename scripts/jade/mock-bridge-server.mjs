@@ -125,6 +125,23 @@ const server = http.createServer(async (incomingRequest, serverResponse) => {
   const rawPath = incomingRequest.url?.split('?')[0] ?? '/'
   const urlPath = rawPath.replace(/\/+$/, '') || '/'
 
+  if (incomingRequest.method === 'GET' && urlPath === '/capabilities') {
+    serverResponse.setHeader('Content-Type', 'application/json; charset=utf-8')
+    serverResponse.writeHead(200)
+    serverResponse.end(
+      JSON.stringify({
+        ok: true,
+        provider: 'mock-bridge',
+        features: {
+          convertToBin: false,
+          unhashText: false,
+          hashPreload: false,
+        },
+      }),
+    )
+    return
+  }
+
   if (incomingRequest.method === 'GET' && (urlPath === '/' || urlPath === '/health')) {
     serverResponse.setHeader('Content-Type', 'text/plain; charset=utf-8')
     serverResponse.writeHead(200)
@@ -142,6 +159,18 @@ const server = http.createServer(async (incomingRequest, serverResponse) => {
       `Este URL só aceita POST com o body em octet-stream (bytes do .bin).\n` +
         `Não abras isto no browser como página — usa node-graphs-lol:\n` +
         `  File → Open… → escolher o .bin (com bridge activo).\n`,
+    )
+    return
+  }
+
+  if (incomingRequest.method === 'POST' && urlPath === '/unhash-text') {
+    serverResponse.setHeader('Content-Type', 'application/json; charset=utf-8')
+    serverResponse.writeHead(404)
+    serverResponse.end(
+      JSON.stringify({
+        ok: false,
+        message: 'Mock bridge — use npm run jade:http-bridge:build para /unhash-text real',
+      }),
     )
     return
   }

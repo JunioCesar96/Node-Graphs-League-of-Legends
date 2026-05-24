@@ -36,6 +36,7 @@ Open the URL shown in the terminal (usually `http://localhost:5173`).
 | --- | --- |
 | `pnpm jade-bridge:dev` | Mock Jade bridge for opening `.bin` in dev |
 | `pnpm jade:http-bridge` | HTTP bridge from Jade-League-Bin-Editor (Rust) |
+| `pnpm jade:http-bridge:build` | Compile `jade-http-bridge` (release) for real `.bin` + hash resolution |
 | `pnpm test` | Run Vitest unit tests |
 
 ---
@@ -46,7 +47,22 @@ Open the URL shown in the terminal (usually `http://localhost:5173`).
 
 - **Center:** graph canvas (nodes, connections, pan/zoom).
 - **Right:** CodeDock (Monaco editor) — toggle with the **Code** menu button.
+- **Right (optional):** VFX Preview (Three.js viewport) — toggle with the **VFX** menu button.
 - **Left / panels:** scene tabs, nodes list, inspector, scene states (depending on layout).
+
+### 1b. VFX 3D preview (web)
+
+| Step | Action |
+| --- | --- |
+| 1 | Open ritual with `VfxSystemDefinitionData` in CodeDock (e.g. `_preview.md`) or select a VfxSystem node on the canvas |
+| 2 | Menu **VFX** → opens the dock with a 3D viewport |
+| 3 | Click **Rebuild** to parse emitters (Ring / Splat / Juice for Zac golden sample) |
+| 4 | **Play** / **Pause** / scrub timeline; toggle emitters in the footer |
+| 5 | Optional: **Pasta assets…** to index a local `ASSETS/` tree for texture paths |
+| 6 | Left panel lists **all PROP map effects** (e.g. `Lux_Base_Q_cas`, `Lux_Base_R_cas`); click an **emitter** to solo-preview it |
+| 7 | Node context menu → **Código** → **Pré-visualizar VFX** on `VfxSystemDefinitionData` |
+
+**PT:** O painel VFX lê o ritual da aba de código (ou do nó VfxSystem seleccionado), reconstrói emitters com geometria placeholder e animação por keyframes. Rituais `entries: map` com várias partículas mostram **todos os efeitos** na coluna esquerda; ficheiros com um único sistema (ex. `_treicho.md`) listam os **9 emitters** desse efeito. Sem Game Root, usa cores por emitter; com **Pasta assets…**, indexa `ASSETS/` e decodifica `.tex` (DXT1/DXT5/BGRA8) para texturas no viewport; `.png`/`.dds` são usados directamente quando existirem.
 
 ### 2. Scenes (work files)
 
@@ -264,6 +280,48 @@ Lista lateral para seleccionar, focar, ocultar ou travar nós. Nos slots ligados
 
 Ferramentas no CodeDock para caminhos do Jade e abrir `.bin` em desenvolvimento (`pnpm jade-bridge:dev`).
 
+#### 9a. Native hash resolution (CodeDock)
+
+| Step | Action |
+| --- | --- |
+| 1 | `npm run jade:http-bridge:build` (once) — or ensure `jade-http-bridge.exe` exists under `Jade-League-Bin-Editor/src-tauri/target/release/` |
+| 2 | In **Jade desktop**: Settings → **Hashes** — download/preload FrogTools tables |
+| 3 | `npm run dev` — Vite starts the Rust bridge when available (not the Node mock) |
+| 4 | **File → Open…** `_jade.bin` / `_editor.bin` — ritual text with field **names**, not only `0x…` hashes |
+| 5 | Yellow CodeDock banner **Mock bridge** → run build script above and restart `dev` |
+| 6 | Menu **Resolver hashes PROP (Jade)** re-applies Jade parser on the active tab |
+
+**PT:** O motor Jade (`resolve_ritobin_text` via `jade-http-bridge`) faz `text_reader → unhash → text_writer`. Fallback FNV (~80 campos VFX) só aparece com mock bridge, com aviso visível.
+
+Technical doc: [`feature_md/feature/feature-jade-hashes-vfx-timeline-reset.md`](feature_md/feature/feature-jade-hashes-vfx-timeline-reset.md).
+
+#### 9b. VFX timeline reset point
+
+| Step | Action |
+| --- | --- |
+| 1 | Open **VFX** dock, **Rebuild**, then **Play** |
+| 2 | **Right-click** the time slider or the track/ruler area |
+| 3 | **Reset point @ X.XXs** — amber marker; when playback reaches it, time jumps to **0s** (segment review) |
+| 4 | **Remove reset point** clears the marker |
+
+**PT:** Útil para repetir um trecho da animação sem activar loop global no fim do efeito.
+
+---
+
+## Acknowledgements
+
+Special thanks to **Bud**, creator of the Jade tool that powers the BIN conversion system used in this project.  
+GitHub: https://github.com/budlibu500
+
+Key contributions include:
+
+* BIN code conversion
+* BIN League syntax analysis
+* Particle editing systems
+* General-purpose editing tools
+
+Their work and support were essential to the development and functionality of this project.
+
 ---
 
 ## Funcionalidades desde a última `main` (resumo simples)
@@ -277,7 +335,8 @@ Tudo o que a branch `main` antiga ainda **não** tinha, explicado por tema:
 | **Nós** | Painel “em cena”; modo Configurar + pack `default`; elementos retraídos no cartão. |
 | **Ligações** | Tipos flex/rigid/wireless; ícone de corrente; ocultar filhos ligados; foco no par; arrasto e clique nos slots corrigidos. |
 | **Class Group** | Map hash/embed, listas, pointers, pickers, menus de elemento, ligação por collection type, inspector. |
-| **Jade** | Menu e ponte em dev para abrir `.bin`. |
+| **Jade** | Menu e ponte em dev; resolução nativa de hashes no CodeDock (`jadeEditorTextResolve`). |
+| **VFX** | Reset point na timeline (clique direito → repetir trecho desde 0s). |
 
 A **última** grande entrega é **Node Graphs to Code**: exportar a árvore do Main para ritual `#PROP_text` como no `estrutura_bin.py`, com correcções de formato e portos de saída a funcionar de novo.
 

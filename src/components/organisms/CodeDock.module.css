@@ -32,6 +32,48 @@
   filter: drop-shadow(-12px 12px 40px rgb(0 0 0 / 48%));
 }
 
+.jadeEditorBanner {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  font-size: 11px;
+  line-height: 1.35;
+  border-bottom: 1px solid var(--color-border-soft);
+}
+
+.jadeEditorBannerJade {
+  color: rgb(134 239 172 / 95%);
+  background: rgb(20 83 45 / 35%);
+}
+
+.jadeEditorBannerMock {
+  color: rgb(253 224 71 / 95%);
+  background: rgb(113 63 18 / 40%);
+}
+
+.jadeEditorBannerFnv {
+  color: rgb(254 202 202 / 95%);
+  background: rgb(127 29 29 / 35%);
+}
+
+.jadeEditorBannerAction {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  font-size: 11px;
+  color: inherit;
+  cursor: pointer;
+  background: rgb(255 255 255 / 8%);
+  border: 1px solid rgb(255 255 255 / 18%);
+  border-radius: 6px;
+}
+
+.jadeEditorBannerAction:hover {
+  background: rgb(255 255 255 / 14%);
+}
+
 .shell {
   position: relative;
   z-index: 1;
@@ -112,32 +154,33 @@
 
 .header {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: space-between;
   gap: var(--space-2);
-  padding: var(--space-3) var(--space-4);
+  min-height: 36px;
+  padding: var(--space-1) var(--space-2) 0;
   color: var(--color-text-secondary);
   font-family: var(--font-data);
   font-size: 0.72rem;
   border-bottom: 1px solid var(--color-border-soft);
 }
 
-.titleStrip {
-  flex: 1 1 auto;
-  min-width: 0;
-  padding: var(--space-1);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.menuBarDragShell {
+  flex-shrink: 0;
+  width: 100%;
+}
+
+.menuBarDragShellFloating {
+  cursor: grab;
   user-select: none;
 }
 
-.titleStripFloating {
-  cursor: grab;
+.menuBarDragShellDragging {
+  cursor: grabbing;
 }
 
-.titleStripFloating:active {
-  cursor: grabbing;
+.menuBarDragShellFloating :global(.menu-bar) {
+  cursor: inherit;
 }
 
 .headerActions {
@@ -269,6 +312,33 @@
   line-height: 1.35;
 }
 
+.dialogProgress {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: var(--space-3);
+}
+
+.dialogProgressMeta {
+  margin: 0;
+  font-size: 0.7rem;
+  color: var(--color-text-secondary);
+}
+
+.dialogProgressBar {
+  height: 6px;
+  overflow: hidden;
+  background: rgb(255 255 255 / 10%);
+  border-radius: 999px;
+}
+
+.dialogProgressFill {
+  height: 100%;
+  background: linear-gradient(90deg, #c9a227, #f0d060);
+  border-radius: 999px;
+  transition: width 0.2s ease;
+}
+
 .dialogField {
   display: flex;
   flex-direction: column;
@@ -337,4 +407,18 @@
   flex: 1;
   min-height: 0;
   padding: var(--space-2) var(--space-2) var(--space-3);
+}
+
+.emptyEditor {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  margin: 0;
+  padding: var(--space-6);
+  color: var(--color-text-secondary);
+  font-family: var(--font-data);
+  font-size: 0.85rem;
+  text-align: center;
 }
