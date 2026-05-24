@@ -9,7 +9,7 @@ File location: `feature_md/feature/feature-jade-hashes-vfx-timeline-reset.md`
 | Branch Name | `feature/jade-hashes-vfx-timeline-reset` |
 | Feature Name(s) | Jade native hash resolution (CodeDock); VFX timeline reset point |
 | Current Version | `1.5.0` |
-| Commit Hash | `TBD` (filled after commit) |
+| Commit Hash | `4693bf6` |
 
 ---
 
