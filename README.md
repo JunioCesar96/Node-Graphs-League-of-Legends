@@ -1,3 +1,5 @@
+```All rights will be credited in the usual version.```
+
 # League BIN Node Editor
 
 **Version:** 1.5.0 · **Status:** Work in progress
