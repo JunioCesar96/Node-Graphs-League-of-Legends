@@ -12,6 +12,21 @@ Built with **Vite** + **React** + **Monaco** (CodeDock).
 
 ---
 
+## Acknowledgements
+
+Special thanks to **Bud**, creator of the Jade tool that powers the BIN conversion system used in this project.
+GitHub: https://github.com/budlibu500
+
+Key contributions include:
+
+* BIN code conversion
+* BIN League syntax analysis
+* Particle editing systems
+* General-purpose editing tools
+
+Their work and support were essential to the development and functionality of this project.
+
+
 ## Quick start
 
 ### Prerequisites
