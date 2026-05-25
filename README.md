@@ -64,6 +64,17 @@ Open the URL shown in the terminal (usually `http://localhost:5173`).
 
 **PT:** O painel VFX lê o ritual da aba de código (ou do nó VfxSystem seleccionado), reconstrói emitters com geometria placeholder e animação por keyframes. Rituais `entries: map` com várias partículas mostram **todos os efeitos** na coluna esquerda; ficheiros com um único sistema (ex. `_treicho.md`) listam os **9 emitters** desse efeito. Sem Game Root, usa cores por emitter; com **Pasta assets…**, indexa `ASSETS/` e decodifica `.tex` (DXT1/DXT5/BGRA8) para texturas no viewport; `.png`/`.dds` são usados directamente quando existirem.
 
+### 1c. VFX ground decals & transform debug
+
+| Step | Action |
+| --- | --- |
+| 1 | Open VFX dock and rebuild an effect with `isGroundLayer` emitters (e.g. Brand `cracks2`, `VfxPrimitiveArbitraryQuad`) |
+| 2 | Play timeline — ground decals should appear as **wide** quads on the floor (not thin strips from wrong scale axes) |
+| 3 | In **Cena 3D** panel, enable **Debug transform** to show local axes and a wireframe box matching applied scale |
+| 4 | Ground layers ignore **VFX cam lock**; billboards still follow the camera when cam lock is on |
+
+**PT:** Decals com `isGroundLayer` (ex. `cracks2`, escala `{55,600,600}`) são remapeados para largura/altura no plano do chão. **Debug transform** ajuda a validar escala e orientação. Documentação técnica: [`feature_md/feature/feature-vfx-ground-quad-transform.md`](feature_md/feature/feature-vfx-ground-quad-transform.md).
+
 ### 2. Scenes (work files)
 
 Use the **Graph** menu:
@@ -336,7 +347,7 @@ Tudo o que a branch `main` antiga ainda **não** tinha, explicado por tema:
 | **Ligações** | Tipos flex/rigid/wireless; ícone de corrente; ocultar filhos ligados; foco no par; arrasto e clique nos slots corrigidos. |
 | **Class Group** | Map hash/embed, listas, pointers, pickers, menus de elemento, ligação por collection type, inspector. |
 | **Jade** | Menu e ponte em dev; resolução nativa de hashes no CodeDock (`jadeEditorTextResolve`). |
-| **VFX** | Reset point na timeline (clique direito → repetir trecho desde 0s). |
+| **VFX** | Reset point na timeline; ground quad scale/rotation fix; **Debug transform** no viewport. |
 
 A **última** grande entrega é **Node Graphs to Code**: exportar a árvore do Main para ritual `#PROP_text` como no `estrutura_bin.py`, com correcções de formato e portos de saída a funcionar de novo.
 
