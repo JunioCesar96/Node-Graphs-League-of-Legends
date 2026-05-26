@@ -75,6 +75,18 @@ Open the URL shown in the terminal (usually `http://localhost:5173`).
 
 **PT:** Decals com `isGroundLayer` (ex. `cracks2`, escala `{55,600,600}`) são remapeados para largura/altura no plano do chão. **Debug transform** ajuda a validar escala e orientação. Documentação técnica: [`feature_md/feature/feature-vfx-ground-quad-transform.md`](feature_md/feature/feature-vfx-ground-quad-transform.md).
 
+### 1d. VFX emitter classifications (semantic debug)
+
+| Step | Action |
+| --- | --- |
+| 1 | Open VFX dock, **Rebuild**, select an emitter in the left list |
+| 2 | Enable **Debug transform** in the 3D scene panel |
+| 3 | Read labels: geometry/material/motion kinds, active **traits**, `groundScaleKind` (decal / flipbookSquare / strip / neutral) |
+| 4 | Use the reference doc when extending `SEMANTIC_RULES` or debugging misclassified emitters |
+| 5 | Run `npm test -- src/core/vfx/semantic` or `npm run vfx:audit-semantics` for offline checks |
+
+**PT:** O classificador semântico infere o pipeline de render a partir da assinatura BIN (escala, blend, primitiva, UV, flags) — **sem** nome do campeão ou textura. **Debug transform** mostra traits e intents no viewport. Taxonomia completa: [`feature_md/feature/feature-vfx-emitter-classifications.md`](feature_md/feature/feature-vfx-emitter-classifications.md).
+
 ### 2. Scenes (work files)
 
 Use the **Graph** menu:
@@ -173,6 +185,7 @@ Features landed after the old English-only README on `main`, grouped newest firs
 - **Compact structure view** — dense internal structure rows; auto wireless in compact mode.
 - **Wireless connection** — third routing mode; chain icon; peer hover highlight.
 - **Class Group building blocks** — map hash/embed/u64, LIST2 embed/pointer, POINTER, list embed, primitive list pickers, element menus + search, dynamic collection-type linking, parameter suffixes, canvas context menu, hash/string inspector, workspace disk hooks, and related schema/UI work.
+- **VFX emitter classifications reference** — implementation doc + README guide for semantic taxonomy (traits, geometry/material/motion kinds, ground scale, `SEMANTIC_RULES`); use with **Debug transform** in the VFX Dock.
 
 ---
 
@@ -208,6 +221,10 @@ Implementation notes (Mermaid diagrams, commit hashes, API tables) live under [`
 | Workspace disk | [feature-workspace-disk-persistence.md](feature_md/feature/feature-workspace-disk-persistence.md) |
 | Node instance | [feature-node-instance-feature.md](feature_md/feature/feature-node-instance-feature.md) |
 | Main Class Group | [feature-main-class-group.md](feature_md/feature/feature-main-class-group.md) |
+| VFX emitter classifications | [feature-vfx-emitter-classifications.md](feature_md/feature/feature-vfx-emitter-classifications.md) |
+| VFX semantic classifier | [feature-vfx-semantic-classifier.md](feature_md/feature/feature-vfx-semantic-classifier.md) |
+| VFX render traits | [feature-vfx-render-traits.md](feature_md/feature/feature-vfx-render-traits.md) |
+| VFX ground quad transform | [feature-vfx-ground-quad-transform.md](feature_md/feature/feature-vfx-ground-quad-transform.md) |
 
 ---
 
@@ -347,7 +364,7 @@ Tudo o que a branch `main` antiga ainda **não** tinha, explicado por tema:
 | **Ligações** | Tipos flex/rigid/wireless; ícone de corrente; ocultar filhos ligados; foco no par; arrasto e clique nos slots corrigidos. |
 | **Class Group** | Map hash/embed, listas, pointers, pickers, menus de elemento, ligação por collection type, inspector. |
 | **Jade** | Menu e ponte em dev; resolução nativa de hashes no CodeDock (`jadeEditorTextResolve`). |
-| **VFX** | Reset point na timeline; ground quad scale/rotation fix; **Debug transform** no viewport. |
+| **VFX** | Reset point na timeline; ground quad scale/rotation fix; **Debug transform** no viewport; referência de classificações semânticas de emitters. |
 
 A **última** grande entrega é **Node Graphs to Code**: exportar a árvore do Main para ritual `#PROP_text` como no `estrutura_bin.py`, com correcções de formato e portos de saída a funcionar de novo.
 
