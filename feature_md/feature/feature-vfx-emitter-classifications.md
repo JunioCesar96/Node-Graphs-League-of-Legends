@@ -12,7 +12,7 @@
 | Branch Name | `feature-vfx-emitter-classifications` |
 | Feature Name(s) | VFX Emitter Classifications Reference (semantic taxonomy & pipeline catalog) |
 | Current Version | `1.5.0` |
-| Commit Hash | `62bd3ec` |
+| Commit Hash | `72ae0b8` |
 
 ---
 
