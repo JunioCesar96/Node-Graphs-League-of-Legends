@@ -1,9 +1,12 @@
-import { useEffect, useRef, type RefObject } from 'react'
+import { useCallback, useEffect, useRef, type RefObject } from 'react'
+
+import { useRitualDragShortcutHandlers } from '@/shortcuts/useRitualDragShortcutHandlers'
 
 import type { CanvasPosition } from '@/core/canvasScene'
 import type { RitualDragContextValue } from '@/ritualDrag/RitualDragContext'
 import {
   collectNeekoRitualDropTargetIds,
+  resolveLinkDropTargetFromPoint,
   resolveRitualDropTargetFromPoint,
 } from '@/ritualDrag/resolveRitualDropTarget'
 
@@ -20,10 +23,6 @@ function graphClientToPosition(
   }
 }
 
-function isCtrlRitualKey(event: KeyboardEvent): boolean {
-  return event.key === 'Control' || event.key === 'Meta'
-}
-
 export function useRitualDragCanvasDrop(options: {
   ritualDrag: RitualDragContextValue | null
   scale: number
@@ -36,6 +35,10 @@ export function useRitualDragCanvasDrop(options: {
   canvasRef: RefObject<HTMLDivElement | null>
   viewportBodyRef: RefObject<HTMLDivElement | null>
   onNeekoDropCode?: (canvasNodeId: string, text: string) => void
+  onBindCodeRangeToNode?: (
+    canvasNodeId: string,
+    payload: { text: string; textRange: import('@/ritualDrag/ritualDragSelection').RitualDragTextRange },
+  ) => void
   onBuildNeekoAtPosition?: (position: CanvasPosition) => string | null
   onNeekoBuildFailed?: () => void
 }) {
@@ -46,6 +49,7 @@ export function useRitualDragCanvasDrop(options: {
     canvasRef,
     viewportBodyRef,
     onNeekoDropCode,
+    onBindCodeRangeToNode,
     onBuildNeekoAtPosition,
     onNeekoBuildFailed,
   } = options
@@ -56,23 +60,16 @@ export function useRitualDragCanvasDrop(options: {
   const neekoDropTargetIdsRef = useRef(collectNeekoRitualDropTargetIds(sceneNodes))
   neekoDropTargetIdsRef.current = collectNeekoRitualDropTargetIds(sceneNodes)
 
+  const linkDropNodeIdsRef = useRef(
+    new Set(sceneNodes.filter((n) => !n.locked).map((n) => n.id)),
+  )
+  linkDropNodeIdsRef.current = new Set(sceneNodes.filter((n) => !n.locked).map((n) => n.id))
+
   const ctrlSpawnTriggeredRef = useRef(false)
 
   const ritualDragPhase = ritualDrag?.phase ?? 'idle'
 
-  useEffect(() => {
-    const activePhases = new Set(['dragging', 'buildingNeeko', 'readyNeeko'])
-    if (!activePhases.has(ritualDragPhase)) {
-      ctrlSpawnTriggeredRef.current = false
-      return
-    }
-
-    const api = ritualDragRef.current
-    if (!api || !onNeekoDropCode) {
-      return
-    }
-
-    const spawnNeekoAtPointer = (clientX: number, clientY: number): boolean => {
+  const spawnNeekoAtPointer = useCallback((clientX: number, clientY: number): boolean => {
       const drag = ritualDragRef.current
       if (!drag || drag.phase !== 'dragging' || !canvasRef.current) {
         return false
@@ -110,6 +107,31 @@ export function useRitualDragCanvasDrop(options: {
       ctrlSpawnTriggeredRef.current = true
       drag.placeNeekoReady(canvasPosition, canvasNodeId, pointer)
       return true
+  }, [
+    canvasRef,
+    onBuildNeekoAtPosition,
+    onNeekoBuildFailed,
+    scale,
+    viewportBodyRef,
+  ])
+
+  useRitualDragShortcutHandlers({
+    ritualDrag,
+    spawnNeekoAtPointer,
+  })
+
+  useEffect(() => {
+    const neekoPhases = new Set(['dragging', 'buildingNeeko', 'readyNeeko'])
+    const linkPhases = new Set(['linkDragging'])
+
+    if (!neekoPhases.has(ritualDragPhase) && !linkPhases.has(ritualDragPhase)) {
+      ctrlSpawnTriggeredRef.current = false
+      return
+    }
+
+    const api = ritualDragRef.current
+    if (!api) {
+      return
     }
 
     const onPointerMove = (event: PointerEvent) => {
@@ -119,6 +141,15 @@ export function useRitualDragCanvasDrop(options: {
       }
 
       drag.updatePointer({ x: event.clientX, y: event.clientY })
+
+      if (drag.phase === 'linkDragging') {
+        const linkTarget = resolveLinkDropTargetFromPoint(event.clientX, event.clientY, {
+          viewportBodyEl: viewportBodyRef.current,
+          allowedNodeIds: linkDropNodeIdsRef.current,
+        })
+        drag.setHoveredLinkNode(linkTarget.kind === 'linkNode' ? linkTarget.canvasNodeId : null)
+        return
+      }
 
       const target = resolveRitualDropTargetFromPoint(event.clientX, event.clientY, {
         neekoNodeIds: neekoDropTargetIdsRef.current,
@@ -143,27 +174,26 @@ export function useRitualDragCanvasDrop(options: {
       drag.setHoveredNeeko(null)
     }
 
-    const onCtrlSpawnKey = (event: KeyboardEvent) => {
-      if (!isCtrlRitualKey(event)) {
-        return
-      }
-
-      if (event.type === 'keydown' && event.repeat) {
-        return
-      }
-
-      const drag = ritualDragRef.current
-      if (!drag || drag.phase !== 'dragging') {
-        return
-      }
-
-      event.preventDefault()
-      spawnNeekoAtPointer(drag.pointer.x, drag.pointer.y)
-    }
-
     const onPointerUp = (event: PointerEvent) => {
       const drag = ritualDragRef.current
       if (!drag) {
+        return
+      }
+
+      if (drag.phase === 'linkDragging') {
+        const linkTarget = resolveLinkDropTargetFromPoint(event.clientX, event.clientY, {
+          viewportBodyEl: viewportBodyRef.current,
+          allowedNodeIds: linkDropNodeIdsRef.current,
+        })
+
+        if (linkTarget.kind === 'linkNode' && onBindCodeRangeToNode) {
+          const payload = drag.consumeLinkBindDrop()
+          if (payload) {
+            onBindCodeRangeToNode(linkTarget.canvasNodeId, payload)
+          }
+        } else {
+          drag.cancel()
+        }
         return
       }
 
@@ -175,7 +205,7 @@ export function useRitualDragCanvasDrop(options: {
       if (drag.phase === 'readyNeeko' && drag.neekoStaging?.canvasNodeId) {
         const text = drag.consumeDrop()
         if (text) {
-          onNeekoDropCode(drag.neekoStaging.canvasNodeId, text)
+          onNeekoDropCode?.(drag.neekoStaging.canvasNodeId, text)
         }
         return
       }
@@ -183,7 +213,7 @@ export function useRitualDragCanvasDrop(options: {
       if (target.kind === 'neeko') {
         const text = drag.consumeDrop()
         if (text) {
-          onNeekoDropCode(target.canvasNodeId, text)
+          onNeekoDropCode?.(target.canvasNodeId, text)
         }
         return
       }
@@ -194,20 +224,18 @@ export function useRitualDragCanvasDrop(options: {
     window.addEventListener('pointermove', onPointerMove)
     window.addEventListener('pointerup', onPointerUp)
     window.addEventListener('pointercancel', onPointerUp)
-    window.addEventListener('keydown', onCtrlSpawnKey, true)
-    window.addEventListener('keyup', onCtrlSpawnKey, true)
 
     return () => {
       window.removeEventListener('pointermove', onPointerMove)
       window.removeEventListener('pointerup', onPointerUp)
       window.removeEventListener('pointercancel', onPointerUp)
-      window.removeEventListener('keydown', onCtrlSpawnKey, true)
-      window.removeEventListener('keyup', onCtrlSpawnKey, true)
       ritualDragRef.current?.setHoveredNeeko(null)
+      ritualDragRef.current?.setHoveredLinkNode(null)
     }
   }, [
     canvasRef,
     onBuildNeekoAtPosition,
+    onBindCodeRangeToNode,
     onNeekoBuildFailed,
     onNeekoDropCode,
     ritualDragPhase,

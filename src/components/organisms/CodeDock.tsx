@@ -3,6 +3,7 @@ import {
   type PointerEvent as ReactPointerEvent,
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from 'react'
@@ -11,9 +12,16 @@ import Editor from '@monaco-editor/react'
 import MenuBar from '@jade/components/MenuBar'
 import { getMonacoLanguageForFileName } from '@/core/codeDockFileTypes'
 import { useCodeDockJadeEditor } from '@/hooks/useCodeDockJadeEditor'
+import {
+  SHORTCUT_SCOPE_ATTR,
+  SHORTCUT_SCOPE_CODE_DOCK,
+} from '@/core/shortcuts/shortcutScopes'
 import { useRitualDragOptional } from '@/ritualDrag/RitualDragContext'
 
+import { LangId } from '@/core/language/languageIds'
+import { buildJadeMenuBarLabels } from '@/core/language/jadeMenuLabels'
 import { sanitizeStructurePackFolderName } from '@/core/nodeStructurePackStorage'
+import { useLanguage } from '@/language/LanguageProvider'
 
 import { clampFloatingDockRect, type CodeDockFloatingRect } from './codeDockFloatingRect'
 import { CodeDockTabBar } from '@/components/molecules/CodeDockTabBar'
@@ -150,6 +158,8 @@ export function CodeDock({
   primarySelectedNodeId = null,
   onReplaceValueToGraph,
 }: CodeDockProps) {
+  const { t } = useLanguage()
+  const menuBarLabels = useMemo(() => buildJadeMenuBarLabels(t), [t])
   const monacoModelPath = `/workspace/code-dock/${activeTabId}/${activeFileName}`
   const editorLanguage = getMonacoLanguageForFileName(activeFileName)
   const jade = useCodeDockJadeEditor(value, onChange, editorLanguage)
@@ -666,26 +676,26 @@ export function CodeDock({
 
   const nodeGraphTools = nodeActions ? (
     <>
-      <span className="codeDockNodeGraphLabel">Node Graph</span>
+      <span className="codeDockNodeGraphLabel">{t(LangId.CodeToolsNodeGraph)}</span>
       <button
         className="menu-option"
         type="button"
         onClick={() => void nodeActions.onConvertJadeFxEditor()}
       >
-        <span>Converter [Jade fx_editor]</span>
+        <span>{t(LangId.CodeToolsConvertJadeFx)}</span>
       </button>
       <button
         className="menu-option"
         type="button"
         onClick={() => void nodeActions.onConvertClassGroup()}
       >
-        <span>Converter [Class Group]</span>
+        <span>{t(LangId.CodeToolsConvertClassGroup)}</span>
       </button>
       <button className="menu-option" type="button" onClick={() => void openExtractDialog()}>
-        <span>Extrair Node Base</span>
+        <span>{t(LangId.CodeToolsExtractNodeBase)}</span>
       </button>
       <button className="menu-option" type="button" onClick={() => void openNomeDialog()}>
-        <span>Aplicar nomeclatura (.bin)</span>
+        <span>{t(LangId.CodeToolsApplyNomenclature)}</span>
       </button>
       {nodeActions.onHumanizePropRitual ? (
         <button
@@ -693,21 +703,21 @@ export function CodeDock({
           type="button"
           onClick={() => nodeActions.onHumanizePropRitual?.()}
         >
-          <span>Resolver hashes PROP (Jade)</span>
+          <span>{t(LangId.CodeToolsResolvePropHashes)}</span>
         </button>
       ) : null}
       <button className="menu-option" type="button" onClick={() => void openDeleteDialog()}>
-        <span>Deletar pack</span>
+        <span>{t(LangId.CodeToolsDeletePack)}</span>
       </button>
       <div className="menu-separator" role="separator" />
-      <span className="codeDockCodeToNodeGraphSectionLabel">Code To Node Graph</span>
+      <span className="codeDockCodeToNodeGraphSectionLabel">{t(LangId.CodeToolsSectionCodeToGraph)}</span>
       <button className="menu-option" type="button" onClick={() => void openCodeToGraphDialog()}>
-        <span>Code To Node Graph</span>
+        <span>{t(LangId.CodeToolsCodeToGraph)}</span>
       </button>
       <div className="menu-separator" role="separator" />
-      <span className="codeDockCodeToNodeGraphSectionLabel">Code to new node graph</span>
+      <span className="codeDockCodeToNodeGraphSectionLabel">{t(LangId.CodeToolsSectionCodeToNewGraph)}</span>
       <button className="menu-option" type="button" onClick={() => openCodeToNewGraphDialog()}>
-        <span>Code to new node graph</span>
+        <span>{t(LangId.CodeToolsCodeToNewGraph)}</span>
       </button>
     </>
   ) : null
@@ -729,15 +739,16 @@ export function CodeDock({
 
   const aside = (
     <aside
-      aria-label="Editor ritual (Monaco Jade)"
+      aria-label={t(LangId.CodeAriaEditor)}
       className={shellClassNames}
       data-code-dock-editor-root=""
+      {...{ [SHORTCUT_SCOPE_ATTR]: SHORTCUT_SCOPE_CODE_DOCK }}
       ref={shellRef}
       style={shellSizing}
     >
       {!floatingActive ? (
         <button
-          aria-label="Redimensionar largura do painel"
+          aria-label={t(LangId.CodeAriaResizeDockWidth)}
           className={styles.resizeDockWidth}
           onPointerDown={beginDockWidthResize}
           type="button"
@@ -745,19 +756,19 @@ export function CodeDock({
       ) : (
         <>
           <button
-            aria-label="Redimensionar largura"
+            aria-label={t(LangId.CodeAriaResizeWidth)}
             className={styles.resizeE}
             onPointerDown={(e) => startFloatResize('e', e)}
             type="button"
           />
           <button
-            aria-label="Redimensionar altura"
+            aria-label={t(LangId.CodeAriaResizeHeight)}
             className={styles.resizeS}
             onPointerDown={(e) => startFloatResize('s', e)}
             type="button"
           />
           <button
-            aria-label="Redimensionar largura e altura"
+            aria-label={t(LangId.CodeAriaResizeBoth)}
             className={styles.resizeSE}
             onPointerDown={(e) => startFloatResize('se', e)}
             type="button"
@@ -775,9 +786,10 @@ export function CodeDock({
           .filter(Boolean)
           .join(' ')}
         onPointerDownCapture={floatingActive ? beginFloatMovePending : undefined}
-        title={floatingActive ? 'Arrastar janela (barra File / Edit / Tools)' : undefined}
+        title={floatingActive ? t(LangId.CodeTitleDragWindow) : undefined}
       >
         <MenuBar
+          labels={menuBarLabels}
           findActive={jade.findActive}
           interactionsDisabled={floatingActive && floatDragging}
           generalEditActive={jade.generalEditActive}
@@ -829,9 +841,9 @@ export function CodeDock({
               onToggleFloating()
             }}
             type="button"
-            title={floatingActive ? 'Fixar na barra lateral' : 'Defixar — painel livre sobre tudo'}
+            title={floatingActive ? t(LangId.CodeTitleDock) : t(LangId.CodeTitleUndock)}
           >
-            {floatingActive ? 'Fixar' : 'Defixar'}
+            {floatingActive ? t(LangId.CodeBtnDock) : t(LangId.CodeBtnUndock)}
           </button>
           {floatingActive ? (
             <button
@@ -841,9 +853,9 @@ export function CodeDock({
                 onResetFloatingDimensions()
               }}
               type="button"
-              title="Repor dimensões e posição padrão"
+              title={t(LangId.CodeTitleResetDimensions)}
             >
-              Repor dimensões
+              {t(LangId.CodeBtnResetDimensions)}
             </button>
           ) : null}
           <button
@@ -854,7 +866,7 @@ export function CodeDock({
             }}
             type="button"
           >
-            fechar
+            {t(LangId.CodeBtnClose)}
           </button>
         </div>
       </header>
@@ -877,7 +889,7 @@ export function CodeDock({
               onClick={() => nodeActions.onHumanizePropRitual?.()}
               type="button"
             >
-              Resolver hashes (Jade)
+              {t(LangId.CodeBannerResolveHashes)}
             </button>
           ) : null}
         </div>
@@ -885,15 +897,15 @@ export function CodeDock({
       {deleteDialogOpen ? (
         <div aria-modal className={styles.dialogBackdrop} role="dialog">
           <div className={styles.dialogPanel}>
-            <p className={styles.dialogTitle}>Eliminar pasta pack</p>
+            <p className={styles.dialogTitle}>{t(LangId.CodeDeleteDialogTitle)}</p>
             {deleteListError ? (
               <p className={styles.dialogHint}>{deleteListError}</p>
             ) : deleteChoices.length === 0 ? (
-              <p className={styles.dialogHint}>Nenhuma pasta para eliminar (além da default).</p>
+              <p className={styles.dialogHint}>{t(LangId.CodeDeleteDialogEmpty)}</p>
             ) : (
               <>
                 <label className={styles.dialogField}>
-                  Pasta
+                  {t(LangId.CodeFieldFolder)}
                   <select
                     className={styles.dialogSelect}
                     onChange={(e) => setDeleteSelected(e.target.value)}
@@ -911,7 +923,7 @@ export function CodeDock({
             )}
             <div className={styles.dialogActions}>
               <button className={styles.headerGhostButton} onClick={closeDeleteDialog} type="button">
-                Cancelar
+                {t(LangId.CodeBtnCancel)}
               </button>
               <button
                 className={styles.dialogDanger}
@@ -919,7 +931,7 @@ export function CodeDock({
                 onClick={() => void confirmDeleteFolder()}
                 type="button"
               >
-                {deleteBusy ? 'A eliminar…' : 'Eliminar pasta'}
+                {deleteBusy ? t(LangId.CodeDeleteBusy) : t(LangId.CodeDeleteConfirm)}
               </button>
             </div>
           </div>
@@ -928,7 +940,7 @@ export function CodeDock({
       {nomeDialogOpen ? (
         <div aria-modal className={styles.dialogBackdrop} role="dialog">
           <div className={styles.dialogPanel}>
-            <p className={styles.dialogTitle}>Aplicar nomeclatura</p>
+            <p className={styles.dialogTitle}>{t(LangId.CodeNomenclatureDialogTitle)}</p>
             {nomeListError ? (
               <p className={styles.dialogHint}>{nomeListError}</p>
             ) : nomeChoices.length === 0 ? (
@@ -936,7 +948,7 @@ export function CodeDock({
             ) : (
               <>
                 <label className={styles.dialogField}>
-                  Pasta do pack
+                  {t(LangId.CodeFieldPackFolder)}
                   <select
                     className={styles.dialogSelect}
                     onChange={(e) => setNomeSelected(e.target.value)}
@@ -957,7 +969,7 @@ export function CodeDock({
             )}
             <div className={styles.dialogActions}>
               <button className={styles.headerGhostButton} onClick={closeNomeDialog} type="button">
-                Cancelar
+                {t(LangId.CodeBtnCancel)}
               </button>
               <button
                 className={styles.headerGhostButton}
@@ -965,7 +977,7 @@ export function CodeDock({
                 onClick={() => void confirmApplyNome()}
                 type="button"
               >
-                {nomeBusy ? 'A aplicar…' : 'Aplicar'}
+                {nomeBusy ? t(LangId.CodeNomenclatureBusy) : t(LangId.CodeNomenclatureApply)}
               </button>
             </div>
           </div>
@@ -974,7 +986,7 @@ export function CodeDock({
       {codeToGraphDialogOpen ? (
         <div aria-modal className={styles.dialogBackdrop} role="dialog">
           <div className={styles.dialogPanel}>
-            <p className={styles.dialogTitle}>Code To Node Graph</p>
+            <p className={styles.dialogTitle}>{t(LangId.CodeCodeToGraphDialogTitle)}</p>
             {codeToGraphListError ? (
               <p className={styles.dialogHint}>{codeToGraphListError}</p>
             ) : codeToGraphChoices.length === 0 ? (
@@ -985,7 +997,7 @@ export function CodeDock({
             ) : (
               <>
                 <label className={styles.dialogField}>
-                  Pasta do pack
+                  {t(LangId.CodeFieldPackFolder)}
                   <select
                     className={styles.dialogSelect}
                     onChange={(e) => setCodeToGraphSelected(e.target.value)}
@@ -1007,7 +1019,7 @@ export function CodeDock({
             )}
             <div className={styles.dialogActions}>
               <button className={styles.headerGhostButton} onClick={closeCodeToGraphDialog} type="button">
-                Cancelar
+                {t(LangId.CodeBtnCancel)}
               </button>
               {nodeActions?.onCodeToNodeGraphStepByStep ? (
                 <button
@@ -1016,7 +1028,7 @@ export function CodeDock({
                   onClick={() => void confirmCodeToNodeGraphStepByStep()}
                   type="button"
                 >
-                  {codeToGraphBusy ? 'A iniciar…' : 'Passo a passo'}
+                  {codeToGraphBusy ? t(LangId.CodeNomenclatureBusy) : t(LangId.CodeCodeToGraphStep)}
                 </button>
               ) : null}
               <button
@@ -1025,7 +1037,7 @@ export function CodeDock({
                 onClick={() => void confirmCodeToNodeGraph()}
                 type="button"
               >
-                {codeToGraphBusy ? 'A gerar…' : 'Gerar grafo'}
+                {codeToGraphBusy ? t(LangId.CodeNomenclatureBusy) : t(LangId.CodeCodeToGraphGenerate)}
               </button>
             </div>
           </div>
@@ -1034,7 +1046,7 @@ export function CodeDock({
       {codeToNewGraphDialogOpen ? (
         <div aria-modal className={styles.dialogBackdrop} role="dialog">
           <div className={styles.dialogPanel}>
-            <p className={styles.dialogTitle}>Code to new node graph</p>
+            <p className={styles.dialogTitle}>{t(LangId.CodeCodeToNewGraphDialogTitle)}</p>
             {codeToNewGraphError ? <p className={styles.dialogHint}>{codeToNewGraphError}</p> : null}
             <label className={styles.dialogField}>
               Nome da pasta (novo pack)
@@ -1069,7 +1081,7 @@ export function CodeDock({
             ) : null}
             <div className={styles.dialogActions}>
               <button className={styles.headerGhostButton} onClick={closeCodeToNewGraphDialog} type="button">
-                Cancelar
+                {t(LangId.CodeBtnCancel)}
               </button>
               {nodeActions?.onCodeToNewNodeGraphStepByStep ? (
                 <button
@@ -1080,7 +1092,7 @@ export function CodeDock({
                 onClick={() => void confirmCodeToNewNodeGraphStepByStep()}
                 type="button"
               >
-                {codeToNewGraphBusy ? 'A iniciar…' : 'Passo a passo'}
+                {codeToNewGraphBusy ? t(LangId.CodeNomenclatureBusy) : t(LangId.CodeCodeToGraphStep)}
               </button>
               ) : null}
               <button
@@ -1091,7 +1103,8 @@ export function CodeDock({
                 onClick={() => void confirmCodeToNewNodeGraph()}
                 type="button"
               >
-                {codeToNewGraphProgress?.label ?? (codeToNewGraphBusy ? 'A gerar…' : 'Gerar')}
+                {codeToNewGraphProgress?.label ??
+                  (codeToNewGraphBusy ? t(LangId.CodeNomenclatureBusy) : t(LangId.CodeCodeToNewGraphGenerate))}
               </button>
             </div>
           </div>
@@ -1100,7 +1113,7 @@ export function CodeDock({
       {extractDialogOpen ? (
         <div aria-modal className={styles.dialogBackdrop} role="dialog">
           <div className={styles.dialogPanel}>
-            <p className={styles.dialogTitle}>Extrair Node Base</p>
+            <p className={styles.dialogTitle}>{t(LangId.CodeExtractDialogTitle)}</p>
             {extractListError ? (
               <p className={styles.dialogHint}>{extractListError}</p>
             ) : extractChoices.length === 0 ? (
@@ -1111,7 +1124,7 @@ export function CodeDock({
             ) : (
               <>
                 <label className={styles.dialogField}>
-                  Pasta do pack
+                  {t(LangId.CodeFieldPackFolder)}
                   <select
                     className={styles.dialogSelect}
                     onChange={(e) => setExtractSelected(e.target.value)}
@@ -1133,7 +1146,7 @@ export function CodeDock({
             )}
             <div className={styles.dialogActions}>
               <button className={styles.headerGhostButton} onClick={closeExtractDialog} type="button">
-                Cancelar
+                {t(LangId.CodeBtnCancel)}
               </button>
               <button
                 className={styles.headerGhostButton}
@@ -1141,7 +1154,7 @@ export function CodeDock({
                 onClick={() => void confirmExtractNodeBase()}
                 type="button"
               >
-                {extractBusy ? 'A processar…' : 'Extrair'}
+                {extractBusy ? t(LangId.CodeNomenclatureBusy) : t(LangId.CodeExtractConfirm)}
               </button>
             </div>
           </div>
@@ -1150,7 +1163,7 @@ export function CodeDock({
       <div className={`${styles.editorHost} codeDockJadeScope`}>
         {tabs.length === 0 ? (
           <p className={styles.emptyEditor}>
-            Nenhum ficheiro de código aberto. Abra um ficheiro ou crie um novo.
+            {t(LangId.CodeEmptyEditor)}
           </p>
         ) : (
           <Editor
@@ -1158,7 +1171,7 @@ export function CodeDock({
             beforeMount={jade.handleBeforeMount}
             defaultLanguage={editorLanguage}
             height="100%"
-            loading={<span className={styles.loading}>A carregar editor…</span>}
+            loading={<span className={styles.loading}>{t(LangId.CodeEditorLoading)}</span>}
             onChange={(next) => onChange(next ?? '')}
             onMount={jade.handleMount}
             options={jade.monacoOptions}

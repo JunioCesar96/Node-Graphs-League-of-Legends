@@ -142,7 +142,7 @@ import {
   serializeSceneNodesStatePresetsFile,
 } from '@/core/sceneNodesStatePresets'
 import { isCanvasScene } from '@/hooks/useSceneHistory'
-import { isCodeDockEditorFocused } from '@/core/canvasKeyboardGuard'
+import { useAppShortcutHandlers } from '@/shortcuts/useAppShortcutHandlers'
 import {
   ensureJadeHashesLoaded,
   getJadeEditorResolveStatus,
@@ -155,7 +155,9 @@ import { resolveVfxRitualText } from '@/core/vfx/resolveVfxRitualText'
 import { useCodeDockTabs } from '@/hooks/useCodeDockTabs'
 import { useNeekoTransform } from '@/hooks/useNeekoTransform'
 import { RitualDragOverlay } from '@/components/molecules/RitualDragOverlay'
+import { LangId } from '@/core/language/languageIds'
 import { useSceneTabs } from '@/hooks/useSceneTabs'
+import { useLanguage } from '@/language/LanguageProvider'
 import {
   MESSENGER_TOAST_NEEKO_BUILD_FAILED,
   MESSENGER_TOAST_NEEKO_TRANSFORM_ERROR,
@@ -169,9 +171,6 @@ const BOOT_CONSOLE_TEST_MESSAGE = 'Teste, console de notificação funcionado.'
 const BOOT_CONSOLE_TEST_SECONDS = 3
 
 const SAVE_STATUS_NOTICE_SECONDS = 10
-
-const SCENE_WORKSPACE_EMPTY_HINT =
-  'Abra um ficheiro JSON de cena de trabalho ou crie uma cena nova.'
 
 type TabRenameTarget =
   | { kind: 'scene'; tabId: string; initial: string }
@@ -197,29 +196,6 @@ type InspectorDragGesture = {
   undockFromToolbarStarted: boolean
 }
 
-function isEditableTarget(target: EventTarget | null) {
-  if (!(target instanceof HTMLElement)) {
-    return false
-  }
-
-  return Boolean(target.closest('input, textarea, select, button, [contenteditable="true"]'))
-}
-
-function shouldIgnoreAppKeyboardShortcut(event: KeyboardEvent): boolean {
-  if (isCodeDockEditorFocused()) {
-    return true
-  }
-  if (isEditableTarget(event.target)) {
-    return true
-  }
-  if (!(event.target instanceof HTMLElement)) {
-    return false
-  }
-  return Boolean(
-    event.target.closest('[data-structure-index-picker], [role="dialog"][aria-modal="true"]'),
-  )
-}
-
 const INSPECTOR_TOOLBAR_UNDOCK_DRAG_PX = 12
 
 const INSPECTOR_CHROME_STRIP_PX = 42
@@ -241,6 +217,7 @@ function readRootSpacePx(variable: string): number {
 }
 
 function App() {
+  const { t } = useLanguage()
   const inspectorMovedDuringPointer = useRef(false)
   const inspectorDragGesture = useRef<InspectorDragGesture | null>(null)
   const sceneNodesMovedDuringPointer = useRef(false)
@@ -2402,70 +2379,16 @@ function App() {
     setCodeDockFloatingRect(clampFloatingDockRect(createDefaultFloatingCodeDockRect()))
   }, [])
 
-  useEffect(() => {
-    const handleKeyboardShortcut = (event: KeyboardEvent) => {
-      if (shouldIgnoreAppKeyboardShortcut(event)) {
-        return
-      }
-
-      const key = event.key.toLowerCase()
-
-      if ((event.ctrlKey || event.metaKey) && key === 'z') {
-        event.preventDefault()
-
-        if (event.shiftKey) {
-          redoScene()
-          return
-        }
-
-        undoScene()
-        return
-      }
-
-      if ((event.ctrlKey || event.metaKey) && key === 'y') {
-        event.preventDefault()
-        redoScene()
-        return
-      }
-
-      if (event.key === 'Delete' || event.key === 'Backspace') {
-        const deletableIds = filterRemovableNodeIds(scene, selectedNodeIds)
-
-        if (deletableIds.length === 0) {
-          const hasLocked = selectedNodeIds.some((id) => {
-            const node = scene.nodes.find((entry) => entry.id === id)
-
-            return node !== undefined && isNodeLocked(node)
-          })
-
-          if (hasLocked) {
-            event.preventDefault()
-            showToastByCatalogId(MESSENGER_TOAST_NODE_LOCKED)
-          }
-
-          return
-        }
-
-        event.preventDefault()
-        deleteNodeIds(deletableIds)
-      }
-    }
-
-    window.addEventListener('keydown', handleKeyboardShortcut)
-
-    return () => {
-      window.removeEventListener('keydown', handleKeyboardShortcut)
-    }
-  }, [
-    deleteNodeIds,
-    deleteSelectedNodes,
-    primarySelectedId,
-    redoScene,
+  useAppShortcutHandlers({
     scene,
     selectedNodeIds,
-    showToastByCatalogId,
     undoScene,
-  ])
+    redoScene,
+    deleteNodeIds,
+    showToastByCatalogId,
+    codeDockOpen,
+    vfxDockOpen,
+  })
 
   const inspectorTarget =
     selectedNodeIds.length > 0 && primarySelectedId
@@ -3236,7 +3159,7 @@ function App() {
                 attached
                 onActivate={activateTab}
                 onClose={closeTab}
-                onNewTab={() => createWorkScene('Nova cena')}
+                onNewTab={() => createWorkScene(t(LangId.SceneTabNew))}
                 onTabAction={handleSceneTabAction}
                 tabs={tabBarItems}
               />
@@ -3373,7 +3296,7 @@ function App() {
             }
           />
           ) : (
-            <p className={styles.empty}>{SCENE_WORKSPACE_EMPTY_HINT}</p>
+            <p className={styles.empty}>{t(LangId.AppSceneEmptyHint)}</p>
           )}
           {sceneNodesDockShowsSidebar ? (
             <div className={sceneNodesDockClassName} style={sceneNodesDockStyle}>

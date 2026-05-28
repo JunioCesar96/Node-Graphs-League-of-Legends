@@ -18,7 +18,9 @@ import {
   type PerfKey,
   type PerfPrefs,
 } from './buildMonacoOptions'
+
 import { useCodeDockRitualDrag } from './useCodeDockRitualDrag'
+import { useCodeDockShortcutHandlers } from '@/shortcuts/useCodeDockShortcutHandlers'
 
 export type CodeDockCtxMenu = {
   x: number
@@ -60,7 +62,6 @@ export function useCodeDockJadeEditor(
   const [showThemes, setShowThemes] = useState(false)
   const [showAbout, setShowAbout] = useState(false)
 
-  const [focused, setFocused] = useState(false)
   const [editorMounted, setEditorMounted] = useState(false)
 
   const monacoOptions = buildMonacoOptions(perfPrefs, lineCount, editorFontFamily || undefined)
@@ -432,10 +433,6 @@ export function useCodeDockJadeEditor(
       })
       editorDisposablesRef.current.push(ctxDisposable)
 
-      const focusIn = editor.onDidFocusEditorText(() => setFocused(true))
-      const focusOut = editor.onDidBlurEditorText(() => setFocused(false))
-      editorDisposablesRef.current.push(focusIn, focusOut)
-
       setEditorMounted(true)
       runSyntaxPass()
     },
@@ -468,44 +465,14 @@ export function useCodeDockJadeEditor(
     }
   }, [])
 
-  useEffect(() => {
-    if (!focused) return
-
-    const onKey = (e: KeyboardEvent) => {
-      if (!(e.ctrlKey || e.metaKey)) return
-      const key = e.key.toLowerCase()
-      if (key === 'f') {
-        e.preventDefault()
-        handleFind()
-      } else if (key === 'h') {
-        e.preventDefault()
-        handleReplace()
-      } else if (key === 'z' && !e.shiftKey) {
-        e.preventDefault()
-        handleUndo()
-      } else if (key === 'y' || (key === 'z' && e.shiftKey)) {
-        e.preventDefault()
-        handleRedo()
-      } else if (key === 'o') {
-        e.preventDefault()
-        handleGeneralEdit()
-      } else if (key === 'p') {
-        e.preventDefault()
-        handleParticlePanel()
-      }
-    }
-
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [
-    focused,
-    handleFind,
-    handleReplace,
-    handleUndo,
-    handleRedo,
-    handleGeneralEdit,
-    handleParticlePanel,
-  ])
+  useCodeDockShortcutHandlers({
+    onFind: handleFind,
+    onReplace: handleReplace,
+    onUndo: handleUndo,
+    onRedo: handleRedo,
+    onGeneralEdit: handleGeneralEdit,
+    onParticlePanel: handleParticlePanel,
+  })
 
   const onEmitterHintsChange = useCallback(
     (enabled: boolean) => {
@@ -570,6 +537,7 @@ export function useCodeDockJadeEditor(
     handleParticlePanel,
     handlePanelContentChange,
     scrollToLine,
+    isRitobinEditor,
     handleMaterialLibrary,
     handleCompareFiles,
     showTauriToast,

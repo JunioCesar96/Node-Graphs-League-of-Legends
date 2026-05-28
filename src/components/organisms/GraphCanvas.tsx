@@ -117,10 +117,13 @@ import {
   type NodeCardSectionId,
 } from '@/core/nodeCardSections'
 import { isParameterPickerOpen } from '@/core/parameterPickerModal'
+import { shouldIgnoreCanvasWheelShortcut } from '@/core/canvasKeyboardGuard'
 import {
-  shouldIgnoreCanvasKeyboardShortcut,
-  shouldIgnoreCanvasWheelShortcut,
-} from '@/core/canvasKeyboardGuard'
+  GRAPH_CANVAS_SCOPE_ATTR,
+  GRAPH_CANVAS_SCOPE_ID,
+  useGraphCanvasShortcutHandlers,
+  type GraphCanvasShortcutRefs,
+} from '@/shortcuts/useGraphCanvasShortcutHandlers'
 import { schemaJsonRelativePathBySchemaId } from '@/core/nodeStructureRegistry'
 import { schemaRegistry } from '@/core/nodeStructureRegistry'
 import {
@@ -131,7 +134,8 @@ import {
   ELEMENT_MENU_TRIGGER_ATTR,
 } from '@/core/canvasContextMenuAttributes'
 import { buildContextMenuItems } from '@/core/canvasContextMenuItems'
-import { isNeekoSchemaId } from '@/core/neekoNodeTransform'
+import { LangId } from '@/core/language/languageIds'
+import { useLanguage } from '@/language/LanguageProvider'
 import {
   DEFAULT_CANVAS_TOOLBAR_VISIBILITY,
   toggleToolbarVisibility,
@@ -362,6 +366,19 @@ type GraphCanvasProps = {
   onSceneNodesPanelRequest?: () => void
   /** Drop/colar ritual Class Group num Neeko Node. */
   onNeekoDropCode?: (canvasNodeId: string, text: string) => void
+  /** Vincular área do editor ao nó (Shift+arrasto). */
+  onBindCodeRangeToNode?: (
+    canvasNodeId: string,
+    payload: {
+      text: string
+      textRange: {
+        startLineNumber: number
+        startColumn: number
+        endLineNumber: number
+        endColumn: number
+      }
+    },
+  ) => void
   /** Ritual drag: cria Neeko na grade após staging (posição canvas). */
   onBuildNeekoAtPosition?: (position: CanvasPosition) => string | null
   onNeekoBuildFailed?: () => void
@@ -372,6 +389,14 @@ type GraphCanvasProps = {
   onExtractSceneNodesStatePreset?: (nodeId: string) => void
   /** Serializa Main → ritual Class Group e abre no CodeDock. */
   onGraphsToCode?: () => void
+  /** Pré-visualiza subárvore do nó no CodeDock. */
+  onViewNodeCode?: (nodeId: string) => void
+  /** Abre VFX Dock com ritual da subárvore do nó. */
+  onPreviewNodeVfx?: (nodeId: string) => void
+  /** Sincroniza subárvore do nó seleccionado na aba activa do CodeDock. */
+  onSyncNodeValueToCode?: (nodeId: string) => void
+  /** CodeDock aberto com aba ritobin activa. */
+  canSyncNodeToCode?: boolean
   /** Visibilidade dos botões da barra do canvas (persistida em `scene.sceneChrome`). */
   toolbarVisibility?: CanvasToolbarVisibility
   onToolbarVisibilityChange?: (next: CanvasToolbarVisibility) => void
@@ -1436,7 +1461,12 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     onSceneNodesPanelRequest,
     onExtractSceneNodesStatePreset,
     onGraphsToCode,
+    onViewNodeCode,
+    onPreviewNodeVfx,
+    onSyncNodeValueToCode,
+    canSyncNodeToCode = false,
     onNeekoDropCode,
+    onBindCodeRangeToNode,
     onBuildNeekoAtPosition,
     onNeekoBuildFailed,
     neekoTransformingNodeId = null,
@@ -1447,6 +1477,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
   },
   ref,
 ) {
+  const { t } = useLanguage()
   const [pendingLink, setPendingLink] = useState<PendingLink | null>(null)
   const [collectionTypeLinkMenu, setCollectionTypeLinkMenu] = useState<CollectionTypeLinkMenuState | null>(
     null,
@@ -1476,6 +1507,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     canvasRef,
     viewportBodyRef,
     onNeekoDropCode,
+    onBindCodeRangeToNode,
     onBuildNeekoAtPosition,
     onNeekoBuildFailed,
   })
@@ -1486,6 +1518,9 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     ritualDrag?.phase === 'readyNeeko'
       ? ritualDrag.hoveredNeekoCanvasNodeId
       : null
+
+  const ritualLinkDropHoverNodeId =
+    ritualDrag?.phase === 'linkDragging' ? ritualDrag.hoveredLinkCanvasNodeId : null
 
   const [marqueeOverlay, setMarqueeOverlay] = useState<null | { current: CanvasPosition; start: CanvasPosition }>(
     null,
@@ -2345,44 +2380,6 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     ],
   )
 
-  useEffect(() => {
-    if (!pendingLink) {
-      return
-    }
-
-    const cancelLinkOnEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && !shouldIgnoreCanvasKeyboardShortcut(event)) {
-        event.preventDefault()
-        endLinkDraft()
-      }
-    }
-
-    window.addEventListener('keydown', cancelLinkOnEscape)
-
-    return () => {
-      window.removeEventListener('keydown', cancelLinkOnEscape)
-    }
-  }, [endLinkDraft, pendingLink])
-
-  useEffect(() => {
-    const openPaletteOnShortcut = (event: KeyboardEvent) => {
-      if (
-        (event.ctrlKey || event.metaKey) &&
-        event.key.toLowerCase() === 'k' &&
-        !shouldIgnoreCanvasKeyboardShortcut(event)
-      ) {
-        event.preventDefault()
-        openPalette()
-      }
-    }
-
-    window.addEventListener('keydown', openPaletteOnShortcut)
-
-    return () => {
-      window.removeEventListener('keydown', openPaletteOnShortcut)
-    }
-  }, [openPalette])
-
   const handleViewportPointerDown = (event: PointerEvent<HTMLDivElement>) => {
     if (isParameterPickerOpen()) {
       return
@@ -2948,6 +2945,39 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     openPalette,
   }))
 
+  const graphShortcutRefs = useRef<GraphCanvasShortcutRefs>({
+    pendingLink: null,
+    selectedNodeIds: [],
+    selectedNodeId: null,
+    glueTargetId: null,
+    glueNodeId: null,
+    viewportNavigateMode: false,
+    scene,
+  })
+  graphShortcutRefs.current = {
+    pendingLink,
+    selectedNodeIds,
+    selectedNodeId,
+    glueTargetId,
+    glueNodeId,
+    viewportNavigateMode,
+    scene,
+  }
+
+  useGraphCanvasShortcutHandlers({
+    refs: graphShortcutRefs.current,
+    isPaletteOpen,
+    endLinkDraft,
+    openPalette,
+    onClearSelection,
+    onSelectAllNodesShortcut,
+    focusSelectionIntoView,
+    setGlueNodeId,
+    setViewportNavigateMode,
+    onCloseCodePanelShortcut,
+    onNeekoDropCode,
+  })
+
   const contextMenuItems = useMemo(() => {
     if (!contextMenu) {
       return []
@@ -2992,11 +3022,18 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       sceneAllNodesBodyCollapsed,
       sceneAnyNodeBodyCollapsed,
       onGraphsToCode,
+      onViewNodeCode,
+      onPreviewNodeVfx,
+      onSyncNodeValueToCode,
+      canSyncNodeToCode,
+      primarySelectedNodeId: selectedNodeId,
+      tr: (id, fallback, vars) => t(id, fallback, vars),
     })
   }, [
     canRedo,
     canUndo,
     contextMenu,
+    t,
     glueNodeId,
     compactElementVisibility,
     onCycleConnectionRouting,
@@ -3011,6 +3048,10 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     pendingLink,
     viewportControlsSlot,
     onGraphsToCode,
+    onViewNodeCode,
+    onPreviewNodeVfx,
+    onSyncNodeValueToCode,
+    canSyncNodeToCode,
   ])
 
   const runContextMenuAction = useCallback(
@@ -3191,6 +3232,23 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
           break
         case 'node.graphsToCode':
           onGraphsToCode?.()
+          break
+        case 'node.viewCode':
+          if (target.type === 'node') {
+            onViewNodeCode?.(target.nodeId)
+          }
+          break
+        case 'node.previewVfx':
+          if (target.type === 'node') {
+            onPreviewNodeVfx?.(target.nodeId)
+          }
+          break
+        case 'node.syncValueToCode':
+          if (target.type === 'node') {
+            onSyncNodeValueToCode?.(target.nodeId)
+          }
+          break
+        case 'node.codigo':
           break
         case 'connection.cycleRouting':
           if (target.type === 'connection') {
@@ -3374,6 +3432,9 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       onSceneNodesPanelRequest,
       onExtractSceneNodesStatePreset,
       onGraphsToCode,
+      onViewNodeCode,
+      onPreviewNodeVfx,
+      onSyncNodeValueToCode,
       onSetAllNodesBodyCollapsed,
       onToggleNodeBodyCollapsed,
       onToggleNodeCardSection,
@@ -3521,109 +3582,6 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     }
   }, [glueNodeId, onMoveNode, scale, scene.nodes])
 
-  useEffect(() => {
-    const handleShortcut = (event: KeyboardEvent) => {
-      if (shouldIgnoreCanvasKeyboardShortcut(event)) {
-        return
-      }
-
-      if (event.ctrlKey || event.altKey || event.metaKey) {
-        return
-      }
-
-      const lowered = event.key.toLowerCase()
-
-      if (lowered === 'a') {
-        event.preventDefault()
-
-        if (selectedNodeIds.length > 0) {
-          onClearSelection?.()
-        } else {
-          onSelectAllNodesShortcut?.()
-        }
-
-        return
-      }
-
-      if (event.key === '.') {
-        event.preventDefault()
-        focusSelectionIntoView(selectedNodeIds)
-        return
-      }
-
-      if (lowered === 'g') {
-        event.preventDefault()
-        setGlueNodeId((existingGlue) =>
-          glueTargetId === null ? null : existingGlue === glueTargetId ? null : glueTargetId,
-        )
-        return
-      }
-
-      if (event.key === 'Escape') {
-        if (viewportNavigateMode) {
-          setViewportNavigateMode(false)
-          return
-        }
-
-        onCloseCodePanelShortcut?.()
-        setGlueNodeId(null)
-      }
-    }
-
-    window.addEventListener('keydown', handleShortcut)
-
-    return () => {
-      window.removeEventListener('keydown', handleShortcut)
-    }
-  }, [
-    focusSelectionIntoView,
-    glueTargetId,
-    onClearSelection,
-    onCloseCodePanelShortcut,
-    onSelectAllNodesShortcut,
-    selectedNodeId,
-    selectedNodeIds,
-    viewportNavigateMode,
-  ])
-
-  useEffect(() => {
-    if (!onNeekoDropCode || !selectedNodeId) {
-      return
-    }
-
-    const handleNeekoPaste = async (event: KeyboardEvent) => {
-      if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== 'v') {
-        return
-      }
-      if (shouldIgnoreCanvasKeyboardShortcut(event)) {
-        return
-      }
-
-      const canvasNode = scene.nodes.find((node) => node.id === selectedNodeId)
-      if (!canvasNode || !isNeekoSchemaId(canvasNode.node.schema.id) || isNodeLocked(canvasNode)) {
-        return
-      }
-
-      event.preventDefault()
-      event.stopPropagation()
-
-      try {
-        const text = (await navigator.clipboard.readText()).trim()
-        if (text.length > 0) {
-          onNeekoDropCode(selectedNodeId, text)
-        }
-      } catch {
-        /** clipboard indisponível */
-      }
-    }
-
-    window.addEventListener('keydown', handleNeekoPaste, true)
-
-    return () => {
-      window.removeEventListener('keydown', handleNeekoPaste, true)
-    }
-  }, [onNeekoDropCode, scene.nodes, selectedNodeId])
-
   return (
     <section
       aria-label="Static node graph canvas"
@@ -3666,17 +3624,17 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
           ) : null}
           {toolbarVisibility.addNode ? (
             <button className={styles.primaryControl} type="button" onClick={() => openPalette()}>
-              add node
+              {t(LangId.GraphToolbarAddNode)}
             </button>
           ) : null}
           {toolbarVisibility.undo ? (
             <button disabled={!canUndo} type="button" onClick={onUndo}>
-              undo
+              {t(LangId.GraphToolbarUndo)}
             </button>
           ) : null}
           {toolbarVisibility.redo ? (
             <button disabled={!canRedo} type="button" onClick={onRedo}>
-              redo
+              {t(LangId.GraphToolbarRedo)}
             </button>
           ) : null}
           {toolbarVisibility.camera ? (
@@ -3702,12 +3660,12 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
           ) : null}
           {toolbarVisibility.resetViewport ? (
             <button type="button" onClick={resetViewport}>
-              reset
+              {t(LangId.GraphToolbarResetViewport)}
             </button>
           ) : null}
           {toolbarVisibility.resetScene ? (
             <button className={styles.dangerControl} type="button" onClick={onResetScene}>
-              reset scene
+              {t(LangId.GraphToolbarResetScene)}
             </button>
           ) : null}
           {toolbarVisibility.sceneNodes && sceneNodesControlsSlot ? (
@@ -3721,7 +3679,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
 
       {isPaletteOpen ? (
         <AddNodePalette
-          heading={linkDropContext ? 'Ligar novo nó' : undefined}
+          heading={linkDropContext ? t(LangId.NodePaletteLinkHeading) : undefined}
           onClose={closePalette}
           onPickSchema={handlePalettePick}
           packFolderBySchemaId={schemaPackFolderBySchemaId}
@@ -3801,6 +3759,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
         onPointerMove={handleViewportPointerMove}
         onPointerUp={handleViewportPointerUp}
         ref={viewportBodyRef}
+        {...{ [GRAPH_CANVAS_SCOPE_ATTR]: GRAPH_CANVAS_SCOPE_ID }}
       >
       <div className={styles.canvas} ref={canvasRef} style={canvasStyle}>
         <RitualNeekoStagingPreview />
@@ -3921,12 +3880,14 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
             pendingLink.fromNodeId !== canvasNode.id &&
             !isCompatibleTarget
           const wirelessHighlighted = wirelessHighlightNodeId === canvasNode.id
+          const linkDropHovered = ritualLinkDropHoverNodeId === canvasNode.id
           const classes = [
             styles.node,
             isSelected ? styles.nodeSelected : '',
             wirelessHighlighted ? styles.nodeWirelessLinked : '',
             isCompatibleTarget ? styles.nodeCompatibleTarget : '',
             isIncompatibleDuringLink ? styles.nodeIncompatibleTarget : '',
+            linkDropHovered ? styles.nodeLinkDropTarget : '',
           ]
             .filter(Boolean)
             .join(' ')
@@ -4047,7 +4008,9 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
                   handleOutputWirePointerUp(canvasNode.id, entity, event)
                 }
                 onSelect={(event) => onSelectNode(canvasNode.id, { additive: Boolean(event?.shiftKey) })}
-                onStartDrag={nodeLocked ? undefined : (event) => startNodeDrag(event, canvasNode)}
+                onStartDrag={
+                  nodeLocked ? undefined : (event) => startNodeDrag(event, canvasNode)
+                }
                 onReorderNodeParameter={
                   onSetNodeParameterOrder
                     ? (parameterId, oneBased) =>

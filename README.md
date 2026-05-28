@@ -334,6 +334,20 @@ Technical doc: [`feature_md/feature/feature-jade-hashes-vfx-timeline-reset.md`](
 
 **PT:** Útil para repetir um trecho da animação sem activar loop global no fim do efeito.
 
+### 10. Shortcut scope system (keyboard)
+
+| Step | Action |
+| --- | --- |
+| 1 | Shortcuts only run in the **UI zone** that has focus (`graph-canvas`, `code-dock`, `vfx-viewport`, `node-palette`) |
+| 2 | **Click** the target area first — e.g. VFX **3D viewport** before `7`/`3`/`1`/`5`; Code dock before `Ctrl+Z` |
+| 3 | Graph: `Ctrl+K` palette, `A` select all/clear, `G` glue, `.` focus selection, `Delete` remove nodes |
+| 4 | Code dock: `Ctrl+F/H`, `Ctrl+Z/Y`, `Ctrl+O`, `Ctrl+P` |
+| 5 | Palette (open): `M` expand row, `N` compact (with row hover or `Ctrl` while search is focused) |
+
+**PT:** Com o editor de código focado, as teclas do viewport VFX (ex. `7`) **não** alteram a câmara. Declaração em `src/core/shortcuts/shortcuts.registry.json`; handlers em `src/shortcuts/`.
+
+Technical doc: [`feature_md/feature/feature-shortcut-scope-system.md`](feature_md/feature/feature-shortcut-scope-system.md).
+
 ---
 
 ## Acknowledgements

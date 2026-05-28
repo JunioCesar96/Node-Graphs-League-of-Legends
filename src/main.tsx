@@ -8,8 +8,10 @@ import '@/styles/global.css'
 import App from './App.tsx'
 import { registerCompositePreferenceBackend } from './jade/compositePreferenceBackend.ts'
 import { registerWebPreferenceBackend } from './jade/webPreferenceBackend.ts'
+import { LanguageProvider } from './language/LanguageProvider.tsx'
 import { MessengerPopupProvider } from './messenger_popup/MessengerPopupProvider.tsx'
 import { RitualDragProvider } from './ritualDrag/RitualDragContext.tsx'
+import { ShortcutScopeProvider } from './shortcuts/ShortcutScopeProvider.tsx'
 
 registerWebPreferenceBackend()
 registerCompositePreferenceBackend()
@@ -19,10 +21,14 @@ loader.config({ monaco })
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <MessengerPopupProvider>
-      <RitualDragProvider>
-        <App />
-      </RitualDragProvider>
-    </MessengerPopupProvider>
+    <LanguageProvider>
+      <MessengerPopupProvider>
+        <ShortcutScopeProvider>
+          <RitualDragProvider>
+            <App />
+          </RitualDragProvider>
+        </ShortcutScopeProvider>
+      </MessengerPopupProvider>
+    </LanguageProvider>
   </StrictMode>,
 )

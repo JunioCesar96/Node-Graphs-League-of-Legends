@@ -13,7 +13,14 @@ import {
   type PaletteOrganizationMode,
   sortSchemasByOrganization,
 } from '@/core/paletteSchemaUtils'
+import { LangId } from '@/core/language/languageIds'
 import type { NodeSchemaDefinition } from '@/core/nodeSchema'
+import { useLanguage } from '@/language/LanguageProvider'
+import {
+  SHORTCUT_SCOPE_ATTR,
+  SHORTCUT_SCOPE_NODE_PALETTE,
+} from '@/core/shortcuts/shortcutScopes'
+import { useAddNodePaletteShortcutHandlers } from '@/shortcuts/useAddNodePaletteShortcutHandlers'
 
 import styles from './AddNodePalette.module.css'
 
@@ -59,6 +66,7 @@ export function AddNodePalette({
   memoryPackFolders = [],
   schemas,
 }: AddNodePaletteProps) {
+  const { t } = useLanguage()
   const [palettePackFolder, setPalettePackFolder] = useState<string | null>(null)
   const [paletteStructureSubfolder, setPaletteStructureSubfolder] = useState<string | null>(null)
   const [paletteQuery, setPaletteQuery] = useState('')
@@ -297,62 +305,14 @@ export function AddNodePalette({
     paletteHoveredOptionIndexRef.current = paletteHoveredOptionIndex
   }, [paletteHoveredOptionIndex])
 
-  useEffect(() => {
-    const onGlobalKeyDown = (event: KeyboardEvent) => {
-      const key = event.key.toLowerCase()
-
-      if (key !== 'm' && key !== 'n') {
-        return
-      }
-
-      const target = event.target
-      const hoveringRow = paletteHoveredOptionIndexRef.current !== null
-      const focusOnSearch = target === paletteInputRef.current
-      const useCtrlWhileSearching = focusOnSearch && event.ctrlKey
-
-      if (focusOnSearch && !hoveringRow && !useCtrlWhileSearching) {
-        return
-      }
-
-      event.preventDefault()
-      event.stopPropagation()
-
-      const list = filteredSchemasRef.current
-      const targetIdx =
-        paletteHoveredOptionIndexRef.current !== null
-          ? paletteHoveredOptionIndexRef.current
-          : activeSchemaIndexRef.current
-      const targetSchema = list[targetIdx]
-
-      if (key === 'm') {
-        setPaletteExpandOverride('expanded')
-
-        if (targetSchema) {
-          setExpandCapsule({
-            id: targetSchema.id,
-            kind: 'expanded',
-            stamp: Date.now(),
-          })
-        }
-      } else {
-        setPaletteExpandOverride('compact')
-
-        if (targetSchema) {
-          setExpandCapsule({
-            id: targetSchema.id,
-            kind: 'collapsed',
-            stamp: Date.now(),
-          })
-        }
-      }
-    }
-
-    window.addEventListener('keydown', onGlobalKeyDown, true)
-
-    return () => {
-      window.removeEventListener('keydown', onGlobalKeyDown, true)
-    }
-  }, [])
+  useAddNodePaletteShortcutHandlers({
+    paletteInputRef,
+    filteredSchemasRef,
+    activeSchemaIndexRef,
+    paletteHoveredOptionIndexRef,
+    setPaletteExpandOverride,
+    setExpandCapsule,
+  })
 
   const dismissExpandCapsule = useCallback(() => {
     setExpandCapsule(null)
@@ -573,16 +533,20 @@ export function AddNodePalette({
           schemaId={expandCapsule.id}
         />
       ) : null}
-      <div className={styles.root} onPointerDown={(event) => event.stopPropagation()}>
+      <div
+        className={styles.root}
+        onPointerDown={(event) => event.stopPropagation()}
+        {...{ [SHORTCUT_SCOPE_ATTR]: SHORTCUT_SCOPE_NODE_PALETTE }}
+      >
         <section aria-label="Add node search palette" className={styles.panel}>
           <div className={styles.header}>
-            <span>{heading ?? 'add node'}</span>
+            <span>{heading ?? t(LangId.NodePaletteHeading)}</span>
             <kbd>Ctrl K</kbd>
           </div>
           <input
             aria-activedescendant={filteredSchemas[activeSchemaIndex]?.id}
             aria-controls="node-schema-results"
-            aria-label="Search node schemas"
+            aria-label={t(LangId.NodePaletteSearchAria)}
             autoComplete="off"
             className={styles.input}
             onChange={(event) => {
@@ -592,7 +556,7 @@ export function AddNodePalette({
               setPaletteExpandOverride('default')
             }}
             onKeyDown={handlePaletteKeyDown}
-            placeholder="Search schema by title or id..."
+            placeholder={t(LangId.NodePaletteSearchPlaceholder)}
             ref={paletteInputRef}
             role="combobox"
             type="search"
@@ -609,7 +573,7 @@ export function AddNodePalette({
                   setPaletteExpandOverride('default')
                 }}
               >
-                A-Z
+                {t(LangId.NodePaletteOrgAz)}
               </button>
               <button
                 aria-pressed={paletteOrganization === 'structure'}
@@ -620,7 +584,7 @@ export function AddNodePalette({
                   setPaletteExpandOverride('default')
                 }}
               >
-                Tipo
+                {t(LangId.NodePaletteOrgStructure)}
               </button>
               <button
                 aria-pressed={paletteOrganization === 'value-type'}
@@ -631,7 +595,7 @@ export function AddNodePalette({
                   setPaletteExpandOverride('default')
                 }}
               >
-                Tipo de valor
+                {t(LangId.NodePaletteOrgValueType)}
               </button>
             </div>
             {diskPackFoldersLoading ? (
@@ -654,7 +618,7 @@ export function AddNodePalette({
                     setPaletteExpandOverride('default')
                   }}
                 >
-                  Todos
+                  {t(LangId.NodePalettePackAll)}
                 </button>
                 {palettePackFolders.map((folder) => (
                   <button
@@ -846,7 +810,7 @@ export function AddNodePalette({
                 />
               ))
             ) : (
-              <div className={styles.empty}>No schema found</div>
+              <div className={styles.empty}>{t(LangId.NodePaletteEmpty)}</div>
             )}
           </div>
         </section>
