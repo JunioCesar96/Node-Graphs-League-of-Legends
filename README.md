@@ -1,18 +1,159 @@
-# League BIN Node Editor — Shortcut scope system
+# League BIN Node Editor
+
+**Version:** 1.5.0 · **Status:** Work in progress · **Branch:** `feature/shortcut-scope-system`
 
 ![Tool Screenshot](./src/assets/preview.png)
 
-**Mirror of:** [`feature_md/feature/feature-shortcut-scope-system.md`](feature_md/feature/feature-shortcut-scope-system.md)
+## About the project
+
+An interactive web editor for League of Legends `.bin` / **Class Group** ritual files. You can turn structured text (ritual) into a **visual node graph**, edit properties and links on a canvas, and export back to ritual text—similar in spirit to [Jade-League-Bin-Editor](https://github.com/RitoShark/Jade-League-Bin-Editor), which powers parsing and Jade integration in this app.
+
+Built with **Vite** + **React** + **Monaco** (CodeDock).
+
+---
+
+## Quick start
+
+### Prerequisites
+
+- [Node.js](https://nodejs.org/) 18+
+- [pnpm](https://pnpm.io/) (recommended; see `packageManager` in `package.json`)
+
+### Install and run
 
 ```bash
 git clone https://github.com/JunioCesar96/Node-Graphs-League-of-Legends.git
 cd Node-Graphs-League-of-Legends
-pnpm install && pnpm dev
+pnpm install
+pnpm dev
 ```
+
+Open the URL shown in the terminal (usually `http://localhost:5173`).
+
+### Optional (development)
+
+| Script | Purpose |
+| --- | --- |
+| `pnpm jade-bridge:dev` | Mock Jade bridge for opening `.bin` in dev |
+| `pnpm jade:http-bridge` | HTTP bridge from Jade-League-Bin-Editor (Rust) |
+| `pnpm jade:http-bridge:build` | Compile `jade-http-bridge` (release) for real `.bin` + hash resolution |
+| `pnpm test` | Run Vitest unit tests |
 
 ---
 
-## 1. Header / Cabeçalho
+## Step-by-step guide (index)
+
+| # | Topic | Summary |
+| --- | --- | --- |
+| 1 | [Workspace layout](#1-first-look-at-the-workspace) | Canvas, Code dock, VFX dock, panels |
+| 1b | [VFX 3D preview](#1b-vfx-3d-preview-web) | Rebuild, play, assets folder |
+| 1c | [VFX ground decals](#1c-vfx-ground-decals--transform-debug) | `isGroundLayer`, debug transform |
+| 1d | [VFX emitter classifications](#1d-vfx-emitter-classifications-semantic-debug) | Semantic traits in viewport |
+| 2 | [Scenes](#2-scenes-work-files) | New / load / save JSON scenes |
+| 3 | [Import ritual → graph](#3-import-ritual-text--node-graph) | Code To Node Graph |
+| 4 | [Edit graph](#4-edit-the-graph) | Links, routing, context menu |
+| 5 | [Export graph → ritual](#5-export-node-graph--ritual-text) | Node Graphs to Code |
+| 6 | [Nodes Configure](#6-nodes--configure-schemas--packs) | Class Group pack folder |
+| 7 | [Scene states](#7-scene-states-presets) | Named presets + camera |
+| 8 | [Nodes in scene](#8-nodes-in-scene) | List panel, lock/hide |
+| 9 | [Jade](#9-jade-integration) | Bridge, hash resolution |
+| 10 | [Keyboard shortcuts](#implementation--shortcut-scope-system-branch-featureshortcut-scope-system) | Scope-based shortcuts (this branch) |
+
+### 1. First look at the workspace
+
+- **Center:** graph canvas (nodes, connections, pan/zoom).
+- **Right:** CodeDock (Monaco editor) — toggle with the **Code** menu button.
+- **Right (optional):** VFX Preview (Three.js viewport) — toggle with the **VFX** menu button.
+- **Left / panels:** scene tabs, nodes list, inspector, scene states (depending on layout).
+
+### 1b. VFX 3D preview (web)
+
+| Step | Action |
+| --- | --- |
+| 1 | Open ritual with `VfxSystemDefinitionData` in CodeDock or select a VfxSystem node on the canvas |
+| 2 | Menu **VFX** → 3D viewport dock |
+| 3 | **Rebuild** → **Play** / timeline |
+| 4 | Optional: **Pasta assets…** for local textures |
+
+Doc: [`feature-vfx-world-fidelity.md`](feature_md/feature/feature-vfx-world-fidelity.md), [`feature-clip-compositor-vfx.md`](feature_md/feature/feature-clip-compositor-vfx.md).
+
+### 1c. VFX ground decals & transform debug
+
+Doc: [`feature-vfx-ground-quad-transform.md`](feature_md/feature/feature-vfx-ground-quad-transform.md).
+
+### 1d. VFX emitter classifications (semantic debug)
+
+Doc: [`feature-vfx-emitter-classifications.md`](feature_md/feature/feature-vfx-emitter-classifications.md).
+
+### 2. Scenes (work files)
+
+Menu **Graph**: **New work scene**, **Load recent scenes**, **Save work scene** (JSON on disk).
+
+### 3. Import ritual text → node graph
+
+CodeDock → **Converter [Class Group]** → **Code To Node Graph**. Doc: [`feature-code-to-node-graph.md`](feature_md/feature/feature-code-to-node-graph.md).
+
+### 4. Edit the graph
+
+Add nodes, drag output slots, flex/rigid/wireless routing, context menu. Doc: [`feature-canvas-context-menu.md`](feature_md/feature/feature-canvas-context-menu.md), [`feature-wireless-connection.md`](feature_md/feature/feature-wireless-connection.md).
+
+### 5. Export node graph → ritual text
+
+**Graph → Node Graphs to Code** (single Main root). Doc: [`feature-node-graphs-to-code.md`](feature_md/feature/feature-node-graphs-to-code.md).
+
+### 6. Nodes → Configure (schemas & packs)
+
+**Nodes → Configure**, Class Group folder, **Extrair Node Base**. Doc: [`feature-nodes-configurar-pack-default.md`](feature_md/feature/feature-nodes-configurar-pack-default.md).
+
+### 7. Scene states (presets)
+
+Named presets with camera pan/zoom. Doc: [`feature-cena-estados-routing-persistencia.md`](feature_md/feature/feature-cena-estados-routing-persistencia.md).
+
+### 8. Nodes in scene
+
+List panel: select, focus, hide, lock. Doc: [`feature-nodes-em-cena.md`](feature_md/feature/feature-nodes-em-cena.md).
+
+### 9. Jade integration
+
+`pnpm jade-bridge:dev` or Rust HTTP bridge. Doc: [`feature-jade-hashes-vfx-timeline-reset.md`](feature_md/feature/feature-jade-hashes-vfx-timeline-reset.md).
+
+---
+
+## Technical documentation index
+
+Implementation notes (Mermaid, commits, API tables) in [`feature_md/feature/`](feature_md/feature/):
+
+| Topic | Document |
+| --- | --- |
+| **Shortcut scope system (this branch)** | [feature-shortcut-scope-system.md](feature_md/feature/feature-shortcut-scope-system.md) · [full doc below](#implementation--shortcut-scope-system-branch-featureshortcut-scope-system) |
+| Node Graphs to Code | [feature-node-graphs-to-code.md](feature_md/feature/feature-node-graphs-to-code.md) |
+| Code To Node Graph | [feature-code-to-node-graph.md](feature_md/feature/feature-code-to-node-graph.md) |
+| Scene tabs & Graph menu | [feature-abas-cena-json-menu-grafo.md](feature_md/feature/feature-abas-cena-json-menu-grafo.md) |
+| Scene save / Graph menu | [feature-cena-persistencia-menu-grafo.md](feature_md/feature/feature-cena-persistencia-menu-grafo.md) |
+| States, routing, persistence | [feature-cena-estados-routing-persistencia.md](feature_md/feature/feature-cena-estados-routing-persistencia.md) |
+| Nodes Configure & default pack | [feature-nodes-configurar-pack-default.md](feature_md/feature/feature-nodes-configurar-pack-default.md) |
+| Nodes in scene | [feature-nodes-em-cena.md](feature_md/feature/feature-nodes-em-cena.md) |
+| Jade CodeDock menu | [feature-menu-jade-codedock.md](feature_md/feature/feature-menu-jade-codedock.md) |
+| Jade auto bridge (dev) | [feature-jade-bridge-auto-dev.md](feature_md/feature/feature-jade-bridge-auto-dev.md) |
+| Wireless links | [feature-wireless-connection.md](feature_md/feature/feature-wireless-connection.md) |
+| Compact structures | [feature-compact-structure-view.md](feature_md/feature/feature-compact-structure-view.md) |
+| Retract element | [feature-retrair-elemento-card.md](feature_md/feature/feature-retrair-elemento-card.md) |
+| Canvas context menu | [feature-canvas-context-menu.md](feature_md/feature/feature-canvas-context-menu.md) |
+| View / sync node code | [feature-node-ritual-sync-view-code.md](feature_md/feature/feature-node-ritual-sync-view-code.md) |
+| VFX orbital velocity | [feature-vfx-orbital-velocity.md](feature_md/feature/feature-vfx-orbital-velocity.md) |
+| VFX emitter classifications | [feature-vfx-emitter-classifications.md](feature_md/feature/feature-vfx-emitter-classifications.md) |
+| VFX ground quad transform | [feature-vfx-ground-quad-transform.md](feature_md/feature/feature-vfx-ground-quad-transform.md) |
+| VFX semantic / shader / compositor | [feature-vfx-semantic-classifier.md](feature_md/feature/feature-vfx-semantic-classifier.md), [feature-vfx-shader-execution.md](feature_md/feature/feature-vfx-shader-execution.md), [feature-clip-compositor-vfx.md](feature_md/feature/feature-clip-compositor-vfx.md) |
+| Class Group (embed, list, pointer, map hash) | [feature-main-class-group.md](feature_md/feature/feature-main-class-group.md), [feature-embed-class-group.md](feature_md/feature/feature-embed-class-group.md), [feature-list-embed-class-group.md](feature_md/feature/feature-list-embed-class-group.md), [feature-pointer-class-group.md](feature_md/feature/feature-pointer-class-group.md), [feature-list2-embed-pointer-class-group.md](feature_md/feature/feature-list2-embed-pointer-class-group.md), [feature-class-group-map-hash-u64-primitives.md](feature_md/feature/feature-class-group-map-hash-u64-primitives.md) |
+| Neeko node | [feature-neeko-ditto-node.md](feature_md/feature/feature-neeko-ditto-node.md) |
+
+---
+
+## Implementation — Shortcut scope system (branch `feature/shortcut-scope-system`)
+
+Full copy also in [`feature_md/feature/feature-shortcut-scope-system.md`](feature_md/feature/feature-shortcut-scope-system.md).
+
+### 1. Header / Cabeçalho
 
 | Field | Value |
 | --- | --- |
@@ -21,19 +162,13 @@ pnpm install && pnpm dev
 | Version | `1.5.0` |
 | Commit | `790e264` |
 
----
+### 2. Tag definitions / Definição de tags
 
-## EN — English sections
-
-### 2. Tag definitions and summary
-
-| Tag | Definition |
-| --- | --- |
-| `[NEW]` | New module, component, function, or binding created in this branch. |
-| `[UPDATED]` | Existing flow changed to use the centralized shortcut system. |
-| `[REMOVED]` | Local `window.addEventListener('keydown')` workspace listeners removed. |
-
-Tags present in this implementation: `[NEW]`, `[UPDATED]`, `[REMOVED]`
+| Tag (EN) | Tag (PT) | Meaning |
+| --- | --- | --- |
+| `[NEW]` | `[NOVO]` | New module or binding |
+| `[UPDATED]` | `[ATUALIZADO]` | Existing flow migrated to central dispatcher |
+| `[REMOVED]` | `[REMOVIDO]` | Local `keydown` workspace listeners removed |
 
 ### 3. Operation flowchart
 
@@ -76,121 +211,54 @@ sequenceDiagram
   H-->>W: preventDefault stopPropagation
 ```
 
-### 5. Functions and components table
+### 5. Functions and components (summary)
 
-| Status | Name | Feature | Technical description | Parameters / return |
-| --- | --- | --- | --- | --- |
-| `[NEW]` | `shortcuts.registry.json` | Shortcut registry | Declarative bindings: `id`, `scopeId`, `key`, `modifiers`, `requiresOpen`, `priority`, `eventTypes` | JSON import |
-| `[NEW]` | `shortcutScopes.ts` | Scopes | Constants: `graph-canvas`, `code-dock`, `vfx-viewport`, `node-palette`; dock ids | — |
-| `[NEW]` | `shortcutTypes.ts` | Types | `ShortcutHandler`, `ShortcutsRegistry`, `ShortcutHandlerContext` | — |
-| `[NEW]` | `normalizeKeyboardChord.ts` | Key normalization | `KeyboardEvent` → logical key + chord id; Digit7/Numpad7 → `7`; Meta as Ctrl alias on macOS | `NormalizedKeyboardChord` |
-| `[NEW]` | `shortcutFocus.ts` | Focus | Reads `data-shortcut-scope` from DOM; fallback `graph-canvas` | `EventTarget` → `ShortcutScopeId` |
-| `[NEW]` | `shortcutGuards.ts` | Guards | Blocks shortcuts in modals, pickers, form controls; `isCodeDockEditorFocused` | `KeyboardEvent` → `boolean` |
-| `[NEW]` | `shortcutDispatcher.ts` | Dispatcher | Index registry by scope; match chord + guards; invoke handler | `dispatchShortcut` → `boolean` |
-| `[NEW]` | `ShortcutScopeProvider.tsx` | Provider | Global capture listener; `activeScopeId`; `registerShortcutHandlers`; `setOpenDocks` | React context |
-| `[NEW]` | `useAppShortcutHandlers.ts` | Graph undo/delete | Registers graph-undo, redo, delete bindings | App callbacks |
-| `[NEW]` | `useGraphCanvasShortcutHandlers.ts` | Canvas shortcuts | Ctrl+K, A, G, ., Escape, Neeko paste | Refs + callbacks |
-| `[NEW]` | `useVfxViewportShortcutHandlers.ts` | VFX views | 7/3/1/5 + Ctrl variants, projection toggle 5 | Three.js camera + controls |
-| `[NEW]` | `useCodeDockShortcutHandlers.ts` | Code editor | Ctrl+F/H/Z/Y/O/P | Jade editor actions |
-| `[NEW]` | `useAddNodePaletteShortcutHandlers.ts` | Palette | M expand / N compact with hover/Ctrl rules | Palette refs |
-| `[NEW]` | `useRitualDragShortcutHandlers.ts` | Ritual drag | Ctrl/Meta spawn Neeko while dragging | `ritualDrag.phase === dragging` |
-| `[UPDATED]` | `canvasKeyboardGuard.ts` | Legacy API | Re-exports from `shortcutGuards.ts` (no circular import) | — |
-| `[UPDATED]` | `main.tsx` | Bootstrap | Wraps app with `ShortcutScopeProvider` | — |
-| `[UPDATED]` | `App.tsx` | App | Uses `useAppShortcutHandlers`; syncs dock open state | — |
-| `[UPDATED]` | `GraphCanvas.tsx` | Canvas | `data-shortcut-scope="graph-canvas"`; removed local keydown listeners | — |
-| `[UPDATED]` | `CodeDock.tsx` | Code dock | `data-shortcut-scope="code-dock"` | — |
-| `[UPDATED]` | `VfxViewport.tsx` | VFX | `data-shortcut-scope="vfx-viewport"` | — |
-| `[UPDATED]` | `AddNodePalette.tsx` | Palette | `data-shortcut-scope="node-palette"` | — |
-| `[UPDATED]` | `VfxViewportNavigation.tsx` | VFX navigation | Delegates keys to `useVfxViewportShortcutHandlers` | — |
-| `[UPDATED]` | `useCodeDockJadeEditor.ts` | Monaco | Removed local Ctrl+* listener | — |
-| `[UPDATED]` | `useRitualDragCanvasDrop.ts` | Ritual | Ctrl spawn via registry; pointer listeners kept | — |
-| `[REMOVED]` | `App.tsx` `handleKeyboardShortcut` | — | Replaced by scoped registry | — |
-| `[REMOVED]` | `GraphCanvas` multiple `keydown` effects | — | Centralized in provider | — |
-
-### 6. Detailed behavior
-
-Workspace shortcuts are no longer scattered across components. A single **capture-phase** listener in `ShortcutScopeProvider` reads `shortcuts.registry.json`, compares the normalized key chord against bindings for the **active scope**, and runs the matching handler registered at runtime.
-
-**Scopes** are UI zones, not file tabs:
-
-- `graph-canvas` — node graph viewport
-- `code-dock` — Monaco / CodeDock shell
-- `vfx-viewport` — Three.js preview (VFX dock)
-- `node-palette` — Add node palette overlay
-
-`activeScopeId` updates on `pointerdown` and `focusin` by walking the DOM for `data-shortcut-scope`. Example: with focus in the code editor, pressing `7` does **not** change the VFX camera because the binding `vfx-view-top` requires `scopeId: vfx-viewport`.
-
-**Guards:** modals (`aria-modal`), parameter picker, structure index picker, and form controls block shortcuts unless `allowInFormControls` is set on a binding.
-
-**Ephemeral shortcuts** (Escape on context menus, arrow keys in pickers) remain local to those components.
-
-**Tests:** `src/core/shortcuts/normalizeKeyboardChord.test.ts` — chord normalization and scope gating.
-
-### 7. How to use (simple guide)
-
-| Goal | What to do |
+| Status | Name |
 | --- | --- |
-| VFX camera views | Open **VFX dock**, **click inside the 3D viewport**, then press `7` Top, `3` Right, `1` Front, `5` Persp/Ortho; hold **Ctrl** for opposite views |
-| Graph shortcuts | Click the **graph background** (not Code dock), then `Ctrl+K` palette, `A` select all/clear, `G` glue, `.` focus selection |
-| Code editor shortcuts | Click in **Code dock** / Monaco, then `Ctrl+Z/Y`, `Ctrl+F/H`, `Ctrl+O`, `Ctrl+P` |
-| Palette M/N | Open palette (`Ctrl+K`), click the palette panel or hover a row; `M` expand, `N` compact (in search field: need hover or **Ctrl+M/N**) |
-| Add a new shortcut | 1) Add entry in `shortcuts.registry.json` 2) Register handler in the appropriate `use*ShortcutHandlers` hook with the same `id` 3) Mark DOM root with `data-shortcut-scope` if new zone |
+| `[NEW]` | `shortcuts.registry.json`, `shortcutDispatcher.ts`, `ShortcutScopeProvider.tsx`, `use*ShortcutHandlers.ts` |
+| `[UPDATED]` | `App.tsx`, `GraphCanvas.tsx`, `CodeDock.tsx`, `VfxViewport.tsx`, `AddNodePalette.tsx`, `VfxViewportNavigation.tsx` |
+| `[REMOVED]` | Scattered `window.addEventListener('keydown')` in App / GraphCanvas / CodeDock / palette / ritual drag |
+
+See [`feature-shortcut-scope-system.md`](feature_md/feature/feature-shortcut-scope-system.md) for the full table with parameters.
+
+### 6–7. Behavior & how to use
+
+**EN:** Shortcuts run only in the UI zone that has focus (`graph-canvas`, `code-dock`, `vfx-viewport`, `node-palette`). Click the target area first — e.g. VFX **3D viewport** before `7`; Code dock before `Ctrl+Z`. Registry: `src/core/shortcuts/shortcuts.registry.json`; handlers: `src/shortcuts/`.
+
+**PT:** Os atalhos só correm na zona em foco. Com o Monaco focado, `7` **não** muda a câmara VFX. Clicar no viewport 3D antes das teclas Blender (`7`/`3`/`1`/`5`).
+
+| Goal / Objectivo | Action |
+| --- | --- |
+| VFX views / Vistas VFX | VFX dock open → click 3D viewport → `7` Top, `3` Right, `1` Front, `5` Persp/Ortho; Ctrl for opposite |
+| Graph / Grafo | Click graph background → `Ctrl+K`, `A`, `G`, `.`, `Delete` |
+| Code / Código | Focus Code dock → `Ctrl+Z/Y`, `Ctrl+F/H`, `Ctrl+O`, `Ctrl+P` |
+| Palette / Paleta | `M` expand, `N` compact (hover row or Ctrl while searching) |
+| New shortcut / Novo atalho | JSON entry + `registerShortcutHandlers` + `data-shortcut-scope` on DOM root |
+
+**Main files:** `src/core/shortcuts/*`, `src/shortcuts/*`, `main.tsx`, `App.tsx`, `GraphCanvas.tsx`, `CodeDock.tsx`, `VfxViewport.tsx`, `AddNodePalette.tsx`.
 
 ---
 
-## PT — Secções em português
+# Português — Guia rápido
 
-### 2. Definição e resumo de tags
+## O que é
 
-| Tag | Definição |
-| --- | --- |
-| `[NOVO]` | Novo módulo, componente, função ou binding criado nesta branch. |
-| `[ATUALIZADO]` | Fluxo existente alterado para o sistema centralizado de atalhos. |
-| `[REMOVIDO]` | Listeners locais `keydown` de workspace removidos dos componentes. |
+Editor visual de grafos para ritual Class Group / `.bin` do League of Legends: importar texto → editar na cena → exportar de novo.
 
-Tags presentes: `[NOVO]`, `[ATUALIZADO]`, `[REMOVIDO]`
+```bash
+pnpm install && pnpm dev
+```
 
-_(Os diagramas Mermaid das secções 3 e 4 são os mesmos acima — fluxo único para ambos os idiomas.)_
+## Uso diário (resumo)
 
-### 6. Funcionamento detalhado
+1. **Cenas:** menu Grafo — nova / recentes / salvar JSON.
+2. **Importar:** CodeDock → Converter Class Group → Code To Node Graph.
+3. **Editar:** arrastar slots de saída; clique curto alterna flex/rigid/wireless; botão direito para menu de contexto.
+4. **Exportar:** um nó Main → Grafo → Node Graphs to Code.
+5. **VFX:** menu VFX → Rebuild → Play; ver docs em [`feature_md/feature/`](feature_md/feature/).
+6. **Atalhos (esta branch):** clique na zona correcta antes da tecla — ver [secção de implementação](#implementation--shortcut-scope-system-branch-featureshortcut-scope-system) acima.
 
-Os atalhos de workspace deixaram de estar espalhados por vários `addEventListener`. Um único listener em **capture** no `ShortcutScopeProvider` lê o JSON de registry, compara a tecla normalizada com os bindings do **scope activo** e executa o handler registado em TypeScript.
-
-**Scopes** = zonas da UI (não abas de ficheiro):
-
-- `graph-canvas` — canvas de nós
-- `code-dock` — editor Monaco
-- `vfx-viewport` — preview 3D no VFX dock
-- `node-palette` — paleta de adicionar nó
-
-O `activeScopeId` actualiza-se com clique ou foco (`pointerdown` / `focusin`) via `data-shortcut-scope`. Exemplo: com o Monaco focado, `7` **não** muda a câmara VFX.
-
-**Guardas:** modais, picker de parâmetros, picker de índice de estrutura e inputs bloqueiam atalhos.
-
-**Atalhos efémeros** (Escape em menus de contexto) mantêm-se locais.
-
-**Testes:** `normalizeKeyboardChord.test.ts`.
-
-### 7. Como utilizar (guia simples)
-
-| Objectivo | O que fazer |
-| --- | --- |
-| Vistas VFX | Abrir **dock VFX**, **clicar no viewport 3D**, depois `7` Topo, `3` Direita, `1` Frente, `5` Persp/Ortho; **Ctrl** para vistas opostas |
-| Atalhos do grafo | Clicar no **fundo do grafo**, depois `Ctrl+K`, `A`, `G`, `.` |
-| Editor de código | Focar o **Code dock**, depois `Ctrl+Z/Y`, `Ctrl+F/H`, `Ctrl+O`, `Ctrl+P` |
-| Paleta M/N | Abrir paleta, clicar no painel ou passar o rato numa linha; na pesquisa: hover ou **Ctrl+M/N** |
-| Novo atalho | Entrada no `shortcuts.registry.json` + handler no hook `use*ShortcutHandlers` + `data-shortcut-scope` se for zona nova |
-
----
-
-## Main files / Ficheiros principais
-
-- `src/core/shortcuts/*`
-- `src/shortcuts/*`
-- `src/main.tsx`
-- `src/App.tsx`
-- `src/components/organisms/GraphCanvas.tsx`, `CodeDock.tsx`, `VfxViewport.tsx`, `AddNodePalette.tsx`, `VfxViewportNavigation.tsx`
-- `src/hooks/useCodeDockJadeEditor.ts`, `useRitualDragCanvasDrop.ts`
+Documentação técnica completa: [`feature_md/feature/`](feature_md/feature/).
 
 ---
 
