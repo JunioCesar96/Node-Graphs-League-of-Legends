@@ -1,6 +1,7 @@
 # Implementation Documentation — Shortcut scope system
 
-**Save location:** `feature_md/feature/feature-shortcut-scope-system.md`
+**Save location:** `feature_md/feature/feature-shortcut-scope-system.md`  
+**README:** same content as root [`README.md`](../../README.md) (per `feature_md/prompet/prompt_doc.md`).
 
 ---
 
