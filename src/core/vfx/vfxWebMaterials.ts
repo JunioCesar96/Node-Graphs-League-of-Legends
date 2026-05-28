@@ -29,6 +29,10 @@ import {
 
 export type VfxMaterialParams = {
   baseColor: [number, number, number]
+  /** ValueColor × birthColor (RGBA normalizado). */
+  tintRgba: [number, number, number, number]
+  /** colorRenderFlags & 1 — multiply vs mix na particleColorTexture. */
+  colorMultiply: boolean
   opacity: number
   blendMode: number
   isAdditive: boolean
@@ -75,6 +79,10 @@ export type VfxMaterialParams = {
   erosionTextureIsDds: boolean
   erosionDrive: number
   erosionChannelMixer: [number, number, number, number]
+  /** Malha expandida + UV inset para rotação UV sem clipping. */
+  uvRotationSafeMargin: boolean
+  /** Fator g da margem (√2 para quadrado). */
+  uvRotationSafeMarginG: number
   materialIntent: MaterialIntent
   activeTraits: string[]
 }
@@ -109,8 +117,9 @@ export function isAdditiveBlendMode(blendMode: number): boolean {
   return blendMode === 2 || blendMode === 4
 }
 
+/** Boost HDR só em additive; em alpha/normal preserva matiz do Color × textura. */
 export function resolveEmissiveStrength(blendMode: number): number {
-  return isAdditiveBlendMode(blendMode) ? 8 : 3
+  return isAdditiveBlendMode(blendMode) ? 8 : 1
 }
 
 export function buildMaterialParams(

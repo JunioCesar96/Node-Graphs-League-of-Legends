@@ -1,3 +1,4 @@
+import { resolveEmitterEmbedRgba } from './vfxColor'
 import type { ParsedVfxEmitterFull, VfxEmbedValue } from './vfxModel'
 import {
   deriveGroundScaleKind,
@@ -49,6 +50,11 @@ export type VfxEmitterFrameState = {
   transformPipeline?: import('./semantic/vfxTransformTypes').TransformPipelineDefinition
   /** Matriz mundial 4×4 (Fase 6 render). */
   worldMatrix?: number[]
+  /** Rotação ritual LoL (graus) — valor do BIN. */
+  rotationLolDeg?: [number, number, number]
+  /** Rotação na view 3D (graus) = ritual − baseline. */
+  rotationViewLolDeg?: [number, number, number]
+  birthRotationBaselineLol?: [number, number, number]
 }
 
 function embedVec3(embed: VfxEmbedValue | null, fallback: [number, number, number]): [number, number, number] {
@@ -56,18 +62,6 @@ function embedVec3(embed: VfxEmbedValue | null, fallback: [number, number, numbe
   const value = embed.constant
   if (Array.isArray(value) && value.length >= 3) {
     return [Number(value[0]), Number(value[1]), Number(value[2])]
-  }
-  return fallback
-}
-
-function embedVec4(
-  embed: VfxEmbedValue | null,
-  fallback: [number, number, number, number],
-): [number, number, number, number] {
-  if (!embed?.constant) return fallback
-  const value = embed.constant
-  if (Array.isArray(value) && value.length >= 4) {
-    return [Number(value[0]), Number(value[1]), Number(value[2]), Number(value[3])]
   }
   return fallback
 }
@@ -103,43 +97,6 @@ function sampleDynamicsVec3(embed: VfxEmbedValue | null, normalizedT: number): [
     return [Number(value[0]), Number(value[1]), Number(value[2])]
   }
   return [1, 1, 1]
-}
-
-function sampleDynamicsVec4(
-  embed: VfxEmbedValue | null,
-  normalizedT: number,
-): [number, number, number, number] {
-  if (!embed?.dynamics?.times?.length) return embedVec4(embed, [1, 1, 1, 1])
-
-  const { times, values } = embed.dynamics
-  let value: unknown = values[values.length - 1]
-
-  if (normalizedT <= (times[0] ?? 0)) value = values[0]
-  else if (normalizedT >= (times[times.length - 1] ?? 1)) value = values[values.length - 1]
-  else {
-    for (let index = 0; index < times.length - 1; index++) {
-      const left = times[index] ?? 0
-      const right = times[index + 1] ?? 1
-      if (normalizedT >= left && normalizedT <= right) {
-        const span = right - left
-        const factor = span > 0 ? (normalizedT - left) / span : 0
-        const leftVal = values[index] as [number, number, number, number]
-        const rightVal = values[index + 1] as [number, number, number, number]
-        value = [
-          leftVal[0] + (rightVal[0] - leftVal[0]) * factor,
-          leftVal[1] + (rightVal[1] - leftVal[1]) * factor,
-          leftVal[2] + (rightVal[2] - leftVal[2]) * factor,
-          leftVal[3] + (rightVal[3] - leftVal[3]) * factor,
-        ]
-        break
-      }
-    }
-  }
-
-  if (Array.isArray(value) && value.length >= 4) {
-    return [Number(value[0]), Number(value[1]), Number(value[2]), Number(value[3])]
-  }
-  return embedVec4(embed, [1, 1, 1, 1])
 }
 
 /**
@@ -333,6 +290,8 @@ export type ComputeEmitterFrameOptions = {
   vfxGlobalRotationOffsetDegrees?: [number, number, number]
   /** Congela deslocamento das partículas no espaço 3D. */
   vfxLockMotionEnabled?: boolean
+  /** Baseline birthRotation LoL (preview 3D Scene). */
+  vfxBirthRotationLoLEnabled?: boolean
   /** Pipeline cacheado no build (evita reclassificar por frame). */
   composablePipeline?: ComposableRenderPipeline
   /** Pipeline de transformação cacheado (Fase 5). */
@@ -369,16 +328,10 @@ export function computeEmitterFrameState(
     resolveBoneWorld: options?.resolveBoneWorld,
     referenceBoneName: options?.referenceBoneName,
     boundObjectSizeLol: options?.boundObjectSizeLol,
+    birthRotationLoLEnabled: options?.vfxBirthRotationLoLEnabled,
   })
 
-  const colorRgba = sampleDynamicsVec4(emitter.color, particleNormalized)
-  const birthRgba = sampleDynamicsVec4(emitter.birthColor, particleNormalized)
-  const rgba: [number, number, number, number] = [
-    colorRgba[0] * birthRgba[0],
-    colorRgba[1] * birthRgba[1],
-    colorRgba[2] * birthRgba[2],
-    colorRgba[3] * birthRgba[3],
-  ]
+  const rgba = resolveEmitterEmbedRgba(emitter.color, emitter.birthColor, particleNormalized)
   const opacity = visible ? Math.max(rgba[3], 0.02) : 0
   const motionTime = Math.max(particleTime, 0)
 
@@ -404,5 +357,8 @@ export function computeEmitterFrameState(
     groundScaleKind,
     transformPipeline: particle.transformPipeline,
     worldMatrix: particle.worldMatrix,
+    rotationLolDeg: particle.rotationLolDeg,
+    rotationViewLolDeg: particle.rotationViewLolDeg,
+    birthRotationBaselineLol: particle.birthRotationBaselineLol,
   }
 }

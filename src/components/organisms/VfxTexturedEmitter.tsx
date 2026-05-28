@@ -1,13 +1,15 @@
-import { useEffect, useMemo, useRef, type MutableRefObject } from 'react'
-import { useFrame } from '@react-three/fiber'
-import type { Mesh } from 'three'
+import { useEffect, useLayoutEffect, useMemo, useRef } from 'react'
+import { useFrame, useThree } from '@react-three/fiber'
+import type { BufferGeometry, Group, Mesh } from 'three'
 import {
   AdditiveBlending,
   Color,
   DoubleSide,
+  MeshBasicMaterial,
   MeshStandardMaterial,
   NormalBlending,
   Quaternion,
+  ClampToEdgeWrapping,
   RepeatWrapping,
   ShaderMaterial,
   Vector2,
@@ -18,66 +20,19 @@ import type { VfxEmitterPreviewEntry } from '@/hooks/useVfxPreview'
 import { useVfxCubemap, applyCubemapMapping } from '@/hooks/useVfxCubemap'
 import { useVfxTextureMaps } from '@/hooks/useVfxTextureMaps'
 import { VFX_IMAGE_FRAGMENT_SHADER, VFX_IMAGE_VERTEX_SHADER } from '@/core/vfx/vfxImageShader'
-import { composePlaneMeshQuaternion } from '@/core/vfx/vfxMeshTransform'
-import type { VfxMaterialParams } from '@/core/vfx/vfxWebMaterials'
+import { applyParticleWorldTransform } from '@/core/vfx/vfxMeshTransform'
+import type { ShaderMaterialDescriptor } from '@/core/vfx/vfxWebMaterials'
 import { isAdditiveBlendMode } from '@/core/vfx/vfxWebMaterials'
-import type { VfxEmitterFrameState } from '@/core/vfx/vfxWebAnimation'
+import { getVfxPrimitivePlaceholderMaterial } from '@/core/vfx/vfxPrimitiveMeshPool'
+import { useVfxEmitterPrimitiveGeometry } from '@/hooks/useVfxEmitterPrimitiveGeometry'
 import { applyAnmPoseToBones } from '@/core/vfx/lolSkinnedMesh'
 
-function resolvePrimitiveGeometry(
-  material: VfxMaterialParams,
-  emitterName: string,
-  meshPath: string | null,
-) {
-  if (material.primitiveKind === 'beam') return 'beam' as const
-  if (material.primitiveKind === 'trail') return 'trail' as const
-  if (material.primitiveKind === 'ray') return 'ray' as const
-  if (material.primitiveKind === 'planar_projection') return 'plane' as const
-  if (material.isBillboard) return 'plane' as const
-  const name = emitterName.toLowerCase()
-  const mesh = (meshPath ?? '').toLowerCase()
-  if (mesh.includes('sphere') || name.includes('juice')) return 'sphere' as const
-  if (mesh.includes('cyl') || name.includes('ring')) return 'cylinder' as const
-  return 'plane' as const
-}
+import { VFX_RENDER_LAYER } from './vfxSceneDepth'
+import { useVfxSceneDepthTexture } from './vfxSceneDepth'
 
-function EmitterPrimitiveGeometry({
-  kind,
-}: {
-  kind: ReturnType<typeof resolvePrimitiveGeometry>
-}) {
-  if (kind === 'beam') return <boxGeometry args={[0.2, 4, 0.2]} />
-  if (kind === 'trail') return <boxGeometry args={[0.08, 6, 0.08]} />
-  if (kind === 'ray') return <boxGeometry args={[0.12, 2.5, 0.12]} />
-  if (kind === 'sphere') return <sphereGeometry args={[0.5, 24, 24]} />
-  if (kind === 'cylinder') return <cylinderGeometry args={[0.5, 0.5, 0.12, 32, 1, true]} />
-  return <planeGeometry args={[1, 1]} />
-}
-
-function applyEmitterMeshTransform(
-  mesh: Mesh,
-  material: VfxMaterialParams,
-  frame: VfxEmitterFrameState,
-  cameraQuaternion: Quaternion,
-  vfxCamLockEnabled: boolean,
-  planeQuatRef: MutableRefObject<Quaternion>,
-): void {
-  const planeQuat = composePlaneMeshQuaternion(material.planeBaseRotation, frame.rotation)
-  planeQuatRef.current.copy(planeQuat)
-
-  const useCamLock =
-    material.isBillboard && vfxCamLockEnabled && !material.isGroundLayer
-
-  if (useCamLock) {
-    mesh.quaternion.copy(cameraQuaternion).multiply(planeQuatRef.current)
-  } else {
-    mesh.quaternion.copy(planeQuatRef.current)
-  }
-}
-
-function spriteUvParams(material: VfxMaterialParams): { offset: [number, number]; repeat: [number, number] } {
-  const cols = Math.max(1, material.spriteCols)
-  const rows = Math.max(1, material.spriteRows)
+function spriteUvParams(material: ShaderMaterialDescriptor): { offset: [number, number]; repeat: [number, number] } {
+  const cols = material.shaderFeatures.flipbook ? Math.max(1, material.spriteCols) : 1
+  const rows = material.shaderFeatures.flipbook ? Math.max(1, material.spriteRows) : 1
   const col = (((material.spriteOffset[0] % cols) + cols) % cols) / cols
   const row = (((material.spriteOffset[1] % rows) + rows) % rows) / rows
   return {
@@ -88,15 +43,29 @@ function spriteUvParams(material: VfxMaterialParams): { offset: [number, number]
 
 type TexturedEmitterProps = Omit<EmitterSurfaceProps, 'meshOnly'>
 
-function VfxTexturedEmitterInner({ entry, wireframe, vfxCamLockEnabled }: TexturedEmitterProps) {
+function VfxTexturedEmitterInner({
+  entry,
+  wireframe,
+  vfxCamLockEnabled,
+  sceneDepthFade,
+}: TexturedEmitterProps) {
+  const groupRef = useRef<Group>(null)
   const meshRef = useRef<Mesh>(null)
-  const planeQuatRef = useRef(new Quaternion())
+  const sceneDepthTexture = useVfxSceneDepthTexture()
+  const { size } = useThree()
   const { frame, material } = entry
-  const primitiveKind = useMemo(
-    () => resolvePrimitiveGeometry(material, entry.name, entry.meshPath),
-    [entry.meshPath, entry.name, material],
-  )
+  const primitiveKind = material.geometryKind
   const meshGeometry = entry.meshGeometry
+  const surfaceGeometry = useVfxEmitterPrimitiveGeometry(primitiveKind, meshGeometry, {
+    uvRotationSafeMargin: material.uvRotationSafeMargin,
+    texDiv: entry.parsed.texDiv,
+  })
+  const shaderFeatures = material.shaderFeatures
+
+  useLayoutEffect(() => {
+    groupRef.current?.layers.set(VFX_RENDER_LAYER)
+    meshRef.current?.layers.set(VFX_RENDER_LAYER)
+  }, [])
 
   const urlEntries = useMemo(() => {
     const entries: Array<{ url: string; isDds: boolean }> = []
@@ -113,10 +82,15 @@ function VfxTexturedEmitterInner({ entry, wireframe, vfxCamLockEnabled }: Textur
     if (material.erosionTextureUrl) {
       entries.push({ url: material.erosionTextureUrl, isDds: material.erosionTextureIsDds })
     }
+    if (material.distortionTextureUrl) {
+      entries.push({ url: material.distortionTextureUrl, isDds: material.distortionTextureIsDds })
+    }
     return entries
   }, [
     material.colorTextureIsDds,
     material.colorTextureUrl,
+    material.distortionTextureIsDds,
+    material.distortionTextureUrl,
     material.paletteTextureIsDds,
     material.paletteTextureUrl,
     material.textureIsDds,
@@ -142,15 +116,17 @@ function VfxTexturedEmitterInner({ entry, wireframe, vfxCamLockEnabled }: Textur
     const multMap = material.textureMultUrl ? textures[textureIndex++] : null
     const paletteMap = material.paletteTextureUrl ? textures[textureIndex++] : null
     const erosionMap = material.erosionTextureUrl ? textures[textureIndex++] : null
+    const distortionMap = material.distortionTextureUrl ? textures[textureIndex++] : null
 
     const sprite = spriteUvParams(material)
-    mainMap.wrapS = RepeatWrapping
-    mainMap.wrapT = RepeatWrapping
+    const uvWrap = material.uvRotationSafeMargin ? ClampToEdgeWrapping : RepeatWrapping
+    mainMap.wrapS = uvWrap
+    mainMap.wrapT = uvWrap
     mainMap.repeat.set(sprite.repeat[0], sprite.repeat[1])
     mainMap.offset.set(sprite.offset[0], sprite.offset[1])
     if (colorMap) {
-      colorMap.wrapS = RepeatWrapping
-      colorMap.wrapT = RepeatWrapping
+      colorMap.wrapS = uvWrap
+      colorMap.wrapT = uvWrap
       colorMap.repeat.set(sprite.repeat[0], sprite.repeat[1])
       colorMap.offset.set(sprite.offset[0], sprite.offset[1])
     }
@@ -167,16 +143,16 @@ function VfxTexturedEmitterInner({ entry, wireframe, vfxCamLockEnabled }: Textur
       paletteMap.needsUpdate = true
     }
 
-    return { mainMap, colorMap, multMap, paletteMap, erosionMap }
+    return { mainMap, colorMap, multMap, paletteMap, erosionMap, distortionMap }
   }, [material, textures])
 
   const shaderMaterial = useMemo(() => {
     if (!maps) return null
 
-    const { mainMap, colorMap, multMap, paletteMap, erosionMap } = maps
+    const { mainMap, colorMap, multMap, paletteMap, erosionMap, distortionMap } = maps
     const useColorLookUp = Boolean(material.colorLookUpScales)
-    const cols = Math.max(1, material.spriteCols)
-    const rows = Math.max(1, material.spriteRows)
+    const cols = shaderFeatures.flipbook ? Math.max(1, material.spriteCols) : 1
+    const rows = shaderFeatures.flipbook ? Math.max(1, material.spriteRows) : 1
 
     return new ShaderMaterial({
       uniforms: {
@@ -207,7 +183,15 @@ function VfxTexturedEmitterInner({ entry, wireframe, vfxCamLockEnabled }: Textur
         uUvMultOffset: { value: new Vector2(material.uvMultOffset[0], material.uvMultOffset[1]) },
         uSpriteRepeat: { value: new Vector2(1 / cols, 1 / rows) },
         uMultRepeat: { value: new Vector2(material.uvScale[0], material.uvScale[1]) },
-        uTint: { value: new Color(material.baseColor[0], material.baseColor[1], material.baseColor[2]) },
+        uTintRgba: {
+          value: new Vector4(
+            material.tintRgba[0],
+            material.tintRgba[1],
+            material.tintRgba[2],
+            material.tintRgba[3],
+          ),
+        },
+        uColorMultiply: { value: material.colorMultiply },
         uOpacity: { value: material.opacity },
         uAdditive: { value: material.isAdditive },
         uEmissiveStrength: { value: material.emissiveStrength },
@@ -219,6 +203,7 @@ function VfxTexturedEmitterInner({ entry, wireframe, vfxCamLockEnabled }: Textur
         uHasEnvMap: { value: Boolean(cubemap) },
         uReflectMix: { value: material.reflectionMix },
         uUvRotation: { value: material.uvRotation },
+        uUvRotationSafeMargin: { value: material.uvRotationSafeMargin },
         uFlipNormal: { value: material.flipNormals ? 1 : 0 },
         uAlphaCutoff: { value: material.alphaCutoff },
         uAlphaTest: { value: material.alphaTest },
@@ -232,7 +217,7 @@ function VfxTexturedEmitterInner({ entry, wireframe, vfxCamLockEnabled }: Textur
         uColorLookUpTypeX: { value: material.colorLookUpTypeX },
         uColorLookUpTypeY: { value: material.colorLookUpTypeY },
         uErosionMap: { value: erosionMap ?? mainMap },
-        uHasErosion: { value: Boolean(erosionMap) },
+        uHasErosion: { value: shaderFeatures.erosion && Boolean(erosionMap) },
         uErosionDrive: { value: material.erosionDrive },
         uErosionChannelMixer: {
           value: new Vector4(
@@ -242,30 +227,53 @@ function VfxTexturedEmitterInner({ entry, wireframe, vfxCamLockEnabled }: Textur
             material.erosionChannelMixer[3],
           ),
         },
+        uSoftAlpha: { value: shaderFeatures.softAlpha },
+        uDistortionMap: { value: distortionMap ?? mainMap },
+        uHasDistortion: { value: shaderFeatures.distortion && Boolean(distortionMap) },
+        uDistortionStrength: { value: material.distortionStrength },
+        uSoftDepthFade: { value: material.softDepthFade },
+        uGroundZ: { value: material.groundClipZ ?? 0.02 },
+        uSoftDepthRange: { value: 0.2 },
+        uUseSceneDepth: { value: false },
+        uSceneDepthMap: { value: sceneDepthTexture },
+        uSceneDepthResolution: { value: new Vector2(size.width, size.height) },
+        uSceneDepthFadeRange: { value: 0.012 },
       },
       depthWrite: material.depthWrite,
+      polygonOffset: material.polygonOffset,
+      polygonOffsetFactor: material.polygonOffsetFactor,
+      polygonOffsetUnits: material.polygonOffsetUnits,
       vertexShader: VFX_IMAGE_VERTEX_SHADER,
       fragmentShader: VFX_IMAGE_FRAGMENT_SHADER,
       transparent: true,
       side: DoubleSide,
       blending: material.isAdditive ? AdditiveBlending : NormalBlending,
+      toneMapped: false,
       wireframe,
     })
-  }, [cubemap, maps, material, wireframe])
+  }, [cubemap, maps, material, sceneDepthTexture, shaderFeatures, size.height, size.width, wireframe])
 
   useFrame(({ camera }) => {
-    if (!shaderMaterial || !meshRef.current) return
-    applyEmitterMeshTransform(
-      meshRef.current,
-      material,
-      frame,
-      camera.quaternion,
+    if (!shaderMaterial || !meshRef.current || !groupRef.current) return
+    applyParticleWorldTransform({
+      group: groupRef.current,
+      mesh: meshRef.current,
+      position: frame.position,
+      scale: frame.scale,
+      rotationEulerRad: frame.rotation,
+      geometryKind: primitiveKind,
+      planeFacing: material.planeFacing,
+      planeBaseRotation: material.planeBaseRotation,
+      isGroundLayer: material.isGroundLayer,
+      isBillboard: material.isBillboard,
+      cameraQuaternion: camera.quaternion,
       vfxCamLockEnabled,
-      planeQuatRef,
-    )
+      worldMatrix: frame.worldMatrix,
+      useLeagueMatrixP: frame.transformPipeline?.useLeagueMatrixP,
+    })
 
-    const cols = Math.max(1, material.spriteCols)
-    const rows = Math.max(1, material.spriteRows)
+    const cols = shaderFeatures.flipbook ? Math.max(1, material.spriteCols) : 1
+    const rows = shaderFeatures.flipbook ? Math.max(1, material.spriteRows) : 1
     shaderMaterial.uniforms.uSpriteOffset.value.set(
       (((material.spriteOffset[0] % cols) + cols) % cols) / cols,
       (((material.spriteOffset[1] % rows) + rows) % rows) / rows,
@@ -273,7 +281,13 @@ function VfxTexturedEmitterInner({ entry, wireframe, vfxCamLockEnabled }: Textur
     shaderMaterial.uniforms.uUvScroll.value.set(material.uvScroll[0], material.uvScroll[1])
     shaderMaterial.uniforms.uUvMultOffset.value.set(material.uvMultOffset[0], material.uvMultOffset[1])
     shaderMaterial.uniforms.uOpacity.value = material.opacity
-    shaderMaterial.uniforms.uTint.value.set(material.baseColor[0], material.baseColor[1], material.baseColor[2])
+    shaderMaterial.uniforms.uTintRgba.value.set(
+      material.tintRgba[0],
+      material.tintRgba[1],
+      material.tintRgba[2],
+      material.tintRgba[3],
+    )
+    shaderMaterial.uniforms.uColorMultiply.value = material.colorMultiply
     shaderMaterial.uniforms.uEmissiveStrength.value = material.emissiveStrength
     shaderMaterial.uniforms.uFresnel.value = material.fresnel
     shaderMaterial.uniforms.uFresnelColor.value.set(
@@ -285,6 +299,7 @@ function VfxTexturedEmitterInner({ entry, wireframe, vfxCamLockEnabled }: Textur
     shaderMaterial.uniforms.uHasEnvMap.value = Boolean(cubemap)
     shaderMaterial.uniforms.uReflectMix.value = material.reflectionMix
     shaderMaterial.uniforms.uUvRotation.value = material.uvRotation
+    shaderMaterial.uniforms.uUvRotationSafeMargin.value = material.uvRotationSafeMargin
     shaderMaterial.uniforms.uFlipNormal.value = material.flipNormals ? 1 : 0
     shaderMaterial.uniforms.uAlphaCutoff.value = material.alphaCutoff
     shaderMaterial.uniforms.uAlphaTest.value = material.alphaTest
@@ -298,25 +313,42 @@ function VfxTexturedEmitterInner({ entry, wireframe, vfxCamLockEnabled }: Textur
       material.paletteMixMask[3],
     )
     shaderMaterial.uniforms.uErosionDrive.value = material.erosionDrive
+    shaderMaterial.uniforms.uHasErosion.value = shaderFeatures.erosion && Boolean(material.erosionTextureUrl)
+    shaderMaterial.uniforms.uSoftAlpha.value = shaderFeatures.softAlpha
+    shaderMaterial.uniforms.uDistortionStrength.value = material.distortionStrength
+    shaderMaterial.uniforms.uHasDistortion.value =
+      shaderFeatures.distortion && Boolean(material.distortionTextureUrl)
+    shaderMaterial.uniforms.uSoftDepthFade.value = material.softDepthFade
+    shaderMaterial.uniforms.uGroundZ.value = material.groundClipZ ?? 0.02
+    const useSceneDepth = sceneDepthFade && material.softDepthFade && Boolean(sceneDepthTexture)
+    shaderMaterial.uniforms.uUseSceneDepth.value = useSceneDepth
+    if (sceneDepthTexture) shaderMaterial.uniforms.uSceneDepthMap.value = sceneDepthTexture
+    shaderMaterial.uniforms.uSceneDepthResolution.value.set(size.width, size.height)
     shaderMaterial.uniforms.uUseColorLookUp.value = Boolean(material.colorLookUpScales)
     shaderMaterial.depthWrite = material.depthWrite
+    shaderMaterial.polygonOffset = material.polygonOffset
+    shaderMaterial.polygonOffsetFactor = material.polygonOffsetFactor
+    shaderMaterial.polygonOffsetUnits = material.polygonOffsetUnits
   })
 
   if (!shaderMaterial) {
-    return <VfxSolidEmitter entry={entry} vfxCamLockEnabled={vfxCamLockEnabled} wireframe={wireframe} />
+    return (
+      <VfxPrimitivePlaceholderEmitter
+        entry={entry}
+        geometry={surfaceGeometry}
+        vfxCamLockEnabled={vfxCamLockEnabled}
+      />
+    )
   }
 
   return (
-    <group position={frame.position}>
+    <group ref={groupRef}>
       <mesh
         ref={meshRef}
-        geometry={meshGeometry ?? undefined}
+        geometry={surfaceGeometry}
         renderOrder={material.renderOrder}
-        scale={frame.scale}
         material={shaderMaterial}
-      >
-        {!meshGeometry ? <EmitterPrimitiveGeometry kind={primitiveKind} /> : null}
-      </mesh>
+      />
     </group>
   )
 }
@@ -329,50 +361,68 @@ type EmitterSurfaceProps = {
   meshOnly: boolean
   wireframe: boolean
   vfxCamLockEnabled: boolean
+  sceneDepthFade?: boolean
 }
 
 function VfxMeshOnlyEmitter({ entry, wireframe, vfxCamLockEnabled }: EmitterSurfaceProps) {
+  const groupRef = useRef<Group>(null)
   const meshRef = useRef<Mesh>(null)
-  const planeQuatRef = useRef(new Quaternion())
   const { frame, material } = entry
-  const primitiveKind = useMemo(
-    () => resolvePrimitiveGeometry(material, entry.name, entry.meshPath),
-    [entry.meshPath, entry.name, material],
-  )
+  const primitiveKind = material.geometryKind
   const meshGeometry = entry.meshGeometry
+  const surfaceGeometry = useVfxEmitterPrimitiveGeometry(primitiveKind, meshGeometry, {
+    uvRotationSafeMargin: material.uvRotationSafeMargin,
+    texDiv: entry.parsed.texDiv,
+  })
+  const surfaceMaterial = useMemo(
+    () =>
+      new MeshStandardMaterial({
+        color: MESH_ONLY_COLOR,
+        depthWrite: true,
+        emissive: MESH_ONLY_EMISSIVE,
+        emissiveIntensity: 0.35,
+        metalness: 0.15,
+        roughness: 0.55,
+        side: DoubleSide,
+        wireframe,
+      }),
+    [wireframe],
+  )
+
+  useEffect(() => {
+    return () => {
+      surfaceMaterial.dispose()
+    }
+  }, [surfaceMaterial])
 
   useFrame(({ camera }) => {
-    if (!meshRef.current) return
-    applyEmitterMeshTransform(
-      meshRef.current,
-      material,
-      frame,
-      camera.quaternion,
+    if (!meshRef.current || !groupRef.current) return
+    applyParticleWorldTransform({
+      group: groupRef.current,
+      mesh: meshRef.current,
+      position: frame.position,
+      scale: frame.scale,
+      rotationEulerRad: frame.rotation,
+      geometryKind: primitiveKind,
+      planeFacing: material.planeFacing,
+      planeBaseRotation: material.planeBaseRotation,
+      isGroundLayer: material.isGroundLayer,
+      isBillboard: material.isBillboard,
+      cameraQuaternion: camera.quaternion,
       vfxCamLockEnabled,
-      planeQuatRef,
-    )
+      worldMatrix: frame.worldMatrix,
+      useLeagueMatrixP: frame.transformPipeline?.useLeagueMatrixP,
+    })
   })
 
   return (
-    <group position={frame.position}>
+    <group ref={groupRef}>
       <mesh
         ref={meshRef}
-        geometry={meshGeometry ?? undefined}
+        geometry={surfaceGeometry}
+        material={surfaceMaterial}
         renderOrder={material.renderOrder}
-        scale={frame.scale}
-      >
-        {!meshGeometry ? <EmitterPrimitiveGeometry kind={primitiveKind} /> : null}
-        <meshStandardMaterial
-          color={MESH_ONLY_COLOR}
-          depthWrite
-          emissive={MESH_ONLY_EMISSIVE}
-          emissiveIntensity={0.35}
-          metalness={0.15}
-          roughness={0.55}
-          side={DoubleSide}
-          wireframe={wireframe}
-        />
-      </mesh>
+      />
     </group>
   )
 }
@@ -429,53 +479,132 @@ function VfxMeshOnlySkinnedEmitter({ entry, wireframe }: Omit<EmitterSurfaceProp
   )
 }
 
-function VfxSolidEmitter({ entry, wireframe, vfxCamLockEnabled }: TexturedEmitterProps) {
+function VfxPrimitivePlaceholderEmitter({
+  entry,
+  geometry,
+  vfxCamLockEnabled,
+}: {
+  entry: VfxEmitterPreviewEntry
+  geometry: BufferGeometry | undefined
+  vfxCamLockEnabled: boolean
+}) {
+  const groupRef = useRef<Group>(null)
   const meshRef = useRef<Mesh>(null)
-  const planeQuatRef = useRef(new Quaternion())
   const { frame, material } = entry
-  const primitiveKind = useMemo(
-    () => resolvePrimitiveGeometry(material, entry.name, entry.meshPath),
-    [entry.meshPath, entry.name, material],
-  )
-  const meshGeometry = entry.meshGeometry
-  const color = material.baseColor
-  const additive = isAdditiveBlendMode(material.blendMode)
+  const primitiveKind = material.geometryKind
+  const placeholderMaterial = useMemo(() => getVfxPrimitivePlaceholderMaterial(), [])
 
   useFrame(({ camera }) => {
-    if (!meshRef.current) return
-    applyEmitterMeshTransform(
-      meshRef.current,
-      material,
-      frame,
-      camera.quaternion,
+    if (!meshRef.current || !groupRef.current) return
+    applyParticleWorldTransform({
+      group: groupRef.current,
+      mesh: meshRef.current,
+      position: frame.position,
+      scale: frame.scale,
+      rotationEulerRad: frame.rotation,
+      geometryKind: primitiveKind,
+      planeFacing: material.planeFacing,
+      planeBaseRotation: material.planeBaseRotation,
+      isGroundLayer: material.isGroundLayer,
+      isBillboard: material.isBillboard,
+      cameraQuaternion: camera.quaternion,
       vfxCamLockEnabled,
-      planeQuatRef,
+      worldMatrix: frame.worldMatrix,
+      useLeagueMatrixP: frame.transformPipeline?.useLeagueMatrixP,
+    })
+  })
+
+  if (!geometry) return null
+
+  return (
+    <group ref={groupRef}>
+      <mesh
+        ref={meshRef}
+        geometry={geometry}
+        material={placeholderMaterial}
+        renderOrder={material.renderOrder}
+      />
+    </group>
+  )
+}
+
+function VfxSolidEmitter({ entry, wireframe, vfxCamLockEnabled }: TexturedEmitterProps) {
+  const groupRef = useRef<Group>(null)
+  const meshRef = useRef<Mesh>(null)
+  const { frame, material } = entry
+  const primitiveKind = material.geometryKind
+  const meshGeometry = entry.meshGeometry
+  const surfaceGeometry = useVfxEmitterPrimitiveGeometry(primitiveKind, meshGeometry, {
+    uvRotationSafeMargin: material.uvRotationSafeMargin,
+    texDiv: entry.parsed.texDiv,
+  })
+  const color = material.baseColor
+  const additive = isAdditiveBlendMode(material.blendMode)
+  const surfaceMaterial = useMemo(
+    () =>
+      new MeshBasicMaterial({
+        color: new Color(
+          color[0] * material.emissiveStrength,
+          color[1] * material.emissiveStrength,
+          color[2] * material.emissiveStrength,
+        ),
+        opacity: material.opacity,
+        transparent: true,
+        depthWrite: material.depthWrite,
+        side: DoubleSide,
+        wireframe,
+        blending: additive ? AdditiveBlending : NormalBlending,
+      }),
+    [
+      additive,
+      color,
+      material.depthWrite,
+      material.emissiveStrength,
+      material.opacity,
+      wireframe,
+    ],
+  )
+
+  useEffect(() => {
+    return () => {
+      surfaceMaterial.dispose()
+    }
+  }, [surfaceMaterial])
+
+  useFrame(({ camera }) => {
+    if (!meshRef.current || !groupRef.current) return
+    applyParticleWorldTransform({
+      group: groupRef.current,
+      mesh: meshRef.current,
+      position: frame.position,
+      scale: frame.scale,
+      rotationEulerRad: frame.rotation,
+      geometryKind: primitiveKind,
+      planeFacing: material.planeFacing,
+      planeBaseRotation: material.planeBaseRotation,
+      isGroundLayer: material.isGroundLayer,
+      isBillboard: material.isBillboard,
+      cameraQuaternion: camera.quaternion,
+      vfxCamLockEnabled,
+      worldMatrix: frame.worldMatrix,
+      useLeagueMatrixP: frame.transformPipeline?.useLeagueMatrixP,
+    })
+    surfaceMaterial.opacity = material.opacity
+    surfaceMaterial.color.set(
+      color[0] * material.emissiveStrength,
+      color[1] * material.emissiveStrength,
+      color[2] * material.emissiveStrength,
     )
   })
 
   return (
-    <group position={frame.position}>
+    <group ref={groupRef}>
       <mesh
         ref={meshRef}
-        geometry={meshGeometry ?? undefined}
+        geometry={surfaceGeometry}
+        material={surfaceMaterial}
         renderOrder={material.renderOrder}
-        scale={frame.scale}
-      >
-        {!meshGeometry ? <EmitterPrimitiveGeometry kind={primitiveKind} /> : null}
-        <meshBasicMaterial
-        color={new Color(
-          color[0] * material.emissiveStrength,
-          color[1] * material.emissiveStrength,
-          color[2] * material.emissiveStrength,
-        )}
-        opacity={material.opacity}
-        transparent
-        depthWrite={material.depthWrite}
-        side={DoubleSide}
-        wireframe={wireframe}
-        blending={additive ? AdditiveBlending : NormalBlending}
-        />
-      </mesh>
+      />
     </group>
   )
 }
@@ -534,7 +663,13 @@ function VfxSkinnedEmitter({ entry, wireframe }: Omit<TexturedEmitterProps, 'vfx
   )
 }
 
-export function VfxEmitterSurface({ entry, meshOnly, wireframe, vfxCamLockEnabled }: EmitterSurfaceProps) {
+export function VfxEmitterSurface({
+  entry,
+  meshOnly,
+  wireframe,
+  vfxCamLockEnabled,
+  sceneDepthFade = false,
+}: EmitterSurfaceProps) {
   if (meshOnly) {
     if (entry.skinnedBundle) {
       return <VfxMeshOnlySkinnedEmitter entry={entry} meshOnly wireframe={wireframe} vfxCamLockEnabled={false} />
@@ -561,7 +696,12 @@ export function VfxEmitterSurface({ entry, meshOnly, wireframe, vfxCamLockEnable
 
   if (hasTexture) {
     return (
-      <VfxTexturedEmitterInner entry={entry} vfxCamLockEnabled={vfxCamLockEnabled} wireframe={wireframe} />
+      <VfxTexturedEmitterInner
+        entry={entry}
+        sceneDepthFade={sceneDepthFade}
+        vfxCamLockEnabled={vfxCamLockEnabled}
+        wireframe={wireframe}
+      />
     )
   }
   return <VfxSolidEmitter entry={entry} vfxCamLockEnabled={vfxCamLockEnabled} wireframe={wireframe} />

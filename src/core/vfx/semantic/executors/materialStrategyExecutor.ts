@@ -7,7 +7,8 @@ import {
   resolveEmissiveStrength,
   type VfxMaterialParams,
 } from '../../vfxWebMaterials'
-import { planeBaseRotation } from '../../vfxPrimitives'
+import { birthRotationConstant, isGroundLikeBirthRotation, planeBaseRotation } from '../../vfxPrimitives'
+import { resolveEmitterEmbedRgba } from '../../vfxColor'
 import { placeholderColorForMaterialIntent } from '../vfxMaterialIntent'
 import type { ComposableRenderPipeline } from '../vfxSemanticTypes'
 import type { ShaderMaterialDescriptor } from '../../vfxWebMaterials'
@@ -23,6 +24,10 @@ import {
 } from '../../vfxRenderFlags'
 import { resolvePaletteUniforms } from '../../vfxPalette'
 import { distortionStrength } from '../../vfxDistortion'
+import {
+  needsUvRotationSafeMarginForEmitter,
+  resolveUvRotationSafeMarginG,
+} from '../../vfxUvRotationSafeMargin'
 
 function resolvePolygonOffset(
   emitter: ParsedVfxEmitterFull,
@@ -76,12 +81,21 @@ function baseMaterialFields(
   const cols = Math.max(1, Math.round(texDiv[0]))
   const rows = Math.max(1, Math.round(texDiv[1]))
   const placeholder = placeholderColorForMaterialIntent(pipeline.materialIntent)
+  const particleNormalized = input.renderOptions?.particleNormalized ?? 0
+  const embedTint = resolveEmitterEmbedRgba(emitter.color, emitter.birthColor, particleNormalized)
   const frameColor = frame.color
-  const baseColor: [number, number, number] = [
-    frameColor[0] || placeholder[0],
-    frameColor[1] || placeholder[1],
-    frameColor[2] || placeholder[2],
+  const tintRgba: [number, number, number, number] = [
+    frameColor[0],
+    frameColor[1],
+    frameColor[2],
+    embedTint[3],
   ]
+  const baseColor: [number, number, number] = [
+    tintRgba[0] || placeholder[0],
+    tintRgba[1] || placeholder[1],
+    tintRgba[2] || placeholder[2],
+  ]
+  const colorMultiply = (emitter.colorRenderFlags & 1) !== 0 || Boolean(emitter.particleColorTexture.trim())
 
   const multScale = emitter.textureMult?.uvScale ?? [1, 1]
   const multOffset = emitter.textureMult?.birthUvOffset?.constant
@@ -118,6 +132,8 @@ function baseMaterialFields(
 
   return {
     baseColor,
+    tintRgba,
+    colorMultiply,
     opacity: frame.opacity,
     blendMode: emitter.blendMode,
     isAdditive,
@@ -151,9 +167,15 @@ function baseMaterialFields(
       emitter.blendMode,
       emitter.disableBackfaceCull,
     ),
-    isBillboard: ['plane', 'ray', 'arbitrary_quad', 'trail', 'beam', 'planar_projection'].includes(
-      emitter.primitiveKind,
-    ),
+    isBillboard:
+      ['plane', 'ray', 'arbitrary_quad', 'trail', 'beam', 'planar_projection'].includes(
+        emitter.primitiveKind,
+      ) &&
+      !emitter.isGroundLayer &&
+      !(() => {
+        const ritual = birthRotationConstant(emitter.birthRotation0)
+        return ritual != null && isGroundLikeBirthRotation(ritual)
+      })(),
     isGroundLayer: emitter.isGroundLayer,
     primitiveKind: emitter.primitiveKind,
     planeFacing,
@@ -190,6 +212,10 @@ export function executeMaterialStrategies(input: BuildShaderDescriptorInput): Sh
   const base = baseMaterialFields(input, shaderFeatures)
   const geometryKind = executeGeometryStrategies(input.pipeline, input.features)
   const polygon = resolvePolygonOffset(input.emitter, shaderFeatures)
+  const uvRotationSafeMargin = needsUvRotationSafeMarginForEmitter(input.emitter, geometryKind)
+  const uvRotationSafeMarginG = uvRotationSafeMargin
+    ? resolveUvRotationSafeMarginG(input.emitter.texDiv)
+    : 1
 
   return {
     ...base,
@@ -197,6 +223,8 @@ export function executeMaterialStrategies(input: BuildShaderDescriptorInput): Sh
     activeTraits: input.pipeline.traits,
     shaderFeatures,
     geometryKind,
+    uvRotationSafeMargin,
+    uvRotationSafeMarginG,
     polygonOffset: polygon.enabled,
     polygonOffsetFactor: polygon.factor,
     polygonOffsetUnits: polygon.units,

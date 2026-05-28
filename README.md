@@ -144,6 +144,7 @@ Implementation notes (Mermaid, commits, API tables) in [`feature_md/feature/`](f
 | VFX emitter classifications | [feature-vfx-emitter-classifications.md](feature_md/feature/feature-vfx-emitter-classifications.md) |
 | VFX ground quad transform | [feature-vfx-ground-quad-transform.md](feature_md/feature/feature-vfx-ground-quad-transform.md) |
 | VFX semantic / shader / compositor | [feature-vfx-semantic-classifier.md](feature_md/feature/feature-vfx-semantic-classifier.md), [feature-vfx-shader-execution.md](feature_md/feature/feature-vfx-shader-execution.md), [feature-clip-compositor-vfx.md](feature_md/feature/feature-clip-compositor-vfx.md) |
+| VFX Color (`ValueColor` × texture) | [feature-vfx-color-system.md](feature_md/feature/feature-vfx-color-system.md) |
 | Class Group (embed, list, pointer, map hash) | [feature-main-class-group.md](feature_md/feature/feature-main-class-group.md), [feature-embed-class-group.md](feature_md/feature/feature-embed-class-group.md), [feature-list-embed-class-group.md](feature_md/feature/feature-list-embed-class-group.md), [feature-pointer-class-group.md](feature_md/feature/feature-pointer-class-group.md), [feature-list2-embed-pointer-class-group.md](feature_md/feature/feature-list2-embed-pointer-class-group.md), [feature-class-group-map-hash-u64-primitives.md](feature_md/feature/feature-class-group-map-hash-u64-primitives.md) |
 | Neeko node | [feature-neeko-ditto-node.md](feature_md/feature/feature-neeko-ditto-node.md) |
 
@@ -239,6 +240,41 @@ See [`feature-shortcut-scope-system.md`](feature_md/feature/feature-shortcut-sco
 
 ---
 
+## Implementation — VFX Color system (branch `feature/vfx-color-system`)
+
+Full copy in [`feature_md/feature/feature-vfx-color-system.md`](feature_md/feature/feature-vfx-color-system.md).
+
+### 1. Header / Cabeçalho
+
+| Field | Value |
+| --- | --- |
+| Branch name | `feature/vfx-color-system` |
+| Feature name | VFX Color — `ValueColor` `vec4` tint in shader + inspector |
+| Version | `1.5.0` |
+| Commit | _(see latest commit on branch)_ |
+
+### 2. Tags
+
+| Tag (EN) | Tag (PT) | Meaning |
+| --- | --- | --- |
+| `[NEW]` | `[NOVO]` | `vfxColor.ts`, `VfxColorSwatchRow`, texture color sample helpers |
+| `[UPDATED]` | `[ATUALIZADO]` | Shader tint, embed vec4 sampling, VFX inspector **Cor** section |
+
+### 3–4. Flow (summary)
+
+Ritual `Color` / `birthColor` → `resolveEmitterEmbedRgba` → `uTintRgba` → `applyValueColorTint` on GPU (linear multiply). Inspector shows **only** `Color`: swatch + **vec4** + **RGB**.
+
+### 5–7. How to use / Como usar
+
+| EN | PT |
+| --- | --- |
+| Same emitter: yellow texture × cyan `Color` → green in viewport | Mesmo emitter: textura amarela × `Color` ciano → verde no viewport |
+| VFX dock → inspector **Color** → `vec4` + RGB at timeline `t` | Dock VFX → inspector **Cor** → `vec4` + RGB no tempo `t` |
+
+**Main files:** `src/core/vfx/vfxColor.ts`, `vfxImageShader.ts`, `vfxEmbedSample.ts`, `VfxDockInspector.tsx`, `VfxTexturedEmitter.tsx`.
+
+---
+
 # Português — Guia rápido
 
 ## O que é
@@ -256,7 +292,8 @@ pnpm install && pnpm dev
 3. **Editar:** arrastar slots de saída; clique curto alterna flex/rigid/wireless; botão direito para menu de contexto.
 4. **Exportar:** um nó Main → Grafo → Node Graphs to Code.
 5. **VFX:** menu VFX → Rebuild → Play; ver docs em [`feature_md/feature/`](feature_md/feature/).
-6. **Atalhos (esta branch):** clique na zona correcta antes da tecla — ver [secção de implementação](#implementation--shortcut-scope-system-branch-featureshortcut-scope-system) acima.
+6. **Cor VFX:** inspector **Cor** mostra só `Color` (`vec4` + RGB); ver [feature-vfx-color-system](feature_md/feature/feature-vfx-color-system.md).
+7. **Atalhos:** clique na zona correcta antes da tecla — ver [shortcut scope](#implementation--shortcut-scope-system-branch-featureshortcut-scope-system).
 
 Documentação técnica completa: [`feature_md/feature/`](feature_md/feature/).
 

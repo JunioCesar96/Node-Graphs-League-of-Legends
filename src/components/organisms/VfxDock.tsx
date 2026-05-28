@@ -18,7 +18,9 @@ import {
   lookupTextureForRitual,
   revokeAssetIndex,
 } from '@/core/vfx/vfxAssetIndex'
+import { LangId } from '@/core/language/languageIds'
 import { getStoredVfxGameRoot, setStoredVfxGameRoot } from '@/core/vfx/gameRootPreference'
+import { useLanguage } from '@/language/LanguageProvider'
 import {
   buildLolAssetCachesFromFiles,
   disposeLolAssetCaches,
@@ -27,21 +29,37 @@ import {
 } from '@/core/vfx/vfxMeshCache'
 import type { UseVfxPreviewOptions } from '@/hooks/useVfxPreview'
 import { useVfxAutoAssets } from '@/hooks/useVfxAutoAssets'
+import {
+  ensureDirectoryReadPermission,
+  getStoredAssetsDirectoryHandle,
+} from '@/core/vfx/vfxAssetsDirectory'
 import { useVfxPreview } from '@/hooks/useVfxPreview'
+import { useVfxCharacterScene } from '@/hooks/useVfxCharacterScene'
+import { VfxCharacterPanel } from './VfxCharacterPanel'
 import {
   clampFloatingDockRect,
   type CodeDockFloatingRect,
 } from '@/components/organisms/codeDockFloatingRect'
 
+import { buildVfxTransformDebugList } from '@/core/vfx/vfxTransformDebugList'
 import { VfxDockInspector } from './VfxDockInspector'
 import { computeEmitterActiveWindow } from '@/core/vfx/vfxEmitterTimeline'
-import { buildTimelineLayers, VfxDockTimeline } from './VfxDockTimeline'
+import {
+  buildTimelineLayers,
+  compositorLayersToTimelineLayers,
+  VfxDockTimeline,
+} from './VfxDockTimeline'
 import {
   DEFAULT_VFX_VIEWPORT_SETTINGS,
   loadVfxViewportSettings,
   saveVfxViewportSettings,
   type VfxViewportSettings,
 } from '@/core/vfx/vfxViewportPreferences'
+import {
+  disposeVfxPrimitiveMeshPool,
+  warmVfxPrimitiveMeshPool,
+} from '@/core/vfx/vfxPrimitiveMeshPool'
+import type { Object3D } from 'three'
 import { VfxViewport } from './VfxViewport'
 import styles from './VfxDock.module.css'
 
@@ -81,6 +99,7 @@ export function VfxDock({
   ritualText,
   dockOpen,
 }: VfxDockProps) {
+  const { t } = useLanguage()
   const [vfxScale, setVfxScale] = useState(0.01)
   const [gameRoot, setGameRoot] = useState(() => getStoredVfxGameRoot() ?? '')
   const [assetIndex, setAssetIndex] = useState<VfxAssetFileIndex | null>(null)
@@ -93,16 +112,67 @@ export function VfxDock({
   const rebuildRef = useRef<() => void>(() => {})
   const lolCachesRef = useRef(lolCaches)
   lolCachesRef.current = lolCaches
+  const sceneRaycastRootsRef = useRef<Object3D[]>([])
+
+  useEffect(() => {
+    if (!dockOpen) return
+    warmVfxPrimitiveMeshPool()
+    return () => {
+      disposeVfxPrimitiveMeshPool()
+    }
+  }, [dockOpen])
+
+  const characterScene = useVfxCharacterScene({
+    lolCaches,
+    onIndexCharacter: async (champion) => {
+      const handle = await getStoredAssetsDirectoryHandle()
+      if (!handle) {
+        setAssetWarnings((previous) => [
+          ...previous,
+          'Indexe a pasta Game primeiro (botão «Pasta assets…» no inspector).',
+        ])
+        return false
+      }
+      const allowed = await ensureDirectoryReadPermission(handle)
+      if (!allowed) {
+        setAssetWarnings((previous) => [
+          ...previous,
+          'Permissão de leitura da pasta Game negada — seleccione a pasta de novo.',
+        ])
+        return false
+      }
+      const { indexCharacterFromDirectory } = await import('@/core/vfx/vfxAssetsDirectory')
+      const result = await indexCharacterFromDirectory(handle, champion, lolCachesRef.current)
+      setLolCaches(result.lolCaches)
+      if (result.warnings.length) {
+        setAssetWarnings((previous) => [...previous, ...result.warnings])
+      }
+      return result.skinnedLoaded > 0 || result.anmLoaded > 0
+    },
+  })
+
+  const resolveBoneWorld = characterScene.boneApi?.resolveBoneWorld ?? null
 
   const previewOptions: UseVfxPreviewOptions = {
     ritualText,
     vfxScale,
     assetIndex,
     lolCaches,
-    autoRebuild: true,
+    autoRebuild: viewportSettings.vfxAutoRebuildEnabled,
     dockOpen,
     vfxPositionEnabled: viewportSettings.vfxPositionEnabled,
     vfxPositionOffset: viewportSettings.vfxPositionOffset,
+    vfxGlobalRotationEnabled:
+      viewportSettings.vfxGlobalRotationEnabled || Boolean(resolveBoneWorld),
+    vfxGlobalRotationOffsetDegrees: viewportSettings.vfxGlobalRotationOffsetDegrees,
+    vfxLockMotionEnabled: viewportSettings.vfxLockMotionEnabled,
+    vfxBirthRotationLoLEnabled: viewportSettings.vfxBirthRotationLoLEnabled,
+    showGround: viewportSettings.showGround,
+    groundPosition: viewportSettings.groundPosition,
+    sceneRaycastRootsRef,
+    resolveBoneWorld,
+    referenceBoneName: characterScene.referenceBoneName,
+    boundObjectSizeLol: characterScene.boundObjectSizeLol,
   }
 
   const {
@@ -126,9 +196,21 @@ export function VfxDock({
     toggleEmitter,
     loop,
     setLoop,
+    playbackSpeed,
+    setPlaybackSpeed,
+    playbackReverse,
+    togglePlaybackReverse,
     timelineResetPoint,
     setTimelineResetPointAt,
     clearTimelineResetPoint,
+    selectedEffectIds,
+    compositorMode,
+    previewLifetime,
+    compositorTimelineLayers,
+    toggleEffectSelection,
+    setEffectClipOffset,
+    focusCompositorEffect,
+    toggleCompositorEffectVisibility,
   } = useVfxPreview(previewOptions)
 
   rebuildRef.current = rebuild
@@ -137,6 +219,7 @@ export function VfxDock({
     assetIndex,
     lolCaches,
     dockOpen,
+    autoRebuild: viewportSettings.vfxAutoRebuildEnabled,
     onIndexed: rebuild,
     ritualText,
     setAssetIndex,
@@ -270,29 +353,55 @@ export function VfxDock({
     [assetIndex, lolCaches, rebuild],
   )
 
-  const lifetime = scene?.lifetime ?? 1
+  const lifetime = previewLifetime
   const allWarnings = useMemo(
     () => [...new Set([...assetWarnings, ...buildWarnings])],
     [assetWarnings, buildWarnings],
   )
 
-  const timelineLayers = useMemo(
-    () => buildTimelineLayers(effectEmitters, emitterVisibility, focusedEmitterId, currentTime),
-    [currentTime, effectEmitters, emitterVisibility, focusedEmitterId],
-  )
+  const selectedEffectIdSet = useMemo(() => new Set(selectedEffectIds), [selectedEffectIds])
+
+  const timelineLayers = useMemo(() => {
+    if (compositorMode) {
+      return compositorLayersToTimelineLayers(compositorTimelineLayers)
+    }
+    return buildTimelineLayers(effectEmitters, emitterVisibility, focusedEmitterId, currentTime)
+  }, [
+    compositorMode,
+    compositorTimelineLayers,
+    currentTime,
+    effectEmitters,
+    emitterVisibility,
+    focusedEmitterId,
+  ])
 
   const handleLayerFocus = useCallback(
-    (emitterId: string | null) => {
-      if (emitterId) {
-        const target = effectEmitters.find((emitter) => emitter.id === emitterId)
+    (layerId: string | null) => {
+      if (compositorMode) {
+        focusCompositorEffect(layerId)
+        return
+      }
+      if (layerId) {
+        const target = effectEmitters.find((emitter) => emitter.id === layerId)
         if (target) {
           const window = computeEmitterActiveWindow(target.parsed)
           scrubTo(window.start)
         }
       }
-      focusEmitter(emitterId)
+      focusEmitter(layerId)
     },
-    [effectEmitters, focusEmitter, scrubTo],
+    [compositorMode, effectEmitters, focusCompositorEffect, focusEmitter, scrubTo],
+  )
+
+  const handleLayerVisibility = useCallback(
+    (layerId: string) => {
+      if (compositorMode) {
+        toggleCompositorEffectVisibility(layerId)
+        return
+      }
+      toggleEmitter(layerId)
+    },
+    [compositorMode, toggleCompositorEffectVisibility, toggleEmitter],
   )
 
   const inspectorEmitter = useMemo(() => {
@@ -322,6 +431,25 @@ export function VfxDock({
     if (!meshPath || !lolCaches) return null
     return lookupMeshGeometry(lolCaches.meshes, meshPath)
   }, [inspectorEmitter, lolCaches])
+
+  const inspectorPreviewEntry = useMemo(() => {
+    if (!inspectorEmitter) return null
+    const prefix = `${inspectorEmitter.id}-`
+    const matches = emitterEntries.filter((entry) => entry.id.startsWith(prefix))
+    if (!matches.length) return null
+    return matches.find((entry) => entry.particleIndex === 0) ?? matches[0]
+  }, [emitterEntries, inspectorEmitter])
+
+  const inspectorParticleNormalized = inspectorPreviewEntry?.particleNormalized ?? 0
+
+  const inspectorTransformDebugRows = useMemo(() => {
+    if (!viewportSettings.showTransformDebug || !inspectorPreviewEntry) return null
+    return buildVfxTransformDebugList(inspectorPreviewEntry, inspectorEmitter?.parsed ?? null)
+  }, [
+    viewportSettings.showTransformDebug,
+    inspectorPreviewEntry,
+    inspectorEmitter?.parsed,
+  ])
 
   const handleSingleTexFileChange = useCallback(
     async (event: ChangeEvent<HTMLInputElement>) => {
@@ -370,7 +498,7 @@ export function VfxDock({
     >
       {!floatingActive ? (
         <button
-          aria-label="Redimensionar painel VFX"
+          aria-label={t(LangId.VfxDockResizePanelAria)}
           className={styles.resizeDockWidth}
           onPointerDown={() => {
             dockedResizePhaseRef.current = true
@@ -393,30 +521,35 @@ export function VfxDock({
         }}
       >
         <div className={styles.headerTitle}>
-          <span className={styles.title}>VFX Editor</span>
+          <span className={styles.title}>{t(LangId.VfxDockTitle)}</span>
           {scene?.particleName ? (
             <span className={styles.subtitle} title={scene.particleName}>
               {scene.particleName}
             </span>
           ) : (
-            <span className={styles.subtitleMuted}>Sem ritual VFX</span>
+            <span className={styles.subtitleMuted}>{t(LangId.VfxDockNoRitual)}</span>
           )}
         </div>
         <div className={styles.headerActions}>
-          {playing ? <span className={styles.liveBadge}>LIVE</span> : null}
+          {playing ? <span className={styles.liveBadge}>{t(LangId.VfxDockLive)}</span> : null}
+          {compositorMode ? (
+            <span className={styles.compositorBadge} title={t(LangId.VfxDockCompositorBadge)}>
+              {t(LangId.VfxDockCompositorBadge)}
+            </span>
+          ) : null}
           <button className={styles.actionBtn} onClick={() => rebuild()} type="button">
-            Rebuild
+            {t(LangId.VfxDockRebuild)}
           </button>
           <button className={styles.actionBtn} onClick={onToggleFloating} type="button">
-            {floatingActive ? 'Docar' : 'Flutuar'}
+            {floatingActive ? t(LangId.VfxDockDock) : t(LangId.VfxDockFloat)}
           </button>
           {floatingActive ? (
             <button className={styles.actionBtn} onClick={onResetFloatingDimensions} type="button">
-              Reset
+              {t(LangId.VfxDockReset)}
             </button>
           ) : null}
           <button className={styles.actionBtnDanger} onClick={onClose} type="button">
-            Fechar
+            {t(LangId.VfxDockClose)}
           </button>
         </div>
       </header>
@@ -428,11 +561,20 @@ export function VfxDock({
               className={[
                 styles.effectTab,
                 effect.id === activeEffectId ? styles.effectTabActive : '',
+                compositorMode && selectedEffectIdSet.has(effect.id)
+                  ? styles.effectTabCompositor
+                  : '',
               ]
                 .filter(Boolean)
                 .join(' ')}
               key={effect.id}
-              onClick={() => selectEffect(effect.id)}
+              onClick={(event) => {
+                if (event.ctrlKey || event.metaKey) {
+                  toggleEffectSelection(effect.id)
+                } else {
+                  selectEffect(effect.id)
+                }
+              }}
               type="button"
             >
               <span className={styles.effectTabLabel}>{effect.label}</span>
@@ -445,17 +587,37 @@ export function VfxDock({
       <div className={styles.workspace}>
         <div className={styles.viewportColumn}>
           <VfxViewport
+            vfxScale={vfxScale}
+            character={
+              characterScene.resolved
+                ? {
+                    bundle: characterScene.resolved.bundle,
+                    skl: characterScene.resolved.skl,
+                    anm: characterScene.activeAnm,
+                    animTimeSeconds: characterScene.animSyncVfx
+                      ? currentTime
+                      : characterScene.resolveAnimTimeSeconds(currentTime),
+                    showSkeleton: characterScene.showSkeleton,
+                    showWireframe: characterScene.showWireframe,
+                    flatLighting: characterScene.flatLighting,
+                    referenceBoneName: characterScene.referenceBoneName,
+                    onBoneApi: characterScene.registerBoneApi,
+                  }
+                : null
+            }
             emitters={emitterEntries}
             onSettingsChange={patchViewportSettings}
             particleName={scene?.particleName}
+            sceneRaycastRootsRef={sceneRaycastRootsRef}
             settings={viewportSettings}
-            vfxScale={vfxScale}
           />
         </div>
 
-        <div className={styles.inspectorColumn}>
+        <VfxCharacterPanel assetLoading={assetLoading} scene={characterScene} />
+
         <VfxDockInspector
           assetIndexSize={assetIndex ? assetIndexSize(assetIndex) : 0}
+          particleNormalized={inspectorParticleNormalized}
           textureHit={inspectorTextureHit}
           assetLoading={assetLoading}
           emitter={inspectorEmitter}
@@ -469,14 +631,11 @@ export function VfxDock({
           }}
           onOpenTexFile={handlePickSingleTex}
           onPickAssets={handlePickGameRootFolder}
-          onVfxPositionEnabledChange={(enabled) => patchViewportSettings({ vfxPositionEnabled: enabled })}
-          onVfxPositionOffsetChange={(offset) => patchViewportSettings({ vfxPositionOffset: offset })}
           textureResolved={Boolean(inspectorTextureHit)}
-          vfxPositionEnabled={viewportSettings.vfxPositionEnabled}
-          vfxPositionOffset={viewportSettings.vfxPositionOffset}
+          showTransformDebug={viewportSettings.showTransformDebug}
+          transformDebugRows={inspectorTransformDebugRows}
           warnings={allWarnings}
         />
-        </div>
       </div>
 
       <VfxDockTimeline
@@ -484,8 +643,10 @@ export function VfxDock({
         layers={timelineLayers}
         lifetime={lifetime}
         loop={loop}
+        mode={compositorMode ? 'compositor' : 'emitters'}
+        onClipOffsetChange={compositorMode ? setEffectClipOffset : undefined}
         onLayerFocus={handleLayerFocus}
-        onLayerVisibility={toggleEmitter}
+        onLayerVisibility={handleLayerVisibility}
         onPause={pause}
         onPlay={play}
         onRemoveResetPoint={clearTimelineResetPoint}
@@ -494,6 +655,10 @@ export function VfxDock({
         onScrub={scrubTo}
         onSetResetPoint={setTimelineResetPointAt}
         onToggleLoop={() => setLoop((previous) => !previous)}
+        onToggleReverse={togglePlaybackReverse}
+        onPlaybackSpeedChange={setPlaybackSpeed}
+        playbackReverse={playbackReverse}
+        playbackSpeed={playbackSpeed}
         playing={playing}
         resetPointTime={timelineResetPoint}
         vfxScale={vfxScale}
