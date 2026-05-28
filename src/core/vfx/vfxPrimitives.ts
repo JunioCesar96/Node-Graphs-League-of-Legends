@@ -16,8 +16,17 @@ export function birthRotationConstant(
 export function resolvePlaneFacing(
   birthRotation: [number, number, number] | null,
   isGroundLayer: boolean,
+  birthOrbitalVelocity?: [number, number, number] | null,
 ): VfxPlaneFacing {
   if (isGroundLayer) return 'ground'
+  if (birthOrbitalVelocity) {
+    const [vx, vy, vz] = birthOrbitalVelocity
+    const absX = Math.abs(vx)
+    const absY = Math.abs(vy)
+    const absZ = Math.abs(vz)
+    if (absZ >= absX && absZ >= absY && absZ > 1e-6) return 'ground'
+    if (absX > 1e-6 || absY > 1e-6) return 'camera'
+  }
   if (!birthRotation) return 'camera'
 
   const [rx, , rz] = birthRotation
@@ -26,18 +35,38 @@ export function resolvePlaneFacing(
   return 'camera'
 }
 
+/**
+ * Converte vetor orbital em rotação base LoL (graus) para orientar o plano:
+ * - eixo Z dominante: plano de chão (facing ground), sem yaw adicional.
+ * - eixo X/Y dominante: plano vertical (facing camera), yaw aponta normal para X/Y.
+ */
+export function orbitalFacingBirthRotationLol(
+  birthOrbitalVelocity: [number, number, number] | null,
+): [number, number, number] {
+  if (!birthOrbitalVelocity) return [0, 0, 0]
+  const [vx, vy, vz] = birthOrbitalVelocity
+  const absX = Math.abs(vx)
+  const absY = Math.abs(vy)
+  const absZ = Math.abs(vz)
+  if (absZ >= absX && absZ >= absY && absZ > 1e-6) return [0, 0, 0]
+  if (absX <= 1e-6 && absY <= 1e-6) return [0, 0, 0]
+  const yawDeg = (Math.atan2(vy, vx) * 180) / Math.PI
+  return [0, yawDeg, 0]
+}
+
 /** Rotação Euler XYZ aplicada à geometria antes do billboard / birthRotation. */
 export function planeBaseRotation(facing: VfxPlaneFacing): [number, number, number] {
   const halfPi = Math.PI / 2
-  /** +90° X: plano no XZ com normal +Y (frente visível de cima, como decal no chão). */
-  if (facing === 'ground') return [halfPi, 0, 0]
+  /** Ground: plano XY com normal +Z (cima LoL = Z Three). */
+  if (facing === 'ground') return [0, 0, 0]
   if (facing === 'shockwave') return [-halfPi, 0, halfPi]
+  /** Vertical / câmara: base no `primitiveLocalRotation` (plano XZ, normal LoL Z). */
   return [0, 0, 0]
 }
 
 /**
  * Com `isGroundLayer`, birthRotation0 orienta o quad ao chão (ex. {-90,-90,0}).
- * `planeBaseRotation` já deita o plano; aqui só aplica giro no plano (eixo Y Three, LoL Z).
+ * `planeBaseRotation` já deita o plano; aqui só aplica giro no plano (eixo Z Three, LoL Z).
  */
 export function birthRotationGroundInPlaneEuler(
   birthRotLol: [number, number, number],
@@ -45,5 +74,5 @@ export function birthRotationGroundInPlaneEuler(
   motionTime: number,
 ): [number, number, number] {
   const spinDeg = birthRotLol[2] + rotVelocityLol[2] * motionTime
-  return [0, spinDeg * DEG2RAD, 0]
+  return [0, 0, spinDeg * DEG2RAD]
 }

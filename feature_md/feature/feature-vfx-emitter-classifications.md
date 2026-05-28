@@ -1,3 +1,160 @@
+# Feature Documentation: birthOrbitalVelocity
+
+## EN
+
+### 1) Header
+- **Feature Name(s):** birthOrbitalVelocity
+- **Version:** 1.5.0
+- **Commit:** `e767746`
+- **Branch:** `feature-vfx-emitter-classifications`
+- **File Location:** `feature_md/feature/feature-vfx-emitter-classifications.md`
+
+### 2) Tag Definition and Summary
+
+| Tag | Meaning |
+| --- | --- |
+| `[NOVO]` | New function/component/behavior added in this branch. |
+| `[ATUALIZADO]` | Existing function/component/behavior changed in this branch. |
+| `[REMOVIDO]` | Function/component/behavior removed in this branch. |
+
+**Tags present in this implementation:** `[ATUALIZADO]`
+
+### 3) Functional Flowchart
+```mermaid
+flowchart LR
+  emitterData["VfxEmitterDefinitionData.birthOrbitalVelocity"] --> parse["Parsed emitter model"]
+  parse --> transform["computeParticleTransform"]
+  parse --> animation["computeEmitterFrameState"]
+  transform --> planeFacing["Plane facing + base orientation"]
+  animation --> uvSpin["Accumulated UV rotation per frame"]
+  planeFacing --> render["Particle render"]
+  uvSpin --> render
+```
+
+### 4) Function Trigger Sequence Diagram
+```mermaid
+sequenceDiagram
+  participant Runtime as VFX Runtime
+  participant Anim as computeEmitterFrameState
+  participant Trans as computeParticleTransform
+  participant Orb as resolveOrbitalOmegaLol
+  participant Mat as materialStrategyExecutor
+  participant Shader as VFX Image Shader
+
+  Runtime->>Anim: update frame(time, seed)
+  Anim->>Trans: compute transform inputs
+  Trans->>Orb: sample birthOrbitalVelocity
+  Orb-->>Trans: orbital omega vector
+  Trans-->>Anim: position/rotation/scale/facing
+  Anim->>Orb: resolve UV orbital rotation
+  Orb-->>Anim: signed angular velocity
+  Anim->>Mat: frame state (uvRotation included)
+  Mat->>Shader: uUvRotation
+  Shader-->>Runtime: textured particle rendered
+```
+
+### 5) Functions and Components Table
+
+| Status | Name | Related Feature | Technical Description | Parameters / Return |
+| --- | --- | --- | --- | --- |
+| `[ATUALIZADO]` | `resolvePlaneFacing` (`vfxPrimitives.ts`) | birthOrbitalVelocity | Plane facing now considers orbital vector dominance (`Z` -> ground; `X/Y` -> vertical). | In: `birthRotation`, `isGroundLayer`, `birthOrbitalVelocity?` / Out: `VfxPlaneFacing` |
+| `[ATUALIZADO]` | `orbitalFacingBirthRotationLol` (`vfxPrimitives.ts`) | birthOrbitalVelocity | Computes yaw from orbital vector for vertical orientation alignment. | In: orbital vec3 / Out: LoL Euler vec3 |
+| `[ATUALIZADO]` | `computeParticleTransform` (`vfxTransformEngine.ts`) | birthOrbitalVelocity | Samples orbital omega and injects facing/birth orientation into transform pipeline. | In: transform input bundle / Out: `ParticleTransformState` |
+| `[ATUALIZADO]` | `resolveUvRotation` (`vfxWebAnimation.ts`) | birthOrbitalVelocity | Converts orbital angular velocity (deg/frame) into accumulated UV radians over time. | In: emitter, particleTime, normalized, seed / Out: `number` (radians) |
+| `[ATUALIZADO]` | `computeEmitterFrameState` (`vfxWebAnimation.ts`) | birthOrbitalVelocity | Includes dynamic `uvRotation` in per-frame state. | In: emitter, vfxScale, time, seed, options / Out: `VfxEmitterFrameState` |
+| `[ATUALIZADO]` | `baseMaterialFields` (`materialStrategyExecutor.ts`) | birthOrbitalVelocity | Uses frame `uvRotation` instead of static emitter-only rotation. | In: shader descriptor input / Out: material field object |
+| `[ATUALIZADO]` | `buildMaterialParams` typing (`vfxWebMaterials.ts`) | birthOrbitalVelocity | Accepts frame-level `uvRotation` in typed material construction path. | In: emitter + frame subset / Out: `VfxMaterialParams` |
+
+### 6) Detailed Behavior Description
+The implementation keeps backward compatibility while enabling orbital-driven orientation and UV spin.  
+At runtime, the system reads `birthOrbitalVelocity` as a vector and interprets the dominant axis to decide the mesh-facing family (ground or vertical). For mixed vectors, the orientation uses vector composition (including yaw from `atan2`), not a hard single-axis fallback.  
+UV rotation is now time-accumulated every frame: static `uvRotation` remains a base offset, while orbital velocity adds continuous spin. Signed values naturally invert direction.  
+Error and edge handling follow safe defaults: zero vectors keep legacy behavior; missing orbital data keeps previous rendering paths unchanged.
+
+**How to use the new feature (simple):**
+1. Set `birthOrbitalVelocity.constantValue` to `{x, y, z}`.
+2. Use dominant `z` for ground-like facing and disc-like spin.
+3. Use `x` or `y` for vertical variants.
+4. Use negative values to reverse rotation direction.
+
+---
+
+## PT
+
+### 1) Cabeçalho
+- **Nome da(s) Feature(s):** birthOrbitalVelocity
+- **Versão:** 1.5.0
+- **Commit:** `e767746`
+- **Branch:** `feature-vfx-emitter-classifications`
+- **Local do arquivo:** `feature_md/feature/feature-vfx-emitter-classifications.md`
+
+### 2) Definição e Resumo de Tags
+
+| Tag | Definição |
+| --- | --- |
+| `[NOVO]` | Função/componente/comportamento novo adicionado nesta branch. |
+| `[ATUALIZADO]` | Função/componente/comportamento existente alterado nesta branch. |
+| `[REMOVIDO]` | Função/componente/comportamento removido nesta branch. |
+
+**Tags presentes nesta implementação:** `[ATUALIZADO]`
+
+### 3) Fluxograma de Funcionamento
+```mermaid
+flowchart LR
+  emitterData["VfxEmitterDefinitionData.birthOrbitalVelocity"] --> parse["Modelo parseado do emitter"]
+  parse --> transform["computeParticleTransform"]
+  parse --> animation["computeEmitterFrameState"]
+  transform --> planeFacing["Facing do plano + orientação base"]
+  animation --> uvSpin["Rotação UV acumulada por frame"]
+  planeFacing --> render["Render da partícula"]
+  uvSpin --> render
+```
+
+### 4) Fluxograma de Acionamento de Funções
+```mermaid
+sequenceDiagram
+  participant Runtime as Runtime VFX
+  participant Anim as computeEmitterFrameState
+  participant Trans as computeParticleTransform
+  participant Orb as resolveOrbitalOmegaLol
+  participant Mat as materialStrategyExecutor
+  participant Shader as VFX Image Shader
+
+  Runtime->>Anim: atualiza frame(time, seed)
+  Anim->>Trans: computa entradas de transform
+  Trans->>Orb: amostra birthOrbitalVelocity
+  Orb-->>Trans: vetor omega orbital
+  Trans-->>Anim: position/rotation/scale/facing
+  Anim->>Orb: resolve rotação UV orbital
+  Orb-->>Anim: velocidade angular com sinal
+  Anim->>Mat: estado do frame (com uvRotation)
+  Mat->>Shader: uUvRotation
+  Shader-->>Runtime: partícula texturizada renderizada
+```
+
+### 5) Tabela de Funções e Componentes
+
+| Status | Nome | Feature Correspondente | Descrição Técnica | Parâmetros / Retorno |
+| --- | --- | --- | --- | --- |
+| `[ATUALIZADO]` | `resolvePlaneFacing` (`vfxPrimitives.ts`) | birthOrbitalVelocity | O facing do plano agora considera dominância do vetor orbital (`Z` -> chão; `X/Y` -> vertical). | Entrada: `birthRotation`, `isGroundLayer`, `birthOrbitalVelocity?` / Retorno: `VfxPlaneFacing` |
+| `[ATUALIZADO]` | `orbitalFacingBirthRotationLol` (`vfxPrimitives.ts`) | birthOrbitalVelocity | Calcula yaw a partir do vetor orbital para alinhar orientação vertical. | Entrada: vec3 orbital / Retorno: vec3 Euler LoL |
+| `[ATUALIZADO]` | `computeParticleTransform` (`vfxTransformEngine.ts`) | birthOrbitalVelocity | Amostra omega orbital e injeta orientação/facing no pipeline de transform. | Entrada: pacote de transform / Retorno: `ParticleTransformState` |
+| `[ATUALIZADO]` | `resolveUvRotation` (`vfxWebAnimation.ts`) | birthOrbitalVelocity | Converte velocidade angular orbital (graus/frame) em rotação UV acumulada em radianos. | Entrada: emitter, particleTime, normalized, seed / Retorno: `number` (radianos) |
+| `[ATUALIZADO]` | `computeEmitterFrameState` (`vfxWebAnimation.ts`) | birthOrbitalVelocity | Passa `uvRotation` dinâmico no estado por frame. | Entrada: emitter, vfxScale, time, seed, options / Retorno: `VfxEmitterFrameState` |
+| `[ATUALIZADO]` | `baseMaterialFields` (`materialStrategyExecutor.ts`) | birthOrbitalVelocity | Passa a usar `uvRotation` do frame em vez de rotação estática do emitter. | Entrada: input do descritor / Retorno: campos de material |
+| `[ATUALIZADO]` | Tipagem de `buildMaterialParams` (`vfxWebMaterials.ts`) | birthOrbitalVelocity | Aceita `uvRotation` no frame no caminho tipado de material. | Entrada: emitter + subset do frame / Retorno: `VfxMaterialParams` |
+
+### 6) Descrição Detalhada de Funcionamento
+A implementação preserva compatibilidade retroativa e adiciona orientação + rotação UV guiadas por `birthOrbitalVelocity`.  
+Em runtime, o sistema lê o vetor `birthOrbitalVelocity` e usa a dominância do eixo para decidir a família de facing da malha (chão ou vertical). Para vetores mistos, a orientação usa composição vetorial (incluindo yaw por `atan2`), sem forçar fallback simplista de eixo único.  
+A rotação UV agora é acumulada por tempo a cada frame: `uvRotation` estático continua como offset base e a velocidade orbital adiciona spin contínuo. Valores negativos invertem naturalmente o sentido.  
+Tratamento de borda/erro: vetor zero mantém comportamento legado; ausência de orbital mantém o render anterior sem regressão.
+
+**Como usar as novas features (simples e didático):**
+1. Defina `birthOrbitalVelocity.constantValue` como `{x, y, z}`.
+2. Use `z` dominante para efeito de chão (disco/furacão).
+3. Use `x` ou `y` para variações verticais.
+4. Use valores negativos para inverter o sentido de giro.
 # Implementation Documentation — VFX Emitter Classifications Reference
 
 **Save location:** `feature_md/feature/feature-vfx-emitter-classifications.md`  
