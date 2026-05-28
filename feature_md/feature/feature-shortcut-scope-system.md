@@ -11,7 +11,7 @@
 | Branch name | `feature/shortcut-scope-system` |
 | Feature name | Centralized keyboard shortcuts by UI scope (zone) |
 | Version | `1.5.0` |
-| Commit | _(filled after commit — see git log)_ |
+| Commit | `790e264` |
 
 ---
 
