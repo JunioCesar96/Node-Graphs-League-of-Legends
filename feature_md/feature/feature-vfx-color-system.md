@@ -12,7 +12,7 @@
 | Branch name | `feature/vfx-color-system` |
 | Feature name | VFX Color — ValueColor (`vec4`) mixing in shader + inspector |
 | Version | `1.5.0` |
-| Commit | _(filled after commit)_ |
+| Commit | `412a33f` |
 
 ---
 

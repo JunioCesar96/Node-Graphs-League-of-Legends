@@ -251,7 +251,7 @@ Full copy in [`feature_md/feature/feature-vfx-color-system.md`](feature_md/featu
 | Branch name | `feature/vfx-color-system` |
 | Feature name | VFX Color — `ValueColor` `vec4` tint in shader + inspector |
 | Version | `1.5.0` |
-| Commit | _(see latest commit on branch)_ |
+| Commit | `412a33f` |
 
 ### 2. Tags
 
