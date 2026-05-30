@@ -287,7 +287,7 @@ Full copy in [`feature_md/feature/feature-vfx-character-gltf-engine.md`](feature
 | Branch name | `feature-vfx-character-gltf-engine` |
 | Feature name | Character GLTF (lol2gltf) · Engine VFX ReSize/Rotation · Panel UX · Preview 3D context menu |
 | Version | `1.5.1` |
-| Commit | `PENDING` |
+| Commit | `ac34a22` |
 
 ### 2. Tags
 
