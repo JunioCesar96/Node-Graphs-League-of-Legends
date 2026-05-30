@@ -1,6 +1,6 @@
 # League BIN Node Editor
 
-**Version:** 1.5.0 · **Status:** Work in progress · **Branch:** `feature-vfx-character-gltf-engine`
+**Version:** 1.5.1 · **Status:** Work in progress · **Branch:** `feature-vfx-character-gltf-engine`
 
 ![Tool Screenshot](./src/assets/preview.png)
 
@@ -285,20 +285,20 @@ Full copy in [`feature_md/feature/feature-vfx-character-gltf-engine.md`](feature
 | Field | Value |
 | --- | --- |
 | Branch name | `feature-vfx-character-gltf-engine` |
-| Feature name | Character GLTF (lol2gltf) · Engine VFX ReSize/Rotation · Panel UX |
-| Version | `1.5.0` |
-| Commit | `1b6bc63` |
+| Feature name | Character GLTF (lol2gltf) · Engine VFX ReSize/Rotation · Panel UX · Preview 3D context menu |
+| Version | `1.5.1` |
+| Commit | `PENDING` |
 
 ### 2. Tags
 
 | Tag (EN) | Tag (PT) | Meaning |
 | --- | --- | --- |
-| `[NEW]` | `[NOVO]` | lol2gltf runner, GLTF API, character scene/panel, Engine VFX |
-| `[UPDATED]` | `[ATUALIZADO]` | VfxDock/Viewport, ground 11×11, FlexShape bound from GLTF |
+| `[NEW]` | `[NOVO]` | lol2gltf runner, GLTF API, character scene/panel, Engine VFX, preview 3D spin menu |
+| `[UPDATED]` | `[ATUALIZADO]` | VfxDock/Viewport, ground 11×11, FlexShape bound, Geometria preview (90° X, no vfxScale) |
 
 ### 3–4. Flow (summary)
 
-Assets → convert só `.anm` em `{skin}/animations/` → `character-gltf/*.glb` → preview Geometria → instanciar → **Engine VFX** (ReSize = vfxScale, Rotation = 90° X) → `boundObjectSizeLol` para FlexShape.
+Assets → convert só `.anm` em `{skin}/animations/` → `character-gltf/*.glb` → preview Geometria (90° X, centrado) → instanciar → **Engine VFX** no viewport (ReSize = vfxScale, Rotation = 90° X) → `boundObjectSizeLol` para FlexShape. Clique direito no preview 3D → rotação automática X/Y/Z ou parar.
 
 ### 5–7. How to use / Como usar
 
@@ -306,9 +306,10 @@ Assets → convert só `.anm` em `{skin}/animations/` → `character-gltf/*.glb`
 | --- | --- |
 | Put `lol2gltf.exe` in `tools/lol2gltf/`, run `pnpm dev` | Coloque `lol2gltf.exe` em `tools/lol2gltf/`, execute `pnpm dev` |
 | Character tool → assets path → pick champion → Use existing / Reconvert GLTF | Character → assets path → campeão → Usar existente / Reconverter |
-| Render → Engine VFX: toggle ReSize & Rotation (no numeric fields) | Render → Engine VFX: checkboxes ReSize e Rotation |
+| Render → Engine VFX: toggle ReSize & Rotation (main viewport only) | Render → Engine VFX: checkboxes ReSize e Rotation (só viewport principal) |
+| Right-click 3D preview → Rotate X/Y/Z or Stop rotation | Clique direito no preview 3D → Rotacionar eixo X/Y/Z ou Parar rotação |
 
-**Main files:** `vite.plugin.characterGltf.ts`, `characterGltfConvert.ts`, `VfxCharacterGltfScene.tsx`, `useVfxCharacterScene.ts`, `characterEngineVfx.ts`, `VfxCharacterPanel.tsx`.
+**Main files:** `vite.plugin.characterGltf.ts`, `characterGltfConvert.ts`, `VfxCharacterGltfScene.tsx`, `VfxCharacterGltfPreviewSlot.tsx`, `VfxMeshPreviewSlot.tsx`, `VfxPreview3dContextMenu.tsx`, `Preview3dAutoSpinGroup.tsx`, `useVfxCharacterScene.ts`, `characterEngineVfx.ts`, `VfxCharacterPanel.tsx`.
 
 ---
 
@@ -329,7 +330,7 @@ pnpm install && pnpm dev
 3. **Editar:** arrastar slots de saída; clique curto alterna flex/rigid/wireless; botão direito para menu de contexto.
 4. **Exportar:** um nó Main → Grafo → Node Graphs to Code.
 5. **VFX:** menu VFX → Rebuild → Play; ver docs em [`feature_md/feature/`](feature_md/feature/).
-6. **Personagem VFX:** ferramenta Character → lol2gltf → GLB; ver [feature-vfx-character-gltf-engine](feature_md/feature/feature-vfx-character-gltf-engine.md).
+6. **Personagem VFX:** ferramenta Character → lol2gltf → GLB; clique direito no preview 3D para rodar X/Y/Z; ver [feature-vfx-character-gltf-engine](feature_md/feature/feature-vfx-character-gltf-engine.md).
 7. **Cor VFX:** inspector **Cor** mostra só `Color` (`vec4` + RGB); ver [feature-vfx-color-system](feature_md/feature/feature-vfx-color-system.md).
 8. **Atalhos:** clique na zona correcta antes da tecla — ver [shortcut scope](#implementation--shortcut-scope-system-branch-featureshortcut-scope-system).
 

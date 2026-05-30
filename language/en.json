@@ -406,5 +406,10 @@
   "430": "Scales the character using the VFX timeline vfxScale.",
   "431": "Character Rotation",
   "432": "Fixed 90° rotation on LoL X axis (off = bind pose).",
-  "433": "Reset rotation"
+  "433": "Reset rotation",
+  "434": "3D preview",
+  "435": "Rotate on X axis",
+  "436": "Rotate on Y axis",
+  "437": "Rotate on Z axis",
+  "438": "Stop rotation"
 }

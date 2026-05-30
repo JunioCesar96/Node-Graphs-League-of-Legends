@@ -8,6 +8,7 @@ import {
   LoopRepeat,
   PerspectiveCamera,
   Vector3,
+  Group,
   type AnimationAction,
   type AnimationClip,
   Object3D,
@@ -15,20 +16,23 @@ import {
 } from 'three'
 
 import { countGltfModelStats, normalizeGltfClips, type GltfModelStats } from '@/core/vfx/characterGltfClips'
+import { DEFAULT_CHARACTER_ENGINE_ROTATION_X_LOL_DEG } from '@/core/vfx/characterEngineVfx'
+import type { Preview3dSpinAxis } from '@/core/vfx/preview3dSpin'
 import { formatModelStat } from '@/core/vfx/vfxCharacterModelStats'
 import { LangId } from '@/core/language/languageIds'
 import { useLanguage } from '@/language/LanguageProvider'
+import { Preview3dAutoSpinGroup } from '@/components/molecules/Preview3dAutoSpinGroup'
+import { VfxPreview3dSlotFrame } from '@/components/molecules/VfxPreview3dSlotFrame'
 
 import meshPreviewStyles from './VfxMeshPreviewSlot.module.css'
 
 const DEG2RAD = Math.PI / 180
+const PREVIEW_ROTATION_X_RAD = DEFAULT_CHARACTER_ENGINE_ROTATION_X_LOL_DEG * DEG2RAD
 
 type VfxCharacterGltfPreviewSlotProps = {
   url: string
   baseName: string
   animationName?: string | null
-  engineScale?: number
-  rotationXLolDeg?: number
 }
 
 function fitCameraToObject(
@@ -83,18 +87,17 @@ function applyClipPose(
 function PreviewGltfModel({
   url,
   animationName,
-  engineScale,
-  rotationXLolDeg,
+  spinAxis,
   onStats,
 }: {
   url: string
   animationName?: string | null
-  engineScale: number
-  rotationXLolDeg: number
+  spinAxis: Preview3dSpinAxis
   onStats: (stats: GltfModelStats | null) => void
 }) {
   const { scene, animations } = useGLTF(url)
   const { camera, invalidate } = useThree()
+  const groupRef = useRef<Group>(null)
   const controlsRef = useRef<OrbitControlsImpl>(null)
   const mixerRef = useRef<AnimationMixer | null>(null)
   const actionRef = useRef<AnimationAction | null>(null)
@@ -115,15 +118,10 @@ function PreviewGltfModel({
   }, [clonedScene, onStats])
 
   useEffect(() => {
-    if (!(camera instanceof PerspectiveCamera)) return
-    const wrapper = new Object3D()
-    wrapper.add(clonedScene)
-    wrapper.scale.setScalar(engineScale)
-    wrapper.rotation.x = rotationXLolDeg * DEG2RAD
-    fitCameraToObject(wrapper, camera, controlsRef.current)
-    wrapper.remove(clonedScene)
+    if (!(camera instanceof PerspectiveCamera) || !groupRef.current) return
+    fitCameraToObject(groupRef.current, camera, controlsRef.current)
     invalidate()
-  }, [camera, clonedScene, engineScale, invalidate, rotationXLolDeg])
+  }, [camera, clonedScene, invalidate])
 
   useEffect(() => {
     mixerRef.current?.stopAllAction()
@@ -153,8 +151,10 @@ function PreviewGltfModel({
 
   return (
     <>
-      <group rotation={[rotationXLolDeg * DEG2RAD, 0, 0]} scale={[engineScale, engineScale, engineScale]}>
-        <primitive object={clonedScene} />
+      <group ref={groupRef} rotation={[PREVIEW_ROTATION_X_RAD, 0, 0]}>
+        <Preview3dAutoSpinGroup spinAxis={spinAxis}>
+          <primitive object={clonedScene} />
+        </Preview3dAutoSpinGroup>
       </group>
       <OrbitControls ref={controlsRef} enablePan={false} makeDefault />
     </>
@@ -164,21 +164,19 @@ function PreviewGltfModel({
 function GltfPreviewCanvas({
   url,
   animationName,
-  engineScale,
-  rotationXLolDeg,
+  spinAxis,
   onStats,
 }: {
   url: string
   animationName?: string | null
-  engineScale: number
-  rotationXLolDeg: number
+  spinAxis: Preview3dSpinAxis
   onStats: (stats: GltfModelStats | null) => void
 }) {
   return (
     <Canvas
       className={meshPreviewStyles.previewCanvas}
       camera={{ fov: 42, position: [1.2, 0.9, 1.4], near: 0.01, far: 100, up: [0, 0, 1] }}
-      frameloop="demand"
+      frameloop={spinAxis ? 'always' : 'demand'}
       gl={{ antialias: true, alpha: false }}
       onCreated={({ gl }) => {
         gl.setClearColor('#0a0c10')
@@ -191,9 +189,8 @@ function GltfPreviewCanvas({
       <Suspense fallback={null}>
         <PreviewGltfModel
           animationName={animationName}
-          engineScale={engineScale}
           onStats={onStats}
-          rotationXLolDeg={rotationXLolDeg}
+          spinAxis={spinAxis}
           url={url}
         />
       </Suspense>
@@ -205,8 +202,6 @@ export function VfxCharacterGltfPreviewSlot({
   url,
   baseName,
   animationName,
-  engineScale = 0.01,
-  rotationXLolDeg = 0,
 }: VfxCharacterGltfPreviewSlotProps) {
   const { t } = useLanguage()
   const [stats, setStats] = useState<GltfModelStats | null>(null)
@@ -231,18 +226,19 @@ export function VfxCharacterGltfPreviewSlot({
         {t(LangId.VfxCharacterGeometryModeGltf)} · {displayPath}
       </div>
 
-      <div
-        aria-label={t(LangId.VfxCharacterGltfPreviewAria)}
+      <VfxPreview3dSlotFrame
+        ariaLabel={t(LangId.VfxCharacterGltfPreviewAria)}
         className={[meshPreviewStyles.slot, meshPreviewStyles.slotFilled].join(' ')}
       >
-        <GltfPreviewCanvas
-          animationName={animationName}
-          engineScale={engineScale}
-          onStats={handleStats}
-          rotationXLolDeg={rotationXLolDeg}
-          url={url}
-        />
-      </div>
+        {(spinAxis) => (
+          <GltfPreviewCanvas
+            animationName={animationName}
+            onStats={handleStats}
+            spinAxis={spinAxis}
+            url={url}
+          />
+        )}
+      </VfxPreview3dSlotFrame>
 
       {stats ? (
         <span className={meshPreviewStyles.metaLine}>

@@ -444,6 +444,11 @@ export const LangId = {
   VfxCharacterEngineRotationX: 431,
   VfxCharacterEngineRotationXHint: 432,
   VfxCharacterEngineRotationReset: 433,
+  VfxPreview3dCtxTitle: 434,
+  VfxPreview3dCtxRotateX: 435,
+  VfxPreview3dCtxRotateY: 436,
+  VfxPreview3dCtxRotateZ: 437,
+  VfxPreview3dCtxStopRotation: 438,
 } as const
 
 export type LangIdValue = (typeof LangId)[keyof typeof LangId]

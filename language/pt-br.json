@@ -406,5 +406,10 @@
   "430": "Escala o personagem com o vfxScale da timeline VFX.",
   "431": "Character Rotation",
   "432": "Rotação fixa de 90° no eixo X LoL (desligado = bind pose).",
-  "433": "Repor rotação"
+  "433": "Repor rotação",
+  "434": "Pré-visualização 3D",
+  "435": "Rotacionar no eixo X",
+  "436": "Rotacionar no eixo Y",
+  "437": "Rotacionar no eixo Z",
+  "438": "Parar rotação"
 }
