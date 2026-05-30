@@ -18,7 +18,13 @@ import {
   lookupTextureForRitual,
   revokeAssetIndex,
 } from '@/core/vfx/vfxAssetIndex'
+import { VfxBackToPreviousIcon } from '@/components/atoms/VfxToolsIcons'
 import { LangId } from '@/core/language/languageIds'
+import {
+  SHORTCUT_SCOPE_ATTR,
+  SHORTCUT_SCOPE_VFX_DOCK,
+} from '@/core/shortcuts/shortcutScopes'
+import { VFX_ISOLATION_REGION_ATTR } from '@/core/vfx/vfxWindowIsolation'
 import { getStoredVfxGameRoot, setStoredVfxGameRoot } from '@/core/vfx/gameRootPreference'
 import { useLanguage } from '@/language/LanguageProvider'
 import {
@@ -35,14 +41,22 @@ import {
 } from '@/core/vfx/vfxAssetsDirectory'
 import { useVfxPreview } from '@/hooks/useVfxPreview'
 import { useVfxCharacterScene } from '@/hooks/useVfxCharacterScene'
-import { VfxCharacterPanel } from './VfxCharacterPanel'
+import {
+  resolveCharacterEngineRotationXDeg,
+  resolveCharacterEngineScale,
+} from '@/core/vfx/characterEngineVfx'
+import { useVfxWindowIsolation } from '@/hooks/useVfxWindowIsolation'
+import { useVfxDockSplitResize } from '@/hooks/useVfxDockSplitResize'
+import { useVfxDockShortcutHandlers } from '@/shortcuts/useVfxDockShortcutHandlers'
+import { VFX_DOCK_MIN_WORKSPACE_HEIGHT } from '@/core/vfx/vfxDockSplitLayout'
 import {
   clampFloatingDockRect,
   type CodeDockFloatingRect,
 } from '@/components/organisms/codeDockFloatingRect'
 
+import { VfxEffectTabsBar } from '@/components/molecules/VfxEffectTabsBar'
 import { buildVfxTransformDebugList } from '@/core/vfx/vfxTransformDebugList'
-import { VfxDockInspector } from './VfxDockInspector'
+import { VfxToolsDock } from './VfxToolsDock'
 import { computeEmitterActiveWindow } from '@/core/vfx/vfxEmitterTimeline'
 import {
   buildTimelineLayers,
@@ -112,6 +126,8 @@ export function VfxDock({
   const rebuildRef = useRef<() => void>(() => {})
   const lolCachesRef = useRef(lolCaches)
   lolCachesRef.current = lolCaches
+  const assetIndexRef = useRef(assetIndex)
+  assetIndexRef.current = assetIndex
   const sceneRaycastRootsRef = useRef<Object3D[]>([])
 
   useEffect(() => {
@@ -123,31 +139,61 @@ export function VfxDock({
   }, [dockOpen])
 
   const characterScene = useVfxCharacterScene({
-    lolCaches,
     onIndexCharacter: async (champion) => {
+      setAssetLoading(true)
+      try {
+        const handle = await getStoredAssetsDirectoryHandle()
+        if (!handle) {
+          setAssetWarnings((previous) => [
+            ...previous,
+            'Indexe a pasta assets primeiro (botão «Pasta assets…» no inspector).',
+          ])
+          return null
+        }
+        const allowed = await ensureDirectoryReadPermission(handle)
+        if (!allowed) {
+          setAssetWarnings((previous) => [
+            ...previous,
+            'Permissão de leitura da pasta assets negada — seleccione a pasta de novo.',
+          ])
+          return null
+        }
+        const { indexCharacterFromDirectory } = await import('@/core/vfx/vfxAssetsDirectory')
+        const result = await indexCharacterFromDirectory(
+          handle,
+          champion,
+          lolCachesRef.current,
+          assetIndexRef.current,
+        )
+        setLolCaches(result.lolCaches)
+        setAssetIndex(result.assetIndex)
+        if (result.warnings.length) {
+          setAssetWarnings((previous) => [...previous, ...result.warnings])
+        }
+        if (result.filesFound === 0) {
+          setAssetWarnings((previous) => [
+            ...previous,
+            `Nenhum ficheiro de «${champion}» encontrado na pasta assets.`,
+          ])
+        }
+        return { lolCaches: result.lolCaches, assetIndex: result.assetIndex }
+      } catch (error) {
+        setAssetWarnings((previous) => [
+          ...previous,
+          `Falha ao indexar «${champion}»: ${error instanceof Error ? error.message : String(error)}`,
+        ])
+        return null
+      } finally {
+        setAssetLoading(false)
+      }
+    },
+    onCollectCharacterFiles: async (champion) => {
       const handle = await getStoredAssetsDirectoryHandle()
-      if (!handle) {
-        setAssetWarnings((previous) => [
-          ...previous,
-          'Indexe a pasta Game primeiro (botão «Pasta assets…» no inspector).',
-        ])
-        return false
-      }
+      if (!handle) return null
       const allowed = await ensureDirectoryReadPermission(handle)
-      if (!allowed) {
-        setAssetWarnings((previous) => [
-          ...previous,
-          'Permissão de leitura da pasta Game negada — seleccione a pasta de novo.',
-        ])
-        return false
-      }
-      const { indexCharacterFromDirectory } = await import('@/core/vfx/vfxAssetsDirectory')
-      const result = await indexCharacterFromDirectory(handle, champion, lolCachesRef.current)
-      setLolCaches(result.lolCaches)
-      if (result.warnings.length) {
-        setAssetWarnings((previous) => [...previous, ...result.warnings])
-      }
-      return result.skinnedLoaded > 0 || result.anmLoaded > 0
+      if (!allowed) return null
+      const { collectCharacterGltfSourceFiles } = await import('@/core/vfx/vfxAssetsDirectory')
+      return collectCharacterGltfSourceFiles(handle, champion)
     },
   })
 
@@ -200,14 +246,27 @@ export function VfxDock({
     setPlaybackSpeed,
     playbackReverse,
     togglePlaybackReverse,
+    stepPlaybackEnabled,
+    stepPlaybackTimelineSeconds,
+    stepPlaybackIntervalSeconds,
+    toggleStepPlayback,
+    setStepPlaybackTimelineSeconds,
+    setStepPlaybackIntervalSeconds,
     timelineResetPoint,
     setTimelineResetPointAt,
     clearTimelineResetPoint,
+    playbackRange,
+    setPlaybackRangeStart,
+    setPlaybackRangeEnd,
+    movePlaybackRangeTo,
+    clearPlaybackRange,
     selectedEffectIds,
     compositorMode,
     previewLifetime,
     compositorTimelineLayers,
     toggleEffectSelection,
+    addEffectToCompositor,
+    removeEffectFromCompositor,
     setEffectClipOffset,
     focusCompositorEffect,
     toggleCompositorEffectVisibility,
@@ -240,6 +299,32 @@ export function VfxDock({
   floatingRectRef.current = floatingRect
   const dockedResizePhaseRef = useRef(false)
   const shellRef = useRef<HTMLElement | null>(null)
+  const workspaceRef = useRef<HTMLDivElement | null>(null)
+  const timelineRef = useRef<HTMLDivElement | null>(null)
+  const splitRef = useRef<HTMLDivElement | null>(null)
+  const transportRef = useRef<HTMLDivElement | null>(null)
+
+  const { isolation, exitIsolation, toggleIsolation } = useVfxWindowIsolation({
+    dockOpen,
+    shellRef,
+    workspaceRef,
+    timelineRef,
+  })
+
+  useVfxDockShortcutHandlers({
+    enabled: dockOpen,
+    onToggleWindowIsolation: toggleIsolation,
+  })
+
+  const showWorkspace = isolation !== 'timeline'
+  const showTimeline = isolation !== 'workspace'
+  const splitResizeEnabled = showWorkspace && showTimeline && isolation === null
+
+  const { timelineHeight, transportMinHeight, onSplitPointerDown } = useVfxDockSplitResize({
+    enabled: splitResizeEnabled && dockOpen,
+    splitRef,
+    transportRef,
+  })
 
   const applyFloatingRect = useCallback(
     (incoming: CodeDockFloatingRect) => {
@@ -358,8 +443,6 @@ export function VfxDock({
     () => [...new Set([...assetWarnings, ...buildWarnings])],
     [assetWarnings, buildWarnings],
   )
-
-  const selectedEffectIdSet = useMemo(() => new Set(selectedEffectIds), [selectedEffectIds])
 
   const timelineLayers = useMemo(() => {
     if (compositorMode) {
@@ -490,11 +573,23 @@ export function VfxDock({
     ? undefined
     : { width: dockedWidth, minWidth: VFX_DOCK_MIN_WIDTH }
 
+  const showEffectTabsBar = effectList.length > 1 && isolation === null
+
+  const shellClassName = [
+    styles.shell,
+    floatingActive ? styles.shellFloating : '',
+    isolation === 'workspace' ? styles.shellIsolatedWorkspace : '',
+    isolation === 'timeline' ? styles.shellIsolatedTimeline : '',
+  ]
+    .filter(Boolean)
+    .join(' ')
+
   const dockBody = (
     <section
-      className={[styles.shell, floatingActive ? styles.shellFloating : ''].filter(Boolean).join(' ')}
+      className={shellClassName}
       ref={shellRef}
       style={dockedShellStyle}
+      {...{ [SHORTCUT_SCOPE_ATTR]: SHORTCUT_SCOPE_VFX_DOCK }}
     >
       {!floatingActive ? (
         <button
@@ -531,6 +626,18 @@ export function VfxDock({
           )}
         </div>
         <div className={styles.headerActions}>
+          {isolation !== null ? (
+            <button
+              aria-label={t(LangId.VfxDockBackToPrevious)}
+              className={`${styles.actionBtn} ${styles.isolationExitBtn}`}
+              onClick={exitIsolation}
+              title={t(LangId.VfxDockBackToPrevious)}
+              type="button"
+            >
+              <VfxBackToPreviousIcon className={styles.isolationExitIcon} size={14} />
+              <span>{t(LangId.VfxDockBackToPrevious)}</span>
+            </button>
+          ) : null}
           {playing ? <span className={styles.liveBadge}>{t(LangId.VfxDockLive)}</span> : null}
           {compositorMode ? (
             <span className={styles.compositorBadge} title={t(LangId.VfxDockCompositorBadge)}>
@@ -554,54 +661,61 @@ export function VfxDock({
         </div>
       </header>
 
-      {effectList.length > 1 ? (
-        <div className={styles.effectTabs}>
-          {effectList.map((effect) => (
-            <button
-              className={[
-                styles.effectTab,
-                effect.id === activeEffectId ? styles.effectTabActive : '',
-                compositorMode && selectedEffectIdSet.has(effect.id)
-                  ? styles.effectTabCompositor
-                  : '',
-              ]
-                .filter(Boolean)
-                .join(' ')}
-              key={effect.id}
-              onClick={(event) => {
-                if (event.ctrlKey || event.metaKey) {
-                  toggleEffectSelection(effect.id)
-                } else {
-                  selectEffect(effect.id)
-                }
-              }}
-              type="button"
-            >
-              <span className={styles.effectTabLabel}>{effect.label}</span>
-              <span className={styles.effectTabMeta}>{effect.emitterCount}</span>
-            </button>
-          ))}
-        </div>
+      {showEffectTabsBar ? (
+        <VfxEffectTabsBar
+          activeEffectId={activeEffectId}
+          compositorMode={compositorMode}
+          effects={effectList}
+          onAddToCompositor={addEffectToCompositor}
+          onRemoveFromCompositor={removeEffectFromCompositor}
+          onSelectEffect={selectEffect}
+          onToggleEffectSelection={toggleEffectSelection}
+          selectedEffectIds={selectedEffectIds}
+        />
       ) : null}
 
-      <div className={styles.workspace}>
+      {showWorkspace || showTimeline ? (
+      <div className={styles.mainSplit} ref={splitResizeEnabled ? splitRef : undefined}>
+      {showWorkspace ? (
+      <div
+        className={[
+          styles.workspace,
+          splitResizeEnabled ? styles.workspaceInSplit : '',
+        ]
+          .filter(Boolean)
+          .join(' ')}
+        ref={workspaceRef}
+        style={splitResizeEnabled ? { minHeight: VFX_DOCK_MIN_WORKSPACE_HEIGHT } : undefined}
+        {...{ [VFX_ISOLATION_REGION_ATTR]: 'workspace' }}
+      >
         <div className={styles.viewportColumn}>
           <VfxViewport
             vfxScale={vfxScale}
             character={
-              characterScene.resolved
+              characterScene.gltfModel
                 ? {
-                    bundle: characterScene.resolved.bundle,
-                    skl: characterScene.resolved.skl,
-                    anm: characterScene.activeAnm,
+                    url: characterScene.gltfModel.url,
+                    modelBaseName: characterScene.gltfModel.baseName,
+                    animationName: characterScene.animationName,
                     animTimeSeconds: characterScene.animSyncVfx
                       ? currentTime
-                      : characterScene.resolveAnimTimeSeconds(currentTime),
+                      : characterScene.animTime,
+                    engineScale: resolveCharacterEngineScale(
+                      characterScene.characterEngineResizeEnabled,
+                      vfxScale,
+                    ),
+                    rotationXLolDeg: resolveCharacterEngineRotationXDeg(
+                      characterScene.characterEngineRotationEnabled,
+                    ),
                     showSkeleton: characterScene.showSkeleton,
                     showWireframe: characterScene.showWireframe,
                     flatLighting: characterScene.flatLighting,
+                    meshPoseMode: characterScene.meshPoseMode,
                     referenceBoneName: characterScene.referenceBoneName,
                     onBoneApi: characterScene.registerBoneApi,
+                    onEngineBoundSize: characterScene.handleEngineBoundSize,
+                    onGltfReady: characterScene.handleGltfReady,
+                    setActiveClipDuration: characterScene.setActiveClipDuration,
                   }
                 : null
             }
@@ -613,13 +727,11 @@ export function VfxDock({
           />
         </div>
 
-        <VfxCharacterPanel assetLoading={assetLoading} scene={characterScene} />
-
-        <VfxDockInspector
+        <VfxToolsDock
           assetIndexSize={assetIndex ? assetIndexSize(assetIndex) : 0}
-          particleNormalized={inspectorParticleNormalized}
-          textureHit={inspectorTextureHit}
           assetLoading={assetLoading}
+          characterScene={characterScene}
+          vfxScale={vfxScale}
           emitter={inspectorEmitter}
           gameRoot={gameRoot}
           meshCacheSize={lolCaches?.meshes.size ?? 0}
@@ -631,14 +743,46 @@ export function VfxDock({
           }}
           onOpenTexFile={handlePickSingleTex}
           onPickAssets={handlePickGameRootFolder}
-          textureResolved={Boolean(inspectorTextureHit)}
+          particleNormalized={inspectorParticleNormalized}
           showTransformDebug={viewportSettings.showTransformDebug}
+          textureHit={inspectorTextureHit}
+          textureResolved={Boolean(inspectorTextureHit)}
           transformDebugRows={inspectorTransformDebugRows}
           warnings={allWarnings}
         />
       </div>
+      ) : null}
 
+      {splitResizeEnabled ? (
+        <button
+          aria-label={t(LangId.VfxDockResizeSplitAria)}
+          className={styles.splitResizeHandle}
+          onPointerDown={onSplitPointerDown}
+          type="button"
+        />
+      ) : null}
+
+      {showTimeline ? (
+      <div
+        className={
+          splitResizeEnabled
+            ? styles.timelineHostSized
+            : isolation === 'timeline'
+              ? styles.timelineHostExpanded
+              : undefined
+        }
+        ref={timelineRef}
+        style={
+          splitResizeEnabled
+            ? { height: timelineHeight, minHeight: transportMinHeight }
+            : undefined
+        }
+        {...{ [VFX_ISOLATION_REGION_ATTR]: 'timeline' }}
+      >
       <VfxDockTimeline
+        fillHeight={isolation === 'timeline'}
+        tracksExpand={splitResizeEnabled}
+        transportRef={splitResizeEnabled ? transportRef : undefined}
         currentTime={currentTime}
         layers={timelineLayers}
         lifetime={lifetime}
@@ -654,15 +798,31 @@ export function VfxDock({
         onScaleChange={setVfxScale}
         onScrub={scrubTo}
         onSetResetPoint={setTimelineResetPointAt}
+        onRemoveResetPoint={clearTimelineResetPoint}
+        onSetPlaybackRangeStart={setPlaybackRangeStart}
+        onSetPlaybackRangeEnd={setPlaybackRangeEnd}
+        onMovePlaybackRange={movePlaybackRangeTo}
+        onRemovePlaybackRange={clearPlaybackRange}
+        playbackRange={playbackRange}
         onToggleLoop={() => setLoop((previous) => !previous)}
+        onToggleStepPlayback={toggleStepPlayback}
         onToggleReverse={togglePlaybackReverse}
+        onStepPlaybackTimelineSecondsChange={setStepPlaybackTimelineSeconds}
+        onStepPlaybackIntervalSecondsChange={setStepPlaybackIntervalSeconds}
         onPlaybackSpeedChange={setPlaybackSpeed}
         playbackReverse={playbackReverse}
+        stepPlaybackEnabled={stepPlaybackEnabled}
+        stepPlaybackTimelineSeconds={stepPlaybackTimelineSeconds}
+        stepPlaybackIntervalSeconds={stepPlaybackIntervalSeconds}
         playbackSpeed={playbackSpeed}
         playing={playing}
         resetPointTime={timelineResetPoint}
         vfxScale={vfxScale}
       />
+      </div>
+      ) : null}
+      </div>
+      ) : null}
 
       <input
         className={styles.hiddenInput}

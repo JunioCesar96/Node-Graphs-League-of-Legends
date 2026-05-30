@@ -1,0 +1,16 @@
+lol2gltf (conversor LoL -> glTF para node-graphs-lol)
+======================================================
+
+1. Baixe a release mais recente:
+   https://github.com/Crauzer/lol2gltf/releases
+
+2. Extraia o ZIP nesta pasta (tools/lol2gltf/).
+   Deve existir lol2gltf.exe ou lol2gltf.CLI.exe aqui (ou em subpasta).
+
+3. Alternativa: defina a variável de ambiente LOL2GLTF_PATH
+   apontando para o executável.
+
+4. Reinicie o dev server: pnpm dev
+
+A conversão de personagens grava em character-gltf/{campeao}.glb
+(sem prefixo gltf_). Só funciona com pnpm dev (API Vite).

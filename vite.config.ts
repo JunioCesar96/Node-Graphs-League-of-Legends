@@ -4,7 +4,9 @@ import react from '@vitejs/plugin-react'
 import { loadEnv } from 'vite'
 import { defineConfig } from 'vitest/config'
 
+import { vitePluginCharacterGltf } from './vite.plugin.characterGltf'
 import { vitePluginJadeBridgeDev } from './vite.plugin.jadeBridgeDev'
+import { vitePluginLanguage } from './vite.plugin.language'
 import { vitePluginNodeStructuresWrite } from './vite.plugin.nodeStructuresWrite'
 import { vitePluginWorkspaceSync } from './vite.plugin.workspaceSync'
 
@@ -41,11 +43,20 @@ export default defineConfig(({ mode }) => {
     },
     plugins: [
       react(),
-      ...(mode === 'development' ? [vitePluginJadeBridgeDev(path.resolve(__dirname))] : []),
+      ...(mode === 'development'
+        ? [
+            vitePluginJadeBridgeDev(path.resolve(__dirname)),
+            vitePluginCharacterGltf(path.resolve(__dirname)),
+          ]
+        : []),
       vitePluginNodeStructuresWrite(path.resolve(__dirname)),
       vitePluginWorkspaceSync(path.resolve(__dirname)),
+      vitePluginLanguage(path.resolve(__dirname)),
     ],
     server: {
+      watch: {
+        ignored: ['**/src/nodeStructures/**'],
+      },
       proxy: {
         '^/api/jade(?:/|$)': {
           changeOrigin: true,

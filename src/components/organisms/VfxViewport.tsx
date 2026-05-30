@@ -1,25 +1,20 @@
-import { Suspense, useCallback, useMemo, useRef, useState, type MutableRefObject } from 'react'
+import { Suspense, useCallback, useMemo, useRef, type MutableRefObject } from 'react'
 
 import { Canvas } from '@react-three/fiber'
 import { Grid, OrbitControls } from '@react-three/drei'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 
 import { VfxCollapsiblePanel } from '@/components/molecules/VfxCollapsiblePanel'
-import { VfxGlobalRotationContextMenu } from '@/components/molecules/VfxGlobalRotationContextMenu'
-import { VfxGroundContextMenu } from '@/components/molecules/VfxGroundContextMenu'
-import { VfxAxisWorldContextMenu } from '@/components/molecules/VfxAxisWorldContextMenu'
-import { VfxPositionContextMenu } from '@/components/molecules/VfxPositionContextMenu'
 import type { VfxAxisWorldColors, VfxViewportSettings } from '@/core/vfx/vfxViewportPreferences'
 import { LangId } from '@/core/language/languageIds'
 import type { VfxEmitterPreviewEntry } from '@/hooks/useVfxPreview'
 import { useLanguage } from '@/language/LanguageProvider'
 
-import type { ParsedLolAnm } from '@/core/vfx/lolAnmParse'
-import type { LolSkinnedMeshBundle } from '@/core/vfx/lolSkinnedMesh'
-import type { ParsedLolSkl } from '@/core/vfx/lolSklParse'
-import type { VfxCharacterBoneApi } from '@/hooks/useVfxCharacterScene'
+import type { VfxCharacterBoneApi, VfxCharacterMeshPoseMode } from '@/hooks/useVfxCharacterScene'
+import type { GltfModelStats } from '@/core/vfx/characterGltfClips'
 
-import { VfxCharacterInScene } from './VfxCharacterInScene'
+import { VfxCharacterGltfScene } from './VfxCharacterGltfScene'
+import { VfxScene3dDock } from './VfxScene3dDock'
 import { VfxEmitterSurface } from './VfxTexturedEmitter'
 import { VfxGround } from './VfxGround'
 import { VfxTransformDebug } from './VfxTransformDebug'
@@ -44,15 +39,26 @@ import type { Object3D } from 'three'
 export type { VfxViewportSettings }
 
 export type VfxViewportCharacterProps = {
-  bundle: LolSkinnedMeshBundle
-  skl: ParsedLolSkl
-  anm: ParsedLolAnm | null
+  url: string
+  modelBaseName: string
+  animationName: string | null
   animTimeSeconds: number
+  engineScale: number
+  rotationXLolDeg: number
   showSkeleton: boolean
   showWireframe: boolean
   flatLighting: boolean
+  meshPoseMode: VfxCharacterMeshPoseMode
   referenceBoneName: string | null
   onBoneApi: (api: VfxCharacterBoneApi | null) => void
+  onGltfReady: (payload: {
+    clipNames: string[]
+    stats: GltfModelStats
+    boneNames: string[]
+    boundObjectSizeLol: [number, number, number]
+  }) => void
+  onEngineBoundSize: (size: [number, number, number] | null) => void
+  setActiveClipDuration: (duration: number) => void
 }
 
 type VfxSceneProps = {
@@ -134,16 +140,22 @@ function VfxScene({
         <VfxSceneRaycastProvider rootsRef={sceneRaycastRootsRef}>
           <VfxSceneDepthProvider enabled={settings.sceneDepthFade}>
             {character ? (
-              <VfxCharacterInScene
-                anm={character.anm}
+              <VfxCharacterGltfScene
                 animTimeSeconds={character.animTimeSeconds}
-                bundle={character.bundle}
+                animationName={character.animationName}
+                engineScale={character.engineScale}
                 flatLighting={character.flatLighting}
+                meshPoseMode={character.meshPoseMode}
+                modelBaseName={character.modelBaseName}
                 onBoneApi={character.onBoneApi}
+                onEngineBoundSize={character.onEngineBoundSize}
+                onGltfReady={character.onGltfReady}
                 referenceBoneName={character.referenceBoneName}
+                rotationXLolDeg={character.rotationXLolDeg}
+                setActiveClipDuration={character.setActiveClipDuration}
                 showSkeleton={character.showSkeleton}
                 showWireframe={character.showWireframe}
-                skl={character.skl}
+                url={character.url}
               />
             ) : null}
             {settings.showGround ? (
@@ -198,10 +210,6 @@ export function VfxViewport({
   const controlsRef = useRef<OrbitControlsImpl | null>(null)
   const pendingFramingRef = useRef<VfxViewportProjectionFraming | null>(null)
   const toggleProjectionRef = useRef<(() => void) | null>(null)
-  const [groundMenu, setGroundMenu] = useState<{ x: number; y: number } | null>(null)
-  const [globalRotationMenu, setGlobalRotationMenu] = useState<{ x: number; y: number } | null>(null)
-  const [positionMenu, setPositionMenu] = useState<{ x: number; y: number } | null>(null)
-  const [axisWorldMenu, setAxisWorldMenu] = useState<{ x: number; y: number } | null>(null)
 
   const particleSummary = useMemo(() => {
     const counts = new Map<string, number>()
@@ -261,173 +269,19 @@ export function VfxViewport({
       tabIndex={-1}
       {...{ [SHORTCUT_SCOPE_ATTR]: SHORTCUT_SCOPE_VFX_VIEWPORT }}
     >
-      <VfxCollapsiblePanel defaultOpen placement="topLeft" title={t(LangId.VfxViewportScene3d)}>
-        <label className={styles.overlayItem}>
-          <input checked={settings.darkScene} onChange={() => toggle('darkScene')} type="checkbox" />
-          {t(LangId.VfxViewportDarkScene)}
-        </label>
-        <label className={styles.overlayItem}>
-          <input checked={settings.showGizmos} onChange={() => toggle('showGizmos')} type="checkbox" />
-          {t(LangId.VfxViewportOrbit)}
-        </label>
-        <div className={styles.viewHints} title={t(LangId.VfxViewportShortcutsTitle)}>
-          <span className={styles.viewHintsTitle}>{t(LangId.VfxViewportViewsBlender)}</span>
-          <span>7 Top · 3 Right · 1 Front · 5 Persp/Ortho</span>
-          <span>Ctrl+7 Bottom · Ctrl+3 Left · Ctrl+1 Back</span>
-          <span>MMB órbita · botão direito pan · roda zoom</span>
-        </div>
-        <label className={styles.overlayItem} title="Alternar com a tecla 5">
-          <input
-            checked={settings.orthographicProjection}
-            onChange={() => toggleProjectionRef.current?.()}
-            type="checkbox"
-          />
-          {t(LangId.VfxViewportOrthographic)}
-        </label>
-        <label className={styles.overlayItem}>
-          <input checked={settings.showGrid} onChange={() => toggle('showGrid')} type="checkbox" />
-          {t(LangId.VfxViewportGrid)}
-        </label>
-        <div className={styles.overlayItem}>
-          <label className={styles.overlayCheckboxOnly}>
-            <input
-              checked={settings.showAxisWorld}
-              onChange={() => toggle('showAxisWorld')}
-              type="checkbox"
-            />
-          </label>
-          <span
-            className={styles.overlayContextLabel}
-            onContextMenu={(event) => {
-              event.preventDefault()
-              event.stopPropagation()
-              setAxisWorldMenu({ x: event.clientX, y: event.clientY })
-            }}
-            title="Clique direito: escala e cor por eixo (X, Y, Z)"
-          >
-            {t(LangId.VfxViewportAxisWorld)}
-          </span>
-        </div>
-        <div className={styles.overlayItem}>
-          <label className={styles.overlayCheckboxOnly}>
-            <input checked={settings.showGround} onChange={() => toggle('showGround')} type="checkbox" />
-          </label>
-          <span
-            className={styles.overlayContextLabel}
-            onContextMenu={(event) => {
-              event.preventDefault()
-              event.stopPropagation()
-              setGroundMenu({ x: event.clientX, y: event.clientY })
-            }}
-            title={t(LangId.VfxViewportGroundTitle)}
-          >
-            {t(LangId.VfxViewportGround)}
-          </span>
-        </div>
-        <label className={styles.overlayItem}>
-          <input
-            checked={settings.showEmitterShapes}
-            onChange={() => toggle('showEmitterShapes')}
-            type="checkbox"
-          />
-          {t(LangId.VfxViewportWireframe)}
-        </label>
-        <label
-          className={styles.overlayItem}
-          title={t(LangId.VfxViewportMeshOnlyTitle)}
-        >
-          <input
-            checked={settings.meshOnlyEnabled}
-            onChange={() => toggle('meshOnlyEnabled')}
-            type="checkbox"
-          />
-          {t(LangId.VfxViewportMeshOnly)}
-        </label>
-        <div className={styles.overlayItem}>
-          <label className={styles.overlayCheckboxOnly}>
-            <input
-              checked={settings.vfxGlobalRotationEnabled}
-              onChange={() => toggle('vfxGlobalRotationEnabled')}
-              type="checkbox"
-            />
-          </label>
-          <span
-            className={styles.overlayContextLabel}
-            onContextMenu={(event) => {
-              event.preventDefault()
-              event.stopPropagation()
-              setGlobalRotationMenu({ x: event.clientX, y: event.clientY })
-            }}
-            title="Clique direito: correção e offset Euler global"
-          >
-            {t(LangId.VfxViewportGlobalRotation)}
-          </span>
-        </div>
-        <div className={styles.overlayItem}>
-          <label className={styles.overlayCheckboxOnly}>
-            <input
-              checked={settings.vfxPositionEnabled}
-              onChange={() => toggle('vfxPositionEnabled')}
-              type="checkbox"
-            />
-          </label>
-          <span
-            className={styles.overlayContextLabel}
-            onContextMenu={(event) => {
-              event.preventDefault()
-              event.stopPropagation()
-              setPositionMenu({ x: event.clientX, y: event.clientY })
-            }}
-            title={t(LangId.VfxViewportPositionTitle)}
-          >
-            {t(LangId.VfxViewportPosition)}
-          </span>
-        </div>
-        <label
-          className={styles.overlayItem}
-          title={t(LangId.VfxViewportCamLockTitle)}
-        >
-          <input
-            checked={settings.vfxCamLockEnabled}
-            onChange={() => toggle('vfxCamLockEnabled')}
-            type="checkbox"
-          />
-          {t(LangId.VfxViewportCamLock)}
-        </label>
-        <label
-          className={styles.overlayItem}
-          title={t(LangId.VfxViewportLockMotionTitle)}
-        >
-          <input
-            checked={settings.vfxLockMotionEnabled}
-            onChange={() => toggle('vfxLockMotionEnabled')}
-            type="checkbox"
-          />
-          {t(LangId.VfxViewportLockMotion)}
-        </label>
-        <label
-          className={styles.overlayItem}
-          title={t(LangId.VfxViewportTransformDebugTitle)}
-        >
-          <input
-            checked={settings.showTransformDebug}
-            onChange={() => toggle('showTransformDebug')}
-            type="checkbox"
-          />
-          {t(LangId.VfxViewportTransformDebug)}
-        </label>
-        <label
-          className={styles.overlayItem}
-          title={t(LangId.VfxViewportSceneDepthTitle)}
-        >
-          <input
-            checked={settings.sceneDepthFade}
-            onChange={() => toggle('sceneDepthFade')}
-            type="checkbox"
-          />
-          {t(LangId.VfxViewportSceneDepth)}
-        </label>
-      </VfxCollapsiblePanel>
+      <VfxScene3dDock
+        onAxisWorldColorsChange={patchAxisWorldColors}
+        onAxisWorldScaleChange={patchAxisWorldScale}
+        onGlobalRotationOffsetChange={patchGlobalRotationOffset}
+        onGroundPositionChange={patchGroundPosition}
+        onGroundScale2dChange={patchGroundScale2d}
+        onPositionOffsetChange={patchVfxPositionOffset}
+        onSettingsChange={onSettingsChange}
+        onToggleProjection={() => toggleProjectionRef.current?.()}
+        onToggleSetting={toggle}
+        settings={settings}
+        toggleProjectionRef={toggleProjectionRef}
+      />
 
       {particleName ? <div className={styles.particleLabel}>{particleName}</div> : null}
       <div
@@ -462,50 +316,6 @@ export function VfxViewport({
           settings={settings}
         />
       </Canvas>
-
-      {groundMenu ? (
-        <VfxGroundContextMenu
-          anchor={groundMenu}
-          groundPosition={settings.groundPosition}
-          groundScale2d={settings.groundScale2d}
-          onClose={() => setGroundMenu(null)}
-          onGroundPositionChange={patchGroundPosition}
-          onGroundScale2dChange={patchGroundScale2d}
-        />
-      ) : null}
-
-      {globalRotationMenu ? (
-        <VfxGlobalRotationContextMenu
-          anchor={globalRotationMenu}
-          enabled={settings.vfxGlobalRotationEnabled}
-          offsetDegrees={settings.vfxGlobalRotationOffsetDegrees}
-          onClose={() => setGlobalRotationMenu(null)}
-          onEnabledChange={(enabled) => onSettingsChange({ vfxGlobalRotationEnabled: enabled })}
-          onOffsetDegreesChange={patchGlobalRotationOffset}
-        />
-      ) : null}
-
-      {positionMenu ? (
-        <VfxPositionContextMenu
-          anchor={positionMenu}
-          enabled={settings.vfxPositionEnabled}
-          offset={settings.vfxPositionOffset}
-          onClose={() => setPositionMenu(null)}
-          onEnabledChange={(enabled) => onSettingsChange({ vfxPositionEnabled: enabled })}
-          onOffsetChange={patchVfxPositionOffset}
-        />
-      ) : null}
-
-      {axisWorldMenu ? (
-        <VfxAxisWorldContextMenu
-          anchor={axisWorldMenu}
-          colors={settings.axisWorldColors}
-          onClose={() => setAxisWorldMenu(null)}
-          onColorsChange={patchAxisWorldColors}
-          onScaleChange={patchAxisWorldScale}
-          scale={settings.axisWorldScale}
-        />
-      ) : null}
 
       <VfxCollapsiblePanel defaultOpen={false} placement="bottomRight" title={particlePanelTitle}>
         {particleSummary.length ? (

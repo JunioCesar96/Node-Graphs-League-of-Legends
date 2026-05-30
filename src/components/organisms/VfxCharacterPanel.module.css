@@ -1,0 +1,139 @@
+.sectionMeta {
+  flex-shrink: 0;
+  font-size: 9px;
+  font-weight: 500;
+  color: rgb(255 255 255 / 38%);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.fieldBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.championList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    max-height 0.18s ease,
+    opacity 0.14s ease;
+}
+
+.championListExpanded {
+  max-height: 140px;
+  overflow-y: auto;
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.instantiateInChampions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.infoSubheading {
+  margin: 0 0 4px;
+  font-size: 10px;
+  font-weight: 600;
+  color: rgb(255 255 255 / 55%);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.championBtn {
+  width: 100%;
+  padding: 5px 6px;
+  font-size: 11px;
+  color: rgb(255 255 255 / 72%);
+  text-align: left;
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+}
+
+.championBtn:hover {
+  background: rgb(255 255 255 / 6%);
+}
+
+.championBtnConverted {
+  font-weight: 600;
+  color: #7ec8a4;
+}
+
+.championBtnActive {
+  color: rgb(200 235 255 / 95%);
+  background: rgb(60 140 220 / 14%);
+  border-color: rgb(80 160 255 / 28%);
+}
+
+.scrub {
+  width: 100%;
+  accent-color: rgb(80 160 255 / 85%);
+}
+
+.animReadout {
+  margin: 0;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  color: rgb(255 255 255 / 45%);
+}
+
+.error {
+  margin: 0;
+  font-size: 10px;
+  line-height: 1.4;
+  color: #ffb27a;
+}
+
+.panelStandalone {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: rgb(12 14 18 / 98%);
+  border-left: 1px solid var(--color-border-soft);
+}
+
+.poseToggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 4px;
+}
+
+.poseToggleBtn {
+  padding: 6px 8px;
+  font-size: 10px;
+  line-height: 1.25;
+  color: rgb(255 255 255 / 62%);
+  text-align: center;
+  cursor: pointer;
+  background: rgb(255 255 255 / 4%);
+  border: none;
+  border-radius: 0;
+}
+
+.poseToggleBtn:hover {
+  color: rgb(255 255 255 / 82%);
+  background: rgb(255 255 255 / 8%);
+}
+
+.poseToggleBtnActive {
+  color: rgb(220 240 255 / 98%);
+  background: rgb(50 120 210 / 55%);
+}
+
+.poseToggleBtn + .poseToggleBtn {
+  border-left: 1px solid rgb(255 255 255 / 10%);
+}

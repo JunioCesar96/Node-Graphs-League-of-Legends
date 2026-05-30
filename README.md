@@ -1,6 +1,6 @@
 # League BIN Node Editor
 
-**Version:** 1.5.0 · **Status:** Work in progress · **Branch:** `feature/shortcut-scope-system`
+**Version:** 1.5.0 · **Status:** Work in progress · **Branch:** `feature-vfx-character-gltf-engine`
 
 ![Tool Screenshot](./src/assets/preview.png)
 
@@ -145,6 +145,7 @@ Implementation notes (Mermaid, commits, API tables) in [`feature_md/feature/`](f
 | VFX ground quad transform | [feature-vfx-ground-quad-transform.md](feature_md/feature/feature-vfx-ground-quad-transform.md) |
 | VFX semantic / shader / compositor | [feature-vfx-semantic-classifier.md](feature_md/feature/feature-vfx-semantic-classifier.md), [feature-vfx-shader-execution.md](feature_md/feature/feature-vfx-shader-execution.md), [feature-clip-compositor-vfx.md](feature_md/feature/feature-clip-compositor-vfx.md) |
 | VFX Color (`ValueColor` × texture) | [feature-vfx-color-system.md](feature_md/feature/feature-vfx-color-system.md) |
+| **VFX Character GLTF + Engine VFX** | [feature-vfx-character-gltf-engine.md](feature_md/feature/feature-vfx-character-gltf-engine.md) |
 | Class Group (embed, list, pointer, map hash) | [feature-main-class-group.md](feature_md/feature/feature-main-class-group.md), [feature-embed-class-group.md](feature_md/feature/feature-embed-class-group.md), [feature-list-embed-class-group.md](feature_md/feature/feature-list-embed-class-group.md), [feature-pointer-class-group.md](feature_md/feature/feature-pointer-class-group.md), [feature-list2-embed-pointer-class-group.md](feature_md/feature/feature-list2-embed-pointer-class-group.md), [feature-class-group-map-hash-u64-primitives.md](feature_md/feature/feature-class-group-map-hash-u64-primitives.md) |
 | Neeko node | [feature-neeko-ditto-node.md](feature_md/feature/feature-neeko-ditto-node.md) |
 
@@ -275,6 +276,42 @@ Ritual `Color` / `birthColor` → `resolveEmitterEmbedRgba` → `uTintRgba` → 
 
 ---
 
+## Implementation — VFX Character GLTF Engine (branch `feature-vfx-character-gltf-engine`)
+
+Full copy in [`feature_md/feature/feature-vfx-character-gltf-engine.md`](feature_md/feature/feature-vfx-character-gltf-engine.md).
+
+### 1. Header / Cabeçalho
+
+| Field | Value |
+| --- | --- |
+| Branch name | `feature-vfx-character-gltf-engine` |
+| Feature name | Character GLTF (lol2gltf) · Engine VFX ReSize/Rotation · Panel UX |
+| Version | `1.5.0` |
+| Commit | `PENDING` |
+
+### 2. Tags
+
+| Tag (EN) | Tag (PT) | Meaning |
+| --- | --- | --- |
+| `[NEW]` | `[NOVO]` | lol2gltf runner, GLTF API, character scene/panel, Engine VFX |
+| `[UPDATED]` | `[ATUALIZADO]` | VfxDock/Viewport, ground 11×11, FlexShape bound from GLTF |
+
+### 3–4. Flow (summary)
+
+Assets → convert só `.anm` em `{skin}/animations/` → `character-gltf/*.glb` → preview Geometria → instanciar → **Engine VFX** (ReSize = vfxScale, Rotation = 90° X) → `boundObjectSizeLol` para FlexShape.
+
+### 5–7. How to use / Como usar
+
+| EN | PT |
+| --- | --- |
+| Put `lol2gltf.exe` in `tools/lol2gltf/`, run `pnpm dev` | Coloque `lol2gltf.exe` em `tools/lol2gltf/`, execute `pnpm dev` |
+| Character tool → assets path → pick champion → Use existing / Reconvert GLTF | Character → assets path → campeão → Usar existente / Reconverter |
+| Render → Engine VFX: toggle ReSize & Rotation (no numeric fields) | Render → Engine VFX: checkboxes ReSize e Rotation |
+
+**Main files:** `vite.plugin.characterGltf.ts`, `characterGltfConvert.ts`, `VfxCharacterGltfScene.tsx`, `useVfxCharacterScene.ts`, `characterEngineVfx.ts`, `VfxCharacterPanel.tsx`.
+
+---
+
 # Português — Guia rápido
 
 ## O que é
@@ -292,8 +329,9 @@ pnpm install && pnpm dev
 3. **Editar:** arrastar slots de saída; clique curto alterna flex/rigid/wireless; botão direito para menu de contexto.
 4. **Exportar:** um nó Main → Grafo → Node Graphs to Code.
 5. **VFX:** menu VFX → Rebuild → Play; ver docs em [`feature_md/feature/`](feature_md/feature/).
-6. **Cor VFX:** inspector **Cor** mostra só `Color` (`vec4` + RGB); ver [feature-vfx-color-system](feature_md/feature/feature-vfx-color-system.md).
-7. **Atalhos:** clique na zona correcta antes da tecla — ver [shortcut scope](#implementation--shortcut-scope-system-branch-featureshortcut-scope-system).
+6. **Personagem VFX:** ferramenta Character → lol2gltf → GLB; ver [feature-vfx-character-gltf-engine](feature_md/feature/feature-vfx-character-gltf-engine.md).
+7. **Cor VFX:** inspector **Cor** mostra só `Color` (`vec4` + RGB); ver [feature-vfx-color-system](feature_md/feature/feature-vfx-color-system.md).
+8. **Atalhos:** clique na zona correcta antes da tecla — ver [shortcut scope](#implementation--shortcut-scope-system-branch-featureshortcut-scope-system).
 
 Documentação técnica completa: [`feature_md/feature/`](feature_md/feature/).
 
