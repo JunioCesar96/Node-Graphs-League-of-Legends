@@ -9,7 +9,7 @@ File location: `feature_md/feature/feature-vfx-character-gltf-engine.md`
 | Branch Name | `feature-vfx-character-gltf-engine` |
 | Feature Name(s) | VFX Character GLTF Pipeline · Engine VFX (ReSize + Rotation) · Character Panel UX |
 | Current Version | `1.5.0` |
-| Commit Hash | `PENDING` |
+| Commit Hash | `1b6bc63` |
 
 ---
 
