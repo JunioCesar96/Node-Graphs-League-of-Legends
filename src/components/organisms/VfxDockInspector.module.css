@@ -8,7 +8,7 @@
   max-width: 260px;
   min-height: 0;
   align-self: stretch;
-  background: rgb(12 14 18 / 98%);
+  background: var(--vfx-panel-bg);
   border-left: 1px solid var(--color-border-soft);
 }
 
@@ -30,18 +30,18 @@
   min-height: 100%;
   padding: 12px 6px;
   cursor: pointer;
-  background: rgb(18 24 32 / 95%);
+  background: var(--vfx-tab-sidebar-bg);
   border: none;
 }
 
 .vertTab:hover {
-  background: rgb(36 52 68 / 75%);
+  background: var(--vfx-tab-sidebar-hover);
 }
 
 .vertTabLabel {
   font-size: 10px;
   font-weight: 700;
-  color: rgb(126 212 255 / 88%);
+  color: var(--vfx-accent-text);
   letter-spacing: 0.16em;
   writing-mode: vertical-rl;
   text-orientation: mixed;
@@ -62,18 +62,18 @@
   padding: 0;
   font-size: 16px;
   line-height: 1;
-  color: rgb(255 255 255 / 72%);
+  color: var(--vfx-text-dim);
   cursor: pointer;
-  background: rgb(28 36 46 / 96%);
-  border: 1px solid rgb(255 255 255 / 12%);
+  background: var(--vfx-collapse-bg);
+  border: 1px solid var(--vfx-chrome-bg-hover);
   border-right: none;
   border-radius: 6px 0 0 6px;
   transform: translate(-100%, -50%);
 }
 
 .collapseBtn:hover {
-  color: rgb(126 212 255 / 95%);
-  background: rgb(48 68 88 / 85%);
+  color: var(--vfx-accent-text-strong);
+  background: var(--vfx-collapse-hover);
 }
 
 .inspectorHead {
@@ -87,7 +87,7 @@
 .inspectorTitle {
   font-size: 10px;
   font-weight: 600;
-  color: rgb(126 212 255 / 85%);
+  color: var(--vfx-accent-text-readout);
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
@@ -96,14 +96,14 @@
   overflow: hidden;
   font-size: 12px;
   font-weight: 600;
-  color: rgb(255 255 255 / 92%);
+  color: var(--vfx-text-strong);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .inspectorSubtitleMuted {
   font-size: 11px;
-  color: rgb(255 255 255 / 42%);
+  color: var(--vfx-text-muted);
 }
 
 .inspectorScroll {
@@ -111,8 +111,13 @@
   overflow: auto;
 }
 
+.inspectorScrollEmbedded {
+  display: flex;
+  flex-direction: column;
+}
+
 .section {
-  border-bottom: 1px solid rgb(255 255 255 / 6%);
+  border-bottom: 1px solid var(--vfx-chrome-bg);
 }
 
 .sectionHead {
@@ -123,7 +128,7 @@
   padding: 7px 10px;
   font-size: 10px;
   font-weight: 600;
-  color: rgb(255 255 255 / 55%);
+  color: var(--vfx-text-muted);
   text-align: left;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -133,7 +138,7 @@
 }
 
 .sectionHead:hover {
-  background: rgb(255 255 255 / 4%);
+  background: var(--vfx-chrome-bg-soft);
 }
 
 .sectionChevron {
@@ -142,7 +147,7 @@
   height: 0;
   border-top: 4px solid transparent;
   border-bottom: 4px solid transparent;
-  border-left: 5px solid rgb(255 255 255 / 45%);
+  border-left: 5px solid var(--vfx-text-muted);
   transition: transform 0.15s ease;
 }
 
@@ -170,11 +175,11 @@
 }
 
 .fieldLabel {
-  color: rgb(255 255 255 / 48%);
+  color: var(--vfx-text-muted);
 }
 
 .fieldValue {
-  color: rgb(255 255 255 / 88%);
+  color: var(--vfx-text-strong);
   text-align: right;
 }
 
@@ -198,16 +203,21 @@
   padding: 4px 6px;
   font-size: 9px;
   line-height: 1.35;
-  color: rgb(255 255 255 / 55%);
+  color: var(--vfx-text-muted);
   word-break: break-all;
-  background: rgb(0 0 0 / 28%);
+  background: var(--vfx-inset-dark);
   border-radius: 4px;
 }
 
 .hint {
   margin: 0;
   font-size: 10px;
-  color: rgb(255 255 255 / 42%);
+  color: var(--vfx-text-muted);
+}
+
+.hint code {
+  font-size: 9px;
+  color: var(--vfx-accent-text-soft);
 }
 
 .assetsBlock {
@@ -221,8 +231,8 @@
   padding: 4px 6px;
   font-size: 10px;
   color: inherit;
-  background: rgb(0 0 0 / 30%);
-  border: 1px solid rgb(255 255 255 / 10%);
+  background: var(--vfx-inset-dark);
+  border: 1px solid var(--vfx-chrome-border);
   border-radius: 5px;
 }
 
@@ -243,23 +253,23 @@
 }
 
 .assetsBtn {
-  color: rgb(200 235 255 / 95%);
-  background: rgb(60 140 220 / 14%);
-  border: 1px solid rgb(80 160 255 / 28%);
+  color: var(--vfx-title-color);
+  background: var(--vfx-accent-bg-active);
+  border: 1px solid var(--vfx-preview-border);
 }
 
 .assetsBtnSecondary {
-  color: rgb(220 230 240 / 90%);
-  background: rgb(255 255 255 / 6%);
-  border: 1px solid rgb(255 255 255 / 14%);
+  color: var(--vfx-text-medium);
+  background: var(--vfx-chrome-bg);
+  border: 1px solid var(--vfx-chrome-border-mid);
 }
 
 .assetsBtnSecondary:hover:not(:disabled) {
-  background: rgb(255 255 255 / 10%);
+  background: var(--vfx-chrome-border);
 }
 
 .assetsBtn:hover:not(:disabled) {
-  background: rgb(60 140 220 / 22%);
+  background: var(--vfx-accent-bg-active);
 }
 
 .assetsBtn:disabled {
@@ -269,7 +279,7 @@
 
 .assetMeta {
   font-size: 9px;
-  color: rgb(255 255 255 / 45%);
+  color: var(--vfx-text-muted);
 }
 
 .warningList {
@@ -308,13 +318,13 @@
 .debugListLabel {
   flex: 0 0 auto;
   max-width: 42%;
-  color: rgb(126 212 255 / 72%);
+  color: var(--vfx-accent-text-soft);
 }
 
 .debugListValue {
   flex: 1;
   min-width: 0;
-  color: rgb(255 255 255 / 88%);
+  color: var(--vfx-text-strong);
   text-align: right;
   word-break: break-word;
 }
@@ -325,7 +335,7 @@
   align-items: center;
   margin-bottom: 6px;
   font-size: 11px;
-  color: rgb(255 255 255 / 82%);
+  color: var(--vfx-text-strong);
   cursor: pointer;
 }
 
@@ -347,8 +357,8 @@
   width: 100%;
   padding: 3px 5px;
   font-size: 11px;
-  color: rgb(255 255 255 / 92%);
-  background: rgb(0 0 0 / 30%);
-  border: 1px solid rgb(255 255 255 / 12%);
+  color: var(--vfx-text-strong);
+  background: var(--vfx-inset-dark);
+  border: 1px solid var(--vfx-chrome-bg-hover);
   border-radius: 4px;
 }

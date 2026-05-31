@@ -1,5 +1,7 @@
 import { useRef } from 'react'
 
+import { SurfaceThemeContextMenu } from '@/components/molecules/SurfaceThemeContextMenu'
+import { LangId } from '@/core/language/languageIds'
 import {
   clearStoredRitobinExePath,
   getStoredRitobinExePath,
@@ -7,6 +9,8 @@ import {
   setStoredRitobinExePath,
 } from '@/core/ritobinExePreference'
 import type { RecentSceneListItem } from '@/core/sceneTabsStorage'
+import { useSurfaceThemeContextMenu } from '@/hooks/useSurfaceThemeContextMenu'
+import { useLanguage } from '@/language/LanguageProvider'
 import styles from './AppMenuBar.module.css'
 
 export type AppMenuBarProps = {
@@ -24,6 +28,7 @@ export type AppMenuBarProps = {
   onEditClassGroupPackFolder?: () => void
   onGraphsToCode?: () => void
   onToggleCodeDock: () => void
+  onToggleVfxDock: () => void
   recentScenes: RecentSceneListItem[]
 }
 
@@ -42,19 +47,27 @@ export function AppMenuBar({
   onEditClassGroupPackFolder,
   onGraphsToCode,
   onToggleCodeDock,
+  onToggleVfxDock,
   recentScenes,
 }: AppMenuBarProps) {
+  const { locale, locales, reloadLocales, setLocale, t } = useLanguage()
+  const {
+    surfaceThemeMenuAnchor,
+    openSurfaceThemeContextMenu,
+    closeSurfaceThemeContextMenu,
+  } = useSurfaceThemeContextMenu()
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const ritobinExeInputRef = useRef<HTMLInputElement | null>(null)
 
   return (
-    <header className={styles.bar}>
+    <>
+      <header className={styles.bar} onContextMenu={openSurfaceThemeContextMenu}>
       <span className={styles.brand}>Node Graphs LOL</span>
 
       <nav aria-label="Principal" className={styles.nav}>
         <div className={styles.menu}>
           <button className={styles.menuButton} type="button">
-            File
+            {t(LangId.MenuFile)}
           </button>
           <div className={styles.menuPanel} role="menu">
             <input
@@ -76,17 +89,62 @@ export function AppMenuBar({
               onClick={() => fileInputRef.current?.click()}
               type="button"
             >
-              Open…
+              {t(LangId.MenuFileOpen)}
             </button>
             <button className={styles.menuItem} onClick={onOpenStubBin} type="button">
-              Stub .bin → JSON
+              {t(LangId.MenuFileStubBin)}
             </button>
           </div>
         </div>
 
         <div className={styles.menu}>
           <button className={styles.menuButton} type="button">
-            Ritobin
+            {t(LangId.MenuLanguage)}
+          </button>
+          <div className={styles.menuPanel} role="menu">
+            {locales.length === 0 ? (
+              <span className={styles.menuItemDisabled}>—</span>
+            ) : (
+              locales.map((entry) => (
+                <button
+                  aria-checked={entry === locale}
+                  className={styles.menuItemConfig}
+                  key={entry}
+                  onClick={() => {
+                    void setLocale(entry)
+                  }}
+                  role="menuitemradio"
+                  type="button"
+                >
+                  <span
+                    aria-hidden
+                    className={[
+                      styles.menuCheckbox,
+                      entry === locale ? styles.menuCheckboxChecked : '',
+                    ]
+                      .filter(Boolean)
+                      .join(' ')}
+                  />
+                  <span>{entry}</span>
+                </button>
+              ))
+            )}
+            <div aria-hidden className={styles.menuSeparator} />
+            <button
+              className={styles.menuItem}
+              onClick={() => {
+                void reloadLocales()
+              }}
+              type="button"
+            >
+              {t(LangId.MenuLanguageReload)}
+            </button>
+          </div>
+        </div>
+
+        <div className={styles.menu}>
+          <button className={styles.menuButton} type="button">
+            {t(LangId.MenuRitobin)}
           </button>
           <div className={styles.menuPanel} role="menu">
             <input
@@ -131,7 +189,7 @@ export function AppMenuBar({
               onClick={() => ritobinExeInputRef.current?.click()}
               type="button"
             >
-              Escolher executável .exe…
+              {t(LangId.MenuRitobinChooseExe)}
             </button>
             <button
               className={styles.menuItem}
@@ -159,7 +217,7 @@ export function AppMenuBar({
               }}
               type="button"
             >
-              Editar ou colar caminho…
+              {t(LangId.MenuRitobinEditPath)}
             </button>
             <button
               className={styles.menuItem}
@@ -183,7 +241,7 @@ export function AppMenuBar({
               }}
               type="button"
             >
-              Copiar caminho guardado
+              {t(LangId.MenuRitobinCopyPath)}
             </button>
             <button
               className={styles.menuItemDanger}
@@ -193,26 +251,26 @@ export function AppMenuBar({
               }}
               type="button"
             >
-              Limpar caminho ritobin
+              {t(LangId.MenuRitobinClearPath)}
             </button>
           </div>
         </div>
 
         <div className={styles.menu}>
           <button className={styles.menuButton} type="button">
-            Grafo
+            {t(LangId.MenuGraph)}
           </button>
           <div className={styles.menuPanel} role="menu">
             <button className={styles.menuItem} onClick={onNewWorkScene} type="button">
-              Nova Cena de trabalho
+              {t(LangId.MenuGraphNewScene)}
             </button>
             <div className={styles.menuItemWithSub}>
               <button className={styles.menuItem} type="button">
-                Carregar cenas recentes
+                {t(LangId.MenuGraphRecentScenes)}
               </button>
               <div className={styles.menuSubPanel} role="menu">
                 {recentScenes.length === 0 ? (
-                  <span className={styles.menuItemDisabled}>Nenhum JSON aberto recentemente</span>
+                  <span className={styles.menuItemDisabled}>{t(LangId.MenuGraphNoRecent)}</span>
                 ) : (
                   recentScenes.map((entry) => (
                     <button
@@ -234,13 +292,13 @@ export function AppMenuBar({
             </div>
             <div aria-hidden className={styles.menuSeparator} />
             <button className={styles.menuItem} onClick={onSaveWorkScene} type="button">
-              Salvar Cena de trabalho
+              {t(LangId.MenuGraphSave)}
             </button>
             {onGraphsToCode ? (
               <>
                 <div aria-hidden className={styles.menuSeparator} />
                 <button className={styles.menuItem} onClick={onGraphsToCode} type="button">
-                  Node Graphs to Code
+                  {t(LangId.MenuGraphToCode)}
                 </button>
               </>
             ) : null}
@@ -249,20 +307,26 @@ export function AppMenuBar({
 
         <div className={styles.menu}>
           <button className={styles.menuButton} onClick={onToggleCodeDock} type="button">
-            Código
+            {t(LangId.MenuCode)}
+          </button>
+        </div>
+
+        <div className={styles.menu}>
+          <button className={styles.menuButton} onClick={onToggleVfxDock} type="button">
+            {t(LangId.MenuVfx)}
           </button>
         </div>
 
         <div className={styles.menu}>
           <button className={styles.menuButton} type="button">
-            Nodes
+            {t(LangId.MenuNodes)}
           </button>
           <div className={styles.menuPanel} role="menu">
             <button className={styles.menuItem} onClick={onRequestAddNode} type="button">
-              Adicionar…
+              {t(LangId.MenuNodesAdd)}
             </button>
             <button className={styles.menuItemDanger} onClick={onDeleteSelection} type="button">
-              Remover selecionados
+              {t(LangId.MenuNodesRemove)}
             </button>
             <button
               aria-checked={nodeLightModeEnabled}
@@ -280,7 +344,7 @@ export function AppMenuBar({
                   .filter(Boolean)
                   .join(' ')}
               />
-              <span>Modo leve</span>
+              <span>{t(LangId.MenuNodesLightMode)}</span>
             </button>
             <button
               aria-checked={nodeConfigurationMode}
@@ -298,7 +362,7 @@ export function AppMenuBar({
                   .filter(Boolean)
                   .join(' ')}
               />
-              <span>Configurar</span>
+              <span>{t(LangId.MenuNodesConfigure)}</span>
             </button>
             {nodeConfigurationMode && onEditClassGroupPackFolder ? (
               <button
@@ -306,12 +370,19 @@ export function AppMenuBar({
                 onClick={onEditClassGroupPackFolder}
                 type="button"
               >
-                Pasta Converter Class Group…
+                {t(LangId.MenuNodesClassGroupFolder)}
               </button>
             ) : null}
           </div>
         </div>
       </nav>
     </header>
+      {surfaceThemeMenuAnchor ? (
+        <SurfaceThemeContextMenu
+          anchor={surfaceThemeMenuAnchor}
+          onClose={closeSurfaceThemeContextMenu}
+        />
+      ) : null}
+    </>
   )
 }

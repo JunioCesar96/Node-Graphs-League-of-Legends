@@ -10,7 +10,7 @@
   padding: var(--space-3);
   overflow: hidden;
   text-align: left;
-  background: rgb(255 255 255 / 4%);
+  background: var(--app-subtle-surface);
   /* Espessura fixa em todos os estados; destaque âmbar via box-shadow (não altera o box model). */
   border: 1px solid rgb(255 255 255 / 6%);
   transition:

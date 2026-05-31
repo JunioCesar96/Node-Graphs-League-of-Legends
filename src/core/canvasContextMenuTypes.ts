@@ -74,6 +74,8 @@ export type ContextMenuItemId =
   | 'node.viewGroupCode'
   | 'node.previewVfx'
   | 'node.syncValueToCode'
+  | 'surface.toggleJadeTheme'
+  | 'surface.toggleJadeSyntax'
   | 'node.hideLinkedChildNodes'
   | 'connection.cycleRouting'
   | 'connection.remove'

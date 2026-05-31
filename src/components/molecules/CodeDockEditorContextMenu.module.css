@@ -1,0 +1,61 @@
+.submenuRow {
+  position: relative;
+}
+
+.submenuTrigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 5px 20px;
+  background: none;
+  border: none;
+  color: var(--text-color, #d4d4d4);
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  gap: 24px;
+}
+
+.submenuTrigger:hover,
+.submenuRow[data-open='true'] .submenuTrigger {
+  background: var(--selected-tab-bg, #007acc);
+  color: #fff;
+}
+
+.submenuCaret {
+  opacity: 0.72;
+}
+
+.submenuFlyout {
+  position: absolute;
+  top: 0;
+  left: calc(100% - 2px);
+  z-index: 2;
+  display: none;
+  min-width: 240px;
+  padding: 4px 0;
+  background: var(--window-bg, #1e1e1e);
+  border: 1px solid var(--border-color, #454545);
+  border-radius: var(--border-radius, 4px);
+  box-shadow: 0 4px 16px rgb(0 0 0 / 40%);
+}
+
+.submenuRow[data-open='true'] .submenuFlyout {
+  display: block;
+}
+
+.selectedMark {
+  display: inline-block;
+  width: 1rem;
+  margin-right: 0.35rem;
+  text-align: center;
+}
+
+.submenuFlyout .editor-ctx-item {
+  justify-content: flex-start;
+}
+
+.submenuFlyout .editor-ctx-item[data-selected='true'] {
+  color: var(--syntax-keyword, #569cd6);
+}

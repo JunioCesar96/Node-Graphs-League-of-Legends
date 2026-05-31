@@ -82,7 +82,7 @@
   flex-shrink: 0;
   min-width: 446px;
   max-width: 760px;
-  background: rgb(15 15 15 / 96%);
+  background: var(--code-dock-shell-bg);
   border: 1px solid var(--color-border-soft);
   border-radius: 18px;
   box-shadow: -16px 0 48px rgb(0 0 0 / 35%);
@@ -103,9 +103,18 @@
   z-index: 4;
   width: 10px;
   cursor: col-resize;
-  background: linear-gradient(90deg, rgb(255 255 255 / 10%), transparent);
+  background: var(--code-dock-resize-grip);
   border: none;
   border-radius: 18px 0 0 18px;
+  opacity: 0.72;
+  transition:
+    opacity 140ms ease,
+    background 140ms ease;
+}
+
+.resizeDockWidth:hover {
+  opacity: 1;
+  background: var(--code-dock-resize-grip);
 }
 
 .resizeE,
@@ -114,7 +123,7 @@
   position: absolute;
   z-index: 6;
   padding: 0;
-  background: rgb(255 255 255 / 5%);
+  background: var(--code-dock-resize-handle-bg);
   border: none;
   border-radius: 4px;
   opacity: 0.55;
@@ -125,7 +134,7 @@
 .resizeS:hover,
 .resizeSE:hover {
   opacity: 1;
-  background: rgb(255 255 255 / 12%);
+  background: var(--code-dock-resize-handle-hover);
 }
 
 .resizeE {
@@ -162,6 +171,7 @@
   color: var(--color-text-secondary);
   font-family: var(--font-data);
   font-size: 0.72rem;
+  background: var(--code-dock-header-bg);
   border-bottom: 1px solid var(--color-border-soft);
 }
 

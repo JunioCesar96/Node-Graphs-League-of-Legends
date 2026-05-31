@@ -2,7 +2,6 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-  margin-top: 6px;
 }
 
 .pathLine {
@@ -21,7 +20,18 @@
   width: 100%;
   aspect-ratio: 1;
   overflow: hidden;
-  background: var(--vfx-preview-bg);
+  background:
+    linear-gradient(45deg, var(--vfx-checker-tile) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--vfx-checker-tile) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--vfx-checker-tile) 75%),
+    linear-gradient(-45deg, transparent 75%, var(--vfx-checker-tile) 75%);
+  background-color: var(--vfx-checker-base);
+  background-size: 12px 12px;
+  background-position:
+    0 0,
+    0 6px,
+    6px -6px,
+    -6px 0;
   border: 1px solid var(--vfx-preview-border);
   border-radius: 8px;
   box-shadow: inset 0 0 0 1px var(--vfx-inset-dark);
@@ -32,13 +42,15 @@
 }
 
 .slotFilled {
-  border-color: rgb(61 214 200 / 35%);
+  border-color: rgb(80 200 160 / 35%);
 }
 
+.previewImg,
 .previewCanvas {
   display: block;
   width: 100%;
   height: 100%;
+  object-fit: contain;
 }
 
 .previewPlaceholder {
@@ -52,9 +64,4 @@
   line-height: 1.35;
   color: var(--vfx-text-faint);
   text-align: center;
-}
-
-.metaLine {
-  font-size: 9px;
-  color: var(--vfx-text-muted);
 }

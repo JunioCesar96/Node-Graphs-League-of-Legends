@@ -6,7 +6,7 @@
   min-width: 220px;
   max-width: 300px;
   padding: var(--space-2);
-  background: rgb(37 37 38 / 96%);
+  background: var(--window-bg, rgb(37 37 38 / 96%));
   border: 1px solid var(--color-border-soft);
   border-radius: var(--radius-control);
   box-shadow: 0 18px 50px rgb(0 0 0 / 32%);
@@ -219,7 +219,7 @@
   min-width: 260px;
   max-width: 320px;
   padding: var(--space-2);
-  background: rgb(37 37 38 / 98%);
+  background: var(--window-bg, rgb(37 37 38 / 98%));
   border: 1px solid var(--color-border-soft);
   border-radius: var(--radius-control);
   box-shadow: 0 14px 40px rgb(0 0 0 / 36%);

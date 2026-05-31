@@ -1,0 +1,81 @@
+.toolsDock {
+  display: flex;
+  flex-direction: row;
+  flex-shrink: 0;
+  align-self: stretch;
+  min-height: 0;
+}
+
+.toolPanel {
+  display: flex;
+  flex: 0 0 220px;
+  flex-direction: column;
+  width: 220px;
+  min-width: 200px;
+  max-width: 260px;
+  min-height: 0;
+  background: var(--vfx-panel-bg);
+  border-left: 1px solid var(--color-border-soft);
+}
+
+.toolPanelHead {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--color-border-soft);
+}
+
+.toolPanelHeadIcon {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  color: var(--vfx-accent-text);
+}
+
+.toolPanelHeadText {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.toolPanelTitle {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--vfx-accent-text-readout);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.toolPanelSubtitle {
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--vfx-text-strong);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.toolPanelSubtitleMuted {
+  font-size: 11px;
+  color: var(--vfx-text-muted);
+}
+
+.toolPanelBody {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.toolPanelScroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}

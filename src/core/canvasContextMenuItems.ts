@@ -48,6 +48,7 @@ import { CANVAS_TOOLBAR_LANG_IDS } from '@/core/language/canvasToolbarLangIds'
 import { listRemovableNodeElements, type NodeElementListItem } from '@/core/listNodeElements'
 import type { NodeParameterDefinition } from '@/core/nodeSchema'
 import { LangId } from '@/core/language/languageIds'
+import { appendSurfaceThemeMenuItems } from '@/core/surfaceThemeContextMenu'
 
 export type CanvasContextMenuBuildContext = {
   canRedo: boolean
@@ -90,6 +91,10 @@ export type CanvasContextMenuBuildContext = {
     fallback: string,
     vars?: Readonly<Record<string, string | number>>,
   ) => string
+  /** Tema Jade activo em editor/cards/inspetores. */
+  jadeThemeEnabled?: boolean
+  /** Syntax Color Scheme activo em editor/cards/inspetores. */
+  jadeSyntaxEnabled?: boolean
 }
 
 function trLabel(
@@ -99,6 +104,17 @@ function trLabel(
   vars?: Readonly<Record<string, string | number>>,
 ): string {
   return ctx.tr?.(id, fallback, vars) ?? fallback
+}
+
+function appendSurfaceThemeMenuItem(items: ContextMenuItem[], ctx: CanvasContextMenuBuildContext): void {
+  appendSurfaceThemeMenuItems(
+    items,
+    {
+      themeEnabled: ctx.jadeThemeEnabled ?? true,
+      syntaxEnabled: ctx.jadeSyntaxEnabled ?? true,
+    },
+    (id, fallback) => trLabel(ctx, id, fallback),
+  )
 }
 
 function findCanvasNode(scene: CanvasScene, nodeId: string): CanvasNode | undefined {
@@ -214,7 +230,7 @@ function buildCanvasItems(ctx: CanvasContextMenuBuildContext): ContextMenuItem[]
     ? trLabel(ctx, LangId.CtxNavigateExit, 'Sair do modo mover na grade')
     : trLabel(ctx, LangId.CtxNavigateEnter, 'Mover na grade')
 
-  return [
+  const items: ContextMenuItem[] = [
     {
       id: 'canvas.addNode',
       label: trLabel(ctx, LangId.GraphCtxAddNode, 'Adicionar nó'),
@@ -293,6 +309,9 @@ function buildCanvasItems(ctx: CanvasContextMenuBuildContext): ContextMenuItem[]
       children: buildExibirSubmenuItems(ctx),
     },
   ]
+
+  appendSurfaceThemeMenuItem(items, ctx)
+  return items
 }
 
 function isStructureCardView(canvasNode: CanvasNode | undefined): boolean {
@@ -352,7 +371,7 @@ function buildStructureCardItems(
     if (ctx.onViewNodeGroupCode && canvasNodeHasGroupCode(ctx.scene, nodeId)) {
       codeChildren.push({
         id: 'node.viewGroupCode',
-        label: trLabel(ctx, LangId.GraphCtxViewCode, 'Ver código de grupo'),
+        label: trLabel(ctx, LangId.GraphCtxViewGroupCode, 'Ver código de grupo'),
       })
     }
     if (ctx.onSyncNodeValueToCode) {
@@ -373,6 +392,8 @@ function buildStructureCardItems(
       })
     }
   }
+
+  appendSurfaceThemeMenuItem(items, ctx)
 
   items.push(
     {
@@ -493,7 +514,7 @@ function buildNodeItems(
     if (ctx.onViewNodeGroupCode && canvasNodeHasGroupCode(ctx.scene, nodeId)) {
       codeChildren.push({
         id: 'node.viewGroupCode',
-        label: trLabel(ctx, LangId.GraphCtxViewCode, 'Ver código de grupo'),
+        label: trLabel(ctx, LangId.GraphCtxViewGroupCode, 'Ver código de grupo'),
       })
     }
     if (
@@ -577,6 +598,7 @@ function buildNodeItems(
     },
   )
 
+  appendSurfaceThemeMenuItem(items, ctx)
   return items
 }
 

@@ -3,8 +3,8 @@ import type { Monaco } from '@monaco-editor/react'
 import type * as MonacoType from 'monaco-editor'
 
 import { getPreference } from '@jade/lib/preferenceStore'
-import { registerRitobinTheme, RITOBIN_LANGUAGE_ID, RITOBIN_THEME_ID } from '@jade/lib/ritobinLanguage'
-import { applyTheme } from '@jade/lib/themeApplicator'
+import { RITOBIN_LANGUAGE_ID } from '@jade/lib/ritobinLanguage'
+import { refreshJadeSurfaceTheme, JADE_DYNAMIC_MONACO_THEME, JADE_SURFACE_THEME_CHANGED } from '@/core/jadeSurfaceTheme'
 
 import {
   setupRitobinMonacoBeforeMount,
@@ -49,7 +49,7 @@ export function useCodeDockJadeEditor(
   const [perfPrefs, setPerfPrefs] = useState<PerfPrefs>(PERF_DEFAULTS)
   const [lineCount, setLineCount] = useState(0)
   const [editorFontFamily, setEditorFontFamily] = useState('')
-  const [editorTheme, setEditorTheme] = useState(RITOBIN_THEME_ID)
+  const [editorTheme, setEditorTheme] = useState(JADE_DYNAMIC_MONACO_THEME)
 
   const [findActive, setFindActive] = useState(false)
   const [replaceActive, setReplaceActive] = useState(false)
@@ -348,26 +348,9 @@ export function useCodeDockJadeEditor(
 
   const applyCodeDockTheme = useCallback(async () => {
     try {
-      const theme = await getPreference('Theme', 'Default')
-      const useCustom = await getPreference('UseCustomTheme', 'false')
-      if (useCustom === 'true') {
-        applyTheme('Custom', {
-          windowBg: await getPreference('Custom_Bg', '#0F1928'),
-          editorBg: await getPreference('Custom_EditorBg', '#141E2D'),
-          titleBar: await getPreference('Custom_TitleBar', '#0F1928'),
-          statusBar: await getPreference('Custom_StatusBar', '#005A9E'),
-          text: await getPreference('Custom_Text', '#D4D4D4'),
-          tabBg: await getPreference('Custom_TabBg', '#1E1E1E'),
-          selectedTab: await getPreference('Custom_SelectedTab', '#007ACC'),
-        })
-      } else {
-        applyTheme(theme)
-      }
-      const monaco = monacoRef.current
-      if (monaco) {
-        registerRitobinTheme(monaco)
-        monaco.editor.setTheme(RITOBIN_THEME_ID)
-        setEditorTheme(RITOBIN_THEME_ID)
+      const themeName = await refreshJadeSurfaceTheme(monacoRef.current)
+      if (themeName) {
+        setEditorTheme(themeName)
       }
     } catch (e) {
       console.warn('CodeDock theme apply failed', e)
@@ -464,6 +447,14 @@ export function useCodeDockJadeEditor(
       setEditorMounted(false)
     }
   }, [])
+
+  useEffect(() => {
+    const onThemePrefChanged = () => {
+      void applyCodeDockTheme()
+    }
+    window.addEventListener(JADE_SURFACE_THEME_CHANGED, onThemePrefChanged)
+    return () => window.removeEventListener(JADE_SURFACE_THEME_CHANGED, onThemePrefChanged)
+  }, [applyCodeDockTheme])
 
   useCodeDockShortcutHandlers({
     onFind: handleFind,

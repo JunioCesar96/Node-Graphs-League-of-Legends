@@ -20,7 +20,7 @@ import {
   VFX_DOCK_MIN_WIDTH,
 } from '@/components/organisms/VfxDock'
 import { getPreference } from '@jade/lib/preferenceStore'
-import { applySavedSyntaxColors } from '@/jade/applySavedSyntaxColors'
+import { refreshJadeSurfaceTheme } from '@/core/jadeSurfaceTheme'
 import { pushCodeRecentFile, readCodeRecentFiles } from '@/jade/codeRecentFiles'
 import {
   NodeInstanceStringPicker,
@@ -932,7 +932,7 @@ function App() {
     }
 
     void loadTooltips()
-    void applySavedSyntaxColors()
+    void refreshJadeSurfaceTheme()
   }, [])
 
   const persistConvertedStructurePack = useCallback(

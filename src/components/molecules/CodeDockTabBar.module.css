@@ -1,4 +1,3 @@
-/* Alinhado com CodeDockTabBar — abas do editor de código */
 .bar {
   box-sizing: border-box;
   display: flex;
@@ -10,13 +9,6 @@
   padding: 2px 4px;
   overflow-x: auto;
   scrollbar-width: thin;
-}
-
-.barAttached {
-  padding: 2px 4px 0;
-  background: transparent;
-  border: none;
-  border-radius: 0;
 }
 
 .tab {

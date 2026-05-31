@@ -161,6 +161,7 @@ import {
   ELEMENT_MENU_TRIGGER_ATTR,
 } from '@/core/canvasContextMenuAttributes'
 import { buildContextMenuItems } from '@/core/canvasContextMenuItems'
+import { useJadeSurfaceTheme } from '@/hooks/useJadeSurfaceTheme'
 import { LangId } from '@/core/language/languageIds'
 import { useLanguage } from '@/language/LanguageProvider'
 import {
@@ -1632,6 +1633,8 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     anchor: CanvasContextMenuAnchor
     target: CanvasContextTarget
   } | null>(null)
+  const { themeEnabled: jadeThemeEnabled, syntaxEnabled: jadeSyntaxEnabled, toggleTheme, toggleSyntax } =
+    useJadeSurfaceTheme()
   const [viewportNavigateMode, setViewportNavigateMode] = useState(false)
   const [localToolbarVisibility, setLocalToolbarVisibility] = useState<CanvasToolbarVisibility>(
     () => DEFAULT_CANVAS_TOOLBAR_VISIBILITY,
@@ -3406,6 +3409,8 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       canSyncNodeToCode,
       primarySelectedNodeId: selectedNodeId,
       tr: (id, fallback, vars) => t(id, fallback, vars),
+      jadeThemeEnabled,
+      jadeSyntaxEnabled,
     })
   }, [
     canRedo,
@@ -3432,6 +3437,8 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     onPreviewNodeVfx,
     onSyncNodeValueToCode,
     canSyncNodeToCode,
+    jadeThemeEnabled,
+    jadeSyntaxEnabled,
   ])
 
   const runContextMenuAction = useCallback(
@@ -3552,6 +3559,12 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
           if (target.type === 'node') {
             onToggleStructureCardParamsExpanded?.(target.nodeId)
           }
+          break
+        case 'surface.toggleJadeTheme':
+          void toggleTheme()
+          break
+        case 'surface.toggleJadeSyntax':
+          void toggleSyntax()
           break
         case 'node.hideLinkedChildNodes':
           if (target.type === 'node') {
@@ -3859,6 +3872,8 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       scene,
       schemaBaseParameterCatalogBySchemaId,
       selectedNodeIds,
+      toggleTheme,
+      toggleSyntax,
     ],
   )
 
@@ -4462,6 +4477,10 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
                 onStructureCardResize={({ width, positionX }) =>
                   onSetStructureCardWidth?.(canvasNode.id, width, positionX)
                 }
+                onSelect={(event) => onSelectNode(canvasNode.id, { additive: Boolean(event?.shiftKey) })}
+                onStartDrag={
+                  nodeLocked ? undefined : (event) => startNodeDrag(event, canvasNode)
+                }
               />
             ) : canvasNode.blockViewActive && canvasNode.blockStructure ? (
               <BlockCard
@@ -4521,6 +4540,10 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
                 structureCardResizeModifierActive={structureCardResizeModifierActive}
                 onStructureCardResize={({ width, positionX }) =>
                   onSetStructureCardWidth?.(canvasNode.id, width, positionX)
+                }
+                onSelect={(event) => onSelectNode(canvasNode.id, { additive: Boolean(event?.shiftKey) })}
+                onStartDrag={
+                  nodeLocked ? undefined : (event) => startNodeDrag(event, canvasNode)
                 }
               />
             ) : (

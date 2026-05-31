@@ -2,7 +2,7 @@
   flex-shrink: 0;
   font-size: 9px;
   font-weight: 500;
-  color: rgb(255 255 255 / 38%);
+  color: var(--vfx-text-faint);
   text-transform: none;
   letter-spacing: 0;
 }
@@ -44,7 +44,7 @@
   margin: 0 0 4px;
   font-size: 10px;
   font-weight: 600;
-  color: rgb(255 255 255 / 55%);
+  color: var(--vfx-text-muted);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
@@ -53,7 +53,7 @@
   width: 100%;
   padding: 5px 6px;
   font-size: 11px;
-  color: rgb(255 255 255 / 72%);
+  color: var(--vfx-text-dim);
   text-align: left;
   cursor: pointer;
   background: transparent;
@@ -62,7 +62,7 @@
 }
 
 .championBtn:hover {
-  background: rgb(255 255 255 / 6%);
+  background: var(--vfx-chrome-bg);
 }
 
 .championBtnConverted {
@@ -71,9 +71,9 @@
 }
 
 .championBtnActive {
-  color: rgb(200 235 255 / 95%);
-  background: rgb(60 140 220 / 14%);
-  border-color: rgb(80 160 255 / 28%);
+  color: var(--vfx-title-color);
+  background: var(--vfx-accent-bg-active);
+  border-color: var(--vfx-preview-border);
 }
 
 .scrub {
@@ -85,7 +85,7 @@
   margin: 0;
   font-size: 10px;
   font-variant-numeric: tabular-nums;
-  color: rgb(255 255 255 / 45%);
+  color: var(--vfx-text-muted);
 }
 
 .error {
@@ -99,7 +99,7 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
-  background: rgb(12 14 18 / 98%);
+  background: var(--vfx-panel-bg);
   border-left: 1px solid var(--color-border-soft);
 }
 
@@ -108,7 +108,7 @@
   grid-template-columns: 1fr 1fr;
   gap: 0;
   overflow: hidden;
-  border: 1px solid rgb(255 255 255 / 12%);
+  border: 1px solid var(--vfx-chrome-bg-hover);
   border-radius: 4px;
 }
 
@@ -116,17 +116,17 @@
   padding: 6px 8px;
   font-size: 10px;
   line-height: 1.25;
-  color: rgb(255 255 255 / 62%);
+  color: var(--vfx-text-dim);
   text-align: center;
   cursor: pointer;
-  background: rgb(255 255 255 / 4%);
+  background: var(--vfx-chrome-bg-soft);
   border: none;
   border-radius: 0;
 }
 
 .poseToggleBtn:hover {
-  color: rgb(255 255 255 / 82%);
-  background: rgb(255 255 255 / 8%);
+  color: var(--vfx-text-strong);
+  background: var(--vfx-chrome-bg-mid);
 }
 
 .poseToggleBtnActive {
@@ -135,5 +135,5 @@
 }
 
 .poseToggleBtn + .poseToggleBtn {
-  border-left: 1px solid rgb(255 255 255 / 10%);
+  border-left: 1px solid var(--vfx-chrome-border);
 }

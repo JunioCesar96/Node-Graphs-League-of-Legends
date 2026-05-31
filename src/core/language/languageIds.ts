@@ -450,6 +450,7 @@ export const LangId = {
   VfxPreview3dCtxRotateZ: 437,
   VfxPreview3dCtxStopRotation: 438,
   GraphCtxViewBlockCode: 439,
+  GraphCtxViewGroupCode: 481,
   GroupInspectorTitle: 440,
   GroupInspectorDefaultEyebrow: 441,
   GroupInspectorEmptyHint: 442,
@@ -491,6 +492,9 @@ export const LangId = {
   CtxExpandStructureCardParams: 478,
   CtxCollapseStructureCardParams: 479,
   CtxStructureCardResizeHint: 480,
+  CtxThemeSubmenu: 482,
+  CtxApplyJadeTheme: 484,
+  CtxApplyJadeSyntax: 485,
 } as const
 
 export type LangIdValue = (typeof LangId)[keyof typeof LangId]

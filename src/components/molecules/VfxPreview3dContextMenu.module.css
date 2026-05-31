@@ -5,7 +5,7 @@
   gap: var(--space-1);
   min-width: 196px;
   padding: var(--space-2);
-  background: rgb(37 37 38 / 96%);
+  background: var(--window-bg, rgb(37 37 38 / 96%));
   border: 1px solid var(--color-border-soft);
   border-radius: var(--radius-control);
   box-shadow: 0 18px 50px rgb(0 0 0 / 32%);
@@ -17,7 +17,7 @@
   padding: 0 var(--space-1);
   font-size: 10px;
   font-weight: 600;
-  color: rgb(126 212 255 / 90%);
+  color: var(--vfx-accent-text-readout);
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
@@ -38,12 +38,12 @@
 
 .menu button:hover {
   color: var(--color-text-primary);
-  background: rgb(255 255 255 / 5%);
+  background: var(--vfx-resize-handle-bg);
   border-color: var(--color-border-soft);
 }
 
 .menu button[data-active='true'] {
-  color: rgb(126 212 255 / 95%);
+  color: var(--vfx-accent-text-strong);
   background: rgb(126 212 255 / 10%);
   border-color: rgb(126 212 255 / 28%);
 }

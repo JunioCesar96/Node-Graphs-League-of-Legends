@@ -1,0 +1,77 @@
+.panel {
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: rgb(8 12 18 / 88%);
+  border: 1px solid var(--vfx-chrome-bg-mid);
+  border-radius: 8px;
+  backdrop-filter: blur(8px);
+}
+
+.panelTopLeft {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  max-width: min(220px, calc(100% - 16px));
+}
+
+.panelBottomRight {
+  position: absolute;
+  right: 10px;
+  bottom: 8px;
+  max-width: min(200px, calc(100% - 16px));
+}
+
+.head {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  width: 100%;
+  padding: 5px 8px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--vfx-accent-text-readout);
+  text-align: left;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  border-radius: 8px 8px 0 0;
+}
+
+.head:hover {
+  background: var(--vfx-resize-handle-bg);
+}
+
+.chevron {
+  display: inline-block;
+  flex-shrink: 0;
+  width: 0;
+  height: 0;
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  border-left: 5px solid var(--vfx-text-muted);
+  transition: transform 0.15s ease;
+}
+
+.chevron[data-open='1'] {
+  transform: rotate(90deg);
+}
+
+.title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 0 8px 6px;
+  font-size: 10px;
+  color: var(--vfx-text-dim);
+}

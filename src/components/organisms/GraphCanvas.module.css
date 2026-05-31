@@ -8,11 +8,11 @@
   padding: var(--space-4);
   overflow: hidden;
   background:
-    linear-gradient(rgb(255 255 255 / 4%) 1px, transparent 1px),
-    linear-gradient(90deg, rgb(255 255 255 / 4%) 1px, transparent 1px),
-    radial-gradient(circle at 18% 22%, rgb(76 175 80 / 10%), transparent 18rem),
-    radial-gradient(circle at 84% 70%, rgb(255 193 7 / 9%), transparent 22rem),
-    rgb(0 0 0 / 16%);
+    linear-gradient(var(--canvas-grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--canvas-grid-line) 1px, transparent 1px),
+    radial-gradient(circle at 18% 22%, var(--canvas-grid-glow-a), transparent 18rem),
+    radial-gradient(circle at 84% 70%, var(--canvas-grid-glow-b), transparent 22rem),
+    var(--canvas-grid-base);
   background-size: 32px 32px, 32px 32px, auto, auto, auto;
   border: 1px solid var(--color-border-soft);
   border-radius: 28px;
@@ -30,10 +30,10 @@
   flex: 1;
   min-height: 0 !important;
   background:
-    linear-gradient(rgb(255 255 255 / 4%) 1px, transparent 1px),
-    linear-gradient(90deg, rgb(255 255 255 / 4%) 1px, transparent 1px),
-    radial-gradient(circle at 18% 22%, rgb(76 175 80 / 10%), transparent 18rem),
-    radial-gradient(circle at 84% 70%, rgb(255 193 7 / 9%), transparent 22rem),
+    linear-gradient(var(--canvas-grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--canvas-grid-line) 1px, transparent 1px),
+    radial-gradient(circle at 18% 22%, var(--canvas-grid-glow-a), transparent 18rem),
+    radial-gradient(circle at 84% 70%, var(--canvas-grid-glow-b), transparent 22rem),
     transparent;
   background-size: 32px 32px, 32px 32px, auto, auto;
   border: none;
@@ -94,6 +94,33 @@
   filter: drop-shadow(0 0 6px rgb(255 193 7 / 40%));
 }
 
+.connectionBlock {
+  fill: none;
+  stroke: var(--block-slot-out);
+  stroke-linecap: round;
+  stroke-width: 2;
+  pointer-events: none;
+  filter: drop-shadow(0 0 8px rgb(64 255 86 / 28%));
+}
+
+.connectionBlockHalo {
+  fill: none;
+  stroke: rgb(64 255 86 / 12%);
+  stroke-linecap: round;
+  stroke-width: 10;
+  pointer-events: none;
+}
+
+.connectionBlockDraft {
+  fill: none;
+  stroke: var(--block-slot-out);
+  stroke-dasharray: 11 13;
+  stroke-linecap: round;
+  stroke-width: 2;
+  pointer-events: none;
+  opacity: 0.82;
+}
+
 .connectionHit:active {
   cursor: grabbing;
 }
@@ -108,13 +135,12 @@
   outline-offset: 8px;
   touch-action: none;
   transition:
-    filter 160ms ease,
     outline-color 160ms ease,
     transform 160ms ease;
 }
 
 .node:hover {
-  filter: brightness(1.08);
+  filter: brightness(1.06);
 }
 
 .node:focus-visible {
@@ -123,13 +149,18 @@
 
 .nodeSelected {
   z-index: 4;
-  filter: drop-shadow(0 0 26px rgb(255 193 7 / 24%));
   outline-color: var(--port-child);
   transform: translateY(-2px);
 }
 
 .nodeWirelessLinked {
   outline-color: var(--syntax-property);
+}
+
+.nodeLinkDropTarget {
+  outline: 2px solid var(--color-accent, #4fc3f7);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgb(79 195 247 / 22%);
 }
 
 .nodeCompatibleTarget {
@@ -177,7 +208,7 @@
   color: var(--color-text-muted);
   font-family: var(--font-data);
   font-size: 0.72rem;
-  background: rgb(37 37 38 / 82%);
+  background: color-mix(in srgb, var(--color-node-surface) 82%, transparent);
   border: 1px solid var(--color-border-soft);
   border-radius: 999px;
   backdrop-filter: blur(12px);
@@ -194,7 +225,7 @@
   color: var(--color-text-secondary);
   font-family: var(--font-data);
   font-size: 0.72rem;
-  background: rgb(37 37 38 / 86%);
+  background: color-mix(in srgb, var(--color-node-surface) 86%, transparent);
   border: 1px solid var(--color-border-soft);
   border-radius: 999px;
   backdrop-filter: blur(12px);
@@ -207,7 +238,7 @@
   height: 30px;
   padding: 0 var(--space-2);
   color: var(--color-text-primary);
-  background: rgb(255 255 255 / 5%);
+  background: color-mix(in srgb, var(--color-text-primary) 5%, transparent);
   border: 1px solid transparent;
   border-radius: 999px;
 }
