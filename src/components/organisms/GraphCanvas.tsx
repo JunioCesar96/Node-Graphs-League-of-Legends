@@ -7,6 +7,8 @@ import { SceneCameraPanel } from '@/components/molecules/SceneCameraPanel'
 import { AddNodePalette } from '@/components/organisms/AddNodePalette'
 import { RitualNeekoStagingPreview } from '@/components/molecules/RitualNeekoStagingPreview'
 import { NodeCard } from '@/components/organisms/NodeCard'
+import { BlockCard } from '@/components/organisms/BlockCard'
+import { GroupCard } from '@/components/organisms/GroupCard'
 import { useRitualDragOptional } from '@/ritualDrag/RitualDragContext'
 import { useRitualDragCanvasDrop } from '@/hooks/useRitualDragCanvasDrop'
 import type { CanvasConnection, CanvasNode, CanvasPosition, CanvasScene, SceneCamera } from '@/core/canvasScene'
@@ -26,6 +28,31 @@ import {
   type WirelessPortPulseTarget,
   type WirelessPeerHoverPayload,
 } from '@/core/connectionDisplay'
+import {
+  buildBlockWirelessDisplayByNode,
+  type BlockSlotWirelessLink,
+} from '@/core/blockConnectionDisplay'
+import {
+  buildGroupWirelessDisplayByNode,
+  type GroupSlotWirelessLink,
+} from '@/core/groupConnectionDisplay'
+import { resolveBlockCardWidth, resolveGroupCardWidth } from '@/core/structureCardLayout'
+import {
+  createBlockDraftConnectionPath,
+  estimateBlockCardHeight,
+  findBlockSlotAtPoint,
+  isBlockSlotConnection,
+  resolveBlockConnectionPath,
+  resolveBlockSlotCanvasPoint,
+} from '@/core/blockSlotConnections'
+import {
+  createGroupDraftConnectionPath,
+  estimateGroupCardHeight,
+  findGroupSlotAtPoint,
+  isGroupSlotConnection,
+  resolveGroupConnectionPath,
+  resolveGroupSlotCanvasPoint,
+} from '@/core/groupSlotConnections'
 import {
   findConnectionTargetForSlot,
   getNodesByCollectionType,
@@ -244,6 +271,8 @@ type GraphCanvasProps = {
   onCreateRootNode: (schema: NodeSchemaDefinition, position?: CanvasPosition) => void
   onDeleteNodeIds?: (nodeIds: string[]) => void
   onToggleNodeBodyCollapsed?: (nodeId: string) => void
+  onToggleStructureCardParamsExpanded?: (nodeId: string) => void
+  onSetStructureCardWidth?: (nodeId: string, width: number, positionX?: number) => void
   onSetAllNodesBodyCollapsed?: (collapsed: boolean) => void
   onToggleNodeCardSection?: (nodeId: string, sectionId: NodeCardSectionId) => void
   onSetNodeCardSectionOrder?: (nodeId: string, sectionId: NodeCardSectionId, oneBasedIndex: number) => void
@@ -351,8 +380,30 @@ type GraphCanvasProps = {
   selectedNodeId: string
   /** Conteúdo extra dentro da régua aria-label «Canvas viewport controls» (ex.: inspector acoplado). */
   viewportControlsSlot?: ReactNode
+  /** Inspetor de Bloco acoplado à barra da vista. */
+  blockInspectorControlsSlot?: ReactNode
+  /** Inspetor de Grupo acoplado à barra da vista. */
+  groupInspectorControlsSlot?: ReactNode
   /** Painel «Nodes em cena» acoplado à barra (cápsula / chrome). */
   sceneNodesControlsSlot?: ReactNode
+  onUpdateBlockParameter?: (canvasNodeId: string, paramId: string, value: string) => void
+  onConnectBlockSlots?: (
+    fromNodeId: string,
+    fromBlockSlotId: string,
+    fromBlockParameterId: string | undefined,
+    toNodeId: string,
+    toBlockSlotId: string,
+    toBlockParameterId: string | undefined,
+  ) => void
+  onUpdateGroupParameter?: (canvasNodeId: string, paramId: string, value: string) => void
+  onConnectGroupSlots?: (
+    fromNodeId: string,
+    fromGroupSlotId: string,
+    fromGroupParameterId: string | undefined,
+    toNodeId: string,
+    toGroupSlotId: string,
+    toGroupParameterId: string | undefined,
+  ) => void
   /** Toast quando o utilizador tenta editar um nó travado. */
   onNodeLockedInteraction?: () => void
   /** Overlay de visibilidade/lock (sincronizado com «Nodes em cena»). */
@@ -391,6 +442,8 @@ type GraphCanvasProps = {
   onGraphsToCode?: () => void
   /** Pré-visualiza subárvore do nó no CodeDock. */
   onViewNodeCode?: (nodeId: string) => void
+  onViewNodeBlockCode?: (nodeId: string) => void
+  onViewNodeGroupCode?: (nodeId: string) => void
   /** Abre VFX Dock com ritual da subárvore do nó. */
   onPreviewNodeVfx?: (nodeId: string) => void
   /** Sincroniza subárvore do nó seleccionado na aba activa do CodeDock. */
@@ -457,6 +510,20 @@ type OutputWireDragSession = {
   originClientX: number
   originClientY: number
   pointerId: number
+}
+
+type PendingBlockLink = {
+  fromNodeId: string
+  fromBlockSlotId: string
+  fromBlockParameterId?: string
+  draftAnchor: { sx: number; sy: number }
+}
+
+type PendingGroupLink = {
+  fromNodeId: string
+  fromGroupSlotId: string
+  fromGroupParameterId?: string
+  draftAnchor: { sx: number; sy: number }
 }
 
 type GraphDropLinkContext = {
@@ -999,6 +1066,14 @@ function getInternalStructureSectionHeight(_node: CanvasNode) {
 }
 
 function getNodeCardHeight(node: CanvasNode, connections: readonly CanvasConnection[]) {
+  if (node.groupViewActive && node.groupStructure) {
+    return estimateGroupCardHeight(node.groupStructure)
+  }
+
+  if (node.blockViewActive && node.blockStructure) {
+    return estimateBlockCardHeight(node.blockStructure)
+  }
+
   if (isCanvasNodeBodyCollapsed(node)) {
     return HEADER_HEIGHT
   }
@@ -1356,6 +1431,13 @@ function normalizeMarqueeRect(start: CanvasPosition, end: CanvasPosition) {
   }
 }
 
+function getCanvasNodeWidth(node: CanvasNode): number {
+  if (node.groupViewActive && node.groupStructure) {
+    return resolveGroupCardWidth(node)
+  }
+  return node.blockViewActive && node.blockStructure ? resolveBlockCardWidth(node) : CARD_WIDTH
+}
+
 function intersectsCanvasNodeRect(
   marquee: { height: number; width: number; x: number; y: number },
   node: CanvasNode,
@@ -1363,7 +1445,7 @@ function intersectsCanvasNodeRect(
 ): boolean {
   const nodeRect = {
     height: getNodeCardHeight(node, connections),
-    width: CARD_WIDTH,
+    width: getCanvasNodeWidth(node),
     x: node.position.x,
     y: node.position.y,
   }
@@ -1415,6 +1497,8 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     onCreateRootNode,
     onDeleteNodeIds,
     onToggleNodeBodyCollapsed,
+    onToggleStructureCardParamsExpanded,
+    onSetStructureCardWidth,
     onSetAllNodesBodyCollapsed,
     onToggleNodeCardSection,
     onSetNodeCardSectionOrder,
@@ -1455,13 +1539,21 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     selectedNodeIds,
     selectedNodeId,
     viewportControlsSlot,
+    blockInspectorControlsSlot,
+    groupInspectorControlsSlot,
     sceneNodesControlsSlot,
+    onUpdateBlockParameter,
+    onConnectBlockSlots,
+    onUpdateGroupParameter,
+    onConnectGroupSlots,
     onNodeLockedInteraction,
     onPatchNodeSceneOverlay,
     onSceneNodesPanelRequest,
     onExtractSceneNodesStatePreset,
     onGraphsToCode,
     onViewNodeCode,
+    onViewNodeBlockCode,
+    onViewNodeGroupCode,
     onPreviewNodeVfx,
     onSyncNodeValueToCode,
     canSyncNodeToCode = false,
@@ -1479,6 +1571,14 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
 ) {
   const { t } = useLanguage()
   const [pendingLink, setPendingLink] = useState<PendingLink | null>(null)
+  const [pendingBlockLink, setPendingBlockLink] = useState<PendingBlockLink | null>(null)
+  const pendingBlockLinkRef = useRef<PendingBlockLink | null>(null)
+  const [blockLinkDraftPoint, setBlockLinkDraftPoint] = useState<PanPoint | null>(null)
+  const [blockWirelessPulse, setBlockWirelessPulse] = useState<{ nodeId: string; slotId: string } | null>(null)
+  const [pendingGroupLink, setPendingGroupLink] = useState<PendingGroupLink | null>(null)
+  const pendingGroupLinkRef = useRef<PendingGroupLink | null>(null)
+  const [groupLinkDraftPoint, setGroupLinkDraftPoint] = useState<PanPoint | null>(null)
+  const [groupWirelessPulse, setGroupWirelessPulse] = useState<{ nodeId: string; slotId: string } | null>(null)
   const [collectionTypeLinkMenu, setCollectionTypeLinkMenu] = useState<CollectionTypeLinkMenuState | null>(
     null,
   )
@@ -1526,6 +1626,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     null,
   )
   const [glueNodeId, setGlueNodeId] = useState<string | null>(null)
+  const [structureCardResizeModifierActive, setStructureCardResizeModifierActive] = useState(false)
   const [wirelessHighlightNodeId, setWirelessHighlightNodeId] = useState<string | null>(null)
   const [contextMenu, setContextMenu] = useState<{
     anchor: CanvasContextMenuAnchor
@@ -1633,6 +1734,16 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     [scene.connections, scene.nodes],
   )
 
+  const blockWirelessDisplayByNode = useMemo(
+    () => buildBlockWirelessDisplayByNode(scene.connections, scene.nodes),
+    [scene.connections, scene.nodes],
+  )
+
+  const groupWirelessDisplayByNode = useMemo(
+    () => buildGroupWirelessDisplayByNode(scene.connections, scene.nodes),
+    [scene.connections, scene.nodes],
+  )
+
   const handleWirelessPeerHoverStart = useCallback(
     (payload: WirelessPeerHoverPayload) => {
       setWirelessHighlightNodeId(payload.peerNodeId)
@@ -1689,6 +1800,8 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     return scene.connections
       .filter(
         (connection) =>
+          !isBlockSlotConnection(connection) &&
+          !isGroupSlotConnection(connection) &&
           connection.routing !== 'wireless' &&
           visibleNodeIds.has(connection.fromNodeId) &&
           visibleNodeIds.has(connection.toNodeId),
@@ -1696,6 +1809,30 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       .map((connection) => resolveConnectionPath(connection, scene.nodes, scene.connections, portAnchors))
       .filter((path): path is ConnectionPath => path !== null)
   }, [portAnchors, scene.connections, scene.nodes, visibleNodeIds])
+
+  const blockConnectionPaths = useMemo(() => {
+    return scene.connections
+      .filter(
+        (connection) =>
+          isBlockSlotConnection(connection) &&
+          visibleNodeIds.has(connection.fromNodeId) &&
+          visibleNodeIds.has(connection.toNodeId),
+      )
+      .map((connection) => resolveBlockConnectionPath(connection, scene.nodes))
+      .filter((path): path is NonNullable<ReturnType<typeof resolveBlockConnectionPath>> => path !== null)
+  }, [scene.connections, scene.nodes, visibleNodeIds])
+
+  const groupConnectionPaths = useMemo(() => {
+    return scene.connections
+      .filter(
+        (connection) =>
+          isGroupSlotConnection(connection) &&
+          visibleNodeIds.has(connection.fromNodeId) &&
+          visibleNodeIds.has(connection.toNodeId),
+      )
+      .map((connection) => resolveGroupConnectionPath(connection, scene.nodes))
+      .filter((path): path is NonNullable<ReturnType<typeof resolveGroupConnectionPath>> => path !== null)
+  }, [scene.connections, scene.nodes, visibleNodeIds])
 
   const paletteSchemas = useMemo(() => {
     if (!linkDropContext) {
@@ -1770,6 +1907,244 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     setPendingLink(null)
     setLinkDraftPoint(null)
   }, [])
+
+  const endBlockLinkDraft = useCallback(() => {
+    pendingBlockLinkRef.current = null
+    setPendingBlockLink(null)
+    setBlockLinkDraftPoint(null)
+  }, [])
+
+  const endGroupLinkDraft = useCallback(() => {
+    pendingGroupLinkRef.current = null
+    setPendingGroupLink(null)
+    setGroupLinkDraftPoint(null)
+  }, [])
+
+  const beginBlockOutputLink = useCallback(
+    (fromNodeId: string, fromBlockSlotId: string, fromBlockParameterId?: string) => {
+      endLinkDraft()
+      endGroupLinkDraft()
+      const fromNode = scene.nodes.find((node) => node.id === fromNodeId)
+      const fromWidth = fromNode ? resolveBlockCardWidth(fromNode) : undefined
+      const anchor = fromNode
+        ? resolveBlockSlotCanvasPoint(
+            fromNode,
+            fromBlockSlotId,
+            'output',
+            fromWidth,
+          )
+        : null
+      const next: PendingBlockLink = {
+        fromNodeId,
+        fromBlockSlotId,
+        fromBlockParameterId,
+        draftAnchor: { sx: anchor?.x ?? 0, sy: anchor?.y ?? 0 },
+      }
+      pendingBlockLinkRef.current = next
+      setPendingBlockLink(next)
+      setBlockLinkDraftPoint(anchor ? { x: anchor.x, y: anchor.y } : null)
+    },
+    [endGroupLinkDraft, endLinkDraft, scene.nodes],
+  )
+
+  const beginGroupOutputLink = useCallback(
+    (fromNodeId: string, fromGroupSlotId: string, fromGroupParameterId?: string) => {
+      endLinkDraft()
+      endBlockLinkDraft()
+      const fromNode = scene.nodes.find((node) => node.id === fromNodeId)
+      const fromWidth = fromNode ? resolveGroupCardWidth(fromNode) : undefined
+      const anchor = fromNode
+        ? resolveGroupSlotCanvasPoint(
+            fromNode,
+            fromGroupSlotId,
+            'output',
+            fromWidth,
+          )
+        : null
+      const next: PendingGroupLink = {
+        fromNodeId,
+        fromGroupSlotId,
+        fromGroupParameterId,
+        draftAnchor: { sx: anchor?.x ?? 0, sy: anchor?.y ?? 0 },
+      }
+      pendingGroupLinkRef.current = next
+      setPendingGroupLink(next)
+      setGroupLinkDraftPoint(anchor ? { x: anchor.x, y: anchor.y } : null)
+    },
+    [endBlockLinkDraft, endLinkDraft, scene.nodes],
+  )
+
+  const resolveBlockLinkDrop = useCallback(
+    (clientX: number, clientY: number) => {
+      const pending = pendingBlockLinkRef.current
+      if (!pending || !onConnectBlockSlots) {
+        return
+      }
+
+      const canvasEl = canvasRef.current
+      let toNodeId: string | null = null
+      let toBlockSlotId: string | null = null
+
+      if (canvasEl) {
+        const point = graphClientToPosition(canvasEl, scale, clientX, clientY)
+        const hit = findBlockSlotAtPoint(scene.nodes, point)
+        if (hit && hit.direction === 'input' && hit.nodeId !== pending.fromNodeId) {
+          toNodeId = hit.nodeId
+          toBlockSlotId = hit.slotId
+        }
+      }
+
+      if (!toNodeId || !toBlockSlotId) {
+        const el = document.elementFromPoint(clientX, clientY)
+        const slotEl = el instanceof Element ? el.closest('[data-block-slot-id]') : null
+        if (slotEl instanceof HTMLElement) {
+          const direction = slotEl.getAttribute('data-block-slot-direction')
+          toNodeId = slotEl.getAttribute('data-block-slot-node-id')
+          toBlockSlotId = slotEl.getAttribute('data-block-slot-id')
+          if (direction !== 'input' || !toNodeId || !toBlockSlotId || toNodeId === pending.fromNodeId) {
+            endBlockLinkDraft()
+            return
+          }
+        } else {
+          endBlockLinkDraft()
+          return
+        }
+      }
+
+      const paramMatch = /^block-param:(.+):input$/.exec(toBlockSlotId)
+      onConnectBlockSlots(
+        pending.fromNodeId,
+        pending.fromBlockSlotId,
+        pending.fromBlockParameterId,
+        toNodeId,
+        toBlockSlotId,
+        paramMatch?.[1],
+      )
+      endBlockLinkDraft()
+      onSelectNode(toNodeId)
+    },
+    [endBlockLinkDraft, onConnectBlockSlots, onSelectNode, scale, scene.nodes],
+  )
+
+  const resolveGroupLinkDrop = useCallback(
+    (clientX: number, clientY: number) => {
+      const pending = pendingGroupLinkRef.current
+      if (!pending || !onConnectGroupSlots) {
+        return
+      }
+
+      const canvasEl = canvasRef.current
+      let toNodeId: string | null = null
+      let toGroupSlotId: string | null = null
+
+      if (canvasEl) {
+        const point = graphClientToPosition(canvasEl, scale, clientX, clientY)
+        const hit = findGroupSlotAtPoint(scene.nodes, point)
+        if (hit && hit.direction === 'input' && hit.nodeId !== pending.fromNodeId) {
+          toNodeId = hit.nodeId
+          toGroupSlotId = hit.slotId
+        }
+      }
+
+      if (!toNodeId || !toGroupSlotId) {
+        const el = document.elementFromPoint(clientX, clientY)
+        const slotEl = el instanceof Element ? el.closest('[data-group-slot-id]') : null
+        if (slotEl instanceof HTMLElement) {
+          const direction = slotEl.getAttribute('data-group-slot-direction')
+          toNodeId = slotEl.getAttribute('data-group-slot-node-id')
+          toGroupSlotId = slotEl.getAttribute('data-group-slot-id')
+          if (direction !== 'input' || !toNodeId || !toGroupSlotId || toNodeId === pending.fromNodeId) {
+            endGroupLinkDraft()
+            return
+          }
+        } else {
+          endGroupLinkDraft()
+          return
+        }
+      }
+
+      const paramMatch = /^group-param:(.+):input$/.exec(toGroupSlotId)
+      onConnectGroupSlots(
+        pending.fromNodeId,
+        pending.fromGroupSlotId,
+        pending.fromGroupParameterId,
+        toNodeId,
+        toGroupSlotId,
+        paramMatch?.[1],
+      )
+      endGroupLinkDraft()
+      onSelectNode(toNodeId)
+    },
+    [endGroupLinkDraft, onConnectGroupSlots, onSelectNode, scale, scene.nodes],
+  )
+
+  useEffect(() => {
+    if (!pendingBlockLink) {
+      return
+    }
+
+    const onMove = (event: globalThis.PointerEvent) => {
+      const canvasEl = canvasRef.current
+      if (!canvasEl) {
+        return
+      }
+      setBlockLinkDraftPoint(graphClientToPosition(canvasEl, scale, event.clientX, event.clientY))
+    }
+
+    window.addEventListener('pointermove', onMove)
+    return () => window.removeEventListener('pointermove', onMove)
+  }, [pendingBlockLink, scale])
+
+  useEffect(() => {
+    if (!pendingGroupLink) {
+      return
+    }
+
+    const onMove = (event: globalThis.PointerEvent) => {
+      const canvasEl = canvasRef.current
+      if (!canvasEl) {
+        return
+      }
+      setGroupLinkDraftPoint(graphClientToPosition(canvasEl, scale, event.clientX, event.clientY))
+    }
+
+    window.addEventListener('pointermove', onMove)
+    return () => window.removeEventListener('pointermove', onMove)
+  }, [pendingGroupLink, scale])
+
+  const handleBlockSlotWirelessHoverStart = useCallback(
+    (_slotId: string, link: BlockSlotWirelessLink) => {
+      setWirelessHighlightNodeId(link.peerNodeId)
+      setBlockWirelessPulse({ nodeId: link.peerNodeId, slotId: link.peerSlotId })
+    },
+    [],
+  )
+
+  const handleBlockSlotWirelessHoverEnd = useCallback(() => {
+    setWirelessHighlightNodeId(null)
+    setBlockWirelessPulse(null)
+  }, [])
+
+  const handleGroupSlotWirelessHoverStart = useCallback(
+    (_slotId: string, link: GroupSlotWirelessLink) => {
+      setWirelessHighlightNodeId(link.peerNodeId)
+      setGroupWirelessPulse({ nodeId: link.peerNodeId, slotId: link.peerSlotId })
+    },
+    [],
+  )
+
+  const handleGroupSlotWirelessHoverEnd = useCallback(() => {
+    setWirelessHighlightNodeId(null)
+    setGroupWirelessPulse(null)
+  }, [])
+
+  useEffect(() => {
+    pendingBlockLinkRef.current = pendingBlockLink
+  }, [pendingBlockLink])
+
+  useEffect(() => {
+    pendingGroupLinkRef.current = pendingGroupLink
+  }, [pendingGroupLink])
 
   useEffect(() => {
     pendingLinkRef.current = pendingLink
@@ -2976,6 +3351,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     setViewportNavigateMode,
     onCloseCodePanelShortcut,
     onNeekoDropCode,
+    setStructureCardResizeModifierActive,
   })
 
   const contextMenuItems = useMemo(() => {
@@ -3023,6 +3399,8 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       sceneAnyNodeBodyCollapsed,
       onGraphsToCode,
       onViewNodeCode,
+      onViewNodeBlockCode,
+      onViewNodeGroupCode,
       onPreviewNodeVfx,
       onSyncNodeValueToCode,
       canSyncNodeToCode,
@@ -3049,6 +3427,8 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     viewportControlsSlot,
     onGraphsToCode,
     onViewNodeCode,
+    onViewNodeBlockCode,
+    onViewNodeGroupCode,
     onPreviewNodeVfx,
     onSyncNodeValueToCode,
     canSyncNodeToCode,
@@ -3168,6 +3548,11 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
             onToggleNodeBodyCollapsed?.(target.nodeId)
           }
           break
+        case 'node.toggleStructureCardParamsExpanded':
+          if (target.type === 'node') {
+            onToggleStructureCardParamsExpanded?.(target.nodeId)
+          }
+          break
         case 'node.hideLinkedChildNodes':
           if (target.type === 'node') {
             onHideLinkedChildNodes?.(target.nodeId)
@@ -3236,6 +3621,16 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
         case 'node.viewCode':
           if (target.type === 'node') {
             onViewNodeCode?.(target.nodeId)
+          }
+          break
+        case 'node.viewBlockCode':
+          if (target.type === 'node') {
+            onViewNodeBlockCode?.(target.nodeId)
+          }
+          break
+        case 'node.viewGroupCode':
+          if (target.type === 'node') {
+            onViewNodeGroupCode?.(target.nodeId)
           }
           break
         case 'node.previewVfx':
@@ -3433,10 +3828,13 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       onExtractSceneNodesStatePreset,
       onGraphsToCode,
       onViewNodeCode,
+      onViewNodeBlockCode,
+      onViewNodeGroupCode,
       onPreviewNodeVfx,
       onSyncNodeValueToCode,
       onSetAllNodesBodyCollapsed,
       onToggleNodeBodyCollapsed,
+      onToggleStructureCardParamsExpanded,
       onToggleNodeCardSection,
       onSetNodeCardBodyLayout,
       onRedo,
@@ -3674,6 +4072,12 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
           {toolbarVisibility.inspector && viewportControlsSlot ? (
             <div className={styles.controlsInspectorSlot}>{viewportControlsSlot}</div>
           ) : null}
+          {blockInspectorControlsSlot ? (
+            <div className={styles.controlsInspectorSlot}>{blockInspectorControlsSlot}</div>
+          ) : null}
+          {groupInspectorControlsSlot ? (
+            <div className={styles.controlsInspectorSlot}>{groupInspectorControlsSlot}</div>
+          ) : null}
         </div>
       </div>
 
@@ -3782,6 +4186,17 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
             >
               <path d="M 0 0 L 8 4 L 0 8 z" fill="var(--port-child)" />
             </marker>
+            <marker
+              id="connection-arrow-block"
+              markerHeight="8"
+              markerWidth="8"
+              orient="auto"
+              refX="6"
+              refY="4"
+              viewBox="0 0 8 8"
+            >
+              <path d="M 0 0 L 8 4 L 0 8 z" fill="var(--block-slot-out)" />
+            </marker>
           </defs>
 
           {connectionPaths.map((connection) => (
@@ -3820,6 +4235,82 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
               />
             </g>
           ))}
+          {blockConnectionPaths.map((connection) => (
+            <g key={connection.id}>
+              {onRemoveConnection || onCycleConnectionRouting ? (
+                <path
+                  aria-label={`Ligação bloco ${connection.id}`}
+                  className={styles.connectionHit}
+                  d={connection.d}
+                  data-canvas-wire="true"
+                  {...{ [CANVAS_CONNECTION_ID_ATTR]: connection.id }}
+                  onContextMenu={handleContextMenu}
+                  onPointerDown={(event) => {
+                    event.preventDefault()
+                    event.stopPropagation()
+
+                    if (event.ctrlKey || event.metaKey) {
+                      onRemoveConnection?.(connection.id)
+                      return
+                    }
+
+                    onCycleConnectionRouting?.(connection.id)
+                  }}
+                />
+              ) : null}
+              <path className={styles.connectionBlockHalo} d={connection.d} />
+              <path className={styles.connectionBlock} d={connection.d} markerEnd="url(#connection-arrow-block)" />
+            </g>
+          ))}
+          {groupConnectionPaths.map((connection) => (
+            <g key={connection.id}>
+              {onRemoveConnection || onCycleConnectionRouting ? (
+                <path
+                  aria-label={`Ligação grupo ${connection.id}`}
+                  className={styles.connectionHit}
+                  d={connection.d}
+                  data-canvas-wire="true"
+                  {...{ [CANVAS_CONNECTION_ID_ATTR]: connection.id }}
+                  onContextMenu={handleContextMenu}
+                  onPointerDown={(event) => {
+                    event.preventDefault()
+                    event.stopPropagation()
+
+                    if (event.ctrlKey || event.metaKey) {
+                      onRemoveConnection?.(connection.id)
+                      return
+                    }
+
+                    onCycleConnectionRouting?.(connection.id)
+                  }}
+                />
+              ) : null}
+              <path className={styles.connectionBlockHalo} d={connection.d} />
+              <path className={styles.connectionBlock} d={connection.d} markerEnd="url(#connection-arrow-block)" />
+            </g>
+          ))}
+          {pendingBlockLink && blockLinkDraftPoint ? (
+            <path
+              className={styles.connectionBlockDraft}
+              d={createBlockDraftConnectionPath(
+                pendingBlockLink.draftAnchor.sx,
+                pendingBlockLink.draftAnchor.sy,
+                blockLinkDraftPoint.x,
+                blockLinkDraftPoint.y,
+              )}
+            />
+          ) : null}
+          {pendingGroupLink && groupLinkDraftPoint ? (
+            <path
+              className={styles.connectionBlockDraft}
+              d={createGroupDraftConnectionPath(
+                pendingGroupLink.draftAnchor.sx,
+                pendingGroupLink.draftAnchor.sy,
+                groupLinkDraftPoint.x,
+                groupLinkDraftPoint.y,
+              )}
+            />
+          ) : null}
           {pendingLink && linkDraftPoint ? (
             <path
               className={styles.connectionDraft}
@@ -3857,6 +4348,9 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
 
           const nodeLocked = isNodeLocked(canvasNode)
           const isSelected = selectedNodeIds.includes(canvasNode.id)
+          const cardHandlesSelection =
+            (canvasNode.groupViewActive && !!canvasNode.groupStructure) ||
+            (canvasNode.blockViewActive && !!canvasNode.blockStructure)
           const pendingFromNode = pendingLink
             ? scene.nodes.find((node) => node.id === pendingLink.fromNodeId)
             : undefined
@@ -3880,11 +4374,13 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
             pendingLink.fromNodeId !== canvasNode.id &&
             !isCompatibleTarget
           const wirelessHighlighted = wirelessHighlightNodeId === canvasNode.id
+          const blockWirelessLinked = blockWirelessDisplayByNode.get(canvasNode.id)?.linked
+          const groupWirelessLinked = groupWirelessDisplayByNode.get(canvasNode.id)?.linked
           const linkDropHovered = ritualLinkDropHoverNodeId === canvasNode.id
           const classes = [
             styles.node,
-            isSelected ? styles.nodeSelected : '',
-            wirelessHighlighted ? styles.nodeWirelessLinked : '',
+            isSelected && !cardHandlesSelection ? styles.nodeSelected : '',
+            wirelessHighlighted || blockWirelessLinked || groupWirelessLinked ? styles.nodeWirelessLinked : '',
             isCompatibleTarget ? styles.nodeCompatibleTarget : '',
             isIncompatibleDuringLink ? styles.nodeIncompatibleTarget : '',
             linkDropHovered ? styles.nodeLinkDropTarget : '',
@@ -3907,6 +4403,127 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
                 top: `${canvasNode.position.y}px`,
               }}
             >
+              {canvasNode.groupViewActive && canvasNode.groupStructure ? (
+              <GroupCard
+                canvasNode={canvasNode}
+                scene={scene}
+                selected={isSelected}
+                interactionLocked={nodeLocked}
+                activeGroupSlotId={pendingGroupLink?.fromGroupSlotId}
+                blockWirelessDisplay={groupWirelessDisplayByNode.get(canvasNode.id)}
+                blockWirelessPulseSlotId={
+                  groupWirelessPulse?.nodeId === canvasNode.id ? groupWirelessPulse.slotId : undefined
+                }
+                onUpdateGroupParameter={(paramId, value) =>
+                  onUpdateGroupParameter?.(canvasNode.id, paramId, value)
+                }
+                onBlockOutputPointerDown={(paramId, slotId, event) => {
+                  event.stopPropagation()
+                  beginGroupOutputLink(canvasNode.id, slotId, paramId)
+                  event.currentTarget.setPointerCapture(event.pointerId)
+                }}
+                onBlockOutputPointerUp={(_paramId, _slotId, event) => {
+                  if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+                    event.currentTarget.releasePointerCapture(event.pointerId)
+                  }
+                  resolveGroupLinkDrop(event.clientX, event.clientY)
+                }}
+                onBlockOutputPointerMove={(_paramId, _slotId, event) => {
+                  const canvasEl = canvasRef.current
+                  if (!canvasEl) {
+                    return
+                  }
+                  setGroupLinkDraftPoint(
+                    graphClientToPosition(canvasEl, scale, event.clientX, event.clientY),
+                  )
+                }}
+                onBlockHeaderOutputPointerDown={(slotId, event) => {
+                  event.stopPropagation()
+                  beginGroupOutputLink(canvasNode.id, slotId)
+                  event.currentTarget.setPointerCapture(event.pointerId)
+                }}
+                onBlockHeaderOutputPointerUp={(_slotId, event) => {
+                  if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+                    event.currentTarget.releasePointerCapture(event.pointerId)
+                  }
+                  resolveGroupLinkDrop(event.clientX, event.clientY)
+                }}
+                onBlockHeaderInputPointerUp={(_slotId, event) => {
+                  resolveGroupLinkDrop(event.clientX, event.clientY)
+                }}
+                onBlockInputPointerUp={(_paramId, _slotId, event) => {
+                  resolveGroupLinkDrop(event.clientX, event.clientY)
+                }}
+                onGroupSlotWirelessHoverStart={handleGroupSlotWirelessHoverStart}
+                onGroupSlotWirelessHoverEnd={handleGroupSlotWirelessHoverEnd}
+                onGroupSlotCycleRouting={onCycleConnectionRouting}
+                canvasScale={scale}
+                structureCardResizeModifierActive={structureCardResizeModifierActive}
+                onStructureCardResize={({ width, positionX }) =>
+                  onSetStructureCardWidth?.(canvasNode.id, width, positionX)
+                }
+              />
+            ) : canvasNode.blockViewActive && canvasNode.blockStructure ? (
+              <BlockCard
+                canvasNode={canvasNode}
+                scene={scene}
+                selected={isSelected}
+                interactionLocked={nodeLocked}
+                activeBlockSlotId={pendingBlockLink?.fromBlockSlotId}
+                blockWirelessDisplay={blockWirelessDisplayByNode.get(canvasNode.id)}
+                blockWirelessPulseSlotId={
+                  blockWirelessPulse?.nodeId === canvasNode.id ? blockWirelessPulse.slotId : undefined
+                }
+                onUpdateBlockParameter={(paramId, value) =>
+                  onUpdateBlockParameter?.(canvasNode.id, paramId, value)
+                }
+                onBlockOutputPointerDown={(paramId, slotId, event) => {
+                  event.stopPropagation()
+                  beginBlockOutputLink(canvasNode.id, slotId, paramId)
+                  event.currentTarget.setPointerCapture(event.pointerId)
+                }}
+                onBlockOutputPointerUp={(_paramId, _slotId, event) => {
+                  if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+                    event.currentTarget.releasePointerCapture(event.pointerId)
+                  }
+                  resolveBlockLinkDrop(event.clientX, event.clientY)
+                }}
+                onBlockOutputPointerMove={(_paramId, _slotId, event) => {
+                  const canvasEl = canvasRef.current
+                  if (!canvasEl) {
+                    return
+                  }
+                  setBlockLinkDraftPoint(
+                    graphClientToPosition(canvasEl, scale, event.clientX, event.clientY),
+                  )
+                }}
+                onBlockHeaderOutputPointerDown={(slotId, event) => {
+                  event.stopPropagation()
+                  beginBlockOutputLink(canvasNode.id, slotId)
+                  event.currentTarget.setPointerCapture(event.pointerId)
+                }}
+                onBlockHeaderOutputPointerUp={(_slotId, event) => {
+                  if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+                    event.currentTarget.releasePointerCapture(event.pointerId)
+                  }
+                  resolveBlockLinkDrop(event.clientX, event.clientY)
+                }}
+                onBlockHeaderInputPointerUp={(_slotId, event) => {
+                  resolveBlockLinkDrop(event.clientX, event.clientY)
+                }}
+                onBlockInputPointerUp={(_paramId, _slotId, event) => {
+                  resolveBlockLinkDrop(event.clientX, event.clientY)
+                }}
+                onBlockSlotWirelessHoverStart={handleBlockSlotWirelessHoverStart}
+                onBlockSlotWirelessHoverEnd={handleBlockSlotWirelessHoverEnd}
+                onBlockSlotCycleRouting={onCycleConnectionRouting}
+                canvasScale={scale}
+                structureCardResizeModifierActive={structureCardResizeModifierActive}
+                onStructureCardResize={({ width, positionX }) =>
+                  onSetStructureCardWidth?.(canvasNode.id, width, positionX)
+                }
+              />
+            ) : (
               <NodeCard
                 activeOutputInternalStructureId={
                   pendingLink?.fromNodeId === canvasNode.id ? pendingLink.fromInternalStructureId : undefined
@@ -4081,6 +4698,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
                 }
                 outputSlotPeerActions={buildOutputSlotPeerActions(canvasNode.id)}
               />
+              )}
             </div>
           )
         })}

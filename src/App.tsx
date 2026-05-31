@@ -20,6 +20,7 @@ import {
   VFX_DOCK_MIN_WIDTH,
 } from '@/components/organisms/VfxDock'
 import { getPreference } from '@jade/lib/preferenceStore'
+import { applySavedSyntaxColors } from '@/jade/applySavedSyntaxColors'
 import { pushCodeRecentFile, readCodeRecentFiles } from '@/jade/codeRecentFiles'
 import {
   NodeInstanceStringPicker,
@@ -33,6 +34,9 @@ import { GraphCanvas } from '@/components/organisms/GraphCanvas'
 import { DEFAULT_CANVAS_TOOLBAR_VISIBILITY } from '@/core/canvasToolbarVisibility'
 import { ParameterValueLinkPicker } from '@/components/molecules/ParameterValueLinkPicker'
 import { NodeInspector } from '@/components/organisms/NodeInspector'
+import { BlockInspector } from '@/components/organisms/BlockInspector'
+import { GroupInspector } from '@/components/organisms/GroupInspector'
+import { blockTypeDefinitionsList } from '@/core/blockStructureRegistry'
 import { SceneNodesPanel, type SceneNodesPanelTab } from '@/components/organisms/SceneNodesPanel'
 import {
   filterRemovableNodeIds,
@@ -132,6 +136,8 @@ import {
 import { applyRitualSnippetScalarsToNode } from '@/core/applyRitualSnippetScalarsToNode'
 import {
   emitNodeRitualViewCodeText,
+  emitNodeBlockViewCodeText,
+  emitNodeGroupViewCodeText,
   syncNodeToBoundCodeRange,
   type NodeCodeEditorBinding,
 } from '@/core/nodeCodeEditorBinding'
@@ -214,6 +220,55 @@ function readRootSpacePx(variable: string): number {
   }
 
   return 0
+}
+
+type InspectorDockAnchor = {
+  clientX: number
+  clientY: number
+}
+
+function computeInspectorDockDefaultAnchor(
+  column: HTMLElement,
+  minimized: boolean,
+): { defaultRight: number; defaultTop: number } {
+  const col = column.getBoundingClientRect()
+  const narrow = typeof window !== 'undefined' && window.matchMedia('(max-width: 900px)').matches
+  const marginEdge = readRootSpacePx(narrow ? '--space-3' : '--space-5')
+
+  return {
+    defaultRight: col.right - marginEdge,
+    defaultTop: minimized
+      ? col.bottom - marginEdge - INSPECTOR_CHROME_STRIP_PX
+      : col.top + col.height - marginEdge - INSPECTOR_CHROME_STRIP_PX,
+  }
+}
+
+function computeInspectorDockOffsetFromPointer(
+  column: HTMLElement,
+  anchor: InspectorDockAnchor,
+  minimized: boolean,
+): InspectorOffset {
+  const { defaultRight, defaultTop } = computeInspectorDockDefaultAnchor(column, minimized)
+
+  return {
+    x: anchor.clientX - defaultRight,
+    y: anchor.clientY - defaultTop,
+  }
+}
+
+function computeInspectorDockOffsetFromStrip(
+  column: HTMLElement,
+  strip: HTMLElement,
+  minimized: boolean,
+): InspectorOffset {
+  const { defaultRight, defaultTop } = computeInspectorDockDefaultAnchor(column, minimized)
+  const sr = strip.getBoundingClientRect()
+  const marginBelowStrip = readRootSpacePx('--space-3')
+
+  return {
+    x: sr.right - defaultRight,
+    y: sr.bottom + marginBelowStrip - defaultTop,
+  }
 }
 
 function App() {
@@ -300,6 +355,8 @@ function App() {
     setAllNodesLocked,
     resetNodePosition,
     toggleNodeBodyCollapsed,
+    toggleStructureCardParamsExpanded,
+    setStructureCardWidth,
     setAllNodesBodyCollapsed,
     toggleNodeCardSection,
     setNodeCardSectionOrder,
@@ -356,6 +413,20 @@ function App() {
     removeListPointerBlock,
     updateCanvasNodeNeekoPhase,
     applyNeekoTransform,
+    generateBlockFromNode,
+    revertBlockView,
+    updateBlockParameter,
+    connectBlockSlots,
+    getBlockInspectorDraft,
+    updateBlockInspectorDraft,
+    refreshBlockInspectorDraft,
+    generateGroupFromNode,
+    revertGroupView,
+    updateGroupParameter,
+    connectGroupSlots,
+    getGroupInspectorDraft,
+    updateGroupInspectorDraft,
+    refreshGroupInspectorDraft,
   } = useSceneTabs({ extendSchemaLookup, lightModeEnabled: nodeLightModeEnabled })
 
   const { showConfirmByCatalogId, showToastByCatalogId } = useMessengerPopup()
@@ -460,6 +531,16 @@ function App() {
   const [inspectorMinimized, setInspectorMinimized] = useState(false)
   const [inspectorOffset, setInspectorOffset] = useState<InspectorOffset>({ x: 0, y: 0 })
   const [inspectorViewportDocked, setInspectorViewportDocked] = useState(true)
+  const [blockInspectorMinimized, setBlockInspectorMinimized] = useState(false)
+  const [blockInspectorViewportDocked, setBlockInspectorViewportDocked] = useState(true)
+  const [blockInspectorOffset, setBlockInspectorOffset] = useState<InspectorOffset>({ x: 0, y: 0 })
+  const blockInspectorMovedDuringPointer = useRef(false)
+  const blockInspectorDragGesture = useRef<InspectorDragGesture | null>(null)
+  const [groupInspectorMinimized, setGroupInspectorMinimized] = useState(false)
+  const [groupInspectorViewportDocked, setGroupInspectorViewportDocked] = useState(true)
+  const [groupInspectorOffset, setGroupInspectorOffset] = useState<InspectorOffset>({ x: 0, y: 0 })
+  const groupInspectorMovedDuringPointer = useRef(false)
+  const groupInspectorDragGesture = useRef<InspectorDragGesture | null>(null)
   const [inspectorGrabFollowActive, setInspectorGrabFollowActive] = useState(false)
   const [inspectorGrabFollowCoords, setInspectorGrabFollowCoords] = useState({ x: 0, y: 0 })
   const sceneNodesMinimized = scene.sceneChrome?.sceneNodes?.minimized ?? true
@@ -719,6 +800,82 @@ function App() {
     setInspectorViewportDocked(false)
   }, [applyInspectorOffsetFromViewportStrip])
 
+  const applyBlockInspectorOffsetFromViewportStrip = useCallback(
+    (anchor?: InspectorDockAnchor) => {
+      const column = graphColumnRef.current
+
+      if (!column) {
+        setBlockInspectorOffset({ x: 0, y: 0 })
+        return
+      }
+
+      if (anchor) {
+        setBlockInspectorOffset(
+          computeInspectorDockOffsetFromPointer(column, anchor, blockInspectorMinimized),
+        )
+        return
+      }
+
+      const strip = column.querySelector('[data-block-inspector-strip]')
+
+      if (!(strip instanceof HTMLElement)) {
+        setBlockInspectorOffset({ x: 0, y: 0 })
+        return
+      }
+
+      setBlockInspectorOffset(
+        computeInspectorDockOffsetFromStrip(column, strip, blockInspectorMinimized),
+      )
+    },
+    [blockInspectorMinimized],
+  )
+
+  const handleUndockBlockInspectorFromViewportToolbar = useCallback(
+    (anchor?: InspectorDockAnchor) => {
+      applyBlockInspectorOffsetFromViewportStrip(anchor)
+      setBlockInspectorViewportDocked(false)
+    },
+    [applyBlockInspectorOffsetFromViewportStrip],
+  )
+
+  const applyGroupInspectorOffsetFromViewportStrip = useCallback(
+    (anchor?: InspectorDockAnchor) => {
+      const column = graphColumnRef.current
+
+      if (!column) {
+        setGroupInspectorOffset({ x: 0, y: 0 })
+        return
+      }
+
+      if (anchor) {
+        setGroupInspectorOffset(
+          computeInspectorDockOffsetFromPointer(column, anchor, groupInspectorMinimized),
+        )
+        return
+      }
+
+      const strip = column.querySelector('[data-group-inspector-strip]')
+
+      if (!(strip instanceof HTMLElement)) {
+        setGroupInspectorOffset({ x: 0, y: 0 })
+        return
+      }
+
+      setGroupInspectorOffset(
+        computeInspectorDockOffsetFromStrip(column, strip, groupInspectorMinimized),
+      )
+    },
+    [groupInspectorMinimized],
+  )
+
+  const handleUndockGroupInspectorFromViewportToolbar = useCallback(
+    (anchor?: InspectorDockAnchor) => {
+      applyGroupInspectorOffsetFromViewportStrip(anchor)
+      setGroupInspectorViewportDocked(false)
+    },
+    [applyGroupInspectorOffsetFromViewportStrip],
+  )
+
   const applySceneNodesOffsetFromViewportStrip = useCallback(() => {
     const column = graphColumnRef.current
 
@@ -775,6 +932,7 @@ function App() {
     }
 
     void loadTooltips()
+    void applySavedSyntaxColors()
   }, [])
 
   const persistConvertedStructurePack = useCallback(
@@ -1580,7 +1738,7 @@ function App() {
         return
       }
 
-      loadTextIntoCodeDock(result.text, fileName, 'Ver código', { fullText: true })
+      loadTextIntoCodeDock(result.text, fileName, 'Ver código League bin', { fullText: true })
 
       if (result.warnings.length > 0) {
         const preview = result.warnings.slice(0, 30).join('\n')
@@ -1588,7 +1746,89 @@ function App() {
           result.warnings.length > 30
             ? `\n… e mais ${String(result.warnings.length - 30)} aviso(s).`
             : ''
-        window.alert(`[Ver código]\n\n${preview}${suffix}`)
+        window.alert(`[Ver código League bin]\n\n${preview}${suffix}`)
+      }
+    },
+    [extendSchemaLookup, hasOpenSceneTabs, loadTextIntoCodeDock, scene],
+  )
+
+  const handleViewNodeBlockCode = useCallback(
+    (nodeId: string) => {
+      if (!hasOpenSceneTabs) {
+        window.alert('Abra uma cena de trabalho antes de pré-visualizar código de bloco.')
+        return
+      }
+
+      const canvasNode = scene.nodes.find((entry) => entry.id === nodeId)
+
+      if (!canvasNode) {
+        return
+      }
+
+      const title = canvasNode.node.schema.title
+      const fileName = `preview_block_${sanitizeCodeDockBaseName(title)}.bin`
+
+      const result = emitNodeBlockViewCodeText(
+        hydrateScene(scene),
+        extendSchemaLookup,
+        nodeId,
+      )
+
+      if (!result.ok) {
+        window.alert(result.error)
+        return
+      }
+
+      loadTextIntoCodeDock(result.text, fileName, 'Ver código de bloco', { fullText: true })
+
+      if (result.warnings.length > 0) {
+        const preview = result.warnings.slice(0, 30).join('\n')
+        const suffix =
+          result.warnings.length > 30
+            ? `\n… e mais ${String(result.warnings.length - 30)} aviso(s).`
+            : ''
+        window.alert(`[Ver código de bloco]\n\n${preview}${suffix}`)
+      }
+    },
+    [extendSchemaLookup, hasOpenSceneTabs, loadTextIntoCodeDock, scene],
+  )
+
+  const handleViewNodeGroupCode = useCallback(
+    (nodeId: string) => {
+      if (!hasOpenSceneTabs) {
+        window.alert('Abra uma cena de trabalho antes de pré-visualizar código de grupo.')
+        return
+      }
+
+      const canvasNode = scene.nodes.find((entry) => entry.id === nodeId)
+
+      if (!canvasNode) {
+        return
+      }
+
+      const title = canvasNode.node.schema.title
+      const fileName = `preview_group_${sanitizeCodeDockBaseName(title)}.bin`
+
+      const result = emitNodeGroupViewCodeText(
+        hydrateScene(scene),
+        extendSchemaLookup,
+        nodeId,
+      )
+
+      if (!result.ok) {
+        window.alert(result.error)
+        return
+      }
+
+      loadTextIntoCodeDock(result.text, fileName, 'Ver código de grupo', { fullText: true })
+
+      if (result.warnings.length > 0) {
+        const preview = result.warnings.slice(0, 30).join('\n')
+        const suffix =
+          result.warnings.length > 30
+            ? `\n… e mais ${String(result.warnings.length - 30)} aviso(s).`
+            : ''
+        window.alert(`[Ver código de grupo]\n\n${preview}${suffix}`)
       }
     },
     [extendSchemaLookup, hasOpenSceneTabs, loadTextIntoCodeDock, scene],
@@ -2092,6 +2332,120 @@ function App() {
     }
   }
 
+  const startBlockInspectorDrag = (event: PointerEvent<HTMLElement>) => {
+    if (event.button !== 0 || blockInspectorViewportDocked) {
+      return
+    }
+
+    blockInspectorMovedDuringPointer.current = false
+    blockInspectorDragGesture.current = {
+      element: event.currentTarget,
+      moved: false,
+      offset: blockInspectorOffset,
+      origin: { x: event.clientX, y: event.clientY },
+      pointerId: event.pointerId,
+      viewportDockedAtStart: blockInspectorViewportDocked,
+      undockFromToolbarStarted: false,
+    }
+    event.currentTarget.setPointerCapture(event.pointerId)
+    event.stopPropagation()
+  }
+
+  const moveBlockInspectorDrag = (event: PointerEvent<HTMLElement>) => {
+    const gesture = blockInspectorDragGesture.current
+    if (!gesture) {
+      return
+    }
+
+    const nextOffset = {
+      x: gesture.offset.x + event.clientX - gesture.origin.x,
+      y: gesture.offset.y + event.clientY - gesture.origin.y,
+    }
+    const moved = Math.abs(nextOffset.x - gesture.offset.x) > 3 || Math.abs(nextOffset.y - gesture.offset.y) > 3
+    gesture.moved = gesture.moved || moved
+    setBlockInspectorOffset(nextOffset)
+  }
+
+  const stopBlockInspectorDrag = (event: PointerEvent<HTMLElement>) => {
+    const gesture = blockInspectorDragGesture.current
+    if (gesture?.pointerId !== event.pointerId) {
+      return
+    }
+
+    blockInspectorMovedDuringPointer.current = gesture.moved
+    blockInspectorDragGesture.current = null
+
+    if (gesture.element.hasPointerCapture(event.pointerId)) {
+      gesture.element.releasePointerCapture(event.pointerId)
+    }
+  }
+
+  const startGroupInspectorDrag = (event: PointerEvent<HTMLElement>) => {
+    if (event.button !== 0 || groupInspectorViewportDocked) {
+      return
+    }
+
+    groupInspectorMovedDuringPointer.current = false
+    groupInspectorDragGesture.current = {
+      element: event.currentTarget,
+      moved: false,
+      offset: groupInspectorOffset,
+      origin: { x: event.clientX, y: event.clientY },
+      pointerId: event.pointerId,
+      viewportDockedAtStart: groupInspectorViewportDocked,
+      undockFromToolbarStarted: false,
+    }
+    event.currentTarget.setPointerCapture(event.pointerId)
+    event.stopPropagation()
+  }
+
+  const moveGroupInspectorDrag = (event: PointerEvent<HTMLElement>) => {
+    const gesture = groupInspectorDragGesture.current
+    if (!gesture) {
+      return
+    }
+
+    const nextOffset = {
+      x: gesture.offset.x + event.clientX - gesture.origin.x,
+      y: gesture.offset.y + event.clientY - gesture.origin.y,
+    }
+    const moved = Math.abs(nextOffset.x - gesture.offset.x) > 3 || Math.abs(nextOffset.y - gesture.offset.y) > 3
+    gesture.moved = gesture.moved || moved
+    setGroupInspectorOffset(nextOffset)
+  }
+
+  const stopGroupInspectorDrag = (event: PointerEvent<HTMLElement>) => {
+    const gesture = groupInspectorDragGesture.current
+    if (gesture?.pointerId !== event.pointerId) {
+      return
+    }
+
+    groupInspectorMovedDuringPointer.current = gesture.moved
+    groupInspectorDragGesture.current = null
+
+    if (gesture.element.hasPointerCapture(event.pointerId)) {
+      gesture.element.releasePointerCapture(event.pointerId)
+    }
+  }
+
+  const toggleBlockInspectorMinimized = () => {
+    if (blockInspectorMovedDuringPointer.current) {
+      blockInspectorMovedDuringPointer.current = false
+      return
+    }
+
+    setBlockInspectorMinimized((value) => !value)
+  }
+
+  const toggleGroupInspectorMinimized = () => {
+    if (groupInspectorMovedDuringPointer.current) {
+      groupInspectorMovedDuringPointer.current = false
+      return
+    }
+
+    setGroupInspectorMinimized((value) => !value)
+  }
+
   const toggleInspectorMinimized = () => {
     if (inspectorMovedDuringPointer.current) {
       inspectorMovedDuringPointer.current = false
@@ -2394,6 +2748,232 @@ function App() {
     selectedNodeIds.length > 0 && primarySelectedId
       ? scene.nodes.find((node) => node.id === primarySelectedId)
       : undefined
+
+  const blockInspectorTarget =
+    selectedNodeIds.length === 1 && primarySelectedId && inspectorTarget && !isNodeLocked(inspectorTarget)
+      ? inspectorTarget
+      : undefined
+
+  useEffect(() => {
+    if (!blockInspectorTarget) {
+      return
+    }
+    refreshBlockInspectorDraft(blockInspectorTarget.id)
+  }, [
+    blockInspectorTarget?.id,
+    blockInspectorTarget?.blockViewActive,
+    blockInspectorTarget?.blockStructure?.identification_codes?.join('|'),
+    refreshBlockInspectorDraft,
+  ])
+
+  const blockInspectorDraft = blockInspectorTarget
+    ? getBlockInspectorDraft(blockInspectorTarget.id)
+    : null
+
+  const handleGenerateBlock = useCallback(() => {
+    if (!blockInspectorTarget || !blockInspectorDraft) {
+      return
+    }
+    generateBlockFromNode(blockInspectorTarget.id, blockInspectorDraft)
+    refreshBlockInspectorDraft(blockInspectorTarget.id)
+  }, [
+    blockInspectorDraft,
+    blockInspectorTarget,
+    generateBlockFromNode,
+    refreshBlockInspectorDraft,
+  ])
+
+  const handleRevertBlock = useCallback(() => {
+    if (!blockInspectorTarget) {
+      return
+    }
+    revertBlockView(blockInspectorTarget.id)
+  }, [blockInspectorTarget, revertBlockView])
+
+  const showBlockInspectorPinnedToToolbar =
+    blockInspectorViewportDocked && Boolean(blockInspectorTarget)
+
+  const blockInspectorDockShowsSidebar = Boolean(blockInspectorTarget) && !showBlockInspectorPinnedToToolbar
+
+  const blockInspectorDockClassName = [
+    styles.inspectorDock,
+    blockInspectorMinimized ? styles.inspectorDockMinimized : styles.inspectorDockExpanded,
+  ]
+    .filter(Boolean)
+    .join(' ')
+
+  const blockInspectorDockStyle = {
+    transform: `translate(${blockInspectorOffset.x}px, ${blockInspectorOffset.y}px)`,
+  } satisfies CSSProperties
+
+  const blockInspectorDragHandleProps = blockInspectorViewportDocked
+    ? {}
+    : {
+        onPointerCancel: stopBlockInspectorDrag,
+        onPointerDown: startBlockInspectorDrag,
+        onPointerMove: moveBlockInspectorDrag,
+        onPointerUp: stopBlockInspectorDrag,
+      }
+
+  const blockInspectorPickHandlers = useMemo(
+    () => ({
+      onDockToViewport: () => {
+        setBlockInspectorViewportDocked(true)
+        setBlockInspectorMinimized(false)
+      },
+      onUndockFromViewportToolbar: handleUndockBlockInspectorFromViewportToolbar,
+    }),
+    [handleUndockBlockInspectorFromViewportToolbar],
+  )
+
+  const knownBlockTypeIds = useMemo(() => {
+    const ids = new Set<string>()
+    for (const def of blockTypeDefinitionsList()) {
+      ids.add(def.id)
+    }
+    for (const canvasNode of scene.nodes) {
+      const blockType = canvasNode.blockStructure?.blockType
+      if (blockType?.trim()) {
+        ids.add(blockType.trim())
+      }
+    }
+    return [...ids].sort((a, b) => a.localeCompare(b))
+  }, [scene.nodes])
+
+  const blockInspectorControlsSlot = blockInspectorTarget ? (
+    <BlockInspector
+      draft={blockInspectorDraft}
+      knownBlockTypeIds={knownBlockTypeIds}
+      minimized={blockInspectorMinimized}
+      node={blockInspectorTarget}
+      onDraftChange={(draft) => updateBlockInspectorDraft(blockInspectorTarget.id, draft)}
+      onGenerateBlock={handleGenerateBlock}
+      onRevertBlock={handleRevertBlock}
+      onToggleMinimized={toggleBlockInspectorMinimized}
+      {...blockInspectorPickHandlers}
+      viewportDocked={blockInspectorViewportDocked}
+    />
+  ) : null
+
+  const blockInspectorSidebar = blockInspectorTarget ? (
+    <BlockInspector
+      draft={blockInspectorDraft}
+      dragHandleProps={blockInspectorDragHandleProps}
+      knownBlockTypeIds={knownBlockTypeIds}
+      minimized={blockInspectorMinimized}
+      node={blockInspectorTarget}
+      onDraftChange={(draft) => updateBlockInspectorDraft(blockInspectorTarget.id, draft)}
+      onGenerateBlock={handleGenerateBlock}
+      onRevertBlock={handleRevertBlock}
+      onToggleMinimized={toggleBlockInspectorMinimized}
+      {...blockInspectorPickHandlers}
+    />
+  ) : null
+
+  const groupInspectorTarget =
+    selectedNodeIds.length === 1 && primarySelectedId && inspectorTarget && !isNodeLocked(inspectorTarget)
+      ? inspectorTarget
+      : undefined
+
+  useEffect(() => {
+    if (!groupInspectorTarget) {
+      return
+    }
+    refreshGroupInspectorDraft(groupInspectorTarget.id)
+  }, [
+    groupInspectorTarget?.id,
+    groupInspectorTarget?.groupViewActive,
+    groupInspectorTarget?.groupStructure?.identification_codes?.join('|'),
+    refreshGroupInspectorDraft,
+  ])
+
+  const groupInspectorDraft = groupInspectorTarget
+    ? getGroupInspectorDraft(groupInspectorTarget.id)
+    : null
+
+  const handleGenerateGroup = useCallback(() => {
+    if (!groupInspectorTarget || !groupInspectorDraft) {
+      return
+    }
+    generateGroupFromNode(groupInspectorTarget.id, groupInspectorDraft)
+    refreshGroupInspectorDraft(groupInspectorTarget.id)
+  }, [
+    groupInspectorDraft,
+    groupInspectorTarget,
+    generateGroupFromNode,
+    refreshGroupInspectorDraft,
+  ])
+
+  const handleRevertGroup = useCallback(() => {
+    if (!groupInspectorTarget) {
+      return
+    }
+    revertGroupView(groupInspectorTarget.id)
+  }, [groupInspectorTarget, revertGroupView])
+
+  const showGroupInspectorPinnedToToolbar =
+    groupInspectorViewportDocked && Boolean(groupInspectorTarget)
+
+  const groupInspectorDockShowsSidebar = Boolean(groupInspectorTarget) && !showGroupInspectorPinnedToToolbar
+
+  const groupInspectorDockClassName = [
+    styles.inspectorDock,
+    groupInspectorMinimized ? styles.inspectorDockMinimized : styles.inspectorDockExpanded,
+  ]
+    .filter(Boolean)
+    .join(' ')
+
+  const groupInspectorDockStyle = {
+    transform: `translate(${groupInspectorOffset.x}px, ${groupInspectorOffset.y}px)`,
+  } satisfies CSSProperties
+
+  const groupInspectorDragHandleProps = groupInspectorViewportDocked
+    ? {}
+    : {
+        onPointerCancel: stopGroupInspectorDrag,
+        onPointerDown: startGroupInspectorDrag,
+        onPointerMove: moveGroupInspectorDrag,
+        onPointerUp: stopGroupInspectorDrag,
+      }
+
+  const groupInspectorPickHandlers = useMemo(
+    () => ({
+      onDockToViewport: () => {
+        setGroupInspectorViewportDocked(true)
+        setGroupInspectorMinimized(false)
+      },
+      onUndockFromViewportToolbar: handleUndockGroupInspectorFromViewportToolbar,
+    }),
+    [handleUndockGroupInspectorFromViewportToolbar],
+  )
+
+  const groupInspectorControlsSlot = groupInspectorTarget ? (
+    <GroupInspector
+      draft={groupInspectorDraft}
+      minimized={groupInspectorMinimized}
+      node={groupInspectorTarget}
+      onDraftChange={(draft) => updateGroupInspectorDraft(groupInspectorTarget.id, draft)}
+      onGenerateGroup={handleGenerateGroup}
+      onRevertGroup={handleRevertGroup}
+      onToggleMinimized={toggleGroupInspectorMinimized}
+      {...groupInspectorPickHandlers}
+      viewportDocked={groupInspectorViewportDocked}
+    />
+  ) : null
+
+  const groupInspectorSidebar = groupInspectorTarget ? (
+    <GroupInspector
+      draft={groupInspectorDraft}
+      dragHandleProps={groupInspectorDragHandleProps}
+      minimized={groupInspectorMinimized}
+      node={groupInspectorTarget}
+      onDraftChange={(draft) => updateGroupInspectorDraft(groupInspectorTarget.id, draft)}
+      onGenerateGroup={handleGenerateGroup}
+      onRevertGroup={handleRevertGroup}
+      onToggleMinimized={toggleGroupInspectorMinimized}
+      {...groupInspectorPickHandlers}
+    />
+  ) : null
 
   const inspectorStubCatalog =
     inspectorTarget !== undefined
@@ -3208,6 +3788,8 @@ function App() {
             onCreateRootNode={createRootNode}
             onDeleteNodeIds={deleteNodeIds}
             onToggleNodeBodyCollapsed={toggleNodeBodyCollapsed}
+            onToggleStructureCardParamsExpanded={toggleStructureCardParamsExpanded}
+            onSetStructureCardWidth={setStructureCardWidth}
             onSetAllNodesBodyCollapsed={setAllNodesBodyCollapsed}
             onToggleNodeCardSection={toggleNodeCardSection}
             onSetNodeCardSectionOrder={setNodeCardSectionOrder}
@@ -3229,6 +3811,8 @@ function App() {
             onExtractSceneNodesStatePreset={handleExtractSceneNodesStateFromNode}
             onGraphsToCode={() => void handleGraphsToCode()}
             onViewNodeCode={handleViewNodeCode}
+            onViewNodeBlockCode={handleViewNodeBlockCode}
+            onViewNodeGroupCode={handleViewNodeGroupCode}
             onPreviewNodeVfx={handlePreviewNodeVfx}
             onSyncNodeValueToCode={handleSyncNodeValueToCode}
             canSyncNodeToCode={canSyncNodeToCode}
@@ -3266,6 +3850,16 @@ function App() {
             schemaStructureSubfolderBySchemaId={mergedStructureSubfolderBySchemaId}
             selectedNodeId={primarySelectedId}
             selectedNodeIds={selectedNodeIds}
+            blockInspectorControlsSlot={
+              showBlockInspectorPinnedToToolbar ? blockInspectorControlsSlot : null
+            }
+            groupInspectorControlsSlot={
+              showGroupInspectorPinnedToToolbar ? groupInspectorControlsSlot : null
+            }
+            onUpdateBlockParameter={updateBlockParameter}
+            onConnectBlockSlots={connectBlockSlots}
+            onUpdateGroupParameter={updateGroupParameter}
+            onConnectGroupSlots={connectGroupSlots}
             sceneNodesControlsSlot={
               showSceneNodesPinnedToToolbar ? (
                 <SceneNodesPanel {...sceneNodesPanelProps} viewportDocked />
@@ -3323,6 +3917,16 @@ function App() {
                 onUpdateParameter={updateSelectedParameter}
                 onUpdatePosition={handleInspectorUpdatePosition}
               />
+            </div>
+          ) : null}
+          {blockInspectorDockShowsSidebar ? (
+            <div className={blockInspectorDockClassName} style={blockInspectorDockStyle}>
+              {blockInspectorSidebar}
+            </div>
+          ) : null}
+          {groupInspectorDockShowsSidebar ? (
+            <div className={groupInspectorDockClassName} style={groupInspectorDockStyle}>
+              {groupInspectorSidebar}
             </div>
           ) : null}
           {inspectorGrabFollowActive ? (

@@ -1,0 +1,51 @@
+.handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 4;
+  width: 8px;
+  opacity: 0;
+  touch-action: none;
+  transition: opacity 120ms ease;
+  background: transparent;
+  border: none;
+  padding: 0;
+}
+
+.handleVisible {
+  opacity: 1;
+}
+
+.handleLeft {
+  left: -4px;
+  cursor: ew-resize;
+}
+
+.handleRight {
+  right: -4px;
+  cursor: ew-resize;
+}
+
+.handleVisible::after {
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  width: 2px;
+  border-radius: 999px;
+  background: var(--syntax-keyword);
+  content: '';
+  opacity: 0.55;
+}
+
+.handleLeft::after {
+  left: 2px;
+}
+
+.handleRight::after {
+  right: 2px;
+}
+
+.handleVisible:hover::after,
+.handleVisible:focus-visible::after {
+  opacity: 0.95;
+}

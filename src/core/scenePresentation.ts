@@ -38,6 +38,10 @@ export type CanvasNodePresentationEntry = {
   bodyColor?: string
   bodyColorEnabled?: boolean
   locked?: boolean
+  blockViewActive?: boolean
+  groupViewActive?: boolean
+  structureCardParamsExpanded?: boolean
+  structureCardWidth?: number
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -177,6 +181,12 @@ export function canvasNodePresentationFromNode(canvasNode: CanvasNode): CanvasNo
         ? { bodyColorEnabled: true }
         : {}),
     ...(canvasNode.locked ? { locked: true } : {}),
+    ...(canvasNode.blockViewActive ? { blockViewActive: true } : {}),
+    ...(canvasNode.groupViewActive ? { groupViewActive: true } : {}),
+    ...(canvasNode.structureCardParamsExpanded ? { structureCardParamsExpanded: true } : {}),
+    ...(canvasNode.structureCardWidth !== undefined
+      ? { structureCardWidth: canvasNode.structureCardWidth }
+      : {}),
   }
 }
 
@@ -214,6 +224,10 @@ export function canvasNodeOverlayFromPresentation(
         ? { bodyColorEnabled: true }
         : {}),
     ...(entry.locked ? { locked: true } : {}),
+    ...(entry.blockViewActive ? { blockViewActive: true } : {}),
+    ...(entry.groupViewActive ? { groupViewActive: true } : {}),
+    ...(entry.structureCardParamsExpanded ? { structureCardParamsExpanded: true } : {}),
+    ...(entry.structureCardWidth !== undefined ? { structureCardWidth: entry.structureCardWidth } : {}),
   }
 }
 
@@ -256,6 +270,15 @@ export function isValidPresentationEntry(raw: unknown): raw is CanvasNodePresent
   if (raw.locked !== undefined && raw.locked !== true) {
     return false
   }
+  if (raw.blockViewActive !== undefined && raw.blockViewActive !== true) {
+    return false
+  }
+  if (raw.groupViewActive !== undefined && raw.groupViewActive !== true) {
+    return false
+  }
+  if (raw.structureCardWidth !== undefined && typeof raw.structureCardWidth !== 'number') {
+    return false
+  }
   return true
 }
 
@@ -288,6 +311,10 @@ export function presentationEntryFromRawLayout(raw: unknown): CanvasNodePresenta
           ? { bodyColorEnabled: true }
           : {}),
       ...(raw.locked === true ? { locked: true } : {}),
+      ...(raw.blockViewActive === true ? { blockViewActive: true } : {}),
+      ...(raw.groupViewActive === true ? { groupViewActive: true } : {}),
+      ...(raw.structureCardParamsExpanded === true ? { structureCardParamsExpanded: true } : {}),
+      ...(typeof raw.structureCardWidth === 'number' ? { structureCardWidth: raw.structureCardWidth } : {}),
     }
   }
   return {

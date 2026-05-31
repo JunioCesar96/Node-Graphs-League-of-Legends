@@ -11,6 +11,9 @@ export type ShortcutBindingDefinition = {
   id: string
   scopeId: ShortcutScopeId
   key: string
+  /** Atalho de ponteiro: Ctrl + arrastar bordas laterais do card grupo/bloco. */
+  interaction?: 'pointer'
+  label?: string
   modifiers?: ShortcutModifier[]
   requiresOpen?: ShortcutDockId[]
   allowInFormControls?: boolean

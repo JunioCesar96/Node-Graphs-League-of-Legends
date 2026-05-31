@@ -30,6 +30,7 @@ export function useGraphCanvasShortcutHandlers(options: {
   setViewportNavigateMode: Dispatch<SetStateAction<boolean>>
   onCloseCodePanelShortcut?: () => void
   onNeekoDropCode?: (nodeId: string, text: string) => void
+  setStructureCardResizeModifierActive?: Dispatch<SetStateAction<boolean>>
 }) {
   const { registerShortcutHandlers, setOpenDocks } = useShortcutScope()
   const refs = useRef(options.refs)
@@ -40,7 +41,24 @@ export function useGraphCanvasShortcutHandlers(options: {
   }, [options.isPaletteOpen, setOpenDocks])
 
   useEffect(() => {
+    const setModifier = options.setStructureCardResizeModifierActive
+    const modifierHandler = (event: KeyboardEvent) => {
+      if (event.key !== 'Control' && event.key !== 'Meta') {
+        return false
+      }
+      if (!setModifier) {
+        return false
+      }
+      if (event.type === 'keydown' && event.repeat) {
+        return false
+      }
+      setModifier(event.type === 'keydown')
+      return false
+    }
+
     return registerShortcutHandlers({
+      'graph-structure-card-resize-modifier': modifierHandler,
+      'graph-structure-card-resize-modifier-meta': modifierHandler,
       'graph-open-palette': () => {
         options.openPalette()
         return true
@@ -109,6 +127,7 @@ export function useGraphCanvasShortcutHandlers(options: {
     options.openPalette,
     options.setGlueNodeId,
     options.setViewportNavigateMode,
+    options.setStructureCardResizeModifierActive,
     registerShortcutHandlers,
   ])
 }

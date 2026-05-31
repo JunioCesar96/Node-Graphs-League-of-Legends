@@ -7,6 +7,8 @@ import type {
   NodeCardSectionId,
 } from './nodeCardSections'
 import type { NewNodeMaterializePhase } from './codeToNewNodeGraph'
+import type { BlockStructurePayload } from './blockSchema'
+import type { GroupStructurePayload } from './groupSchema'
 import type {
   InternalStructureDefinition,
   NodeInstance,
@@ -101,6 +103,18 @@ export type CanvasNode = {
   neekoTransformPhase?: NewNodeMaterializePhase
   /** Erro de parse/drop Neeko (não persistir). */
   neekoTransformError?: string
+  /** Metadados do sistema Bloco (BlockNodes). */
+  blockStructure?: BlockStructurePayload
+  /** Quando true, renderiza BlockCard em vez de NodeCard. */
+  blockViewActive?: boolean
+  /** Metadados do sistema Grupo (GroupNodes). */
+  groupStructure?: GroupStructurePayload
+  /** Quando true, renderiza GroupCard em vez de NodeCard. */
+  groupViewActive?: boolean
+  /** Card grupo/bloco: parâmetros em duas linhas (nome completo + valor). Omitido = linha única compacta. */
+  structureCardParamsExpanded?: boolean
+  /** Largura manual do card grupo/bloco (px). Omitido = largura padrão (360). */
+  structureCardWidth?: number
 }
 
 export function isCanvasNodeBodyCollapsed(canvasNode: CanvasNode): boolean {
@@ -126,6 +140,18 @@ export type CanvasConnection = {
   fromInternalStructureId: string
   toNodeId: string
   routing?: ConnectionRouting
+  /** Origem slot de bloco (saída). */
+  fromBlockSlotId?: string
+  fromBlockParameterId?: string
+  /** Destino slot de bloco (entrada). */
+  toBlockSlotId?: string
+  toBlockParameterId?: string
+  /** Origem slot de grupo (saída). */
+  fromGroupSlotId?: string
+  fromGroupParameterId?: string
+  /** Destino slot de grupo (entrada). */
+  toGroupSlotId?: string
+  toGroupParameterId?: string
 }
 
 function coerceEmbeddedSchema(schema: NodeSchemaDefinition): NodeSchemaDefinition {
@@ -163,6 +189,14 @@ function migrateConnection(connection: CanvasConnection): CanvasConnection {
     fromInternalStructureId,
     toNodeId: connection.toNodeId,
     ...(connection.routing ? { routing: connection.routing } : {}),
+    ...(connection.fromBlockSlotId ? { fromBlockSlotId: connection.fromBlockSlotId } : {}),
+    ...(connection.fromBlockParameterId ? { fromBlockParameterId: connection.fromBlockParameterId } : {}),
+    ...(connection.toBlockSlotId ? { toBlockSlotId: connection.toBlockSlotId } : {}),
+    ...(connection.toBlockParameterId ? { toBlockParameterId: connection.toBlockParameterId } : {}),
+    ...(connection.fromGroupSlotId ? { fromGroupSlotId: connection.fromGroupSlotId } : {}),
+    ...(connection.fromGroupParameterId ? { fromGroupParameterId: connection.fromGroupParameterId } : {}),
+    ...(connection.toGroupSlotId ? { toGroupSlotId: connection.toGroupSlotId } : {}),
+    ...(connection.toGroupParameterId ? { toGroupParameterId: connection.toGroupParameterId } : {}),
   }
 }
 

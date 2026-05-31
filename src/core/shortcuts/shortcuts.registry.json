@@ -3,6 +3,7 @@
     { "id": "graph-canvas", "label": "Canvas de nós" },
     { "id": "code-dock", "label": "Editor de código" },
     { "id": "vfx-viewport", "label": "Viewport VFX" },
+    { "id": "vfx-dock", "label": "Dock VFX" },
     { "id": "node-palette", "label": "Paleta de nós" }
   ],
   "bindings": [
@@ -81,6 +82,31 @@
       "priority": 6
     },
     {
+      "id": "graph-structure-card-resize",
+      "scopeId": "graph-canvas",
+      "key": "PointerDrag",
+      "interaction": "pointer",
+      "label": "Alargar card grupo/bloco — Ctrl + arrastar bordas laterais (360–720px)",
+      "modifiers": ["ctrl"],
+      "priority": 0
+    },
+    {
+      "id": "graph-structure-card-resize-modifier",
+      "scopeId": "graph-canvas",
+      "key": "Control",
+      "modifiers": [],
+      "eventTypes": ["keydown", "keyup"],
+      "priority": 25
+    },
+    {
+      "id": "graph-structure-card-resize-modifier-meta",
+      "scopeId": "graph-canvas",
+      "key": "Meta",
+      "modifiers": [],
+      "eventTypes": ["keydown", "keyup"],
+      "priority": 25
+    },
+    {
       "id": "ritual-ctrl-spawn",
       "scopeId": "graph-canvas",
       "key": "Control",
@@ -144,6 +170,24 @@
       "key": "5",
       "modifiers": [],
       "requiresOpen": ["vfx-dock"]
+    },
+    {
+      "id": "vfx-window-isolation",
+      "scopeId": "vfx-dock",
+      "key": " ",
+      "modifiers": ["ctrl"],
+      "requiresOpen": ["vfx-dock"],
+      "allowInFormControls": true,
+      "priority": 12
+    },
+    {
+      "id": "vfx-window-isolation-viewport",
+      "scopeId": "vfx-viewport",
+      "key": " ",
+      "modifiers": ["ctrl"],
+      "requiresOpen": ["vfx-dock"],
+      "allowInFormControls": true,
+      "priority": 12
     },
     {
       "id": "code-find",

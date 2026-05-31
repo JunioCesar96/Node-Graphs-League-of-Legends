@@ -1,6 +1,6 @@
 # League BIN Node Editor
 
-**Version:** 1.5.1 · **Status:** Work in progress · **Branch:** `feature-vfx-character-gltf-engine`
+**Version:** 1.5.2 · **Status:** Work in progress · **Branch:** `feature-structure-card-layout`
 
 ![Tool Screenshot](./src/assets/preview.png)
 
@@ -125,6 +125,7 @@ Implementation notes (Mermaid, commits, API tables) in [`feature_md/feature/`](f
 
 | Topic | Document |
 | --- | --- |
+| **Structure card layout (Group/Block)** | [feature-structure-card-layout.md](feature_md/feature/feature-structure-card-layout.md) |
 | **Shortcut scope system (this branch)** | [feature-shortcut-scope-system.md](feature_md/feature/feature-shortcut-scope-system.md) · [full doc below](#implementation--shortcut-scope-system-branch-featureshortcut-scope-system) |
 | Node Graphs to Code | [feature-node-graphs-to-code.md](feature_md/feature/feature-node-graphs-to-code.md) |
 | Code To Node Graph | [feature-code-to-node-graph.md](feature_md/feature/feature-code-to-node-graph.md) |
@@ -147,7 +148,55 @@ Implementation notes (Mermaid, commits, API tables) in [`feature_md/feature/`](f
 | VFX Color (`ValueColor` × texture) | [feature-vfx-color-system.md](feature_md/feature/feature-vfx-color-system.md) |
 | **VFX Character GLTF + Engine VFX** | [feature-vfx-character-gltf-engine.md](feature_md/feature/feature-vfx-character-gltf-engine.md) |
 | Class Group (embed, list, pointer, map hash) | [feature-main-class-group.md](feature_md/feature/feature-main-class-group.md), [feature-embed-class-group.md](feature_md/feature/feature-embed-class-group.md), [feature-list-embed-class-group.md](feature_md/feature/feature-list-embed-class-group.md), [feature-pointer-class-group.md](feature_md/feature/feature-pointer-class-group.md), [feature-list2-embed-pointer-class-group.md](feature_md/feature/feature-list2-embed-pointer-class-group.md), [feature-class-group-map-hash-u64-primitives.md](feature_md/feature/feature-class-group-map-hash-u64-primitives.md) |
+| **Group nodes (GroupNodes)** | [feature-group-nodes.md](feature_md/feature/feature-group-nodes.md) |
 | Neeko node | [feature-neeko-ditto-node.md](feature_md/feature/feature-neeko-ditto-node.md) |
+
+---
+
+## Implementation — Structure card layout (branch `feature-structure-card-layout`)
+
+Full copy in [`feature_md/feature/feature-structure-card-layout.md`](feature_md/feature/feature-structure-card-layout.md).
+
+### 1. Header / Cabeçalho
+
+| Field | Value |
+| --- | --- |
+| Branch name | `feature-structure-card-layout` |
+| Feature name | Group/Block structure card — compact grid, pointer rows, Ctrl+drag resize |
+| Version | `1.5.2` |
+
+### 2. Tag definitions / Definição de tags
+
+| Tag (EN) | Tag (PT) | Meaning |
+| --- | --- | --- |
+| `[NEW]` | `[NOVO]` | New layout module, resize handles, shortcut bindings |
+| `[UPDATED]` | `[ATUALIZADO]` | Cards, canvas, slot geometry, persistence |
+| `[REMOVED]` | `[REMOVIDO]` | Auto `max-content` width observer |
+
+### 3. Operation flowchart
+
+```mermaid
+flowchart TD
+  user[User on canvas] --> card{GroupCard or BlockCard}
+  card --> row[5-column parameter row]
+  row --> pointer{pointer param?}
+  pointer -->|yes| spanName[name spans name+value cols]
+  user --> ctrl[Hold Ctrl]
+  ctrl --> drag[Drag card lateral edge 360-720px]
+  drag --> persist[structureCardWidth in scene layout]
+```
+
+### 4–7. Details / Como usar
+
+| EN | PT |
+| --- | --- |
+| Default width **360px**; compact name \| value on one row | Largura padrão **360px**; nome \| valor na mesma linha |
+| Pointer params: no value box; name uses full middle area | Pointer: sem valor; nome ocupa zona central |
+| Context menu → expand params (two-line layout) | Menu contexto → expandir parâmetros |
+| **Ctrl + drag** left/right edge to widen (max 720px) | **Ctrl + arrastar** borda lateral (até 720px) |
+| Save scene to persist custom width | Guardar cena persiste largura |
+
+**Main files:** `structureCardLayout.ts`, `StructureCardResizeHandles.tsx`, `GroupBlockParameterRow.module.css`, `GroupCard.tsx`, `BlockCard.tsx`, `GraphCanvas.tsx`, `useSceneHistory.ts`, `shortcuts.registry.json`.
 
 ---
 
@@ -330,7 +379,7 @@ pnpm install && pnpm dev
 3. **Editar:** arrastar slots de saída; clique curto alterna flex/rigid/wireless; botão direito para menu de contexto.
 4. **Exportar:** um nó Main → Grafo → Node Graphs to Code.
 5. **VFX:** menu VFX → Rebuild → Play; ver docs em [`feature_md/feature/`](feature_md/feature/).
-6. **Personagem VFX:** ferramenta Character → lol2gltf → GLB; clique direito no preview 3D para rodar X/Y/Z; ver [feature-vfx-character-gltf-engine](feature_md/feature/feature-vfx-character-gltf-engine.md).
+6. **Grupo/Bloco no canvas:** cards compactos 360px; Ctrl+arrastar bordas para alargar — ver [structure card layout](#implementation--structure-card-layout-branch-featurestructure-card-layout).
 7. **Cor VFX:** inspector **Cor** mostra só `Color` (`vec4` + RGB); ver [feature-vfx-color-system](feature_md/feature/feature-vfx-color-system.md).
 8. **Atalhos:** clique na zona correcta antes da tecla — ver [shortcut scope](#implementation--shortcut-scope-system-branch-featureshortcut-scope-system).
 

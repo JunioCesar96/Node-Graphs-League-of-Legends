@@ -12,14 +12,14 @@
   --color-text-muted: #8d8d91;
   --color-shadow: rgb(0 0 0 / 36%);
 
-  --syntax-keyword: #569cd6;
-  --syntax-string: #ce9178;
-  --syntax-comment: #6a9955;
-  --syntax-property: #9cdcfe;
-  --syntax-symbol: #d4d4d4;
+  --syntax-keyword: var(--syntax-keyword-color, #569cd6);
+  --syntax-string: var(--syntax-string-color, #ce9178);
+  --syntax-comment: var(--syntax-comment-color, #6a9955);
+  --syntax-property: var(--syntax-property-color, #9cdcfe);
+  --syntax-symbol: var(--syntax-symbol-color, #d4d4d4);
   --syntax-bracket: #ffd700;
-  --syntax-integer: #b5cea8;
-  --syntax-float: #72d5a3;
+  --syntax-integer: var(--syntax-number-color, #b5cea8);
+  --syntax-float: var(--syntax-number-color, #72d5a3);
   --syntax-double: #d3d977;
   --syntax-vector2: #a390e4;
   --syntax-vector3: #c586c0;
@@ -76,4 +76,51 @@
 
   /** Uma linha da grelha da paleta «Add node» (tarja compacta + gap entre linhas). */
   --palette-add-row-stride: calc(var(--palette-add-compact-min-height) + var(--space-2));
+
+  /** Cards Grupo / Bloco — layout de parâmetros no canvas. */
+  --group-block-card-width: 360px;
+  --group-block-card-max-width: 720px;
+  --group-block-row-height: 28px;
+  --group-block-row-padding-y: 3px;
+  --group-block-field-min-height: 1.375rem;
+  --group-block-field-preview-size: 1.125rem;
+  --group-block-input-font-size: 0.74rem;
+  --group-block-field-bg: #282828;
+  --group-block-slot-col-min: 0.875rem;
+  --group-block-icon-col-min: 1.125rem;
+  /** 5 colunas: slot in | icon | name (max-content) | value (≥30%) | slot out */
+  --group-block-body-columns-compact:
+    minmax(var(--group-block-slot-col-min), max-content)
+    minmax(var(--group-block-icon-col-min), max-content)
+    minmax(max-content, 2fr)
+    minmax(30%, 1fr)
+    minmax(var(--group-block-slot-col-min), max-content);
+  --group-block-body-columns-expanded:
+    minmax(var(--group-block-slot-col-min), max-content)
+    minmax(var(--group-block-icon-col-min), max-content)
+    minmax(0, 1fr)
+    minmax(0, 1fr)
+    minmax(var(--group-block-slot-col-min), max-content);
+
+  /** Sistema Bloco (BlockNodes) — design system dedicado. */
+  --block-surface: #363636;
+  --block-surface-dark: var(--group-block-field-bg);
+  --block-text: var(--syntax-symbol);
+  --block-slot: #80ffe6;
+  --block-slot-out: #40ff56;
+  --block-slot-in: #ed1c24;
+  --block-card-width: var(--group-block-card-width);
+  --block-row-height: var(--group-block-row-height);
+  --block-header-height: 36px;
+
+  /** Sistema Grupo (GroupNodes) — design system dedicado. */
+  --group-surface: #363636;
+  --group-surface-dark: var(--group-block-field-bg);
+  --group-text: var(--syntax-symbol);
+  --group-slot: #80ffe6;
+  --group-slot-out: #40ff56;
+  --group-slot-in: #ed1c24;
+  --group-card-width: var(--group-block-card-width);
+  --group-row-height: var(--group-block-row-height);
+  --group-header-height: 36px;
 }
