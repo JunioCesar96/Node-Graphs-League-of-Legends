@@ -9,7 +9,7 @@ Saved at: `feature_md/feature/feature-jade-surface-theme.md`
 | Branch Name | `feature-jade-surface-theme` |
 | Feature Name(s) | Jade Surface Theme (independent toggles); Syntax Color Scheme; context-menu checkboxes; app/VFX chrome theming |
 | Current Version | `1.5.3` |
-| Commit Hash | `af4d870` |
+| Commit Hash | `4bdc558` |
 
 ---
 
@@ -208,7 +208,7 @@ Arquivo salvo em: `feature_md/feature/feature-jade-surface-theme.md`
 | Nome da Branch | `feature-jade-surface-theme` |
 | Nome da(s) Feature(s) | Tema Superfície Jade; Syntax Color Scheme; checkboxes nos menus; theming app/VFX |
 | Versão atual | `1.5.3` |
-| Hash do Commit | `af4d870` |
+| Hash do Commit | `4bdc558` |
 
 ## 2–6. (Mesma estrutura acima — ver secções em inglês para diagramas e tabela.)
 
