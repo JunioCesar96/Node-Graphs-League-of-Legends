@@ -164,6 +164,7 @@ Full copy in [`feature_md/feature/feature-structure-card-layout.md`](feature_md/
 | Branch name | `feature-structure-card-layout` |
 | Feature name | Group/Block structure card — compact grid, pointer rows, Ctrl+drag resize |
 | Version | `1.5.2` |
+| Commit | `9d47450` |
 
 ### 2. Tag definitions / Definição de tags
 

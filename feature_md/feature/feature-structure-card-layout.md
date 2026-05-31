@@ -12,7 +12,7 @@
 | Branch name | `feature-structure-card-layout` |
 | Feature name | Group/Block structure card layout — compact grid, pointer rows, manual width resize |
 | Version | `1.5.2` |
-| Commit | `(see branch HEAD)` |
+| Commit | `9d47450` |
 
 ---
 
