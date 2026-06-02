@@ -1,0 +1,20 @@
+{
+  "id": "mMaxAddedPerFrame_mMaxAddedPerFrame",
+  "block": "VfxTrailDefinitionData",
+  "parameterName": "mMaxAddedPerFrame",
+  "name": "mMaxAddedPerFrame",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-trail-definition-data__main-characters/brand/skins/skin0/particles/brand-base-i-fire-hand-complex-emitter-definition-data--slot--0-primitive-m-trail_parameter_mMaxAddedPerFrame"
+  },
+  "type": "i32",
+  "value": "500",
+  "slots": {
+    "in": [
+      "i32"
+    ],
+    "out": [
+      "i32"
+    ]
+  }
+}

@@ -13,12 +13,24 @@ export function birthRotationConstant(
   return [Number(value[0]), Number(value[1]), Number(value[2])]
 }
 
+/** Ritual típico de decal no chão (ex. {-90,-90,0}) sem `isGroundLayer`. */
+export function isGroundLikeBirthRotation(birthRotation: [number, number, number]): boolean {
+  const [rx, ry, rz] = birthRotation
+  const tiltX = Math.abs(Math.abs(rx) - 90) < 45
+  const tiltY = Math.abs(Math.abs(ry) - 90) < 45
+  if (tiltX && tiltY) return true
+  if (Math.abs(rx - 270) < 45) return true
+  if (Math.abs(rx - 90) < 45 && Math.abs(rz) < 45) return true
+  return false
+}
+
 export function resolvePlaneFacing(
   birthRotation: [number, number, number] | null,
   isGroundLayer: boolean,
   birthOrbitalVelocity?: [number, number, number] | null,
 ): VfxPlaneFacing {
   if (isGroundLayer) return 'ground'
+  if (birthRotation && isGroundLikeBirthRotation(birthRotation)) return 'ground'
   if (birthOrbitalVelocity) {
     const [vx, vy, vz] = birthOrbitalVelocity
     const absX = Math.abs(vx)

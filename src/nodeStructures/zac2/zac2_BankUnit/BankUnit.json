@@ -1,0 +1,31 @@
+{
+  "id": "bank-unit__bank-units-1",
+  "title": "BankUnit",
+  "parameters": [
+    {
+      "id": "BankUnit_parameter_bankPath",
+      "name": "bankPath",
+      "type": "listString",
+      "defaultValue": "ASSETS/Sounds/Wwise2016/SFX/Characters/Zac/Skins/Base/Zac_Base_SFX_audio.bnk\nASSETS/Sounds/Wwise2016/SFX/Characters/Zac/Skins/Base/Zac_Base_SFX_events.bnk"
+    },
+    {
+      "id": "BankUnit_parameter_Events",
+      "name": "Events",
+      "type": "listString",
+      "defaultValue": "Play_sfx_Zac_Bloblet_Death\nPlay_sfx_Zac_Dance\nPlay_sfx_Zac_death3d_cast\nPlay_sfx_Zac_Joke3D_buffactivate\nPlay_sfx_Zac_Joke3D_buffactivate2\nPlay_sfx_Zac_Laugh3D_buffactivate\nPlay_sfx_Zac_Laugh3D_buffactivate2\nPlay_sfx_Zac_Recallleadin\nPlay_sfx_Zac_Respawn\nPlay_sfx_Zac_Taunt3D_buffactivate\nPlay_sfx_Zac_Zac_blastcone_fly\nPlay_sfx_Zac_ZacBasicAttack2_OnCast\nPlay_sfx_Zac_ZacBasicAttack2_OnHit\nPlay_sfx_Zac_ZacBasicAttack_OnCast\nPlay_sfx_Zac_ZacBasicAttack_OnHit\nPlay_sfx_Zac_ZacCritAttack_OnCast\nPlay_sfx_Zac_ZacCritAttack_OnHit\nPlay_sfx_Zac_ZacE_hit\nPlay_sfx_Zac_ZacE_OnBuffActivate\nPlay_sfx_Zac_ZacE_OnCast\nPlay_sfx_Zac_ZacEMove_buffactivate\nPlay_sfx_Zac_ZacEMove_missilelaunch\nPlay_sfx_Zac_ZacQ_OnCast\nPlay_sfx_Zac_ZacQattack_OnCast\nPlay_sfx_Zac_ZacQattack_OnHit\nPlay_sfx_Zac_ZacQmissile_OnHit\nPlay_sfx_Zac_ZacQyankRoot_OnBuffDeactivate\nPlay_sfx_Zac_ZacR_bounce_lua\nPlay_sfx_Zac_ZacR_OnCast\nPlay_sfx_Zac_zacrebirthstart_OnBuffActivate\nPlay_sfx_Zac_ZacW_OnCast\nPlay_sfx_Zac_ZacWPassive_buffactivate_heal\nPlay_sfx_Zac_ZacWPassive_buffdeactivate_death\nStop_sfx_Zac_zacrebirthstart_OnBuffActivate"
+    },
+    {
+      "id": "BankUnit_parameter_name",
+      "name": "name",
+      "type": "string",
+      "defaultValue": "Zac_Base_SFX"
+    }
+  ],
+  "embed": [],
+  "pointer": [],
+  "listEmbed": [],
+  "listPointer": [],
+  "list2Embed": [],
+  "list2Pointer": [],
+  "internalStructures": []
+}

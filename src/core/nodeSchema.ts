@@ -67,6 +67,8 @@ export type InternalStructureDefinition = {
   id: string
   name: string
   schemaId: string
+  /** Ritual `Type {}` sem corpo: slot existe, sem nó filho ligado no canvas. */
+  structOnlyEmpty?: boolean
 }
 
 /** Bloco `embed` no ritual: título = nome do campo; no máximo uma estrutura interna. */
@@ -158,6 +160,8 @@ export type NodeSchemaDefinition = {
   hashString?: string
   /** Opcional: id do parâmetro tipo `string` cuja cópia vive em `hashString`. */
   hashStringParameterId?: string
+  /** Metadado de origem (ex.: `"neeko"` em schemas gerados pela transformação Neeko). */
+  tag?: string
 }
 
 export type NodeParameterValue = {
@@ -177,6 +181,29 @@ export type ElementViewState = {
 
 /** Chave estável: `param:<id>`, `embed:<id>`, `listEmbed:<id>`, etc. */
 export type ElementViewKey = string
+
+/** Schema com campos estruturais (embed, pointer, listas, maps) além de parâmetros escalares. */
+export function hasStructuralSchemaFields(schema: NodeSchemaDefinition): boolean {
+  return (
+    (schema.embed?.length ?? 0) > 0 ||
+    (schema.pointer?.length ?? 0) > 0 ||
+    (schema.listEmbed?.length ?? 0) > 0 ||
+    (schema.listPointer?.length ?? 0) > 0 ||
+    (schema.list2Embed?.length ?? 0) > 0 ||
+    (schema.list2Pointer?.length ?? 0) > 0 ||
+    (schema.mapHashEmbed?.length ?? 0) > 0 ||
+    (schema.mapHashPointer?.length ?? 0) > 0 ||
+    (schema.mapU64Pointer?.length ?? 0) > 0
+  )
+}
+
+/** Nó ritual struct-only vazio (ex.: `VfxPrimitiveArbitraryQuad {}`) — sem escalares nem estruturas internas. */
+export function isEmptyStructBlockSchema(schema: NodeSchemaDefinition): boolean {
+  if (schema.parameters.length > 0) {
+    return false
+  }
+  return !hasStructuralSchemaFields(schema)
+}
 
 export type NodeInstance = {
   id: string

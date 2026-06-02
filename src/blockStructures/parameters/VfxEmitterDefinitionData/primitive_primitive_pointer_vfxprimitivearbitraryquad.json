@@ -1,0 +1,17 @@
+{
+  "id": "primitive_primitive_pointer_VfxPrimitiveArbitraryQuad",
+  "block": "VfxEmitterDefinitionData",
+  "parameterName": "primitive",
+  "name": "primitive",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-emitter-definition-data__entries-{particlePath}-complex-emitter-definition-data--slot--0-primitive"
+  },
+  "type": "pointer",
+  "pointer": "VfxPrimitiveArbitraryQuad",
+  "slots": {
+    "out": [
+      "VfxPrimitiveArbitraryQuad"
+    ]
+  }
+}

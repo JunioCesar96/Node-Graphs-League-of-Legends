@@ -1,10 +1,10 @@
 import { useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 
 import '@jade/components/EditorContextMenu.css'
 
 import { buildJadeEditorContextMenuLabels } from '@/core/language/jadeMenuLabels'
-import { buildSurfaceThemeMenuItems } from '@/core/surfaceThemeContextMenu'
-import { useJadeSurfaceTheme } from '@/hooks/useJadeSurfaceTheme'
+import { useContextMenuPlacement } from '@/hooks/useContextMenuPlacement'
 import { useLanguage } from '@/language/LanguageProvider'
 
 import styles from './CodeDockEditorContextMenu.module.css'
@@ -44,13 +44,8 @@ export function CodeDockEditorContextMenu({
 }: CodeDockEditorContextMenuProps) {
   const { t } = useLanguage()
   const labels = buildJadeEditorContextMenuLabels(t)
-  const { themeEnabled, syntaxEnabled, toggleTheme, toggleSyntax } = useJadeSurfaceTheme()
   const menuRef = useRef<HTMLDivElement>(null)
-
-  const themeItems = buildSurfaceThemeMenuItems(
-    { themeEnabled, syntaxEnabled },
-    (id, fallback) => t(id, fallback),
-  )
+  const placement = useContextMenuPlacement(x, y, menuRef)
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -75,26 +70,19 @@ export function CodeDockEditorContextMenu({
     }
   }, [onClose])
 
-  useEffect(() => {
-    if (menuRef.current) {
-      const rect = menuRef.current.getBoundingClientRect()
-      const el = menuRef.current
-      if (rect.right > window.innerWidth) {
-        el.style.left = `${window.innerWidth - rect.width - 4}px`
-      }
-      if (rect.bottom > window.innerHeight) {
-        el.style.top = `${window.innerHeight - rect.height - 4}px`
-      }
-    }
-  }, [x, y])
-
   const handleAction = (action: () => void) => {
     action()
     onClose()
   }
 
   return (
-    <div ref={menuRef} className="editor-ctx-menu" style={{ left: x, top: y }}>
+    <div
+      ref={menuRef}
+      className="editor-ctx-menu"
+      data-expand-down={placement.expandDown ? 'true' : 'false'}
+      data-expand-right={placement.expandRight ? 'true' : 'false'}
+      style={{ left: placement.x, top: placement.y }}
+    >
       <button className="editor-ctx-item" onClick={() => handleAction(onCut)} type="button">
         <span className="editor-ctx-label">{labels.cut}</span>
         <span className="editor-ctx-shortcut">Ctrl+X</span>
@@ -143,27 +131,6 @@ export function CodeDockEditorContextMenu({
           </button>
         </>
       ) : null}
-      <div className="editor-ctx-separator" />
-      {themeItems.map((item) => (
-        <button
-          key={item.id}
-          className="editor-ctx-item"
-          data-selected={item.selected ? 'true' : undefined}
-          onClick={() => {
-            if (item.id === 'surface.toggleJadeTheme') {
-              void toggleTheme()
-            }
-            if (item.id === 'surface.toggleJadeSyntax') {
-              void toggleSyntax()
-            }
-          }}
-          role="menuitemcheckbox"
-          type="button"
-        >
-          <span className={styles.selectedMark}>{item.selected ? '✓' : ''}</span>
-          <span className="editor-ctx-label">{item.label}</span>
-        </button>
-      ))}
     </div>
   )
 }

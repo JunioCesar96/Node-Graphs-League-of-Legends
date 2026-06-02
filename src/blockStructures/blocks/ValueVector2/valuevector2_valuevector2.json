@@ -1,0 +1,20 @@
+{
+  "id": "ValueVector2_ValueVector2",
+  "block": "birthUvScrollRate",
+  "blockName": "ValueVector2",
+  "type": "embed",
+  "name": "ValueVector2",
+  "source": {
+    "kind": "block",
+    "nodeId": "value-vector2__entries-{particlePath}-complex-emitter-definition-data--slot--5-birth-uv-scroll-rate"
+  },
+  "color": "#40ff56",
+  "headerSlots": [
+    "in[birthUvScrollRate,birthUVOffset,uvScaleMult,birthUVOffsetMult]",
+    "out[ValueVector2Preview]"
+  ],
+  "parameters": [
+    "constantValue",
+    "dynamics"
+  ]
+}

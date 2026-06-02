@@ -1,30 +1,17 @@
 import type { HTMLAttributes } from 'react'
 
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
-
-import { createPortal } from 'react-dom'
-
-
-
 import { ViewportDockPinIcon } from '@/components/atoms/ViewportDockPinIcon'
-
+import { DockTabIcon } from '@/components/atoms/DockTabIcon'
 import { GroupTypeIcon } from '@/components/atoms/GroupTypeIcon'
-
 import { GroupInspectorParameterCard } from '@/components/molecules/GroupInspectorParameterCard'
-import { SurfaceThemeContextMenu } from '@/components/molecules/SurfaceThemeContextMenu'
-
+import { InspectorViewportDockShell } from '@/components/molecules/InspectorViewportDockShell'
+import { InspectorFloatingPanelShell } from '@/components/molecules/InspectorFloatingPanelShell'
 import type { GroupInspectorDraft, GroupInspectorDraftEntry } from '@/core/groupSchema'
-
 import type { CanvasNode } from '@/core/canvasScene'
-
 import { LangId } from '@/core/language/languageIds'
-
 import { groupTypeDefinitionById } from '@/core/groupStructureRegistry'
 import { useLanguage } from '@/language/LanguageProvider'
-import { useSurfaceThemeContextMenu } from '@/hooks/useSurfaceThemeContextMenu'
-
-
-
+import dockStyles from '@/styles/inspectorViewportDock.module.css'
 import styles from './GroupInspector.module.css'
 
 
@@ -206,408 +193,144 @@ function GroupInspectorBody({
 
 
 export function GroupInspector({
-
   node,
-
   draft,
-
   minimized,
-
   viewportDocked = false,
-
   dragHandleProps,
-
   onToggleMinimized,
-
   onDockToViewport,
-
   onUndockFromViewportToolbar,
-
   onDraftChange,
-
   onGenerateGroup,
-
   onRevertGroup,
-
 }: GroupInspectorProps) {
-
   const { t } = useLanguage()
-  const {
-    surfaceThemeMenuAnchor,
-    openSurfaceThemeContextMenu,
-    closeSurfaceThemeContextMenu,
-  } = useSurfaceThemeContextMenu()
-
-  const stripRef = useRef<HTMLDivElement>(null)
-
-  const [flyoutStyle, setFlyoutStyle] = useState<CSSProperties>({})
-
   const inspectorTitle = t(LangId.GroupInspectorTitle)
-
   const defaultEyebrow = t(LangId.GroupInspectorDefaultEyebrow)
-
-
-
-  useLayoutEffect(() => {
-
-    if (!viewportDocked || minimized || !stripRef.current) {
-
-      return
-
-    }
-
-    const rect = stripRef.current.getBoundingClientRect()
-
-    setFlyoutStyle({
-
-      position: 'fixed',
-
-      top: rect.bottom + 8,
-
-      right: Math.max(16, window.innerWidth - rect.right),
-
-      zIndex: 40,
-
-    })
-
-  }, [minimized, viewportDocked, node?.id])
-
-
-
-  useEffect(() => {
-
-    if (!viewportDocked || minimized) {
-
-      return
-
-    }
-
-    const onResize = () => {
-
-      if (!stripRef.current) {
-
-        return
-
-      }
-
-      const rect = stripRef.current.getBoundingClientRect()
-
-      setFlyoutStyle({
-
-        position: 'fixed',
-
-        top: rect.bottom + 8,
-
-        right: Math.max(16, window.innerWidth - rect.right),
-
-        zIndex: 40,
-
-      })
-
-    }
-
-    window.addEventListener('resize', onResize)
-
-    return () => window.removeEventListener('resize', onResize)
-
-  }, [minimized, viewportDocked])
-
-
-
   const groupTypeDef = draft ? groupTypeDefinitionById(draft.groupType) : undefined
 
-
-
   const dockPinButton =
-
     viewportDocked && onUndockFromViewportToolbar ? (
-
       <button
-
         type="button"
-
         className={styles.iconButton}
-
         aria-label={t(LangId.GroupInspectorUndockFromViewport)}
-
         onClick={(event) =>
-
           onUndockFromViewportToolbar({
-
             clientX: event.clientX,
-
             clientY: event.clientY,
-
           })
-
         }
-
         onPointerDown={(event) => event.stopPropagation()}
-
       >
-
         <ViewportDockPinIcon filled />
-
       </button>
-
     ) : onDockToViewport ? (
-
       <button
-
         type="button"
-
         className={styles.iconButton}
-
         aria-label={t(LangId.GroupInspectorDockToViewport)}
-
         onClick={onDockToViewport}
-
         onPointerDown={(event) => event.stopPropagation()}
-
       >
-
         <ViewportDockPinIcon filled={false} />
-
       </button>
-
     ) : null
 
-
-
-  const chromeStripClassName = [
-
-    styles.inspectorChromeStrip,
-
-    !viewportDocked && dragHandleProps?.onPointerDown ? styles.inspectorChromeStripDraggable : '',
-
-  ]
-
-    .filter(Boolean)
-
-    .join(' ')
-
-
-
-  if (minimized) {
-
-    const minimizedRowClassName = [
-
-      styles.minimizedDockRow,
-
-      !viewportDocked && dragHandleProps?.onPointerDown ? styles.minimizedDockRowDraggable : '',
-
-    ]
-
-      .filter(Boolean)
-
-      .join(' ')
-
-
-
-    return (
-
-      <div className={minimizedRowClassName}>
-
-        <button
-
-          type="button"
-
-          className={styles.minimizedButton}
-
-          onClick={onToggleMinimized}
-
-          {...(!viewportDocked ? dragHandleProps : {})}
-
-        >
-
-          <span className={styles.minimizedIcon}>
-
-            {groupTypeDef?.icon ? (
-
-              <GroupTypeIcon icon={groupTypeDef.icon} color={groupTypeDef.color} />
-
-            ) : (
-
-              'G'
-
-            )}
-
-          </span>
-
-          <span>{inspectorTitle}</span>
-
-        </button>
-
-        {dockPinButton}
-
-      </div>
-
-    )
-
-  }
-
-
-
-  if (viewportDocked) {
-
-    const flyout = (
-
-      <aside
-
-        aria-label={inspectorTitle}
-
-        className={[styles.panel, styles.panelViewportFloatingBody].join(' ')}
-
-        style={flyoutStyle}
-
-        onContextMenu={openSurfaceThemeContextMenu}
-
+  const headerActions = (
+    <>
+      <button
+        type="button"
+        className={styles.iconButton}
+        onClick={onToggleMinimized}
+        onPointerDown={(event) => event.stopPropagation()}
+        aria-label={t(LangId.InspectorMinimize)}
       >
-
-        <GroupInspectorBody
-
-          node={node}
-
-          draft={draft}
-
-          onDraftChange={onDraftChange}
-
-          onGenerateGroup={onGenerateGroup}
-
-          onRevertGroup={onRevertGroup}
-
-        />
-
-      </aside>
-
-    )
-
-
-
-    return (
-
-      <>
-
-        <div className={chromeStripClassName} ref={stripRef} data-group-inspector-strip>
-
-          <span className={styles.chromeStripEyebrow}>
-
-            {groupTypeDef?.icon ? (
-
-              <GroupTypeIcon icon={groupTypeDef.icon} color={groupTypeDef.color} />
-
-            ) : null}
-
-            {node?.node.schema.title ?? defaultEyebrow}
-
-          </span>
-
-          <h2 className={styles.chromeStripTitle}>{inspectorTitle}</h2>
-
-          <div className={styles.headerActions}>
-
-            <button
-
-              type="button"
-
-              className={styles.iconButton}
-
-              onClick={onToggleMinimized}
-
-              onPointerDown={(event) => event.stopPropagation()}
-
-              aria-label={t(LangId.InspectorMinimize)}
-
-            >
-
-              −
-
-            </button>
-
-            {dockPinButton}
-
-          </div>
-
-        </div>
-
-        {createPortal(flyout, document.body)}
-
-        {surfaceThemeMenuAnchor ? (
-          <SurfaceThemeContextMenu
-            anchor={surfaceThemeMenuAnchor}
-            onClose={closeSurfaceThemeContextMenu}
-          />
-        ) : null}
-
-      </>
-
-    )
-
-  }
-
-
-
-  return (
-
-    <aside className={styles.panel} aria-label={inspectorTitle} onContextMenu={openSurfaceThemeContextMenu}>
-
-      <div className={chromeStripClassName} {...dragHandleProps}>
-
-        <span className={styles.chromeStripEyebrow}>{node?.node.schema.title ?? defaultEyebrow}</span>
-
-        <h2 className={styles.chromeStripTitle}>{inspectorTitle}</h2>
-
-        <div className={styles.headerActions}>
-
-          <button
-
-            type="button"
-
-            className={styles.iconButton}
-
-            onClick={onToggleMinimized}
-
-            onPointerDown={(event) => event.stopPropagation()}
-
-            aria-label={t(LangId.InspectorMinimize)}
-
-          >
-
-            −
-
-          </button>
-
-          {dockPinButton}
-
-        </div>
-
-      </div>
-
-      <GroupInspectorBody
-
-        node={node}
-
-        draft={draft}
-
-        onDraftChange={onDraftChange}
-
-        onGenerateGroup={onGenerateGroup}
-
-        onRevertGroup={onRevertGroup}
-
-      />
-
-      {surfaceThemeMenuAnchor ? (
-        <SurfaceThemeContextMenu
-          anchor={surfaceThemeMenuAnchor}
-          onClose={closeSurfaceThemeContextMenu}
-        />
-      ) : null}
-
-    </aside>
-
+        −
+      </button>
+      {dockPinButton}
+    </>
   )
 
+  const inspectorBody = (
+    <GroupInspectorBody
+      node={node}
+      draft={draft}
+      onDraftChange={onDraftChange}
+      onGenerateGroup={onGenerateGroup}
+      onRevertGroup={onRevertGroup}
+    />
+  )
+
+  const eyebrowContent = (
+    <>
+      {groupTypeDef?.icon ? (
+        <GroupTypeIcon icon={groupTypeDef.icon} color={groupTypeDef.color} />
+      ) : null}
+      {node?.node.schema.title ?? defaultEyebrow}
+    </>
+  )
+
+  if (viewportDocked) {
+    return (
+      <InspectorViewportDockShell
+        body={inspectorBody}
+        bodyClassName="inspectorScrollHost"
+        expandAriaLabel={inspectorTitle}
+        expandContent={<DockTabIcon kind="group" />}
+        eyebrow={eyebrowContent}
+        headerActions={headerActions}
+        minimized={minimized}
+        onExpand={onToggleMinimized}
+        shellSurfaceClassName={dockStyles.dockedShellGroup}
+        title={inspectorTitle}
+      />
+    )
+  }
+
+  if (minimized) {
+    const minimizedRowClassName = [
+      styles.minimizedDockRow,
+      dragHandleProps?.onPointerDown ? styles.minimizedDockRowDraggable : '',
+    ]
+      .filter(Boolean)
+      .join(' ')
+
+    return (
+      <div className={minimizedRowClassName}>
+        <button
+          type="button"
+          className={styles.minimizedButton}
+          onClick={onToggleMinimized}
+          {...dragHandleProps}
+        >
+          <span className={styles.minimizedIcon}>
+            {groupTypeDef?.icon ? (
+              <GroupTypeIcon icon={groupTypeDef.icon} color={groupTypeDef.color} />
+            ) : (
+              'G'
+            )}
+          </span>
+          <span className={styles.minimizedLabel}>{inspectorTitle}</span>
+        </button>
+        <div className={styles.minimizedDockActions}>{dockPinButton}</div>
+      </div>
+    )
+  }
+
+  return (
+    <InspectorFloatingPanelShell
+      ariaLabel={inspectorTitle}
+      body={inspectorBody}
+      bodyClassName="inspectorScrollHost"
+      dragHandleProps={dragHandleProps}
+      eyebrow={eyebrowContent}
+      headerActions={headerActions}
+      shellSurfaceClassName={dockStyles.dockedShellGroup}
+      title={inspectorTitle}
+    />
+  )
 }
 
 

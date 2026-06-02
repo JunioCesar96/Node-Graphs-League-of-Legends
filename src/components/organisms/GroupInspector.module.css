@@ -1,0 +1,237 @@
+.panel {
+  display: grid;
+  gap: var(--space-4);
+  align-content: start;
+  width: min(380px, calc(100vw - 64px));
+  max-height: min(640px, calc(100vh - 96px));
+  overflow: auto;
+  padding: var(--space-4);
+  background: var(--group-surface-dark);
+  border: 1px solid rgb(0 0 0 / 40%);
+  border-radius: 16px;
+  box-shadow: 0 24px 72px rgb(0 0 0 / 45%);
+}
+
+.panelViewportFloatingBody {
+  padding: var(--space-4);
+  margin: 0;
+}
+
+.inspectorChromeStrip {
+  display: inline-flex;
+  position: relative;
+  z-index: 5;
+  gap: var(--space-2);
+  align-items: center;
+  min-width: 0;
+  max-width: min(280px, 36vw);
+  height: 42px;
+  padding: 0 var(--space-2) 0 var(--space-3);
+  background: var(--group-surface);
+  border: 1px solid rgb(0 0 0 / 35%);
+  border-radius: 999px;
+  box-shadow: 0 8px 28px rgb(0 0 0 / 22%);
+}
+
+.inspectorChromeStripDraggable {
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.inspectorChromeStripDraggable:active {
+  cursor: grabbing;
+}
+
+.chromeStripEyebrow {
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: var(--space-1);
+  align-items: center;
+  color: var(--group-slot);
+  font-family: var(--font-data);
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.chromeStripTitle {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  color: var(--group-text);
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.headerActions {
+  display: inline-flex;
+  gap: var(--space-1);
+  align-items: center;
+}
+
+.iconButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid rgb(255 255 255 / 8%);
+  border-radius: 999px;
+  background: rgb(0 0 0 / 18%);
+  color: var(--group-text);
+  cursor: pointer;
+}
+
+.fieldRow {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.fieldRow label {
+  color: var(--group-text);
+  font-size: 0.72rem;
+}
+
+.fieldHint {
+  color: rgb(196 196 196 / 68%);
+  font-size: 0.68rem;
+  line-height: 1.35;
+}
+
+.typeHint {
+  display: inline-flex;
+  gap: var(--space-2);
+  align-items: center;
+  margin: 0;
+  color: rgb(196 196 196 / 68%);
+  font-size: 0.68rem;
+  line-height: 1.35;
+}
+
+
+.fieldRow input,
+.fieldRow select {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid rgb(255 255 255 / 10%);
+  border-radius: 6px;
+  background: var(--group-surface);
+  color: var(--group-text);
+  font-family: var(--font-data);
+  font-size: 0.75rem;
+}
+
+.paramList {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.primary,
+.secondary {
+  flex: 1 1 auto;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.primary {
+  background: var(--group-slot-out);
+  color: #111;
+}
+
+.primary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.secondary {
+  background: var(--group-surface);
+  color: var(--group-text);
+  border: 1px solid rgb(255 255 255 / 12%);
+}
+
+.empty {
+  margin: 0;
+  color: rgb(196 196 196 / 72%);
+  font-size: 0.78rem;
+}
+
+.minimizedDockRow {
+  display: inline-flex;
+  gap: var(--space-2);
+  align-items: center;
+  height: 42px;
+  padding: 0 var(--space-2);
+  background: var(--group-surface);
+  border: 1px solid rgb(0 0 0 / 35%);
+  border-radius: 999px;
+}
+
+.minimizedDockRowDraggable .minimizedButton {
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.minimizedDockRowDraggable .minimizedButton:active {
+  cursor: grabbing;
+}
+
+.minimizedButton {
+  display: inline-flex;
+  gap: var(--space-2);
+  align-items: center;
+  padding: 0 var(--space-2);
+  border: none;
+  background: transparent;
+  color: var(--group-text);
+  cursor: pointer;
+}
+
+.minimizedIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background: var(--group-slot);
+  color: #111;
+  font-family: var(--font-data);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.minimizedLabel {
+  min-width: 0;
+  overflow: hidden;
+  font-family: var(--font-data);
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.minimizedDockActions {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  padding-right: var(--space-1);
+}

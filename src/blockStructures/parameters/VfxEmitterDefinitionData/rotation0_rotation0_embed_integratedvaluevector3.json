@@ -1,0 +1,17 @@
+{
+  "id": "rotation0_rotation0_embed_IntegratedValueVector3",
+  "block": "VfxEmitterDefinitionData",
+  "parameterName": "rotation0",
+  "name": "rotation0",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-emitter-definition-data__main-characters/brand/skins/skin0/particles/brand-base-joke-complex-emitter-definition-data--slot--1-rotation0"
+  },
+  "type": "embed",
+  "embed": "IntegratedValueVector3",
+  "slots": {
+    "out": [
+      "IntegratedValueVector3"
+    ]
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "id": "particlePath_particlePath",
+  "block": "VfxSystemDefinitionData",
+  "parameterName": "particlePath",
+  "name": "particlePath",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-system-definition-data__entries-{particlePath}_parameter_particlePath"
+  },
+  "type": "string",
+  "value": "Characters/Brand/Skins/Skin0/Particles/Brand_Base_E_Conflagration_buf",
+  "slots": {
+    "in": [
+      "string"
+    ],
+    "out": [
+      "string"
+    ]
+  }
+}

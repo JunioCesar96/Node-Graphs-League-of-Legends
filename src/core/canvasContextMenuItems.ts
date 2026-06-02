@@ -48,7 +48,6 @@ import { CANVAS_TOOLBAR_LANG_IDS } from '@/core/language/canvasToolbarLangIds'
 import { listRemovableNodeElements, type NodeElementListItem } from '@/core/listNodeElements'
 import type { NodeParameterDefinition } from '@/core/nodeSchema'
 import { LangId } from '@/core/language/languageIds'
-import { appendSurfaceThemeMenuItems } from '@/core/surfaceThemeContextMenu'
 
 export type CanvasContextMenuBuildContext = {
   canRedo: boolean
@@ -76,6 +75,8 @@ export type CanvasContextMenuBuildContext = {
   onViewNodeCode?: (nodeId: string) => void
   /** Pré-visualizar subárvore com tokens de bloco no CodeDock. */
   onViewNodeBlockCode?: (nodeId: string) => void
+  /** Pré-visualizar código de bloco a partir do card de bloco seleccionado. */
+  onPreviewBlockCardCode?: (nodeId: string) => void
   /** Pré-visualizar subárvore com tokens de grupo no CodeDock. */
   onViewNodeGroupCode?: (nodeId: string) => void
   onPreviewNodeVfx?: (nodeId: string) => void
@@ -91,10 +92,6 @@ export type CanvasContextMenuBuildContext = {
     fallback: string,
     vars?: Readonly<Record<string, string | number>>,
   ) => string
-  /** Tema Jade activo em editor/cards/inspetores. */
-  jadeThemeEnabled?: boolean
-  /** Syntax Color Scheme activo em editor/cards/inspetores. */
-  jadeSyntaxEnabled?: boolean
 }
 
 function trLabel(
@@ -104,17 +101,6 @@ function trLabel(
   vars?: Readonly<Record<string, string | number>>,
 ): string {
   return ctx.tr?.(id, fallback, vars) ?? fallback
-}
-
-function appendSurfaceThemeMenuItem(items: ContextMenuItem[], ctx: CanvasContextMenuBuildContext): void {
-  appendSurfaceThemeMenuItems(
-    items,
-    {
-      themeEnabled: ctx.jadeThemeEnabled ?? true,
-      syntaxEnabled: ctx.jadeSyntaxEnabled ?? true,
-    },
-    (id, fallback) => trLabel(ctx, id, fallback),
-  )
 }
 
 function findCanvasNode(scene: CanvasScene, nodeId: string): CanvasNode | undefined {
@@ -219,6 +205,10 @@ function buildExibirSubmenuItems(ctx: CanvasContextMenuBuildContext): ContextMen
     toolbarVisibilityItem('inspector', ctx, { contextLimited: !ctx.hasInspectorSlot }),
     toolbarVisibilityItem('sceneNodes', ctx),
     toolbarVisibilityItem('legend', ctx),
+    {
+      id: 'canvas.openGridControl',
+      label: `${trLabel(ctx, LangId.CtxCanvasGrid, 'Grade')} ›`,
+    },
     toolbarVisibilityItem('linkStatus', ctx, { contextLimited: !ctx.hasPendingLink }),
     toolbarVisibilityItem('navigateHint', ctx, { contextLimited: !ctx.viewportNavigateMode }),
   ]
@@ -310,7 +300,6 @@ function buildCanvasItems(ctx: CanvasContextMenuBuildContext): ContextMenuItem[]
     },
   ]
 
-  appendSurfaceThemeMenuItem(items, ctx)
   return items
 }
 
@@ -333,7 +322,58 @@ function buildStructureCardItems(
   const isSelected = ctx.selectedNodeIds.includes(nodeId)
   const nodeLocked = isNodeLocked(canvasNode)
   const canDeleteNode = isNodeRemovableFromScene(canvasNode)
+  const isBlockCard = Boolean(canvasNode.blockViewActive && canvasNode.blockStructure)
   const paramsExpanded = canvasNode.structureCardParamsExpanded === true
+
+  if (isBlockCard) {
+    const items: ContextMenuItem[] = [
+      {
+        id: 'node.focus',
+        label: trLabel(ctx, LangId.CtxFocusNode, 'Focar nó na vista'),
+        shortcut: '.',
+      },
+      {
+        id: 'node.select',
+        label: isSelected
+          ? trLabel(ctx, LangId.CtxAlreadySelected, 'Já seleccionado')
+          : trLabel(ctx, LangId.CtxSelectNode, 'Seleccionar nó'),
+        disabled: isSelected,
+      },
+      {
+        id: 'node.glue',
+        label: isGlued
+          ? trLabel(ctx, LangId.CtxGlueDisable, 'Desactivar modo cola')
+          : trLabel(ctx, LangId.CtxGlueEnable, 'Modo cola (glue)'),
+        shortcut: 'G',
+      },
+      ...(ctx.onPreviewBlockCardCode
+        ? [
+            {
+              id: 'node.codigo' as const,
+              label: trLabel(ctx, LangId.CtxCodeSubmenu, 'Código'),
+              separatorBefore: true,
+              children: [
+                {
+                  id: 'node.codigoPreviewBlock' as const,
+                  label: trLabel(ctx, LangId.GraphCtxBlockCodePreview, 'Código Preview Block'),
+                },
+              ],
+            },
+          ]
+        : []),
+      {
+        id: 'node.delete',
+        label: nodeLocked
+          ? `${trLabel(ctx, LangId.GraphCtxDeleteNode, 'Apagar nó')} (travado)`
+          : trLabel(ctx, LangId.GraphCtxDeleteNode, 'Apagar nó'),
+        danger: true,
+        disabled: !canDeleteNode,
+        separatorBefore: true,
+      },
+    ]
+
+    return items
+  }
 
   const items: ContextMenuItem[] = [
     {
@@ -392,8 +432,6 @@ function buildStructureCardItems(
       })
     }
   }
-
-  appendSurfaceThemeMenuItem(items, ctx)
 
   items.push(
     {
@@ -598,7 +636,6 @@ function buildNodeItems(
     },
   )
 
-  appendSurfaceThemeMenuItem(items, ctx)
   return items
 }
 

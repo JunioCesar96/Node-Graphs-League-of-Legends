@@ -1,5 +1,19 @@
 import type { CanvasConnection, CanvasScene, ConnectionRouting } from '@/core/canvasScene'
 import { hydrateScene } from '@/core/canvasScene'
+import {
+  applySceneBlocksToCanvas,
+  extractSceneBlocksFromCanvas,
+  parseSceneBlocks,
+  type StoredSceneBlockEntry,
+} from '@/core/blockScenePersistence'
+import {
+  applySceneGroupsToCanvas,
+  extractSceneGroupsFromCanvas,
+  parseSceneGroups,
+  type StoredSceneGroupEntry,
+} from '@/core/groupScenePersistence'
+import { hydrateSceneBlockViews } from '@/core/codeToBlockStructure'
+import { hydrateSceneGroupViews } from '@/core/codeToGroupStructure'
 import { syncSceneCollapsedBodyWireless } from '@/core/compactConnectionRouting'
 import type {
   ElementViewKey,
@@ -8,6 +22,7 @@ import type {
   NodeParameterValue,
   NodeSchemaDefinition,
 } from '@/core/nodeSchema'
+import type { BlockStructurePayload } from '@/core/blockSchema'
 import type { NodeCardBodyLayout, NodeCardSectionExpandedMap, NodeCardSectionId } from '@/core/nodeCardSections'
 import type { SceneChromeState } from '@/core/canvasScene'
 import type { SceneCamera } from '@/core/canvasScene'
@@ -35,6 +50,7 @@ export type WorkspaceLogicNodePayload = {
   hashString?: string
   hashStringParameterId?: string
   elementView?: Partial<Record<ElementViewKey, ElementViewState>>
+  blockStructure?: BlockStructurePayload
 }
 
 export type WorkspaceLogicFile = {
@@ -49,10 +65,13 @@ export type WorkspaceLayoutNodeEntry = {
   cardSectionOrder?: NodeCardSectionId[]
   cardBodyLayout?: NodeCardBodyLayout
   sceneHidden?: boolean
+  branchForceVisible?: boolean
   displayLabel?: string
   bodyColor?: string
   bodyColorEnabled?: boolean
   locked?: boolean
+  blockViewActive?: boolean
+  groupViewActive?: boolean
 }
 
 export type WorkspaceLayoutFile = {
@@ -70,10 +89,64 @@ export type WorkspaceGraphFile = {
   compactRoutingBackups?: Record<string, ConnectionRouting | undefined>
 }
 
+/** Blocos lean por nó — separado de logic.json (fase 2). */
+export type WorkspaceBlocksFile = {
+  version: typeof WORKSPACE_FORMAT_VERSION
+  blocks: StoredSceneBlockEntry[]
+}
+
+export type WorkspaceGroupsFile = {
+  version: typeof WORKSPACE_FORMAT_VERSION
+  groups: StoredSceneGroupEntry[]
+}
+
 export type WorkspaceBundle = {
   logic: WorkspaceLogicFile
   layout: WorkspaceLayoutFile
   graph: WorkspaceGraphFile
+  blocks: WorkspaceBlocksFile
+  groups: WorkspaceGroupsFile
+}
+
+export function emptyWorkspaceBlocksFile(): WorkspaceBlocksFile {
+  return {
+    version: WORKSPACE_FORMAT_VERSION,
+    blocks: [],
+  }
+}
+
+export function emptyWorkspaceGroupsFile(): WorkspaceGroupsFile {
+  return {
+    version: WORKSPACE_FORMAT_VERSION,
+    groups: [],
+  }
+}
+
+export function normalizeWorkspaceBundle(raw: unknown): WorkspaceBundle | null {
+  if (!isRecord(raw)) {
+    return null
+  }
+
+  const { logic, layout, graph, blocks, groups } = raw
+  if (!isRecord(logic) || !isRecord(layout) || !isRecord(graph)) {
+    return null
+  }
+
+  const normalized: WorkspaceBundle = {
+    logic: logic as WorkspaceLogicFile,
+    layout: layout as WorkspaceLayoutFile,
+    graph: graph as WorkspaceGraphFile,
+    blocks:
+      blocks !== undefined && isRecord(blocks)
+        ? (blocks as WorkspaceBlocksFile)
+        : emptyWorkspaceBlocksFile(),
+    groups:
+      groups !== undefined && isRecord(groups)
+        ? (groups as WorkspaceGroupsFile)
+        : emptyWorkspaceGroupsFile(),
+  }
+
+  return isWorkspaceBundleValid(normalized) ? normalized : null
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -82,6 +155,19 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function hasStructuresArray(schema: Record<string, unknown>): boolean {
   return Array.isArray(schema.internalStructures) || Array.isArray(schema.entities)
+}
+
+function isBlockStructurePayload(value: unknown): value is BlockStructurePayload {
+  if (!isRecord(value)) {
+    return false
+  }
+  if (typeof value.blockType !== 'string' || typeof value.blockName !== 'string') {
+    return false
+  }
+  if (!Array.isArray(value.parameters) || !Array.isArray(value.identification_codes)) {
+    return false
+  }
+  return true
 }
 
 function isNodeParameterValue(value: unknown): value is NodeParameterValue {
@@ -150,13 +236,20 @@ function layoutEntryFromPresentation(
     ...(presentation.cardSectionOrder ? { cardSectionOrder: presentation.cardSectionOrder } : {}),
     cardBodyLayout: presentation.cardBodyLayout,
     ...(presentation.sceneHidden ? { sceneHidden: true } : {}),
+    ...(presentation.branchForceVisible ? { branchForceVisible: true } : {}),
     ...(presentation.displayLabel !== undefined ? { displayLabel: presentation.displayLabel } : {}),
     ...(presentation.bodyColor !== undefined ? { bodyColor: presentation.bodyColor } : {}),
     ...(presentation.bodyColorEnabled !== undefined
       ? { bodyColorEnabled: presentation.bodyColorEnabled }
       : {}),
     ...(presentation.locked ? { locked: true } : {}),
+    ...(presentation.blockViewActive ? { blockViewActive: true } : {}),
+    ...(presentation.groupViewActive ? { groupViewActive: true } : {}),
   }
+}
+
+function logicNodeFromCanvasNode(canvasNode: CanvasScene['nodes'][number]): WorkspaceLogicNodePayload {
+  return logicNodeFromInstance(canvasNode.node)
 }
 
 function isValidLayoutNodeEntry(raw: unknown): raw is WorkspaceLayoutNodeEntry {
@@ -189,13 +282,15 @@ export function splitSceneToWorkspace(scene: CanvasScene): WorkspaceBundle {
   const layoutNodes: WorkspaceLayoutFile['nodes'] = {}
 
   for (const canvasNode of scene.nodes) {
-    logicNodes[canvasNode.id] = logicNodeFromInstance(canvasNode.node)
+    logicNodes[canvasNode.id] = logicNodeFromCanvasNode(canvasNode)
     layoutNodes[canvasNode.id] = layoutEntryFromPresentation(
       canvasNodePresentationFromNode(canvasNode),
     )
   }
 
   const sceneChrome = sceneChromeFromScene(scene)
+  const blockEntries = extractSceneBlocksFromCanvas(scene)
+  const groupEntries = extractSceneGroupsFromCanvas(scene)
 
   return {
     logic: {
@@ -216,6 +311,14 @@ export function splitSceneToWorkspace(scene: CanvasScene): WorkspaceBundle {
       ...(scene.compactRoutingBackups && Object.keys(scene.compactRoutingBackups).length > 0
         ? { compactRoutingBackups: structuredClone(scene.compactRoutingBackups) }
         : {}),
+    },
+    blocks: {
+      version: WORKSPACE_FORMAT_VERSION,
+      blocks: structuredClone(blockEntries),
+    },
+    groups: {
+      version: WORKSPACE_FORMAT_VERSION,
+      groups: structuredClone(groupEntries),
     },
   }
 }
@@ -276,6 +379,15 @@ function parseLogicNode(id: string, raw: unknown): WorkspaceLogicNodePayload | n
     return null
   }
 
+  const blockStructureRaw = raw.blockStructure
+  let blockStructure: BlockStructurePayload | undefined
+  if (blockStructureRaw !== undefined) {
+    if (!isBlockStructurePayload(blockStructureRaw)) {
+      return null
+    }
+    blockStructure = structuredClone(blockStructureRaw)
+  }
+
   return {
     id,
     schema: structuredClone(raw.schema),
@@ -287,6 +399,7 @@ function parseLogicNode(id: string, raw: unknown): WorkspaceLogicNodePayload | n
     ...(hashString !== undefined ? { hashString } : {}),
     ...(hashStringParameterId !== undefined ? { hashStringParameterId } : {}),
     ...(elementView ? { elementView: structuredClone(elementView) } : {}),
+    ...(blockStructure ? { blockStructure } : {}),
   }
 }
 
@@ -320,6 +433,23 @@ function parseConnection(raw: unknown): CanvasConnection | null {
     fromInternalStructureId: fromInternalStructureIdRaw,
     toNodeId: raw.toNodeId,
     ...(routing ? { routing } : {}),
+    ...(typeof raw.fromBlockSlotId === 'string' ? { fromBlockSlotId: raw.fromBlockSlotId } : {}),
+    ...(typeof raw.fromBlockParameterId === 'string'
+      ? { fromBlockParameterId: raw.fromBlockParameterId }
+      : {}),
+    ...(typeof raw.toBlockSlotId === 'string' ? { toBlockSlotId: raw.toBlockSlotId } : {}),
+    ...(typeof raw.toBlockParameterId === 'string'
+      ? { toBlockParameterId: raw.toBlockParameterId }
+      : {}),
+    ...(typeof raw.fromGroupSlotId === 'string' ? { fromGroupSlotId: raw.fromGroupSlotId } : {}),
+    ...(typeof raw.fromGroupParameterId === 'string'
+      ? { fromGroupParameterId: raw.fromGroupParameterId }
+      : {}),
+    ...(typeof raw.toGroupSlotId === 'string' ? { toGroupSlotId: raw.toGroupSlotId } : {}),
+    ...(typeof raw.toGroupParameterId === 'string'
+      ? { toGroupParameterId: raw.toGroupParameterId }
+      : {}),
+    ...(raw.forced === true ? { forced: true } : {}),
   }
 }
 
@@ -328,7 +458,7 @@ export function isWorkspaceBundleValid(bundle: unknown): bundle is WorkspaceBund
     return false
   }
 
-  const { logic, layout, graph } = bundle
+  const { logic, layout, graph, blocks, groups } = bundle
   if (!isRecord(logic) || !isRecord(layout) || !isRecord(graph)) {
     return false
   }
@@ -355,6 +485,24 @@ export function isWorkspaceBundleValid(bundle: unknown): bundle is WorkspaceBund
 
   if (layout.sceneChrome !== undefined && parseSceneChrome(layout.sceneChrome) === undefined) {
     return false
+  }
+
+  if (blocks !== undefined) {
+    if (!isRecord(blocks) || blocks.version !== WORKSPACE_FORMAT_VERSION) {
+      return false
+    }
+    if (parseSceneBlocks(blocks.blocks) === null) {
+      return false
+    }
+  }
+
+  if (groups !== undefined) {
+    if (!isRecord(groups) || groups.version !== WORKSPACE_FORMAT_VERSION) {
+      return false
+    }
+    if (parseSceneGroups(groups.groups) === null) {
+      return false
+    }
   }
 
   const logicIds = Object.keys(logic.nodes)
@@ -391,15 +539,16 @@ export function isWorkspaceBundleEmpty(bundle: WorkspaceBundle): boolean {
 }
 
 export function mergeWorkspaceToScene(bundle: WorkspaceBundle): CanvasScene | null {
-  if (!isWorkspaceBundleValid(bundle)) {
+  const normalized = normalizeWorkspaceBundle(bundle)
+  if (!normalized) {
     return null
   }
 
   const nodes: CanvasScene['nodes'] = []
 
-  for (const canvasNodeId of Object.keys(bundle.logic.nodes)) {
-    const logicRaw = bundle.logic.nodes[canvasNodeId]
-    const layoutRaw = bundle.layout.nodes[canvasNodeId]
+  for (const canvasNodeId of Object.keys(normalized.logic.nodes)) {
+    const logicRaw = normalized.logic.nodes[canvasNodeId]
+    const layoutRaw = normalized.layout.nodes[canvasNodeId]
     if (!layoutRaw) {
       return null
     }
@@ -437,11 +586,13 @@ export function mergeWorkspaceToScene(bundle: WorkspaceBundle): CanvasScene | nu
       ...(presentation.bodyCollapsed ? { bodyCollapsed: true } : {}),
       ...canvasNodeOverlayFromPresentation(presentation, nodeInstance),
       node: nodeInstance,
+      ...(logicNode.blockStructure ? { blockStructure: structuredClone(logicNode.blockStructure) } : {}),
+      ...(presentation.blockViewActive ? { blockViewActive: true } : {}),
     })
   }
 
   const connections: CanvasConnection[] = []
-  for (const raw of bundle.graph.connections) {
+  for (const raw of normalized.graph.connections) {
     const connection = parseConnection(raw)
     if (!connection) {
       return null
@@ -449,7 +600,7 @@ export function mergeWorkspaceToScene(bundle: WorkspaceBundle): CanvasScene | nu
     connections.push(connection)
   }
 
-  const backupsRaw = bundle.graph.compactRoutingBackups
+  const backupsRaw = normalized.graph.compactRoutingBackups
   let compactRoutingBackups: CanvasScene['compactRoutingBackups']
   if (backupsRaw !== undefined) {
     if (!isRecord(backupsRaw)) {
@@ -473,28 +624,44 @@ export function mergeWorkspaceToScene(bundle: WorkspaceBundle): CanvasScene | nu
     return null
   }
 
-  const layoutCamera = bundle.layout.camera
-  const layoutChrome = parseSceneChrome(bundle.layout.sceneChrome)
+  const layoutCamera = normalized.layout.camera
+  const layoutChrome = parseSceneChrome(normalized.layout.sceneChrome)
+
+  const baseScene: CanvasScene = {
+    width: normalized.layout.width,
+    height: normalized.layout.height,
+    nodes,
+    connections,
+    ...(compactRoutingBackups && Object.keys(compactRoutingBackups).length > 0
+      ? { compactRoutingBackups }
+      : {}),
+    ...(layoutCamera
+      ? {
+          camera: {
+            pan: { x: layoutCamera.pan.x, y: layoutCamera.pan.y },
+            scale: layoutCamera.scale,
+          },
+        }
+      : {}),
+    ...(layoutChrome ? { sceneChrome: layoutChrome } : {}),
+  }
+
+  const blockEntries = normalized.blocks.blocks
+  const withBlocks =
+    blockEntries.length > 0 ? applySceneBlocksToCanvas(baseScene, blockEntries) : baseScene
+  if (!withBlocks) {
+    return null
+  }
+
+  const groupEntries = normalized.groups.groups
+  const withGroups =
+    groupEntries.length > 0 ? applySceneGroupsToCanvas(withBlocks, groupEntries) : withBlocks
+  if (!withGroups) {
+    return null
+  }
 
   return syncSceneCollapsedBodyWireless(
-    hydrateScene({
-      width: bundle.layout.width,
-      height: bundle.layout.height,
-      nodes,
-      connections,
-      ...(compactRoutingBackups && Object.keys(compactRoutingBackups).length > 0
-        ? { compactRoutingBackups }
-        : {}),
-      ...(layoutCamera
-        ? {
-            camera: {
-              pan: { x: layoutCamera.pan.x, y: layoutCamera.pan.y },
-              scale: layoutCamera.scale,
-            },
-          }
-        : {}),
-      ...(layoutChrome ? { sceneChrome: layoutChrome } : {}),
-    }),
+    hydrateSceneGroupViews(hydrateSceneBlockViews(hydrateScene(withGroups))),
   )
 }
 

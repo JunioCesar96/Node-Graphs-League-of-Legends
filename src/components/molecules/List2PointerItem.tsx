@@ -6,7 +6,7 @@ import { StructureViewToggle } from '@/components/atoms/StructureViewToggle'
 import { ElementRetractedBar } from '@/components/molecules/ElementRetractedBar'
 import { canvasContextElementProps } from '@/core/canvasContextMenuAttributes'
 import type { InternalStructureDefinition, List2PointerDefinition } from '@/core/nodeSchema'
-import { isRetractedElementPulsing } from '@/core/connectionDisplay'
+import { retractedElementPulseVariant } from '@/core/connectionDisplay'
 import { clampSelectedIndex } from '@/core/elementViewState'
 import { elementTitleDoubleClickRetractProps } from '@/core/elementTitleInteraction'
 import { populatedSlotsForList2PointerInstance } from '@/core/list2PointerSlots'
@@ -15,6 +15,7 @@ import {
   StructureIndexPicker,
   type StructureIndexPickerItem,
 } from '@/components/molecules/StructureIndexPicker'
+import type { OutputSlotPeerActions } from '@/core/outputSlotPeerActions'
 import type { StructureBlockViewProps } from '@/components/molecules/structureBlockViewProps'
 
 import styles from './ListEmbedItem.module.css'
@@ -48,6 +49,7 @@ type List2PointerItemProps = StructureBlockViewProps & {
   wirelessOutputLinks?: ReadonlyMap<string, import('@/core/connectionDisplay').WirelessPortLink>
   wirelessPortHandlers?: import('@/core/connectionDisplay').WirelessPortHandlers
   wirelessPortPulse?: import('@/core/connectionDisplay').WirelessPortPulseTarget
+  outputSlotPeerActions?: OutputSlotPeerActions
 }
 
 export function List2PointerItem({
@@ -67,6 +69,7 @@ export function List2PointerItem({
   wirelessOutputLinks,
   wirelessPortHandlers,
   wirelessPortPulse,
+  outputSlotPeerActions,
   viewMode = 'list',
   selectedIndex = 0,
   onViewModeChange,
@@ -106,8 +109,8 @@ export function List2PointerItem({
           title={list2Pointer.title}
           typeLabel="list2Pointer"
           onExpand={onExpandFromRetracted}
-          wirelessPulse={
-            elementViewKey ? isRetractedElementPulsing(wirelessPortPulse, elementViewKey) : false
+          pulseVariant={
+            elementViewKey ? retractedElementPulseVariant(wirelessPortPulse, elementViewKey) : undefined
           }
         />
       </li>
@@ -123,8 +126,8 @@ export function List2PointerItem({
         <h4
           className={styles.blockTitle}
           title={list2Pointer.title}
-          {...elementTitleDoubleClickRetractProps(onRetractFromTitle)}
-        >
+            {...elementTitleDoubleClickRetractProps(onRetractFromTitle)}
+          >
           {list2Pointer.title}
         </h4>
         <div className={styles.blockActions}>
@@ -183,6 +186,7 @@ export function List2PointerItem({
               wirelessOutputLinks={wirelessOutputLinks}
               wirelessPortHandlers={wirelessPortHandlers}
               wirelessPortPulse={wirelessPortPulse}
+              outputSlotPeerActions={outputSlotPeerActions}
               slots={populatedSlotsForList2PointerInstance(instance)}
             />
           ))}

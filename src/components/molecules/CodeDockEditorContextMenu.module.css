@@ -45,13 +45,6 @@
   display: block;
 }
 
-.selectedMark {
-  display: inline-block;
-  width: 1rem;
-  margin-right: 0.35rem;
-  text-align: center;
-}
-
 .submenuFlyout .editor-ctx-item {
   justify-content: flex-start;
 }

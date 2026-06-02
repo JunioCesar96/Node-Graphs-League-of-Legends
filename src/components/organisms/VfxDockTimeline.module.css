@@ -149,7 +149,7 @@
 
 .scrubInput {
   width: 100%;
-  accent-color: #4ec8e8;
+  accent-color: var(--vfx-control-accent);
 }
 
 .speedWrap {
@@ -170,7 +170,7 @@
 .speedRange {
   flex: 1;
   min-width: 52px;
-  accent-color: #4ec8e8;
+  accent-color: var(--vfx-control-accent);
 }
 
 .scaleWrap {

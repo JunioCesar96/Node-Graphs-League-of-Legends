@@ -12,11 +12,13 @@ export function buildSurfaceThemeMenuItems(
       label: tr(LangId.CtxApplyJadeTheme, 'Tema'),
       selected: state.themeEnabled,
       separatorBefore: true,
+      toggleCheckbox: true,
     },
     {
       id: 'surface.toggleJadeSyntax',
       label: tr(LangId.CtxApplyJadeSyntax, 'Syntax Color Scheme'),
       selected: state.syntaxEnabled,
+      toggleCheckbox: true,
     },
   ]
 }

@@ -1,4 +1,3 @@
-import EditorContextMenu from '@jade/components/EditorContextMenu'
 import SettingsDialog from '@jade/components/SettingsDialog'
 import PreferencesDialog from '@jade/components/PreferencesDialog'
 import ThemesDialog from '@jade/components/ThemesDialog'
@@ -6,6 +5,7 @@ import AboutDialog from '@jade/components/AboutDialog'
 import GeneralEditPanel from '@jade/components/GeneralEditPanel'
 import ParticleEditorPanel from '@jade/components/ParticleEditorPanel'
 
+import { CodeDockEditorContextMenu } from '@/components/molecules/CodeDockEditorContextMenu'
 import type { useCodeDockJadeEditor } from '@/hooks/useCodeDockJadeEditor'
 import { useJadeBridgeCapabilities } from '@/hooks/useJadeBridgeCapabilities'
 
@@ -16,6 +16,8 @@ type CodeDockJadeDialogsProps = {
   value: string
   neekoSendTarget?: { canvasNodeId: string } | null
   onSendCodeToNeeko?: (canvasNodeId: string, text: string) => void
+  primarySelectedNodeId?: string | null
+  onReplaceValueToGraph?: (snippet: string) => void
 }
 
 export function CodeDockJadeDialogs({
@@ -23,6 +25,8 @@ export function CodeDockJadeDialogs({
   value,
   neekoSendTarget = null,
   onSendCodeToNeeko,
+  primarySelectedNodeId = null,
+  onReplaceValueToGraph,
 }: CodeDockJadeDialogsProps) {
   const { capabilities, httpBridgeEnabled } = useJadeBridgeCapabilities()
   const bridgeFeatures = httpBridgeEnabled ? capabilities?.features : undefined
@@ -31,6 +35,10 @@ export function CodeDockJadeDialogs({
   const showToNeekoNode =
     Boolean(neekoSendTarget && onSendCodeToNeeko && ctxSelectedText.length > 0)
 
+  const showReplaceValueToGraph = Boolean(
+    primarySelectedNodeId && onReplaceValueToGraph && ctxSelectedText.length > 0,
+  )
+
   const handleToNeekoNode = () => {
     if (!neekoSendTarget || !onSendCodeToNeeko || ctxSelectedText.length === 0) {
       return
@@ -38,10 +46,17 @@ export function CodeDockJadeDialogs({
     onSendCodeToNeeko(neekoSendTarget.canvasNodeId, ctxSelectedText)
   }
 
+  const handleReplaceValueToGraph = () => {
+    if (!onReplaceValueToGraph || ctxSelectedText.length === 0) {
+      return
+    }
+    onReplaceValueToGraph(ctxSelectedText)
+  }
+
   return (
     <>
       {editor.ctxMenu ? (
-        <EditorContextMenu
+        <CodeDockEditorContextMenu
           hasEmitters={editor.hasEmitters()}
           onClose={() => editor.setCtxMenu(null)}
           onCopy={editor.handleCopy}
@@ -50,8 +65,10 @@ export function CodeDockJadeDialogs({
           onPaste={editor.handlePaste}
           onSelectAll={editor.handleSelectAll}
           onToNeekoNode={showToNeekoNode ? handleToNeekoNode : undefined}
+          onReplaceValueToGraph={showReplaceValueToGraph ? handleReplaceValueToGraph : undefined}
           onUnfoldEmitters={editor.unfoldAllEmitters}
           showToNeekoNode={showToNeekoNode}
+          showReplaceValueToGraph={showReplaceValueToGraph}
           x={editor.ctxMenu.x}
           y={editor.ctxMenu.y}
         />

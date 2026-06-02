@@ -1,0 +1,19 @@
+{
+  "id": "VfxEmitterAudio_VfxEmitterAudio",
+  "block": "Audio",
+  "blockName": "VfxEmitterAudio",
+  "type": "pointer",
+  "name": "VfxEmitterAudio",
+  "source": {
+    "kind": "block",
+    "nodeId": "vfx-emitter-audio__main-characters/brand/skins/skin0/particles/brand-base-w-pof-tar-red-complex-emitter-definition-data--slot--1-audio"
+  },
+  "color": "#40ff56",
+  "headerSlots": [
+    "in[Audio]",
+    "out[VfxEmitterAudioPreview]"
+  ],
+  "parameters": [
+    "SoundOnCreate"
+  ]
+}

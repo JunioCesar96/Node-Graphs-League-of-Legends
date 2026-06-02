@@ -6,6 +6,7 @@ import { elementViewKeyForParameter, patchElementRetracted } from '@/core/elemen
 import { buildContextMenuItems } from '@/core/canvasContextMenuItems'
 import type { CanvasContextTarget } from '@/core/canvasContextMenuTypes'
 import { DEFAULT_CANVAS_TOOLBAR_VISIBILITY } from '@/core/canvasToolbarVisibility'
+import type { BlockStructurePayload } from '@/core/blockSchema'
 
 function stubNode(id: string): CanvasNode {
   return {
@@ -49,6 +50,7 @@ describe('buildContextMenuItems element retracted', () => {
     toolbarVisibility: DEFAULT_CANVAS_TOOLBAR_VISIBILITY,
     hasPendingLink: false,
     hasInspectorSlot: false,
+    onPreviewBlockCardCode: () => {},
   }
 
   it('mostra Retrair elemento quando expandido', () => {
@@ -110,6 +112,7 @@ describe('buildContextMenuItems node hide linked children', () => {
     toolbarVisibility: DEFAULT_CANVAS_TOOLBAR_VISIBILITY,
     hasPendingLink: false,
     hasInspectorSlot: false,
+    onPreviewBlockCardCode: () => {},
   }
 
   const scene: CanvasScene = {
@@ -130,5 +133,56 @@ describe('buildContextMenuItems node hide linked children', () => {
     const items = buildContextMenuItems(target, { ...baseCtx, scene, selectedNodeIds: [] })
     const hideItem = items.find((item) => item.id === 'node.hideLinkedChildNodes')
     expect(hideItem?.disabled).toBe(true)
+  })
+})
+
+describe('buildContextMenuItems block card node menu', () => {
+  const baseCtx = {
+    canRedo: false,
+    canUndo: false,
+    glueNodeId: null,
+    hasSelectAll: false,
+    viewportNavigateMode: false,
+    toolbarVisibility: DEFAULT_CANVAS_TOOLBAR_VISIBILITY,
+    hasPendingLink: false,
+    hasInspectorSlot: false,
+    onPreviewBlockCardCode: () => {},
+  }
+
+  it('mostra somente opções essenciais para card de bloco', () => {
+    const blockStructure: BlockStructurePayload = {
+      blockType: 'IntegratedValueVector3',
+      blockName: 'IntegratedValueVector3',
+      parameters: [],
+      identification_codes: [],
+    }
+
+    const blockNode: CanvasNode = {
+      ...stubNode('block-node'),
+      blockViewActive: true,
+      blockStructure,
+    }
+
+    const scene: CanvasScene = {
+      nodes: [blockNode],
+      connections: [],
+    }
+
+    const target: CanvasContextTarget = { type: 'node', nodeId: 'block-node' }
+    const items = buildContextMenuItems(target, {
+      ...baseCtx,
+      scene,
+      selectedNodeIds: ['block-node'],
+    })
+
+    expect(items.map((item) => item.id)).toEqual([
+      'node.focus',
+      'node.select',
+      'node.glue',
+      'node.codigo',
+      'node.delete',
+    ])
+    expect(items[1]?.label).toBe('Já seleccionado')
+    expect(items[3]?.children?.map((item) => item.id)).toEqual(['node.codigoPreviewBlock'])
   })
 })

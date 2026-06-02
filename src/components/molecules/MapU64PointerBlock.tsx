@@ -39,6 +39,7 @@ type MapU64PointerBlockProps = {
   onCycleConnectionRouting?: (connectionId: string) => void
   onRemoveConnection?: (connectionId: string) => void
   wirelessOutputLinks?: ReadonlyMap<string, import('@/core/connectionDisplay').WirelessPortLink>
+  onRetractFromTitle?: () => void
 }
 
 export function MapU64PointerBlock(props: MapU64PointerBlockProps) {

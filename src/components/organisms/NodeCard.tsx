@@ -78,7 +78,6 @@ import {
 import type { PointerAddBlockChoice } from '@/core/pointerElementMenu'
 import type { NewNodeMaterializePhase } from '@/core/codeToNewNodeGraph'
 import { isNeekoSchemaId } from '@/core/neekoNodeTransform'
-import neekoIconUrl from '@/assets/neeko_icon.png'
 import type {
   ElementViewKey,
   ElementViewMode,
@@ -407,6 +406,7 @@ export function NodeCard({
   }
 
   const isNeekoNode = isNeekoSchemaId(node.schema.id) || neekoTransformPhase !== undefined
+
   const showNeekoDropZone =
     isNeekoNode &&
     (isNeekoSchemaId(node.schema.id) || neekoTransformPhase === 'shell') &&
@@ -1290,7 +1290,11 @@ export function NodeCard({
   )
 
   return (
-    <article className={styles.card} aria-label={`${headerTitle} node`} style={cardStyle}>
+    <article
+      className={styles.card}
+      aria-label={`${headerTitle} node`}
+      style={cardStyle}
+    >
       <NodeHeader
         canvasNodeId={canvasNodeId}
         canAcceptLink={canAcceptLink}
@@ -1346,13 +1350,7 @@ export function NodeCard({
                 {neekoTransformError}
               </p>
             ) : null}
-            <img
-              className={styles.neekoIcon}
-              src={neekoIconUrl}
-              alt=""
-              aria-hidden
-              draggable={false}
-            />
+            <span aria-hidden className={styles.neekoIcon} />
           </div>
         ) : null}
 

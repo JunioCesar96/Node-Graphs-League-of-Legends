@@ -1,0 +1,20 @@
+{
+  "id": "textureMult_textureMult",
+  "block": "VfxTextureMultDefinitionData",
+  "parameterName": "textureMult",
+  "name": "textureMult",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-texture-mult-definition-data__entries-{particlePath}-complex-emitter-definition-data--slot--7-texture-mult_parameter_textureMult"
+  },
+  "type": "string",
+  "value": "ASSETS/Characters/Brand/Skins/Base/Particles/Brand_Base_E_Swirl.tex",
+  "slots": {
+    "in": [
+      "string"
+    ],
+    "out": [
+      "string"
+    ]
+  }
+}

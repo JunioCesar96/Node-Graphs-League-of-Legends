@@ -1,13 +1,11 @@
 import type { PointerEvent as ReactPointerEvent } from 'react'
 import { useState } from 'react'
 
-import { Port } from '@/components/atoms/Port'
 import { ElementRetractedBar } from '@/components/molecules/ElementRetractedBar'
+import { StructureOutputSlotRow } from '@/components/molecules/StructureOutputSlotRow'
 import { StructureViewToggle } from '@/components/atoms/StructureViewToggle'
 import {
-  isRetractedElementPulsing,
-  isWirelessPortPulsing,
-  toWirelessPortLinkProps,
+  retractedElementPulseVariant,
   type WirelessPortHandlers,
   type WirelessPortLink,
   type WirelessPortPulseTarget,
@@ -15,6 +13,7 @@ import {
 import { clampSelectedIndex } from '@/core/elementViewState'
 import { elementTitleDoubleClickRetractProps } from '@/core/elementTitleInteraction'
 import { canvasContextElementProps } from '@/core/canvasContextMenuAttributes'
+import type { OutputSlotPeerActions } from '@/core/outputSlotPeerActions'
 import type { EmbedDefinition, InternalStructureDefinition } from '@/core/nodeSchema'
 import { StructureIndexPager } from '@/components/molecules/StructureIndexPager'
 import {
@@ -57,92 +56,9 @@ type EmbedItemProps = StructureBlockViewProps & {
   wirelessOutputLinks?: ReadonlyMap<string, WirelessPortLink>
   wirelessPortHandlers?: WirelessPortHandlers
   wirelessPortPulse?: WirelessPortPulseTarget
+  outputSlotPeerActions?: OutputSlotPeerActions
   /** Quando true, não renderiza cabeçalho (ex.: instância dentro de LIST2). */
   nested?: boolean
-}
-
-function renderSlotRow(
-  slot: InternalStructureDefinition,
-  embedId: string,
-  embedTitle: string,
-  props: Pick<
-    EmbedItemProps,
-    | 'activeSlotId'
-    | 'canvasNodeId'
-    | 'onOutputWireKeyboard'
-    | 'onOutputWirePointerCancel'
-    | 'onOutputWirePointerDown'
-    | 'onOutputWirePointerMove'
-    | 'onOutputWirePointerUp'
-    | 'wirelessOutputLinks'
-    | 'wirelessPortHandlers'
-    | 'wirelessPortPulse'
-  >,
-) {
-  const {
-    activeSlotId,
-    canvasNodeId,
-    onOutputWireKeyboard,
-    onOutputWirePointerCancel,
-    onOutputWirePointerDown,
-    onOutputWirePointerMove,
-    onOutputWirePointerUp,
-    wirelessOutputLinks,
-    wirelessPortHandlers,
-    wirelessPortPulse,
-  } = props
-
-  return (
-    <li
-      className={styles.slot}
-      key={slot.id}
-      {...canvasContextElementProps({
-        nodeId: canvasNodeId,
-        kind: 'embedSlot',
-        elementId: slot.id,
-        embedId,
-      })}
-    >
-      <span className={styles.slotName} title={slot.name}>
-        {slot.name}
-      </span>
-      <Port
-        active={slot.id === activeSlotId}
-        direction="output"
-        graphInternalStructureId={slot.id}
-        graphNodeId={canvasNodeId}
-        graphPortKind="output"
-        label={`Start link from ${embedTitle} · ${slot.name}`}
-        onWireActivateKeyboard={
-          onOutputWireKeyboard ? () => onOutputWireKeyboard(slot) : undefined
-        }
-        onWirePointerCancel={
-          onOutputWirePointerCancel
-            ? (event) => onOutputWirePointerCancel(slot, event)
-            : undefined
-        }
-        onWirePointerDown={
-          onOutputWirePointerDown ? (event) => onOutputWirePointerDown(slot, event) : undefined
-        }
-        onWirePointerMove={
-          onOutputWirePointerMove ? (event) => onOutputWirePointerMove(slot, event) : undefined
-        }
-        onWirePointerUp={
-          onOutputWirePointerUp ? (event) => onOutputWirePointerUp(slot, event) : undefined
-        }
-        wirelessLink={toWirelessPortLinkProps(
-          wirelessOutputLinks?.get(slot.id),
-          wirelessPortHandlers,
-          isWirelessPortPulsing(
-            wirelessPortPulse,
-            wirelessOutputLinks?.get(slot.id)?.connectionId ?? '',
-            'output',
-            slot.id,
-          ),
-        )}
-      />
-    </li>
-  )
 }
 
 export function EmbedItem({
@@ -163,6 +79,7 @@ export function EmbedItem({
   wirelessOutputLinks,
   wirelessPortHandlers,
   wirelessPortPulse,
+  outputSlotPeerActions,
   viewMode = 'list',
   selectedIndex = 0,
   onViewModeChange,
@@ -177,18 +94,6 @@ export function EmbedItem({
   const isEmpty = slots.length === 0
   const isCompact = viewMode === 'compact'
   const safeIndex = clampSelectedIndex(slots.length, selectedIndex)
-  const slotProps = {
-    activeSlotId,
-    canvasNodeId,
-    onOutputWireKeyboard,
-    onOutputWirePointerCancel,
-    onOutputWirePointerDown,
-    onOutputWirePointerMove,
-    onOutputWirePointerUp,
-    wirelessOutputLinks,
-    wirelessPortHandlers,
-    wirelessPortPulse,
-  }
 
   const indexPickerItems: StructureIndexPickerItem[] = slots.map((slot, index) => ({
     index,
@@ -215,8 +120,8 @@ export function EmbedItem({
           title={embed.title}
           typeLabel="embed"
           onExpand={onExpandFromRetracted}
-          wirelessPulse={
-            elementViewKey ? isRetractedElementPulsing(wirelessPortPulse, elementViewKey) : false
+          pulseVariant={
+            elementViewKey ? retractedElementPulseVariant(wirelessPortPulse, elementViewKey) : undefined
           }
         />
       </li>
@@ -267,7 +172,31 @@ export function EmbedItem({
 
       {visibleSlots.length > 0 ? (
         <ul className={styles.slots}>
-          {visibleSlots.map((slot) => renderSlotRow(slot, embed.id, embed.title, slotProps))}
+          {visibleSlots.map((slot) => (
+            <StructureOutputSlotRow
+              key={slot.id}
+              activeSlotId={activeSlotId}
+              canvasNodeId={canvasNodeId}
+              liProps={canvasContextElementProps({
+                nodeId: canvasNodeId,
+                kind: 'embedSlot',
+                elementId: slot.id,
+                embedId: embed.id,
+              })}
+              outputSlotPeerActions={outputSlotPeerActions}
+              portLabel={`Start link from ${embed.title} · ${slot.name}`}
+              slot={slot}
+              slotNameClassName={styles.slotName}
+              onOutputWireKeyboard={onOutputWireKeyboard}
+              onOutputWirePointerCancel={onOutputWirePointerCancel}
+              onOutputWirePointerDown={onOutputWirePointerDown}
+              onOutputWirePointerMove={onOutputWirePointerMove}
+              onOutputWirePointerUp={onOutputWirePointerUp}
+              wirelessOutputLinks={wirelessOutputLinks}
+              wirelessPortHandlers={wirelessPortHandlers}
+              wirelessPortPulse={wirelessPortPulse}
+            />
+          ))}
         </ul>
       ) : null}
 

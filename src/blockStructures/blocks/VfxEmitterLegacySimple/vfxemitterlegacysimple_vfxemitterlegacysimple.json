@@ -1,0 +1,22 @@
+{
+  "id": "VfxEmitterLegacySimple_VfxEmitterLegacySimple",
+  "block": "LegacySimple",
+  "blockName": "VfxEmitterLegacySimple",
+  "type": "pointer",
+  "name": "VfxEmitterLegacySimple",
+  "source": {
+    "kind": "block",
+    "nodeId": "vfx-emitter-legacy-simple__main-characters/brand/skins/skin0/particles/brand-base-q-blaze-mis-complex-emitter-definition-data--slot--13-legacy-simple"
+  },
+  "color": "#40ff56",
+  "headerSlots": [
+    "in[LegacySimple]",
+    "out[VfxEmitterLegacySimplePreview]"
+  ],
+  "parameters": [
+    "birthScale",
+    "Scale",
+    "birthRotation",
+    "birthRotationalVelocity"
+  ]
+}

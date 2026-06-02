@@ -587,6 +587,7 @@ export function VfxDock({
   const dockBody = (
     <section
       className={shellClassName}
+      data-vfx-editor-root=""
       ref={shellRef}
       style={dockedShellStyle}
       {...{ [SHORTCUT_SCOPE_ATTR]: SHORTCUT_SCOPE_VFX_DOCK }}

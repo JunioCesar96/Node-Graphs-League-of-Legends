@@ -1,0 +1,55 @@
+{
+  "id": "vfx-shape-legacy__main-entries-0xa2fa6a01-complex-emitter-definition-data-8-spawn-shape",
+  "title": "VfxShapeLegacy",
+  "parameters": [],
+  "embed": [
+    {
+      "id": "VfxShapeLegacy_embed_emitOffset",
+      "title": "emitOffset",
+      "internalStructures": [
+        {
+          "id": "vfx-shape-legacy-emit-offset",
+          "name": "ValueVector3",
+          "schemaId": "value-vector3__main-entries-0xa2fa6a01-complex-emitter-definition-data-8-spawn-shape-emit-offset"
+        }
+      ],
+      "slots": [
+        {
+          "id": "VfxShapeLegacy_embed_emitOffset__slot__0",
+          "name": "ValueVector3",
+          "schemaId": "value-vector3__main-entries-0xa2fa6a01-complex-emitter-definition-data-8-spawn-shape-emit-offset"
+        }
+      ]
+    }
+  ],
+  "pointer": [],
+  "listEmbed": [],
+  "listPointer": [],
+  "list2Embed": [],
+  "list2Pointer": [],
+  "internalStructures": [],
+  "nomenclature": {
+    "group": "#3 Internal Structures",
+    "collection": "#3 Pointer Node",
+    "collectionType": "VfxShapeLegacy",
+    "pathHierarchy": "main > entries:0xa2fa6a01 > complexEmitterDefinitionData:8 > SpawnShape",
+    "pathHierarchySteps": [
+      {
+        "id": "main",
+        "type": "#0 Root main"
+      },
+      {
+        "id": "entries:0xa2fa6a01",
+        "type": "#2 Root Entry (VfxSystemDefinitionData)"
+      },
+      {
+        "id": "complexEmitterDefinitionData:8",
+        "type": "#3 Collection Block"
+      },
+      {
+        "id": "SpawnShape",
+        "type": "#3 Pointer Node"
+      }
+    ]
+  }
+}

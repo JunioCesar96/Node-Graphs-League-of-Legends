@@ -3,6 +3,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ElementRemovalPicker } from '@/components/molecules/ElementRemovalPicker'
 import type { NodeElementListItem } from '@/core/listNodeElements'
 
+import { LangId } from '@/core/language/languageIds'
+import { useLanguage } from '@/language/LanguageProvider'
+
 import styles from '@/components/molecules/ListPrimitivePicker.module.css'
 
 export type ListPrimitivePickerVariant = 'f32' | 'string' | 'hash'
@@ -39,6 +42,7 @@ export function ListPrimitivePicker({
   removalTitleDomId,
   maxItems,
 }: ListPrimitivePickerProps) {
+  const { t } = useLanguage()
   const items = useMemo(() => parseList(value), [parseList, value])
   const [selectedIndex, setSelectedIndex] = useState(-1)
   const [itemMenuOpen, setItemMenuOpen] = useState(false)
@@ -236,7 +240,7 @@ export function ListPrimitivePicker({
               role="menuitem"
               type="button"
             >
-              + {itemLabel}
+              {t(LangId.CtxListAddItem, '+ {label}', { label: itemLabel })}
             </button>
             <button
               className={styles.itemSubmenuEntry}
@@ -245,7 +249,7 @@ export function ListPrimitivePicker({
               role="menuitem"
               type="button"
             >
-              − {itemLabel}
+              {t(LangId.CtxListRemoveItem, '− {label}', { label: itemLabel })}
             </button>
           </div>
         ) : null}

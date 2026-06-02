@@ -1,0 +1,19 @@
+{
+  "id": "skin-animation-properties__main-entries-characters-zac-skins-skin0-skin-animation-properties",
+  "title": "SkinAnimationProperties",
+  "parameters": [
+    {
+      "id": "SkinAnimationProperties_parameter_AnimationGraphData",
+      "name": "AnimationGraphData",
+      "type": "link",
+      "defaultValue": "Characters/Zac/Animations/Skin0"
+    }
+  ],
+  "embed": [],
+  "pointer": [],
+  "listEmbed": [],
+  "listPointer": [],
+  "list2Embed": [],
+  "list2Pointer": [],
+  "internalStructures": []
+}

@@ -1,0 +1,20 @@
+{
+  "id": "height_height",
+  "block": "VfxShapeCylinder",
+  "parameterName": "height",
+  "name": "height",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-shape-cylinder__entries-{particlePath}-complex-emitter-definition-data--slot--0-spawn-shape_parameter_height"
+  },
+  "type": "f32",
+  "value": "100",
+  "slots": {
+    "in": [
+      "f32"
+    ],
+    "out": [
+      "f32"
+    ]
+  }
+}

@@ -2,12 +2,14 @@
 export const SHORTCUT_SCOPE_GRAPH_CANVAS = 'graph-canvas' as const
 export const SHORTCUT_SCOPE_CODE_DOCK = 'code-dock' as const
 export const SHORTCUT_SCOPE_VFX_VIEWPORT = 'vfx-viewport' as const
+export const SHORTCUT_SCOPE_VFX_DOCK = 'vfx-dock' as const
 export const SHORTCUT_SCOPE_NODE_PALETTE = 'node-palette' as const
 
 export type ShortcutScopeId =
   | typeof SHORTCUT_SCOPE_GRAPH_CANVAS
   | typeof SHORTCUT_SCOPE_CODE_DOCK
   | typeof SHORTCUT_SCOPE_VFX_VIEWPORT
+  | typeof SHORTCUT_SCOPE_VFX_DOCK
   | typeof SHORTCUT_SCOPE_NODE_PALETTE
 
 export const SHORTCUT_SCOPE_ATTR = 'data-shortcut-scope'

@@ -1,0 +1,17 @@
+{
+  "id": "fieldNoiseDefinitions_fieldNoiseDefinitions_embed_VfxFieldNoiseDefinitionData",
+  "block": "VfxFieldCollectionDefinitionData",
+  "parameterName": "fieldNoiseDefinitions",
+  "name": "fieldNoiseDefinitions",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-field-collection-definition-data__main-characters/brand/skins/skin0/particles/brand-base-joke-complex-emitter-definition-data--slot--0-field-collection-definition-field-noise-definitions"
+  },
+  "type": "embed",
+  "embed": "VfxFieldNoiseDefinitionData",
+  "slots": {
+    "out": [
+      "VfxFieldNoiseDefinitionData"
+    ]
+  }
+}

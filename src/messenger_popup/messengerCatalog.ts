@@ -8,6 +8,9 @@ export const MESSENGER_CONFIRM_NODE_CONFIGURATION_MODE = 'confirm_node_configura
 export const MESSENGER_CONFIRM_REMOVE_NODE_ELEMENT = 'confirm_remove_node_element' as const
 
 export const MESSENGER_CONFIRM_DELETE_NODE = 'confirm_delete_node' as const
+
+export const MESSENGER_CONFIRM_BLOCK_CONNECTION_FORCED =
+  'confirm_block_connection_forced' as const
 /** Toast quando não existem parâmetros string para definir hashString. */
 export const MESSENGER_TOAST_HASH_STRING_REQUIRES_STRING_PARAM =
   'toast_hash_string_requires_string_param' as const

@@ -25,10 +25,10 @@ const BLEND_LABELS: Record<number, string> = {
   7: 'additive (alt)',
 }
 
-type SectionId = 'material' | 'color' | 'geometry' | 'textures' | 'transform' | 'status'
+type SectionId = 'assetsPath' | 'image' | 'material' | 'color' | 'geometry' | 'transform' | 'status'
 
 type VfxDockInspectorProps = {
-  defaultCollapsed?: boolean
+  embedded?: boolean
   emitter: VfxWebEmitterBuilt | null
   particleNormalized?: number
   textureResolved: boolean
@@ -79,7 +79,7 @@ function Section({
 }
 
 export function VfxDockInspector({
-  defaultCollapsed = false,
+  embedded = false,
   emitter,
   particleNormalized = 0,
   textureResolved,
@@ -98,9 +98,8 @@ export function VfxDockInspector({
   transformDebugRows = null,
 }: VfxDockInspectorProps) {
   const { t } = useLanguage()
-  const [collapsed, setCollapsed] = useState(defaultCollapsed)
   const [openSections, setOpenSections] = useState<Set<SectionId>>(
-    () => new Set(['material', 'color', 'geometry', 'textures', 'transform', 'status']),
+    () => new Set(['assetsPath', 'image', 'material', 'color', 'geometry', 'transform', 'status']),
   )
 
   const toggleSection = (id: SectionId) => {
@@ -119,48 +118,104 @@ export function VfxDockInspector({
     return normalizeVec4Tuple(sampleDynamicsVec4(parsed.color, particleNormalized))
   }, [parsed?.color, particleNormalized])
 
-  if (collapsed) {
-    return (
-      <aside
-        aria-label={t(LangId.VfxInspectorTitle)}
-        className={[styles.inspector, styles.inspectorCollapsed].join(' ')}
-      >
-        <button
-          aria-label={t(LangId.VfxInspectorTitle)}
-          className={styles.vertTab}
-          onClick={() => setCollapsed(false)}
-          title={t(LangId.VfxInspectorTitle)}
-          type="button"
+  const inspectorScroll = (
+    <div className={embedded ? styles.inspectorScrollEmbedded : styles.inspectorScroll}>
+        <Section
+          id="assetsPath"
+          onToggle={toggleSection}
+          openSections={openSections}
+          title={t(LangId.VfxInspectorSectionAssetsPath)}
         >
-          <span className={styles.vertTabLabel}>{t(LangId.VfxInspectorTab)}</span>
-        </button>
-      </aside>
-    )
-  }
+          <div className={styles.assetsBlock}>
+            <input
+              className={styles.gameRootInput}
+              onChange={(event) => onGameRootChange(event.target.value)}
+              placeholder="Rótulo da pasta"
+              value={gameRoot}
+            />
+            <div className={styles.assetsBtnRow}>
+              <button
+                className={styles.assetsBtn}
+                disabled={assetLoading}
+                onClick={onPickAssets}
+                type="button"
+              >
+                {assetLoading ? t(LangId.VfxInspectorIndexing) : t(LangId.VfxInspectorPickAssetsFolder)}
+              </button>
+              <button
+                className={styles.assetsBtnSecondary}
+                disabled={assetLoading}
+                onClick={onOpenTexFile}
+                title={t(LangId.VfxInspectorOpenTex)}
+                type="button"
+              >
+                {t(LangId.VfxInspectorOpenTex)}
+              </button>
+            </div>
+            <span className={styles.assetMeta}>
+              {assetIndexSize > 0
+                ? `${assetIndexSize} textura(s) — actualização automática`
+                : 'A carregar pasta de assets… (só define uma vez)'}
+            </span>
+          </div>
+        </Section>
 
-  return (
-    <aside aria-label={t(LangId.VfxInspectorTitle)} className={styles.inspector}>
-      <button
-        aria-label={t(LangId.VfxInspectorCollapse)}
-        className={styles.collapseBtn}
-        onClick={() => setCollapsed(true)}
-        title={t(LangId.VfxInspectorCollapse)}
-        type="button"
-      >
-        ‹
-      </button>
-      <div className={styles.inspectorHead}>
-        <span className={styles.inspectorTitle}>{t(LangId.VfxInspectorTitle)}</span>
-        {emitter ? (
-          <span className={styles.inspectorSubtitle} title={emitter.name}>
-            {emitter.name}
-          </span>
-        ) : (
-          <span className={styles.inspectorSubtitleMuted}>{t(LangId.VfxInspectorNoEmitter)}</span>
-        )}
-      </div>
+        <Section
+          id="image"
+          onToggle={toggleSection}
+          openSections={openSections}
+          title={t(LangId.VfxInspectorSectionImage)}
+        >
+          {emitter ? (
+            <div className={styles.assetsBlock}>
+              <div className={styles.fieldRow}>
+                <span className={styles.fieldLabel}>{t(LangId.VfxInspectorTexture)}</span>
+                <span
+                  className={[
+                    styles.badge,
+                    textureResolved ? styles.badgeOk : styles.badgeWarn,
+                  ].join(' ')}
+                >
+                  {textureResolved ? 'resolvida' : emitter.texturePath ? 'em falta' : '—'}
+                </span>
+              </div>
+              {emitter.texturePath ? (
+                <div className={styles.pathBlock} title={emitter.texturePath}>
+                  Ritual: {emitter.texturePath.replace(/^ASSETS\//i, '')}
+                </div>
+              ) : null}
+              {textureHit ? (
+                <div className={styles.pathBlock} title={textureHit.hit.matchedKey}>
+                  Ficheiro: {textureHit.hit.matchedKey.replace(/^assets\//i, '')} ({textureHit.hit.matchKind}
+                  {textureHit.hit.isDds ? ', dds' : ''})
+                </div>
+              ) : assetIndexSize > 0 && emitter.texturePath ? (
+                <p className={styles.hint}>
+                  Não encontrada no índice — confira se o .tex/.dds está na pasta e se seleccionou a raiz do
+                  .wad.client.
+                </p>
+              ) : assetIndexSize === 0 ? (
+                <p className={styles.hint}>Defina o caminho em «Assets path» para indexar ASSETS/.</p>
+              ) : null}
 
-      <div className={styles.inspectorScroll}>
+              <VfxTexturePreviewSlot
+                assetIndexSize={assetIndexSize}
+                isDds={textureHit?.hit.isDds}
+                previewUrl={textureHit?.hit.url ?? null}
+                ritualPath={
+                  textureHit?.path ??
+                  emitter.texturePath ??
+                  emitter.colorTexturePath ??
+                  emitter.textureMultPath ??
+                  ''
+                }
+              />
+            </div>
+          ) : (
+            <p className={styles.hint}>{t(LangId.VfxInspectorSelectEmitterHint)}</p>
+          )}
+        </Section>
+
         <Section
           id="material"
           onToggle={toggleSection}
@@ -242,35 +297,6 @@ export function VfxDockInspector({
                     : `~${countPreviewParticlesForEmitter(emitter.parsed)} (rate ${emitter.parsed.rate})`}
                 </span>
               </div>
-              <div className={styles.fieldRow}>
-                <span className={styles.fieldLabel}>Textura</span>
-                <span
-                  className={[
-                    styles.badge,
-                    textureResolved ? styles.badgeOk : styles.badgeWarn,
-                  ].join(' ')}
-                >
-                  {textureResolved ? 'resolvida' : emitter.texturePath ? 'em falta' : '—'}
-                </span>
-              </div>
-              {emitter.texturePath ? (
-                <div className={styles.pathBlock} title={emitter.texturePath}>
-                  Ritual: {emitter.texturePath.replace(/^ASSETS\//i, '')}
-                </div>
-              ) : null}
-              {textureHit ? (
-                <div className={styles.pathBlock} title={textureHit.hit.matchedKey}>
-                  Ficheiro: {textureHit.hit.matchedKey.replace(/^assets\//i, '')} ({textureHit.hit.matchKind}
-                  {textureHit.hit.isDds ? ', dds' : ''})
-                </div>
-              ) : assetIndexSize > 0 && emitter.texturePath ? (
-                <p className={styles.hint}>
-                  Não encontrada no índice — confira se o .tex/.dds está na pasta e se seleccionou a raiz do
-                  .wad.client.
-                </p>
-              ) : assetIndexSize === 0 ? (
-                <p className={styles.hint}>Clique em «Pasta assets…» para indexar ASSETS/.</p>
-              ) : null}
             </>
           ) : (
             <p className={styles.hint}>{t(LangId.VfxInspectorSelectEmitterHint)}</p>
@@ -378,65 +404,12 @@ export function VfxDockInspector({
               ) : !parsed.meshPath ? (
                 <p className={styles.hint}>Emitter sem mSimpleMeshName — usa primitivo no viewport.</p>
               ) : meshCacheSize === 0 ? (
-                <p className={styles.hint}>Clique em «Pasta assets…» para indexar meshes.</p>
+                <p className={styles.hint}>Defina o caminho em «Assets path» para indexar meshes.</p>
               ) : null}
             </>
           ) : (
             <p className={styles.hint}>—</p>
           )}
-        </Section>
-
-        <Section
-          id="textures"
-          onToggle={toggleSection}
-          openSections={openSections}
-          title={t(LangId.VfxInspectorSectionAssets)}
-        >
-          <div className={styles.assetsBlock}>
-            <input
-              className={styles.gameRootInput}
-              onChange={(event) => onGameRootChange(event.target.value)}
-              placeholder="Rótulo da pasta"
-              value={gameRoot}
-            />
-            <div className={styles.assetsBtnRow}>
-              <button
-                className={styles.assetsBtn}
-                disabled={assetLoading}
-                onClick={onPickAssets}
-                type="button"
-              >
-                {assetLoading ? t(LangId.VfxInspectorIndexing) : t(LangId.VfxInspectorPickAssetsFolder)}
-              </button>
-              <button
-                className={styles.assetsBtnSecondary}
-                disabled={assetLoading}
-                onClick={onOpenTexFile}
-                title="Abrir o .tex/.dds/.png exacto do disco"
-                type="button"
-              >
-                Abrir .tex…
-              </button>
-            </div>
-            <span className={styles.assetMeta}>
-              {assetIndexSize > 0
-                ? `${assetIndexSize} textura(s) — actualização automática`
-                : 'A carregar pasta de assets… (só define uma vez)'}
-            </span>
-
-            <VfxTexturePreviewSlot
-              assetIndexSize={assetIndexSize}
-              isDds={textureHit?.hit.isDds}
-              previewUrl={textureHit?.hit.url ?? null}
-              ritualPath={
-                textureHit?.path ??
-                emitter?.texturePath ??
-                emitter?.colorTexturePath ??
-                emitter?.textureMultPath ??
-                ''
-              }
-            />
-          </div>
         </Section>
 
         {showTransformDebug ? (
@@ -487,7 +460,26 @@ export function VfxDockInspector({
             </ul>
           </Section>
         ) : null}
+    </div>
+  )
+
+  if (embedded) {
+    return inspectorScroll
+  }
+
+  return (
+    <aside aria-label={t(LangId.VfxInspectorTitle)} className={styles.inspector}>
+      <div className={styles.inspectorHead}>
+        <span className={styles.inspectorTitle}>{t(LangId.VfxInspectorTitle)}</span>
+        {emitter ? (
+          <span className={styles.inspectorSubtitle} title={emitter.name}>
+            {emitter.name}
+          </span>
+        ) : (
+          <span className={styles.inspectorSubtitleMuted}>{t(LangId.VfxInspectorNoEmitter)}</span>
+        )}
       </div>
+      {inspectorScroll}
     </aside>
   )
 }

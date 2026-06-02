@@ -20,6 +20,7 @@ export function buildJadeMenuBarLabels(t: LanguageTranslateFn): MenuBarLabels {
     find: t(LangId.CodeMenuFind),
     generalEdit: t(LangId.CodeMenuGeneralEdit),
     materialLibrary: t(LangId.CodeMenuMaterialLibrary),
+    options: t(LangId.MenuOptions),
     newFile: t(LangId.CodeMenuNew),
     openFile: t(LangId.CodeMenuOpen),
     openLog: t(LangId.CodeMenuOpenLog),

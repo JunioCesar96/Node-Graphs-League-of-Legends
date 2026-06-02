@@ -1,0 +1,17 @@
+{
+  "id": "probabilityTables_probabilityTables_pointer_VfxProbabilityTableData",
+  "block": "VfxAnimatedColorVariableData",
+  "parameterName": "probabilityTables",
+  "name": "probabilityTables",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-animated-color-variable-data__main-characters/brand/skins/skin0/particles/brand-base-p-fire-mark3-complex-emitter-definition-data--slot--1-birth-color-dynamics-probability-tables"
+  },
+  "type": "pointer",
+  "pointer": "VfxProbabilityTableData",
+  "slots": {
+    "out": [
+      "VfxProbabilityTableData"
+    ]
+  }
+}

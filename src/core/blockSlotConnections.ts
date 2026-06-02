@@ -1,7 +1,20 @@
-import type { CanvasConnection, CanvasNode, CanvasPosition } from './canvasScene'
+import type {
+  CanvasConnection,
+  CanvasNode,
+  CanvasPosition,
+  CanvasScene,
+  ConnectionRouting,
+} from './canvasScene'
+import { applyBlockStructureToNodeValues } from './syncBlockToCode'
 import type { BlockSlotRules, BlockStructurePayload } from './blockSchema'
-import { blockTypeDefinitionById } from './blockStructureRegistry'
-import { BLOCK_CARD_WIDTH, blockHeaderSlotId, blockParameterSlotId } from './blockSchema'
+import {
+  expandBlockHeaderSlotPorts,
+  parseBlockHeaderSlotDescriptor,
+  blockHeaderSlotOffsetY,
+  resolveBlockHeaderSlotsForStructure,
+} from './blockCardHeaderSlots'
+import { blockDefinitionByBlockName } from './blockDefinitionRegistry'
+import { BLOCK_CARD_WIDTH, blockParameterSlotId, parseBlockHeaderSlotId } from './blockSchema'
 import {
   resolveBlockCardWidth,
   STRUCTURE_CARD_BODY_PADDING_Y,
@@ -25,7 +38,14 @@ export type BlockSlotHit = {
 export type BlockConnectionPath = {
   id: string
   d: string
+  routing: ConnectionRouting
+  forced?: boolean
 }
+
+export type BlockSlotConnectionClass =
+  | { kind: 'compatible' }
+  | { kind: 'forced' }
+  | { kind: 'incompatible' }
 
 export type BlockSlotEndpoint = {
   nodeId: string
@@ -37,21 +57,7 @@ export type BlockSlotEndpoint = {
 }
 
 function parseSlotDescriptor(descriptor: string): { direction: 'input' | 'output'; types: string[] } | null {
-  const outputMatch = /^output\[(.+)\]$/.exec(descriptor)
-  if (outputMatch) {
-    return {
-      direction: 'output',
-      types: outputMatch[1].split(',').map((item) => item.trim()).filter(Boolean),
-    }
-  }
-  const inputMatch = /^input\[(.+)\]$/.exec(descriptor)
-  if (inputMatch) {
-    return {
-      direction: 'input',
-      types: inputMatch[1].split(',').map((item) => item.trim()).filter(Boolean),
-    }
-  }
-  return null
+  return parseBlockHeaderSlotDescriptor(descriptor)
 }
 
 function typesFromRules(rules: BlockSlotRules | undefined, direction: 'input' | 'output'): string[] {
@@ -68,21 +74,17 @@ export function listBlockSlotEndpoints(canvasNode: CanvasNode): BlockSlotEndpoin
 
   const structure = canvasNode.blockStructure
   const endpoints: BlockSlotEndpoint[] = []
-  const typeDef = blockTypeDefinitionById(structure.blockType)
+  const headerSlots = resolveBlockHeaderSlotsForStructure(structure)
 
-  typeDef?.headerSlots.forEach((descriptor, index) => {
-    const parsed = parseSlotDescriptor(descriptor)
-    if (!parsed) {
-      return
-    }
+  for (const port of expandBlockHeaderSlotPorts(structure.blockType, headerSlots)) {
     endpoints.push({
       nodeId: canvasNode.id,
-      slotId: blockHeaderSlotId(structure.blockType, index),
-      direction: parsed.direction,
-      types: parsed.types,
+      slotId: port.slotId,
+      direction: port.direction,
+      types: port.types,
       kind: 'header',
     })
-  })
+  }
 
   for (const param of structure.parameters) {
     const outputs = typesFromRules(param.slotRules, 'output')
@@ -128,14 +130,318 @@ function typesCompatible(outputTypes: string[], inputTypes: string[]): boolean {
   )
 }
 
-export function canConnectBlockSlots(from: BlockSlotEndpoint, to: BlockSlotEndpoint): boolean {
+function normalizeSlotType(value: string): string {
+  return value.trim().toLowerCase().replace(/preview$/i, '')
+}
+
+function resolveParentBlockField(structure: BlockStructurePayload): string | undefined {
+  const fromAppearance = structure.appearance?.parentBlockField?.trim()
+  if (fromAppearance) {
+    return fromAppearance
+  }
+  return blockDefinitionByBlockName(structure.blockType)?.block.trim() || undefined
+}
+
+function headerSlotTypes(
+  structure: BlockStructurePayload,
+  direction: 'input' | 'output',
+): string[] {
+  const parsedDirection = direction === 'input' ? 'input' : 'output'
+  return resolveBlockHeaderSlotsForStructure(structure)
+    .map((descriptor) => parseBlockHeaderSlotDescriptor(descriptor))
+    .filter(
+      (parsed): parsed is NonNullable<ReturnType<typeof parseBlockHeaderSlotDescriptor>> =>
+        parsed !== null && parsed.direction === parsedDirection,
+    )
+    .flatMap((parsed) => parsed.types)
+}
+
+/** Cabeçalho OUT → cabeçalho IN entre blocos (filho `in[campoPai]`). */
+function canConnectBlockHeaderToHeader(
+  from: BlockSlotEndpoint,
+  to: BlockSlotEndpoint,
+  _fromStructure: BlockStructurePayload,
+  toStructure: BlockStructurePayload,
+): boolean {
+  const childInTypes = headerSlotTypes(toStructure, 'input')
+  return childInTypes.some((inType) =>
+    from.types.some(
+      (outType) => normalizeSlotType(outType) === normalizeSlotType(inType),
+    ),
+  )
+}
+
+function acceptedParentFieldsForHeaderInput(
+  to: BlockSlotEndpoint,
+  toStructure: BlockStructurePayload,
+): string[] {
+  const childInTypes = to.types.length > 0 ? to.types : headerSlotTypes(toStructure, 'input')
+  const accepted = childInTypes.length > 0 ? childInTypes : [resolveParentBlockField(toStructure)]
+  return accepted.filter((field): field is string => Boolean(field?.trim()))
+}
+
+function blockParameterOutputToHeaderInput(
+  from: BlockSlotEndpoint,
+  to: BlockSlotEndpoint,
+  fromStructure: BlockStructurePayload,
+  toStructure: BlockStructurePayload,
+): { fieldMatches: boolean; typeMatchesChild: boolean } {
+  const acceptedParentFields = acceptedParentFieldsForHeaderInput(to, toStructure)
+  if (acceptedParentFields.length === 0) {
+    return { fieldMatches: false, typeMatchesChild: false }
+  }
+
+  const fromParam = fromStructure.parameters.find((entry) => entry.idParameter === from.parameterId)
+  if (!fromParam) {
+    return { fieldMatches: false, typeMatchesChild: false }
+  }
+
+  const outTypes = typesFromRules(fromParam.slotRules, 'output')
+  const paramName = fromParam.nameParameter.trim() || fromParam.idParameter
+  const childBlockType = toStructure.blockType.trim()
+
+  const fieldMatches = acceptedParentFields.some((field) => {
+    const safeField = field.trim()
+    return paramName === safeField || normalizeSlotType(paramName) === normalizeSlotType(safeField)
+  })
+
+  const typeMatchesChild = outTypes.some(
+    (type) => type === childBlockType || normalizeSlotType(type) === normalizeSlotType(childBlockType),
+  )
+
+  return { fieldMatches, typeMatchesChild }
+}
+
+/** Slot de parâmetro OUT (embed/pointer) → cabeçalho IN do bloco filho. */
+function canConnectBlockParameterToHeader(
+  from: BlockSlotEndpoint,
+  to: BlockSlotEndpoint,
+  fromStructure: BlockStructurePayload,
+  toStructure: BlockStructurePayload,
+): boolean {
+  const { fieldMatches, typeMatchesChild } = blockParameterOutputToHeaderInput(
+    from,
+    to,
+    fromStructure,
+    toStructure,
+  )
+  return fieldMatches && typeMatchesChild
+}
+
+/** Cabeçalho OUT → slot IN de parâmetro no bloco filho. */
+function canConnectBlockHeaderToParameter(
+  from: BlockSlotEndpoint,
+  to: BlockSlotEndpoint,
+  toStructure: BlockStructurePayload,
+): boolean {
+  const childBlockType = toStructure.blockType.trim()
+  return from.types.some((outType) =>
+    to.types.some(
+      (inType) =>
+        normalizeSlotType(outType) === normalizeSlotType(inType) ||
+        normalizeSlotType(inType) === normalizeSlotType(childBlockType),
+    ),
+  )
+}
+
+export function canConnectBlockSlots(
+  from: BlockSlotEndpoint,
+  to: BlockSlotEndpoint,
+  fromStructure?: BlockStructurePayload,
+  toStructure?: BlockStructurePayload,
+): boolean {
   if (from.nodeId === to.nodeId) {
     return false
   }
   if (from.direction !== 'output' || to.direction !== 'input') {
     return false
   }
-  return typesCompatible(from.types, to.types)
+
+  if (from.kind === 'parameter' && to.kind === 'parameter') {
+    return typesCompatible(from.types, to.types)
+  }
+
+  if (typesCompatible(from.types, to.types)) {
+    return true
+  }
+
+  if (!fromStructure || !toStructure) {
+    return false
+  }
+
+  if (from.kind === 'header' && to.kind === 'header') {
+    return canConnectBlockHeaderToHeader(from, to, fromStructure, toStructure)
+  }
+
+  if (from.kind === 'parameter' && to.kind === 'header') {
+    return canConnectBlockParameterToHeader(from, to, fromStructure, toStructure)
+  }
+
+  if (from.kind === 'header' && to.kind === 'parameter') {
+    return canConnectBlockHeaderToParameter(from, to, toStructure)
+  }
+
+  return false
+}
+
+/**
+ * O IN do destino aceita o campo pai, mas o OUT de origem não corresponde ao tipo do bloco filho.
+ * Ex.: dynamics → in[dynamics] com saída VfxAnimatedVector3f ligada a VfxAnimatedColorVariableData.
+ */
+export function classifyBlockSlotConnection(
+  from: BlockSlotEndpoint,
+  to: BlockSlotEndpoint,
+  fromStructure?: BlockStructurePayload,
+  toStructure?: BlockStructurePayload,
+): BlockSlotConnectionClass {
+  if (canConnectBlockSlots(from, to, fromStructure, toStructure)) {
+    return { kind: 'compatible' }
+  }
+
+  if (!fromStructure || !toStructure) {
+    return { kind: 'incompatible' }
+  }
+
+  if (from.kind === 'parameter' && to.kind === 'header') {
+    const { fieldMatches, typeMatchesChild } = blockParameterOutputToHeaderInput(
+      from,
+      to,
+      fromStructure,
+      toStructure,
+    )
+    if (fieldMatches && !typeMatchesChild) {
+      return { kind: 'forced' }
+    }
+  }
+
+  return { kind: 'incompatible' }
+}
+
+export type BlockSlotLinkRequest = {
+  fromNodeId: string
+  fromBlockSlotId: string
+  fromBlockParameterId?: string
+  toNodeId: string
+  toBlockSlotId: string
+  toBlockParameterId?: string
+  allowForced?: boolean
+}
+
+/** Origem da ligação ao criar bloco a partir da paleta «LINK NEW NODE». */
+export type BlockDefinitionSpawnLinkContext = {
+  fromNodeId: string
+  fromBlockSlotId: string
+  fromBlockParameterId?: string
+  fromParameterName?: string
+  outTypes: readonly string[]
+}
+
+/** Aplica ligação entre slots de bloco numa cena (útil após criar o nó destino na mesma transação). */
+export function applyBlockSlotConnectionToScene(
+  scene: CanvasScene,
+  request: BlockSlotLinkRequest,
+): CanvasScene | null {
+  const {
+    fromNodeId,
+    fromBlockSlotId,
+    fromBlockParameterId,
+    toNodeId,
+    toBlockSlotId,
+    toBlockParameterId,
+    allowForced = false,
+  } = request
+
+  const fromNode = scene.nodes.find((node) => node.id === fromNodeId)
+  const toNode = scene.nodes.find((node) => node.id === toNodeId)
+  if (!fromNode?.blockStructure || !toNode?.blockStructure) {
+    return null
+  }
+
+  const fromEndpoint = findBlockSlotEndpoint(fromNode, fromBlockSlotId)
+  const toEndpoint = findBlockSlotEndpoint(toNode, toBlockSlotId)
+  if (!fromEndpoint || !toEndpoint) {
+    return null
+  }
+
+  const connectionClass = classifyBlockSlotConnection(
+    fromEndpoint,
+    toEndpoint,
+    fromNode.blockStructure,
+    toNode.blockStructure,
+  )
+  if (connectionClass.kind === 'incompatible') {
+    return null
+  }
+  if (connectionClass.kind === 'forced' && !allowForced) {
+    return null
+  }
+
+  const connectionId = `block:${fromNodeId}:${fromBlockSlotId}->${toNodeId}:${toBlockSlotId}`
+  if (scene.connections.some((connection) => connection.id === connectionId)) {
+    return scene
+  }
+
+  let nextFromStructure = fromNode.blockStructure
+  let nextToStructure = toNode.blockStructure
+
+  if (fromBlockParameterId && toBlockParameterId) {
+    const propagated = propagateBlockConnectionValue(
+      fromNode.blockStructure,
+      toNode.blockStructure,
+      fromBlockParameterId,
+      toBlockParameterId,
+    )
+    if (propagated) {
+      nextFromStructure = propagated.source
+      nextToStructure = propagated.target
+    }
+  }
+
+  const connection: CanvasConnection = {
+    id: connectionId,
+    fromNodeId,
+    fromInternalStructureId: `__block__:${fromBlockSlotId}`,
+    toNodeId,
+    routing: 'wireless',
+    fromBlockSlotId,
+    ...(fromBlockParameterId ? { fromBlockParameterId } : {}),
+    toBlockSlotId,
+    ...(toBlockParameterId ? { toBlockParameterId } : {}),
+    ...(connectionClass.kind === 'forced' ? { forced: true } : {}),
+  }
+
+  const fromApplied = applyBlockStructureToNodeValues(scene, {
+    ...fromNode,
+    blockStructure: nextFromStructure,
+  }, nextFromStructure)
+  const toApplied = applyBlockStructureToNodeValues(scene, {
+    ...toNode,
+    blockStructure: nextToStructure,
+  }, nextToStructure)
+
+  const childPatchMap = new Map(
+    [...fromApplied.childPatches, ...toApplied.childPatches].map((patch) => [patch.nodeId, patch.node]),
+  )
+
+  const connections = withoutConnectionsToBlockInputSlot(scene.connections, toNodeId, toBlockSlotId)
+
+  return {
+    ...scene,
+    connections: [...connections, connection],
+    nodes: scene.nodes.map((node) => {
+      if (node.id === fromNodeId) {
+        return { ...node, blockStructure: nextFromStructure, node: fromApplied.node }
+      }
+      if (node.id === toNodeId) {
+        return { ...node, blockStructure: nextToStructure, node: toApplied.node }
+      }
+      const childPatch = childPatchMap.get(node.id)
+      if (childPatch) {
+        return { ...node, node: childPatch }
+      }
+      return node
+    }),
+  }
 }
 
 export function findBlockSlotEndpoint(
@@ -151,6 +457,22 @@ export function isBlockSlotConnection(connection: CanvasConnection): boolean {
 
 export function blockConnectionUsesSlot(connection: CanvasConnection, slotId: string): boolean {
   return connection.fromBlockSlotId === slotId || connection.toBlockSlotId === slotId
+}
+
+/** Uma entrada de bloco só pode ter uma ligação — remove a anterior ao mesmo `toBlockSlotId`. */
+export function withoutConnectionsToBlockInputSlot(
+  connections: readonly CanvasConnection[],
+  toNodeId: string,
+  toBlockSlotId: string,
+): CanvasConnection[] {
+  return connections.filter(
+    (connection) =>
+      !(
+        isBlockSlotConnection(connection) &&
+        connection.toNodeId === toNodeId &&
+        connection.toBlockSlotId === toBlockSlotId
+      ),
+  )
 }
 
 export function propagateBlockConnectionValue(
@@ -177,12 +499,21 @@ export function propagateBlockConnectionValue(
   return { source: sourceStructure, target: nextTarget }
 }
 
+/** Rodapé com botão «Parâmetro» (ver BlockCard.module.css). */
+export const BLOCK_CARD_FOOTER_HEIGHT = 44
+
 export function estimateBlockCardHeight(structure: BlockStructurePayload): number {
+  const bodyRows = Math.max(structure.parameters.length, 0)
+  const bodyHeight =
+    bodyRows > 0
+      ? STRUCTURE_CARD_BODY_PADDING_Y * 2 + bodyRows * STRUCTURE_CARD_ROW_HEIGHT
+      : 0
+
   return (
     STRUCTURE_CARD_HEADER_HEIGHT +
     STRUCTURE_CARD_DIVIDER_HEIGHT +
-    STRUCTURE_CARD_BODY_PADDING_Y * 2 +
-    structure.parameters.length * STRUCTURE_CARD_ROW_HEIGHT
+    bodyHeight +
+    BLOCK_CARD_FOOTER_HEIGHT
   )
 }
 
@@ -196,12 +527,36 @@ export function getBlockSlotPortYOffset(
   const rowHeight = STRUCTURE_CARD_ROW_HEIGHT
   const bodyTop = headerHeight + dividerHeight + bodyPaddingY
 
-  const typeDef = blockTypeDefinitionById(structure.blockType)
-  if (typeDef) {
-    for (let index = 0; index < typeDef.headerSlots.length; index += 1) {
-      if (blockHeaderSlotId(structure.blockType, index) === slotId) {
+  const headerSlots = resolveBlockHeaderSlotsForStructure(structure)
+  const ports = expandBlockHeaderSlotPorts(structure.blockType, headerSlots)
+  const port = ports.find((entry) => entry.slotId === slotId)
+  if (port) {
+    const parsed = parseBlockHeaderSlotDescriptor(headerSlots[port.slotIndex] ?? '')
+    const typeCount = parsed?.types.length ?? 1
+    if (typeCount <= 1) {
+      return headerHeight / 2
+    }
+    const fieldIndex = port.fieldKey
+      ? parsed!.types.findIndex((type) => type === port.fieldKey)
+      : 0
+    const safeIndex = fieldIndex >= 0 ? fieldIndex : 0
+    return headerHeight / 2 + blockHeaderSlotOffsetY(typeCount, safeIndex)
+  }
+
+  const parsedSlotId = parseBlockHeaderSlotId(slotId)
+  if (parsedSlotId) {
+    const descriptor = headerSlots[parsedSlotId.slotIndex]
+    const parsed = parseBlockHeaderSlotDescriptor(descriptor ?? '')
+    if (parsed) {
+      const typeCount = parsed.types.length
+      if (typeCount <= 1) {
         return headerHeight / 2
       }
+      const fieldIndex = parsedSlotId.fieldKey
+        ? parsed.types.findIndex((type) => type === parsedSlotId.fieldKey)
+        : 0
+      const safeIndex = fieldIndex >= 0 ? fieldIndex : 0
+      return headerHeight / 2 + blockHeaderSlotOffsetY(typeCount, safeIndex)
     }
   }
 
@@ -308,9 +663,29 @@ export function resolveBlockConnectionPath(
   const exitX = start.x + 24
   const entryX = end.x - 24
   const curveOffset = Math.max(48, Math.abs(entryX - exitX) * 0.35)
+  const routing = connection.routing ?? 'wireless'
+
+  const forced = connection.forced === true
+
+  if (routing === 'rigid') {
+    const bendX = (start.x + end.x) / 2
+    return {
+      id: connection.id,
+      routing,
+      forced,
+      d: [
+        `M ${start.x} ${start.y}`,
+        `L ${bendX} ${start.y}`,
+        `L ${bendX} ${end.y}`,
+        `L ${end.x} ${end.y}`,
+      ].join(' '),
+    }
+  }
 
   return {
     id: connection.id,
+    routing,
+    forced,
     d: [
       `M ${start.x} ${start.y}`,
       `L ${exitX} ${start.y}`,

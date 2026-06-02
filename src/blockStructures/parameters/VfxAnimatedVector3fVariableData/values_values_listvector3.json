@@ -1,0 +1,21 @@
+{
+  "id": "values_values_listVector3",
+  "block": "VfxAnimatedVector3fVariableData",
+  "parameterName": "values",
+  "name": "values",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-animated-vector3f-variable-data__entries-{particlePath}-complex-emitter-definition-data--slot--0-birth-velocity-dynamics_parameter_values"
+  },
+  "type": "listVector3",
+  "items": [
+    "0, 1400, 0",
+    "0, 1400, 0",
+    "0, 3500, 0"
+  ],
+  "slots": {
+    "out": [
+      "vec3"
+    ]
+  }
+}

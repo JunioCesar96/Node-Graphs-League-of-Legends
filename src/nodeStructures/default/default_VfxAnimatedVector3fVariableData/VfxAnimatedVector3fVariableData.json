@@ -1,0 +1,53 @@
+{
+  "id": "vfx-animated-vector3f-variable-data__main-entries-0xa2fa6a01-complex-emitter-definition-data-8-scale0-dynamics",
+  "title": "VfxAnimatedVector3fVariableData",
+  "parameters": [
+    {
+      "id": "VfxAnimatedVector3fVariableData_parameter_times",
+      "name": "times",
+      "type": "listF32",
+      "defaultValue": "0\n0.1\n1"
+    },
+    {
+      "id": "VfxAnimatedVector3fVariableData_parameter_values",
+      "name": "values",
+      "type": "listVector3",
+      "defaultValue": "0, 0, 0\n1, 1, 1\n1, 0, 1"
+    }
+  ],
+  "embed": [],
+  "pointer": [],
+  "listEmbed": [],
+  "listPointer": [],
+  "list2Embed": [],
+  "list2Pointer": [],
+  "internalStructures": [],
+  "nomenclature": {
+    "group": "#3 Internal Structures",
+    "collection": "#3 Pointer Node",
+    "collectionType": "VfxAnimatedVector3fVariableData",
+    "pathHierarchy": "main > entries:0xa2fa6a01 > complexEmitterDefinitionData:8 > scale0 > dynamics",
+    "pathHierarchySteps": [
+      {
+        "id": "main",
+        "type": "#0 Root main"
+      },
+      {
+        "id": "entries:0xa2fa6a01",
+        "type": "#2 Root Entry (VfxSystemDefinitionData)"
+      },
+      {
+        "id": "complexEmitterDefinitionData:8",
+        "type": "#3 Collection Block"
+      },
+      {
+        "id": "scale0",
+        "type": "#3 Embed Block"
+      },
+      {
+        "id": "dynamics",
+        "type": "#3 Pointer Node"
+      }
+    ]
+  }
+}

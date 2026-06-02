@@ -1,9 +1,23 @@
 import { describe, expect, it } from 'vitest'
 
+import {
+  makeVfxEmitterCanvasNode,
+  makeVfxEmitterScene,
+  vfxEmitterSampleParameters,
+  VFX_EMITTER_COLOR_TOKEN,
+} from '@/core/blockTestFixtures'
+import {
+  makeVfxEmitterCanvasNode as makeGroupCanvasNode,
+  makeVfxEmitterScene as makeGroupScene,
+  vfxEmitterSampleParameters as groupSampleParameters,
+  VFX_EMITTER_COLOR_TOKEN as GROUP_COLOR_TOKEN,
+} from '@/core/groupTestFixtures'
 import { demoCanvasScene } from '@/core/demoCanvasScene'
 import { DEFAULT_CANVAS_TOOLBAR_VISIBILITY } from '@/core/canvasToolbarVisibility'
 import { elementViewKeyForParameter, patchElementRetracted } from '@/core/elementViewState'
 import {
+  emptyWorkspaceBlocksFile,
+  emptyWorkspaceGroupsFile,
   isWorkspaceBundleEmpty,
   isWorkspaceBundleValid,
   mergeWorkspaceToScene,
@@ -217,6 +231,8 @@ describe('workspacePersistence', () => {
         logic: { version: WORKSPACE_FORMAT_VERSION, nodes: {} },
         layout: { version: WORKSPACE_FORMAT_VERSION, width: 100, height: 100, nodes: {} },
         graph: { version: WORKSPACE_FORMAT_VERSION, connections: [] },
+        blocks: emptyWorkspaceBlocksFile(),
+        groups: emptyWorkspaceGroupsFile(),
       }),
     ).toBeNull()
   })
@@ -226,9 +242,104 @@ describe('workspacePersistence', () => {
       logic: { version: WORKSPACE_FORMAT_VERSION, nodes: {} },
       layout: { version: WORKSPACE_FORMAT_VERSION, width: 1120, height: 760, nodes: {} },
       graph: { version: WORKSPACE_FORMAT_VERSION, connections: [] },
+      blocks: emptyWorkspaceBlocksFile(),
+      groups: emptyWorkspaceGroupsFile(),
     }
     expect(isWorkspaceBundleValid(empty)).toBe(false)
     expect(isWorkspaceBundleEmpty(empty as never)).toBe(true)
     expect(mergeWorkspaceToScene(empty as never)).toBeNull()
+  })
+
+  it('persiste blocos lean em blocks.json e não em logic.json', () => {
+    const canvasNode = makeVfxEmitterCanvasNode({
+      blockViewActive: true,
+      blockStructure: {
+        blockType: 'VfxEmitterDefinitionData',
+        blockName: 'Emitter',
+        parameters: vfxEmitterSampleParameters,
+        identification_codes: [VFX_EMITTER_COLOR_TOKEN],
+      },
+    })
+    const scene = makeVfxEmitterScene(canvasNode)
+
+    const bundle = splitSceneToWorkspace(scene)
+    expect(bundle.blocks.blocks).toHaveLength(1)
+    expect(bundle.blocks.blocks[0]?.nodeId).toBe('n-vfx')
+    expect(JSON.stringify(bundle.blocks)).not.toContain('identification_codes')
+    expect(bundle.logic.nodes['n-vfx']?.blockStructure).toBeUndefined()
+
+    const restored = mergeWorkspaceToScene(bundle)
+    const node = restored?.nodes.find((entry) => entry.id === 'n-vfx')
+    expect(node?.blockViewActive).toBe(true)
+    expect(node?.blockStructure?.blockType).toBe('VfxEmitterDefinitionData')
+    expect(node?.blockStructure?.parameters).toHaveLength(3)
+  })
+
+  it('persiste grupos lean em groups.json e não em logic.json', () => {
+    const canvasNode = makeGroupCanvasNode({
+      groupViewActive: true,
+      groupStructure: {
+        groupType: 'VfxEmitterDefinitionData',
+        groupName: 'Emitter',
+        parameters: groupSampleParameters,
+        identification_codes: [GROUP_COLOR_TOKEN],
+      },
+    })
+    const scene = makeGroupScene(canvasNode)
+
+    const bundle = splitSceneToWorkspace(scene)
+    expect(bundle.groups.groups).toHaveLength(1)
+    expect(bundle.groups.groups[0]?.nodeId).toBe('n-vfx')
+    expect(JSON.stringify(bundle.groups)).not.toContain('identification_codes')
+    expect(bundle.logic.nodes['n-vfx']?.groupStructure).toBeUndefined()
+
+    const restored = mergeWorkspaceToScene(bundle)
+    const node = restored?.nodes.find((entry) => entry.id === 'n-vfx')
+    expect(node?.groupViewActive).toBe(true)
+    expect(node?.groupStructure?.groupType).toBe('VfxEmitterDefinitionData')
+    expect(node?.groupStructure?.parameters).toHaveLength(3)
+  })
+
+  it('compat legado: blockStructure em logic.json quando blocks.json vazio', () => {
+    const legacyStructure = {
+      blockType: 'VfxEmitterDefinitionData',
+      blockName: 'Emitter',
+      parameters: vfxEmitterSampleParameters.slice(0, 1),
+      identification_codes: [VFX_EMITTER_COLOR_TOKEN],
+    }
+    const canvasNode = makeVfxEmitterCanvasNode({
+      blockViewActive: true,
+      blockStructure: legacyStructure,
+    })
+    const scene = makeVfxEmitterScene(canvasNode)
+    const nodeId = canvasNode.id
+
+    const bundle = splitSceneToWorkspace(scene)
+    const legacyBundle = {
+      ...bundle,
+      blocks: emptyWorkspaceBlocksFile(),
+      logic: {
+        ...bundle.logic,
+        nodes: {
+          ...bundle.logic.nodes,
+          [nodeId]: {
+            ...bundle.logic.nodes[nodeId]!,
+            blockStructure: legacyStructure,
+          },
+        },
+      },
+    }
+
+    const restored = mergeWorkspaceToScene(legacyBundle)
+    const node = restored?.nodes.find((entry) => entry.id === nodeId)
+    expect(node?.blockStructure?.blockName).toBe('Emitter')
+    expect(node?.blockViewActive).toBe(true)
+  })
+
+  it('aceita bundle sem campo blocks (normaliza para array vazio)', () => {
+    const bundle = splitSceneToWorkspace(demoCanvasScene)
+    const { blocks: _removed, ...withoutBlocks } = bundle
+    expect(isWorkspaceBundleValid(withoutBlocks)).toBe(true)
+    expect(mergeWorkspaceToScene(withoutBlocks as never)).not.toBeNull()
   })
 })

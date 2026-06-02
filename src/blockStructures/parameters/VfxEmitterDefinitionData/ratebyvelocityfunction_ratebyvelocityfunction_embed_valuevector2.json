@@ -1,0 +1,17 @@
+{
+  "id": "rateByVelocityFunction_rateByVelocityFunction_embed_ValueVector2",
+  "block": "VfxEmitterDefinitionData",
+  "parameterName": "rateByVelocityFunction",
+  "name": "rateByVelocityFunction",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-emitter-definition-data__main-characters/brand/skins/skin0/particles/brand-base-i-fire-hand-complex-emitter-definition-data--slot--0-rate-by-velocity-function"
+  },
+  "type": "embed",
+  "embed": "ValueVector2",
+  "slots": {
+    "out": [
+      "ValueVector2"
+    ]
+  }
+}

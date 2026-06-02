@@ -1,0 +1,21 @@
+{
+  "id": "VfxDistortionDefinitionData_VfxDistortionDefinitionData",
+  "block": "distortionDefinition",
+  "blockName": "VfxDistortionDefinitionData",
+  "type": "pointer",
+  "name": "VfxDistortionDefinitionData",
+  "source": {
+    "kind": "block",
+    "nodeId": "vfx-distortion-definition-data__main-characters/brand/skins/skin0/particles/brand-base-q-blaze-mis-complex-emitter-definition-data--slot--13-distortion-definition"
+  },
+  "color": "#40ff56",
+  "headerSlots": [
+    "in[distortionDefinition]",
+    "out[VfxDistortionDefinitionDataPreview]"
+  ],
+  "parameters": [
+    "distortion",
+    "distortionMode",
+    "normalMapTexture"
+  ]
+}

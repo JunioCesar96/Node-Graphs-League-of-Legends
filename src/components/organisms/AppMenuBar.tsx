@@ -1,6 +1,6 @@
 import { useRef } from 'react'
 
-import { SurfaceThemeContextMenu } from '@/components/molecules/SurfaceThemeContextMenu'
+import { AppMenuJadeThemeOptions } from '@/components/molecules/JadeThemeOptionsMenu'
 import { LangId } from '@/core/language/languageIds'
 import {
   clearStoredRitobinExePath,
@@ -9,7 +9,6 @@ import {
   setStoredRitobinExePath,
 } from '@/core/ritobinExePreference'
 import type { RecentSceneListItem } from '@/core/sceneTabsStorage'
-import { useSurfaceThemeContextMenu } from '@/hooks/useSurfaceThemeContextMenu'
 import { useLanguage } from '@/language/LanguageProvider'
 import styles from './AppMenuBar.module.css'
 
@@ -51,17 +50,12 @@ export function AppMenuBar({
   recentScenes,
 }: AppMenuBarProps) {
   const { locale, locales, reloadLocales, setLocale, t } = useLanguage()
-  const {
-    surfaceThemeMenuAnchor,
-    openSurfaceThemeContextMenu,
-    closeSurfaceThemeContextMenu,
-  } = useSurfaceThemeContextMenu()
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const ritobinExeInputRef = useRef<HTMLInputElement | null>(null)
 
   return (
     <>
-      <header className={styles.bar} onContextMenu={openSurfaceThemeContextMenu}>
+      <header className={styles.bar}>
       <span className={styles.brand}>Node Graphs LOL</span>
 
       <nav aria-label="Principal" className={styles.nav}>
@@ -319,6 +313,15 @@ export function AppMenuBar({
 
         <div className={styles.menu}>
           <button className={styles.menuButton} type="button">
+            {t(LangId.MenuOptions)}
+          </button>
+          <div className={styles.menuPanel} role="menu">
+            <AppMenuJadeThemeOptions />
+          </div>
+        </div>
+
+        <div className={styles.menu}>
+          <button className={styles.menuButton} type="button">
             {t(LangId.MenuNodes)}
           </button>
           <div className={styles.menuPanel} role="menu">
@@ -377,12 +380,6 @@ export function AppMenuBar({
         </div>
       </nav>
     </header>
-      {surfaceThemeMenuAnchor ? (
-        <SurfaceThemeContextMenu
-          anchor={surfaceThemeMenuAnchor}
-          onClose={closeSurfaceThemeContextMenu}
-        />
-      ) : null}
     </>
   )
 }

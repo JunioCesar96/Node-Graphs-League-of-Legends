@@ -1,0 +1,11 @@
+{
+  "id": "VfxLingerDefinitionData_listEmbed_SeparateLingerColor",
+  "title": "SeparateLingerColor",
+  "internalStructures": [
+    {
+      "id": "VfxLingerDefinitionData_listEmbed_SeparateLingerColor-catalog-0",
+      "name": "ValueColor",
+      "schemaId": "value-color__main-entries-0xa2fa6a01-complex-emitter-definition-data-7-linger-separate-linger-color"
+    }
+  ]
+}

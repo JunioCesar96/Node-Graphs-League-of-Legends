@@ -1,0 +1,17 @@
+{
+  "id": "complexEmitterDefinitionData_complexEmitterDefinitionData_pointer_VfxEmitterDefinitionData",
+  "block": "VfxSystemDefinitionData",
+  "parameterName": "complexEmitterDefinitionData",
+  "name": "complexEmitterDefinitionData",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-system-definition-data__entries-{particlePath}-complex-emitter-definition-data"
+  },
+  "type": "pointer",
+  "pointer": "VfxEmitterDefinitionData",
+  "slots": {
+    "out": [
+      "VfxEmitterDefinitionData"
+    ]
+  }
+}

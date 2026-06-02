@@ -3,6 +3,8 @@ import { createPortal } from 'react-dom'
 
 import { RgbaColorPicker } from '@/components/molecules/RgbaColorPicker'
 import type { CanvasNode } from '@/core/canvasScene'
+import { LangId } from '@/core/language/languageIds'
+import { useLanguage } from '@/language/LanguageProvider'
 
 import styles from '@/components/molecules/SceneNodesOptionsMenu.module.css'
 
@@ -37,6 +39,7 @@ export function SceneNodesOptionsMenu({
   onShowAll,
   onUnlockAll,
 }: SceneNodesOptionsMenuProps) {
+  const { t } = useLanguage()
   const menuRef = useRef<HTMLDivElement>(null)
   const [anchorRect, setAnchorRect] = useState<DOMRect | null>(null)
   const [labelDraft, setLabelDraft] = useState('')
@@ -111,14 +114,14 @@ export function SceneNodesOptionsMenu({
       style={{ left: `${left}px`, top: `${top}px` }}
     >
       <button className={styles.action} onClick={onShowAll} role="menuitem" type="button">
-        Mostrar todos
+        {t(LangId.SceneNodesCtxShowAll)}
       </button>
       <button className={styles.action} onClick={onHideAll} role="menuitem" type="button">
-        Ocultar todos
+        {t(LangId.SceneNodesCtxHideAll)}
       </button>
       <div className={styles.separator} role="separator" />
       <div className={[styles.section, !hasSelection ? styles.sectionMuted : ''].filter(Boolean).join(' ')}>
-        <span className={styles.sectionTitle}>Cor do corpo</span>
+        <span className={styles.sectionTitle}>{t(LangId.SceneNodesCtxBodyColor)}</span>
         <label className={styles.checkRow}>
           <input
             checked={colorEnabled}
@@ -136,7 +139,7 @@ export function SceneNodesOptionsMenu({
             }}
             type="checkbox"
           />
-          <span>Activar cor no corpo</span>
+          <span>{t(LangId.SceneNodesCtxEnableBodyColor)}</span>
         </label>
         {colorEnabled && hasSelection ? (
           <div className={styles.pickerWrap}>
@@ -152,7 +155,7 @@ export function SceneNodesOptionsMenu({
       </div>
       <div className={[styles.section, !hasSelection ? styles.sectionMuted : ''].filter(Boolean).join(' ')}>
         <label className={styles.labelField}>
-          <span className={styles.sectionTitle}>Label</span>
+          <span className={styles.sectionTitle}>{t(LangId.SceneNodesCtxLabel)}</span>
           <input
             disabled={!hasSelection}
             onChange={(event) => {
@@ -165,7 +168,7 @@ export function SceneNodesOptionsMenu({
             value={labelDraft}
           />
         </label>
-        <p className={styles.hint}>Vazio usa o título original do schema.</p>
+        <p className={styles.hint}>{t(LangId.SceneNodesCtxLabelHint)}</p>
       </div>
       <button
         className={styles.action}
@@ -177,14 +180,14 @@ export function SceneNodesOptionsMenu({
         role="menuitem"
         type="button"
       >
-        Reiniciar posição
+        {t(LangId.SceneNodesCtxResetPosition)}
       </button>
       <div className={styles.separator} role="separator" />
       <button className={styles.action} onClick={onLockAll} role="menuitem" type="button">
-        Travar todos
+        {t(LangId.SceneNodesCtxLockAll)}
       </button>
       <button className={styles.action} onClick={onUnlockAll} role="menuitem" type="button">
-        Destravar todos
+        {t(LangId.SceneNodesCtxUnlockAll)}
       </button>
     </div>,
     document.body,

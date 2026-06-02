@@ -33,6 +33,8 @@ import { CodeDockJadeDialogs } from './CodeDockJadeDialogs'
 import '@/monaco/jade-syntax-globals.css'
 import './codeDockJade.css'
 
+import { JadeMenuBarOptionsMenu } from '@/components/molecules/JadeThemeOptionsMenu'
+
 import styles from './CodeDock.module.css'
 
 export type { CodeDockFloatingRect } from './codeDockFloatingRect'
@@ -63,6 +65,10 @@ export type CodeDockNodeActions = {
   onCodeToNewNodeGraph?: (folder: string) => boolean | Promise<boolean>
   onCodeToNewNodeGraphStepByStep?: (folder: string) => boolean | Promise<boolean>
   getDefaultNewNodeGraphPackFolder?: () => string
+  /** Ritual Class Group → cena com block cards (hierarquia de blocos). */
+  onCodeToNodeBlock?: () => boolean | Promise<boolean>
+  /** Ritual Class Group → grava JSON em `blockStructures/` (auto build). */
+  onCodeBuildBlock?: () => boolean | Promise<boolean>
 }
 
 type FloatingDragPhase =
@@ -719,6 +725,22 @@ export function CodeDock({
       <button className="menu-option" type="button" onClick={() => openCodeToNewGraphDialog()}>
         <span>{t(LangId.CodeToolsCodeToNewGraph)}</span>
       </button>
+      <div className="menu-separator" role="separator" />
+      <span className="codeDockCodeToNodeGraphSectionLabel">{t(LangId.CodeToolsSectionCodeToBlock)}</span>
+      <button
+        className="menu-option"
+        type="button"
+        onClick={() => void nodeActions.onCodeToNodeBlock?.()}
+      >
+        <span>{t(LangId.CodeToolsCodeToBlock)}</span>
+      </button>
+      <button
+        className="menu-option"
+        type="button"
+        onClick={() => void nodeActions.onCodeBuildBlock?.()}
+      >
+        <span>{t(LangId.CodeToolsCodeBuildBlock)}</span>
+      </button>
     </>
   ) : null
 
@@ -799,6 +821,10 @@ export function CodeDock({
           recentFiles={fileBridge?.recentFiles}
           replaceActive={jade.replaceActive}
           toolsExtraContent={nodeGraphTools}
+          hideThemesInTools
+          optionsMenuContent={
+            <JadeMenuBarOptionsMenu onOpenThemes={() => jade.setShowThemes(true)} />
+          }
           onAbout={() => jade.setShowAbout(true)}
           onCompareFiles={jade.handleCompareFiles}
           onCopy={jade.handleCopy}

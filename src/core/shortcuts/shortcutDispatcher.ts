@@ -64,6 +64,16 @@ function eventModifiersForBindingMatch(event: KeyboardEvent): ReturnType<typeof 
   return variants
 }
 
+function resolveAllowedEventTypes(
+  binding: ShortcutBindingDefinition,
+  defaultTypes: ReadonlySet<'keydown' | 'keyup'>,
+): ReadonlySet<'keydown' | 'keyup'> {
+  if (!binding.eventTypes || binding.eventTypes.length === 0) {
+    return defaultTypes
+  }
+  return new Set(binding.eventTypes)
+}
+
 function bindingMatchesChord(binding: IndexedBinding, chordId: string, event: KeyboardEvent): boolean {
   if (binding.chordId === chordId) {
     return true
@@ -102,11 +112,11 @@ export function dispatchShortcut(input: ShortcutDispatchInput): boolean {
     return false
   }
 
-  const eventTypes = new Set(['keydown'])
+  const defaultEventTypes = new Set<'keydown' | 'keyup'>(['keydown'])
   const aliases = chordAliasesFromEvent(event)
 
   for (const binding of bindings) {
-    const allowedTypes = binding.eventTypes ?? eventTypes
+    const allowedTypes = resolveAllowedEventTypes(binding, defaultEventTypes)
     if (!allowedTypes.has(event.type as 'keydown' | 'keyup')) {
       continue
     }

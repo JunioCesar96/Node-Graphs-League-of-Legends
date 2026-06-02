@@ -1,0 +1,34 @@
+.panel {
+  display: grid;
+  gap: var(--space-4);
+  width: min(380px, calc(100vw - 64px));
+  max-height: min(520px, calc(100vh - 96px));
+  overflow: auto;
+}
+
+.actions {
+  display: flex;
+  gap: var(--space-2);
+  justify-content: flex-end;
+}
+
+.primary,
+.secondary {
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.primary {
+  border: none;
+  background: var(--syntax-keyword);
+  color: #111;
+  font-weight: 600;
+}
+
+.secondary {
+  border: 1px solid rgb(255 255 255 / 12%);
+  background: transparent;
+  color: var(--block-text);
+}

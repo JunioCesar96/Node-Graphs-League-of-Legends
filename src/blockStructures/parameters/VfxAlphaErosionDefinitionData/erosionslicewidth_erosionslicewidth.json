@@ -1,0 +1,20 @@
+{
+  "id": "erosionSliceWidth_erosionSliceWidth",
+  "block": "VfxAlphaErosionDefinitionData",
+  "parameterName": "erosionSliceWidth",
+  "name": "erosionSliceWidth",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-alpha-erosion-definition-data__main-characters/brand/skins/skin0/particles/brand-base-p-fire-mark3-complex-emitter-definition-data--slot--2-alpha-erosion-definition_parameter_erosionSliceWidth"
+  },
+  "type": "f32",
+  "value": "1",
+  "slots": {
+    "in": [
+      "f32"
+    ],
+    "out": [
+      "f32"
+    ]
+  }
+}

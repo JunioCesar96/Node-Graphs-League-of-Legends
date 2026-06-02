@@ -10,6 +10,8 @@ import {
 } from '@jade/lib/themeApplicator'
 import type { BracketColors, SyntaxColors } from '@jade/lib/themes'
 
+import { initAppTheme } from './appTheme'
+
 export const JADE_DYNAMIC_MONACO_THEME = 'jade-dynamic'
 
 export const JADE_THEME_PREF = 'NodeGraphsApplyJadeTheme'
@@ -163,6 +165,7 @@ export function revertJadeAppTheme(): void {
   for (const name of JADE_APP_THEME_VARS) {
     root.style.removeProperty(name)
   }
+  root.removeAttribute('data-theme')
 }
 
 export function revertSyntaxColorsCss(): void {
@@ -238,6 +241,7 @@ export async function refreshJadeSurfaceTheme(monaco?: Monaco | null): Promise<s
     revertStructureSurfacesToDefaults()
     revertJadeAppTheme()
     revertSyntaxColorsCss()
+    await initAppTheme()
     if (monaco) {
       applyDefaultMonacoTheme(monaco)
     }
@@ -253,6 +257,7 @@ export async function refreshJadeSurfaceTheme(monaco?: Monaco | null): Promise<s
     } else {
       revertStructureSurfacesToDefaults()
       revertJadeAppTheme()
+      await initAppTheme()
     }
 
     if (syntaxEnabled) {
@@ -282,6 +287,7 @@ export async function refreshJadeSurfaceTheme(monaco?: Monaco | null): Promise<s
     revertStructureSurfacesToDefaults()
     revertJadeAppTheme()
     revertSyntaxColorsCss()
+    await initAppTheme()
     if (monaco) {
       applyDefaultMonacoTheme(monaco)
     }

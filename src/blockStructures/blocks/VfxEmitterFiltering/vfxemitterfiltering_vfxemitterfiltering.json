@@ -1,0 +1,19 @@
+{
+  "id": "VfxEmitterFiltering_VfxEmitterFiltering",
+  "block": "Filtering",
+  "blockName": "VfxEmitterFiltering",
+  "type": "pointer",
+  "name": "VfxEmitterFiltering",
+  "source": {
+    "kind": "block",
+    "nodeId": "vfx-emitter-filtering__main-characters/brand/skins/skin0/particles/brand-base-p-apoc-detonate-big-complex-emitter-definition-data--slot--12-filtering"
+  },
+  "color": "#40ff56",
+  "headerSlots": [
+    "in[Filtering]",
+    "out[VfxEmitterFilteringPreview]"
+  ],
+  "parameters": [
+    "keywordsExcluded"
+  ]
+}

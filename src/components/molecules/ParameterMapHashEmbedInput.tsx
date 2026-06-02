@@ -6,6 +6,7 @@ import type {
   WirelessPortLink,
   WirelessPortPulseTarget,
 } from '@/core/connectionDisplay'
+import type { OutputSlotPeerActions } from '@/core/outputSlotPeerActions'
 import type { ElementViewMode, InternalStructureDefinition } from '@/core/nodeSchema'
 import { normalizeMapHashEmbedString } from '@/core/mapHashEmbedValue'
 
@@ -46,6 +47,7 @@ type ParameterMapHashEmbedInputProps = {
   interactionLocked?: boolean
   onBlockedInteraction?: () => void
   onRetractFromTitle?: () => void
+  outputSlotPeerActions?: OutputSlotPeerActions
 }
 
 export function ParameterMapHashEmbedInput({
@@ -73,6 +75,7 @@ export function ParameterMapHashEmbedInput({
   interactionLocked,
   onBlockedInteraction,
   onRetractFromTitle,
+  outputSlotPeerActions,
 }: ParameterMapHashEmbedInputProps) {
   return (
     <div className={className} data-parameter-type="mapHashEmbed">
@@ -93,6 +96,7 @@ export function ParameterMapHashEmbedInput({
         wirelessOutputLinks={wirelessOutputLinks}
         wirelessPortHandlers={wirelessPortHandlers}
         wirelessPortPulse={wirelessPortPulse}
+        outputSlotPeerActions={outputSlotPeerActions}
         onSelectedIndexChange={onSelectedIndexChange}
         onViewModeChange={onViewModeChange}
         parameterId={parameterId}

@@ -1,15 +1,19 @@
-import type { CSSProperties, HTMLAttributes, ReactNode } from 'react'
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
+import { useEffect, useState, type HTMLAttributes } from 'react'
 
 import { ViewportDockPinIcon } from '@/components/atoms/ViewportDockPinIcon'
+import { DockTabIcon } from '@/components/atoms/DockTabIcon'
+import { InspectorViewportDockShell } from '@/components/molecules/InspectorViewportDockShell'
+import { InspectorFloatingPanelShell } from '@/components/molecules/InspectorFloatingPanelShell'
 import { ParameterValueInput } from '@/components/molecules/ParameterValueInput'
 import type { CanvasNode, CanvasPosition } from '@/core/canvasScene'
 import { fx_required_parameter_isMarked } from '@/core/fx_required_parameter'
 import { link_parameter_value_is_linked } from '@/core/link_parameter_value'
 import { parameterMatchesHashStringSource } from '@/core/hashString'
+import { LangId } from '@/core/language/languageIds'
 import type { NodeParameterDefinition } from '@/core/nodeSchema'
+import { useLanguage } from '@/language/LanguageProvider'
 
+import dockStyles from '@/styles/inspectorViewportDock.module.css'
 import styles from './NodeInspector.module.css'
 
 type NodeInspectorProps = {
@@ -39,9 +43,6 @@ type NodeInspectorProps = {
   /** True quando o painel está dentro da régua «Canvas viewport controls». */
   viewportDocked?: boolean
 }
-
-/** Conteúdo flutuante acoplado à barra da vista (portal → body, fora da viewport com overflow:hidden). */
-type DockedFloatingPlacement = null | 'toolbarAnchoredFloating'
 
 const PARAMETER_DRAG_MIME = 'application/x-node-graph-parameter-id'
 
@@ -220,6 +221,7 @@ function SelectedNodeInspectorBody({
   onOpenParameterValueLinkPicker,
   parameterStubCatalog,
 }: BodyProps) {
+  const { t } = useLanguage()
   const [dragOverIndex, setDragOverIndex] = useState<null | number>(null)
 
   const parameterCount = node.node.schema.parameters.length
@@ -244,13 +246,13 @@ function SelectedNodeInspectorBody({
           </button>
         ) : null}
         <button className={styles.deleteAction} disabled={!canDelete} onClick={onDelete} type="button">
-          Delete node
+          {t(LangId.NodeInspectorActionDelete)}
         </button>
       </div>
 
       <section className={styles.section} aria-labelledby="inspector-parameters">
         <h3 className={styles.sectionTitle} id="inspector-parameters">
-          Parameters
+          {t(LangId.NodeInspectorSectionParameters)}
         </h3>
         <ul className={styles.list}>
           {node.node.schema.parameters.map((parameter, parameterIndex) => {
@@ -410,116 +412,6 @@ function SelectedNodeInspectorBody({
   )
 }
 
-function readCssSpacePx(variables: readonly string[]) {
-  if (typeof window === 'undefined') {
-    return 0
-  }
-
-  for (const name of variables) {
-    const raw = getComputedStyle(document.documentElement).getPropertyValue(name).trim()
-
-    if (raw.endsWith('px')) {
-      const value = Number.parseFloat(raw)
-
-      if (Number.isFinite(value)) {
-        return value
-      }
-    }
-  }
-
-  return undefined
-}
-
-/** z-index entre o grafo e a AppMenuBar (≈20) para flutuar sobre o canvas sem roubar foco ao menu topo. */
-const INSPECTOR_VIEWPORT_FLOAT_Z = 18
-
-function useDockedFloatingLayout(placement: DockedFloatingPlacement) {
-  const stripRef = useRef<HTMLDivElement | null>(null)
-  const [flyoutStyle, setFlyoutStyle] = useState<CSSProperties>({})
-
-  useLayoutEffect(() => {
-    if (!placement) {
-      setFlyoutStyle({})
-      return
-    }
-
-    let raf = 0
-
-    const syncPosition = () => {
-      cancelAnimationFrame(raf)
-      raf = requestAnimationFrame(() => {
-        const strip = stripRef.current
-        const toolbar = strip?.closest('[data-canvas-toolbar]')
-
-        if (!strip || !(toolbar instanceof HTMLElement)) {
-          return
-        }
-
-        const toolbarRect = toolbar.getBoundingClientRect()
-        const stripRect = strip.getBoundingClientRect()
-        const space = readCssSpacePx(['--space-3']) ?? 12
-        const marginX = readCssSpacePx(['--space-4']) ?? 16
-        const bottomPad = readCssSpacePx(['--space-5']) ?? 20
-
-        const panelWidth = Math.min(340, window.innerWidth - 32)
-        let left = stripRect.right - panelWidth
-        left = Math.min(Math.max(marginX, left), Math.max(marginX, window.innerWidth - marginX - panelWidth))
-
-        const top = toolbarRect.bottom + space
-        const maxHeight = Math.max(180, window.innerHeight - top - bottomPad)
-
-        setFlyoutStyle({
-          position: 'fixed',
-          top,
-          left,
-          width: panelWidth,
-          maxHeight,
-          zIndex: INSPECTOR_VIEWPORT_FLOAT_Z,
-        })
-      })
-    }
-
-    syncPosition()
-
-    window.addEventListener('resize', syncPosition)
-    window.addEventListener('scroll', syncPosition, true)
-
-    const toolbarObserved = stripRef.current?.closest('[data-canvas-toolbar]')
-    const stripObserved = stripRef.current
-
-    let resizeObserver: ResizeObserver | undefined
-
-    if (typeof ResizeObserver !== 'undefined') {
-      resizeObserver = new ResizeObserver(syncPosition)
-
-      if (toolbarObserved instanceof HTMLElement) {
-        resizeObserver.observe(toolbarObserved)
-      }
-
-      if (stripObserved instanceof HTMLElement) {
-        resizeObserver.observe(stripObserved)
-      }
-    }
-
-    return () => {
-      window.removeEventListener('resize', syncPosition)
-      window.removeEventListener('scroll', syncPosition, true)
-      cancelAnimationFrame(raf)
-      resizeObserver?.disconnect()
-    }
-  }, [placement])
-
-  return { flyoutStyle, stripRef }
-}
-
-function renderFloatingBodyToBody(flyout: ReactNode) {
-  if (typeof document === 'undefined') {
-    return null
-  }
-
-  return createPortal(flyout, document.body)
-}
-
 export function NodeInspector({
   dragHandleProps,
   canDelete,
@@ -540,6 +432,7 @@ export function NodeInspector({
   onAddHashStringInNode,
   viewportDocked = false,
 }: NodeInspectorProps) {
+  const { t } = useLanguage()
   const commitParameter = (parameterId: string, value: string) => {
     onUpdateParameter(parameterId, value)
   }
@@ -548,149 +441,158 @@ export function NodeInspector({
     node && (node.node.hashStringParameterId ?? node.node.schema.hashStringParameterId),
   )
 
-  const dockedFloating: DockedFloatingPlacement =
-    !minimized && viewportDocked ? 'toolbarAnchoredFloating' : null
-
-  const { flyoutStyle, stripRef } = useDockedFloatingLayout(dockedFloating)
-
   /** Acoplado à barra da vista: sem arrastar o painel (só desacoplar pelo ícone de pin). */
   const panelDragHandleProps = viewportDocked ? {} : dragHandleProps
 
   const dockPinButton =
-    onDockToViewport || onUndockFromViewportToolbar ? (
+    viewportDocked && onUndockFromViewportToolbar ? (
       <button
-        aria-label={
-          viewportDocked ? 'Desacoplar inspector da barra da vista' : 'Acoplar inspector à barra da vista'
-        }
+        aria-label="Desacoplar inspector da barra da vista"
         className={styles.dockToggle}
         onClick={(event) => {
           event.stopPropagation()
-          if (viewportDocked) {
-            onUndockFromViewportToolbar?.()
-          } else {
-            onDockToViewport?.()
-          }
+          onUndockFromViewportToolbar()
         }}
         onPointerDown={(event) => event.stopPropagation()}
         type="button"
       >
-        <ViewportDockPinIcon filled={viewportDocked} />
+        <ViewportDockPinIcon filled />
+      </button>
+    ) : onDockToViewport ? (
+      <button
+        aria-label="Acoplar inspector à barra da vista"
+        className={styles.dockToggle}
+        onClick={(event) => {
+          event.stopPropagation()
+          onDockToViewport()
+        }}
+        onPointerDown={(event) => event.stopPropagation()}
+        type="button"
+      >
+        <ViewportDockPinIcon filled={false} />
       </button>
     ) : null
 
-  const inspectorToolbarActions = (
+  const headerActions = (
     <>
-      {dockPinButton}
       <button
         aria-label={
           node ? 'Minimizar inspector do nó' : 'Minimizar inspector sem nó seleccionado'
         }
         className={styles.toggle}
         onClick={onToggleMinimized}
+        onPointerDown={(event) => event.stopPropagation()}
         type="button"
       >
-        -
+        −
       </button>
+      {dockPinButton}
     </>
   )
 
+  if (viewportDocked) {
+    if (!node) {
+      return (
+        <InspectorViewportDockShell
+          body={<p className={styles.emptyMessage}>{t(LangId.NodeInspectorEmptyHint)}</p>}
+          bodyClassName="inspectorScrollHost"
+          expandAriaLabel="Expandir inspector (sem nó seleccionado)"
+          expandContent={<DockTabIcon kind="node" />}
+          eyebrow={t(LangId.NodeInspectorEmptyTitle)}
+          headerActions={headerActions}
+          minimized={minimized}
+          onExpand={onToggleMinimized}
+          shellSurfaceClassName={dockStyles.dockedShellNode}
+          title={t(LangId.NodeInspectorEyebrow)}
+        />
+      )
+    }
+
+    return (
+      <InspectorViewportDockShell
+        body={
+          <SelectedNodeInspectorBody
+            canDelete={canDelete}
+            nodeConfigurationMode={nodeConfigurationMode}
+            node={node}
+            onCommitParameter={commitParameter}
+            onCreateInstance={onCreateInstance}
+            onDelete={onDelete}
+            onOpenParameterValueLinkPicker={onOpenParameterValueLinkPicker}
+            onPromptToggleRequiredParameter={onPromptToggleRequiredParameter}
+            parameterStubCatalog={parameterStubCatalog}
+            onSwapParameterPositions={onSwapParameterPositions}
+            onUpdatePosition={onUpdatePosition}
+          />
+        }
+        bodyClassName="inspectorScrollHost"
+        expandAriaLabel="Expandir inspector do nó seleccionado"
+        expandContent={<DockTabIcon kind="node" />}
+        eyebrow={node.node.schema.title}
+        headerActions={headerActions}
+        minimized={minimized}
+        onExpand={onToggleMinimized}
+        shellSurfaceClassName={dockStyles.dockedShellNode}
+        title={t(LangId.NodeInspectorEyebrow)}
+      />
+    )
+  }
+
   if (!node) {
     if (minimized) {
+      const minimizedRowClassName = [
+        styles.minimizedDockRow,
+        panelDragHandleProps?.onPointerDown ? styles.minimizedDockRowDraggable : '',
+      ]
+        .filter(Boolean)
+        .join(' ')
+
       return (
-        <div
-          className={[
-            styles.inspectorMinimizedDockRow,
-            viewportDocked ? styles.inspectorMinimizedDockRowDocked : '',
-          ]
-            .filter(Boolean)
-            .join(' ')}
-          data-inspector-viewport-docked={viewportDocked ? 'true' : undefined}
-        >
+        <div className={minimizedRowClassName}>
           <button
             aria-label="Expandir inspector (sem nó seleccionado)"
-            className={[styles.minimized, styles.minimizedReveal].join(' ')}
+            className={styles.minimizedButton}
             onClick={onToggleMinimized}
             {...panelDragHandleProps}
             type="button"
           >
             <span className={styles.minimizedIcon}>—</span>
-            <span className={styles.minimizedText} title="Sem seleção">
+            <span className={styles.minimizedLabel} title="Sem seleção">
               Sem seleção
             </span>
           </button>
-          {dockPinButton}
+          <div className={styles.minimizedDockActions}>{dockPinButton}</div>
         </div>
-      )
-    }
-
-    if (viewportDocked) {
-      const flyoutAside = (
-        <aside
-          aria-label="Inspector sem nó seleccionado — detalhes"
-          className={[styles.panel, styles.panelViewportFloatingBody].join(' ')}
-          style={flyoutStyle}
-        >
-          <h2 className={styles.title} title="Nenhum nó seleccionado">
-            Nenhum nó seleccionado
-          </h2>
-          <p className={styles.emptyMessage}>Clique num nó no canvas ou abra a paleta (add node).</p>
-        </aside>
-      )
-
-      return (
-        <>
-          <div
-            className={styles.inspectorChromeStrip}
-            data-inspector-viewport-strip
-            ref={stripRef}
-          >
-            <span
-              className={[styles.chromeStripEyebrow, styles.chromeStripEyebrowDocked].join(' ')}
-            >
-              Inspector
-            </span>
-            <h2 className={styles.chromeStripTitle} title="Nenhum nó seleccionado">
-              Nenhum nó seleccionado
-            </h2>
-            <div className={styles.headerActions}>{inspectorToolbarActions}</div>
-          </div>
-          {renderFloatingBodyToBody(flyoutAside)}
-        </>
       )
     }
 
     return (
-      <aside className={styles.panel} aria-label="Inspector sem seleção">
-        <div className={styles.header}>
-          <div>
-            <span className={styles.eyebrow} {...panelDragHandleProps}>
-              Inspector
-            </span>
-            <h2 className={styles.title} title="Nenhum nó seleccionado">
-              Nenhum nó seleccionado
-            </h2>
-          </div>
-          <div className={styles.headerActions}>{inspectorToolbarActions}</div>
-        </div>
-        <p className={styles.emptyMessage}>Clique num nó no canvas ou abra a paleta (add node).</p>
-      </aside>
+      <InspectorFloatingPanelShell
+        ariaLabel="Inspector sem seleção"
+        body={<p className={styles.emptyMessage}>{t(LangId.NodeInspectorEmptyHint)}</p>}
+        bodyClassName="inspectorScrollHost"
+        dragHandleProps={panelDragHandleProps}
+        eyebrow={t(LangId.NodeInspectorEmptyTitle)}
+        headerActions={headerActions}
+        shellSurfaceClassName={dockStyles.dockedShellNode}
+        title={t(LangId.NodeInspectorEyebrow)}
+      />
     )
   }
 
   if (minimized) {
+    const minimizedRowClassName = [
+      styles.minimizedDockRow,
+      panelDragHandleProps?.onPointerDown ? styles.minimizedDockRowDraggable : '',
+    ]
+      .filter(Boolean)
+      .join(' ')
+
     return (
-      <div
-        className={[
-          styles.inspectorMinimizedDockRow,
-          viewportDocked ? styles.inspectorMinimizedDockRowDocked : '',
-        ]
-          .filter(Boolean)
-          .join(' ')}
-        data-inspector-viewport-docked={viewportDocked ? 'true' : undefined}
-      >
+      <div className={minimizedRowClassName}>
         <button
           aria-label="Expandir inspector do nó seleccionado"
-          className={[styles.minimized, styles.minimizedReveal].join(' ')}
+          className={styles.minimizedButton}
           onClick={onToggleMinimized}
           {...panelDragHandleProps}
           type="button"
@@ -703,22 +605,19 @@ export function NodeInspector({
               onClick={onAddHashStringInNode}
             />
           ) : null}
-          <span className={styles.minimizedText} title={node.node.schema.title}>
+          <span className={styles.minimizedLabel} title={node.node.schema.title}>
             {node.node.schema.title}
           </span>
         </button>
-        {dockPinButton}
+        <div className={styles.minimizedDockActions}>{dockPinButton}</div>
       </div>
     )
   }
 
-  if (viewportDocked) {
-    const flyoutAside = (
-      <aside
-        aria-label={`Inspector: ${node.node.schema.title}`}
-        className={[styles.panel, styles.panelViewportFloatingBody].join(' ')}
-        style={flyoutStyle}
-      >
+  return (
+    <InspectorFloatingPanelShell
+      ariaLabel={`Inspector: ${node.node.schema.title}`}
+      body={
         <SelectedNodeInspectorBody
           canDelete={canDelete}
           nodeConfigurationMode={nodeConfigurationMode}
@@ -732,72 +631,13 @@ export function NodeInspector({
           onSwapParameterPositions={onSwapParameterPositions}
           onUpdatePosition={onUpdatePosition}
         />
-      </aside>
-    )
-
-    return (
-      <>
-        <div
-          className={styles.inspectorChromeStrip}
-          data-inspector-viewport-strip
-          ref={stripRef}
-        >
-          <span
-            className={[styles.chromeStripEyebrow, styles.chromeStripEyebrowDocked].join(' ')}
-          >
-            Nó
-          </span>
-          <div className={styles.chromeStripTitleRow}>
-            {nodeConfigurationMode && onAddHashStringInNode ? (
-              <HashStringInspectorButton
-                active={hashBindingActive}
-                compact
-                onClick={onAddHashStringInNode}
-              />
-            ) : null}
-            <h2 className={styles.chromeStripTitle} title={node.node.schema.title}>
-              {node.node.schema.title}
-            </h2>
-          </div>
-          <div className={styles.headerActions}>{inspectorToolbarActions}</div>
-        </div>
-        {renderFloatingBodyToBody(flyoutAside)}
-      </>
-    )
-  }
-
-  return (
-    <aside className={styles.panel} aria-label={`Inspector: ${node.node.schema.title}`}>
-      <div className={styles.header}>
-        <div>
-          <span className={styles.eyebrow} {...panelDragHandleProps}>
-            Nó seleccionado
-          </span>
-          <div className={styles.titleRow}>
-            {nodeConfigurationMode && onAddHashStringInNode ? (
-              <HashStringInspectorButton active={hashBindingActive} onClick={onAddHashStringInNode} />
-            ) : null}
-            <h2 className={styles.title} title={node.node.schema.title}>
-              {node.node.schema.title}
-            </h2>
-          </div>
-        </div>
-        <div className={styles.headerActions}>{inspectorToolbarActions}</div>
-      </div>
-
-      <SelectedNodeInspectorBody
-        canDelete={canDelete}
-        nodeConfigurationMode={nodeConfigurationMode}
-        node={node}
-        onCommitParameter={commitParameter}
-        onCreateInstance={onCreateInstance}
-        onDelete={onDelete}
-        onOpenParameterValueLinkPicker={onOpenParameterValueLinkPicker}
-        onPromptToggleRequiredParameter={onPromptToggleRequiredParameter}
-        parameterStubCatalog={parameterStubCatalog}
-        onSwapParameterPositions={onSwapParameterPositions}
-        onUpdatePosition={onUpdatePosition}
-      />
-    </aside>
+      }
+      bodyClassName="inspectorScrollHost"
+      dragHandleProps={panelDragHandleProps}
+      eyebrow={node.node.schema.title}
+      headerActions={headerActions}
+      shellSurfaceClassName={dockStyles.dockedShellNode}
+      title={t(LangId.NodeInspectorEyebrow)}
+    />
   )
 }

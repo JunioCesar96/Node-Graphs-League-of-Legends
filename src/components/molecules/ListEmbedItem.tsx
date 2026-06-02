@@ -1,13 +1,11 @@
 import type { PointerEvent as ReactPointerEvent } from 'react'
 import { useState } from 'react'
 
-import { Port } from '@/components/atoms/Port'
 import { ElementRetractedBar } from '@/components/molecules/ElementRetractedBar'
+import { StructureOutputSlotRow } from '@/components/molecules/StructureOutputSlotRow'
 import { StructureViewToggle } from '@/components/atoms/StructureViewToggle'
 import {
-  isRetractedElementPulsing,
-  isWirelessPortPulsing,
-  toWirelessPortLinkProps,
+  retractedElementPulseVariant,
   type WirelessPortHandlers,
   type WirelessPortLink,
   type WirelessPortPulseTarget,
@@ -15,6 +13,7 @@ import {
 import { clampSelectedIndex } from '@/core/elementViewState'
 import { elementTitleDoubleClickRetractProps } from '@/core/elementTitleInteraction'
 import { canvasContextElementProps } from '@/core/canvasContextMenuAttributes'
+import type { OutputSlotPeerActions } from '@/core/outputSlotPeerActions'
 import type { InternalStructureDefinition, ListEmbedDefinition } from '@/core/nodeSchema'
 import { StructureIndexPager } from '@/components/molecules/StructureIndexPager'
 import {
@@ -54,6 +53,7 @@ type ListEmbedItemProps = StructureBlockViewProps & {
   wirelessOutputLinks?: ReadonlyMap<string, WirelessPortLink>
   wirelessPortHandlers?: WirelessPortHandlers
   wirelessPortPulse?: WirelessPortPulseTarget
+  outputSlotPeerActions?: OutputSlotPeerActions
 }
 
 export function ListEmbedItem({
@@ -73,6 +73,7 @@ export function ListEmbedItem({
   wirelessOutputLinks,
   wirelessPortHandlers,
   wirelessPortPulse,
+  outputSlotPeerActions,
   viewMode = 'list',
   selectedIndex = 0,
   onViewModeChange,
@@ -107,8 +108,8 @@ export function ListEmbedItem({
           title={listEmbed.title}
           typeLabel="listEmbed"
           onExpand={onExpandFromRetracted}
-          wirelessPulse={
-            elementViewKey ? isRetractedElementPulsing(wirelessPortPulse, elementViewKey) : false
+          pulseVariant={
+            elementViewKey ? retractedElementPulseVariant(wirelessPortPulse, elementViewKey) : undefined
           }
         />
       </li>
@@ -124,8 +125,8 @@ export function ListEmbedItem({
         <h4
           className={styles.blockTitle}
           title={listEmbed.title}
-          {...elementTitleDoubleClickRetractProps(onRetractFromTitle)}
-        >
+            {...elementTitleDoubleClickRetractProps(onRetractFromTitle)}
+          >
           {listEmbed.title}
         </h4>
         <div className={styles.blockActions}>
@@ -158,55 +159,29 @@ export function ListEmbedItem({
       {visibleSlots.length > 0 ? (
         <ul className={styles.slots}>
           {visibleSlots.map((slot) => (
-            <li
-              className={styles.slot}
+            <StructureOutputSlotRow
               key={slot.id}
-              {...canvasContextElementProps({
+              activeSlotId={activeSlotId}
+              canvasNodeId={canvasNodeId}
+              liProps={canvasContextElementProps({
                 nodeId: canvasNodeId,
                 kind: 'listEmbedSlot',
                 elementId: slot.id,
                 listEmbedId: listEmbed.id,
               })}
-            >
-              <span className={styles.slotName} title={slot.name}>
-                {slot.name}
-              </span>
-              <Port
-                active={slot.id === activeSlotId}
-                direction="output"
-                graphInternalStructureId={slot.id}
-                graphNodeId={canvasNodeId}
-                graphPortKind="output"
-                label={`Start link from ${listEmbed.title} · ${slot.name}`}
-                onWireActivateKeyboard={
-                  onOutputWireKeyboard ? () => onOutputWireKeyboard(slot) : undefined
-                }
-                onWirePointerCancel={
-                  onOutputWirePointerCancel
-                    ? (event) => onOutputWirePointerCancel(slot, event)
-                    : undefined
-                }
-                onWirePointerDown={
-                  onOutputWirePointerDown ? (event) => onOutputWirePointerDown(slot, event) : undefined
-                }
-                onWirePointerMove={
-                  onOutputWirePointerMove ? (event) => onOutputWirePointerMove(slot, event) : undefined
-                }
-                onWirePointerUp={
-                  onOutputWirePointerUp ? (event) => onOutputWirePointerUp(slot, event) : undefined
-                }
-                wirelessLink={toWirelessPortLinkProps(
-                  wirelessOutputLinks?.get(slot.id),
-                  wirelessPortHandlers,
-                  isWirelessPortPulsing(
-                    wirelessPortPulse,
-                    wirelessOutputLinks?.get(slot.id)?.connectionId ?? '',
-                    'output',
-                    slot.id,
-                  ),
-                )}
-              />
-            </li>
+              outputSlotPeerActions={outputSlotPeerActions}
+              portLabel={`Start link from ${listEmbed.title} · ${slot.name}`}
+              slot={slot}
+              slotNameClassName={styles.slotName}
+              onOutputWireKeyboard={onOutputWireKeyboard}
+              onOutputWirePointerCancel={onOutputWirePointerCancel}
+              onOutputWirePointerDown={onOutputWirePointerDown}
+              onOutputWirePointerMove={onOutputWirePointerMove}
+              onOutputWirePointerUp={onOutputWirePointerUp}
+              wirelessOutputLinks={wirelessOutputLinks}
+              wirelessPortHandlers={wirelessPortHandlers}
+              wirelessPortPulse={wirelessPortPulse}
+            />
           ))}
         </ul>
       ) : null}

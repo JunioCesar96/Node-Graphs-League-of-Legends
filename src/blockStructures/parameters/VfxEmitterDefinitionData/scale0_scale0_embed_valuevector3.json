@@ -1,0 +1,17 @@
+{
+  "id": "scale0_scale0_embed_ValueVector3",
+  "block": "VfxEmitterDefinitionData",
+  "parameterName": "scale0",
+  "name": "scale0",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-emitter-definition-data__entries-{particlePath}-complex-emitter-definition-data--slot--0-scale0"
+  },
+  "type": "embed",
+  "embed": "ValueVector3",
+  "slots": {
+    "out": [
+      "ValueVector3"
+    ]
+  }
+}

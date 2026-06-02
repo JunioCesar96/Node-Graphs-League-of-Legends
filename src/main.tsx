@@ -5,6 +5,7 @@ import { createRoot } from 'react-dom/client'
 
 import '@/styles/global.css'
 
+import { initAppThemeSync } from '@/core/appTheme'
 import App from './App.tsx'
 import { registerCompositePreferenceBackend } from './jade/compositePreferenceBackend.ts'
 import { registerWebPreferenceBackend } from './jade/webPreferenceBackend.ts'
@@ -15,6 +16,8 @@ import { ShortcutScopeProvider } from './shortcuts/ShortcutScopeProvider.tsx'
 
 registerWebPreferenceBackend()
 registerCompositePreferenceBackend()
+
+initAppThemeSync()
 
 /** Usa Monaco do `node_modules` em vez do CDN (@monaco-editor/react default) — evita falhas offline/CSP/extensões. */
 loader.config({ monaco })

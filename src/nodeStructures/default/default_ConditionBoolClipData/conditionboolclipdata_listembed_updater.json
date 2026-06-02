@@ -1,0 +1,11 @@
+{
+  "id": "ConditionBoolClipData_listEmbed_Updater",
+  "title": "Updater",
+  "internalStructures": [
+    {
+      "id": "ConditionBoolClipData_listEmbed_Updater-catalog-0",
+      "name": "IsMovingParametricUpdater",
+      "schemaId": "is-moving-parametric-updater__main-entries-characters-zac-animations-skin0-m-clip-data-map-0x11da97ed-updater"
+    }
+  ]
+}

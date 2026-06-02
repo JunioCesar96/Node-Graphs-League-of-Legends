@@ -78,7 +78,7 @@
 
 .scrub {
   width: 100%;
-  accent-color: rgb(80 160 255 / 85%);
+  accent-color: var(--vfx-control-accent);
 }
 
 .animReadout {

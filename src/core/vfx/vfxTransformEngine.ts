@@ -10,8 +10,18 @@ import { lolMeshToThreeCoords } from './lolCoords'
 import { resolveOrbitalOmegaLol } from './vfxOrbitalMotion'
 import { integrateVec3MotionWithDrag } from './vfxParticleMotion'
 import { applyProbabilityToVec3 } from './vfxProbability'
-import { billboardRotationEulerLol } from './vfxPrimitiveBasis'
-import { orbitalFacingBirthRotationLol, planeBaseRotation, resolvePlaneFacing } from './vfxPrimitives'
+import {
+  birthRotationLolDegToViewDeg,
+  birthRotationViewDegToMeshEulerRad,
+  normalizeAngleDegrees,
+  resolveBirthRotationBaselineLol,
+} from './vfxBirthRotationView'
+import {
+  isGroundLikeBirthRotation,
+  orbitalFacingBirthRotationLol,
+  planeBaseRotation,
+  resolvePlaneFacing,
+} from './vfxPrimitives'
 import type { ComposableRenderPipeline } from './semantic/vfxSemanticTypes'
 import { getComposablePipeline } from './semantic/vfxRenderStrategy'
 import { resolveTransformPipeline } from './semantic/transformPipelineResolver'
@@ -24,6 +34,14 @@ import {
   resolveFlexShapeScaleMultiplier,
 } from './vfxFlexShape'
 import type { VfxCharacterBoneResolver } from './vfxWebAnimation'
+import type { EmitterPrimitiveGeometryKind } from './semantic/vfxSemanticTypes'
+import { executeGeometryStrategies } from './semantic/executors/geometryStrategyExecutor'
+import { extractEmitterFeatures } from './semantic/vfxEmitterFeatures'
+import {
+  applyUvRotationSafeScaleCompensation,
+  needsUvRotationSafeMarginForEmitter,
+  resolveUvRotationSafeMarginG,
+} from './vfxUvRotationSafeMargin'
 
 function lolToThreeVec3(vec: [number, number, number], scale: number): [number, number, number] {
   const [x, y, z] = lolMeshToThreeCoords(vec[0], vec[1], vec[2])
@@ -61,8 +79,12 @@ export type ParticleTransformState = {
   transformPipeline: TransformPipelineDefinition
   /** Posição LoL após simulação (pré conversão P). */
   positionLol: [number, number, number]
-  /** Rotação LoL graus (birth + spin + rotation0). */
+  /** Rotação LoL graus ritual (birth + spin + rotation0). */
   rotationLolDeg: [number, number, number]
+  /** Rotação exibida na view 3D (graus), após subtrair baseline. */
+  rotationViewLolDeg: [number, number, number]
+  /** Baseline LoL usado na conversão view (ex. {-90,-90,0}). */
+  birthRotationBaselineLol: [number, number, number]
   /** Escala LoL antes de remap ground (unidades jogo). */
   scaleLol: [number, number, number]
   /** Matriz mundial 4×4 column-major (debug / render Fase 6). */
@@ -82,6 +104,8 @@ export type ComputeParticleTransformInput = {
   referenceBoneName?: string | null
   /** Bound do personagem na cena (unidades LoL) — FlexShapeDefinition. */
   boundObjectSizeLol?: [number, number, number] | null
+  /** Baseline birthRotation LoL (desligar = euler ritual directo). */
+  birthRotationLoLEnabled?: boolean
 }
 
 /** Gravidade LoL (eixo Y do jogo) — só para emitters aéreos sem `worldAcceleration` explícita. */
@@ -186,6 +210,17 @@ function sampleScale0(emitter: ParsedVfxEmitterFull, particleNormalized: number)
   return sampleDynamicsVec3(emitter.scale0, particleNormalized)
 }
 
+function applyUvRotationSafeMarginToParticleScale(
+  emitter: ParsedVfxEmitterFull,
+  composablePipeline: ComposableRenderPipeline,
+  geometryKind: EmitterPrimitiveGeometryKind,
+  scale: [number, number, number],
+): [number, number, number] {
+  if (!needsUvRotationSafeMarginForEmitter(emitter, geometryKind)) return scale
+  const g = resolveUvRotationSafeMarginG(emitter.texDiv)
+  return applyUvRotationSafeScaleCompensation(scale, g)
+}
+
 function resolveScale(
   emitter: ParsedVfxEmitterFull,
   vfxScale: number,
@@ -216,23 +251,33 @@ function resolveScale(
     birthScale[2] * dynamicScale[2],
   ]
 
-  if (pipeline.scaleSpace === 'GroundPlane') {
-    return remapLoLQuadScaleForPlane(combined, minimum, emitter.texDiv)
-  }
-
-  if (pipeline.scaleSpace === 'WorldUniform' && emitter.isUniformScale) {
-    const avg = (combined[0] + combined[1] + combined[2]) / 3
-    return [avg, avg, avg]
-  }
-
-  const isBillboard = ['plane', 'ray', 'arbitrary_quad', 'trail', 'beam', 'planar_projection'].includes(
-    emitter.primitiveKind,
+  const geometryKind = executeGeometryStrategies(
+    composablePipeline,
+    extractEmitterFeatures(emitter),
   )
-  if (isBillboard && pipeline.transformOrder !== 'GroundBasisFirst') {
-    return fixBillboardScaleVec3(combined, minimum)
+
+  let scaled: [number, number, number]
+  if (pipeline.scaleSpace === 'GroundPlane') {
+    scaled = remapLoLQuadScaleForPlane(combined, minimum, emitter.texDiv)
+  } else if (pipeline.scaleSpace === 'WorldUniform' && emitter.isUniformScale) {
+    const avg = (combined[0] + combined[1] + combined[2]) / 3
+    scaled = [avg, avg, avg]
+  } else {
+    const isBillboard = ['plane', 'ray', 'arbitrary_quad', 'trail', 'beam', 'planar_projection'].includes(
+      emitter.primitiveKind,
+    )
+    scaled =
+      isBillboard && pipeline.transformOrder !== 'GroundBasisFirst'
+        ? fixBillboardScaleVec3(combined, minimum)
+        : combined
   }
 
-  return combined
+  return applyUvRotationSafeMarginToParticleScale(
+    emitter,
+    composablePipeline,
+    geometryKind,
+    scaled,
+  )
 }
 
 export function computeParticleTransform(input: ComputeParticleTransformInput): ParticleTransformState {
@@ -315,18 +360,26 @@ export function computeParticleTransform(input: ComputeParticleTransformInput): 
     ]
   }
 
-  // Orientation inputs
-  let birthRot = embedVec3(emitter.birthRotation0, [0, 0, 0])
+  // Orientation inputs (ritual separado do yaw orbital — ω não reclassifica decals)
+  let birthRotRitual = embedVec3(emitter.birthRotation0, [0, 0, 0])
   if (emitter.birthRotation0?.dynamics) {
-    birthRot = applyProbabilityToVec3(birthRot, emitter.birthRotation0.dynamics.probabilityTables, seed + 1)
+    birthRotRitual = applyProbabilityToVec3(
+      birthRotRitual,
+      emitter.birthRotation0.dynamics.probabilityTables,
+      seed + 1,
+    )
   }
 
   const orbitalOmegaLol = resolveOrbitalOmegaLol(emitter, seed, particleNormalized, true)
-  const orbitalFacingRot = orbitalFacingBirthRotationLol(orbitalOmegaLol)
-  birthRot = [
-    birthRot[0] + orbitalFacingRot[0],
-    birthRot[1] + orbitalFacingRot[1],
-    birthRot[2] + orbitalFacingRot[2],
+  const groundLikeRitual = isGroundLikeBirthRotation(birthRotRitual)
+  const orbitalFacingRot = groundLikeRitual
+    ? ([0, 0, 0] as [number, number, number])
+    : orbitalFacingBirthRotationLol(orbitalOmegaLol)
+
+  const birthRotForRotation: [number, number, number] = [
+    birthRotRitual[0] + orbitalFacingRot[0],
+    birthRotRitual[1] + orbitalFacingRot[1],
+    birthRotRitual[2] + orbitalFacingRot[2],
   ]
 
   const rotVelocity = embedVec3(emitter.birthRotationalVelocity0, [0, 0, 0])
@@ -335,16 +388,39 @@ export function computeParticleTransform(input: ComputeParticleTransformInput): 
     : null
 
   const planeFacing = resolvePlaneFacing(
-    birthRot,
+    birthRotRitual,
     emitter.isGroundLayer,
-    orbitalOmegaLol,
+    groundLikeRitual ? null : orbitalOmegaLol,
   )
   const baseRot = planeBaseRotation(planeFacing)
+  const birthRotationBaselineLol = resolveBirthRotationBaselineLol({
+    isGroundLayer: emitter.isGroundLayer,
+    planeFacing,
+    birthRotationRitual: birthRotRitual,
+  })
+
+  const rotationLolDeg: [number, number, number] = [
+    birthRotForRotation[0] + rotVelocity[0] * motionTime + (continuousRot?.[0] ?? 0) * motionTime,
+    birthRotForRotation[1] + rotVelocity[1] * motionTime + (continuousRot?.[1] ?? 0) * motionTime,
+    birthRotForRotation[2] + rotVelocity[2] * motionTime + (continuousRot?.[2] ?? 0) * motionTime,
+  ]
+  const birthRotationLoLEnabled = input.birthRotationLoLEnabled !== false
+  const rotationViewLolDeg = birthRotationLoLEnabled
+    ? birthRotationLolDegToViewDeg(rotationLolDeg, birthRotationBaselineLol)
+    : [
+        normalizeAngleDegrees(rotationLolDeg[0]),
+        normalizeAngleDegrees(rotationLolDeg[1]),
+        normalizeAngleDegrees(rotationLolDeg[2]),
+      ]
+  const rotation = birthRotationViewDegToMeshEulerRad(
+    rotationViewLolDeg,
+    transformPipeline.useLeagueMatrixP,
+    birthRotationLoLEnabled && emitter.isGroundLayer,
+  )
 
   // 3–4 — Scale / orientation order
   const minimum = 0.01
   let scale: [number, number, number]
-  let rotation: [number, number, number]
 
   if (transformPipeline.transformOrder === 'GroundBasisFirst') {
     scale = resolveScale(
@@ -357,7 +433,6 @@ export function computeParticleTransform(input: ComputeParticleTransformInput): 
       minimum,
       input.boundObjectSizeLol,
     )
-    rotation = billboardRotationEulerLol(birthRot, rotVelocity, motionTime, continuousRot, transformPipeline)
   } else if (transformPipeline.transformOrder === 'ScaleThenOrient') {
     scale = resolveScale(
       emitter,
@@ -369,9 +444,7 @@ export function computeParticleTransform(input: ComputeParticleTransformInput): 
       minimum,
       input.boundObjectSizeLol,
     )
-    rotation = billboardRotationEulerLol(birthRot, rotVelocity, motionTime, continuousRot, transformPipeline)
   } else {
-    rotation = billboardRotationEulerLol(birthRot, rotVelocity, motionTime, continuousRot, transformPipeline)
     scale = resolveScale(
       emitter,
       vfxScale,
@@ -416,13 +489,6 @@ export function computeParticleTransform(input: ComputeParticleTransformInput): 
       position = [position[0] + matrix44Three[0], position[1] + matrix44Three[1], position[2]]
     }
   }
-
-  let rotationLolDeg: [number, number, number] = [
-    birthRot[0] + rotVelocity[0] * motionTime + (continuousRot?.[0] ?? 0) * motionTime,
-    birthRot[1] + rotVelocity[1] * motionTime + (continuousRot?.[1] ?? 0) * motionTime,
-    birthRot[2] + rotVelocity[2] * motionTime + (continuousRot?.[2] ?? 0) * motionTime,
-  ]
-
 
   let scaleLol: [number, number, number] = [
     scale[0] / Math.max(vfxScale, 1e-9),
@@ -473,7 +539,7 @@ export function computeParticleTransform(input: ComputeParticleTransformInput): 
     pipeline: transformPipeline,
     primitiveKind: emitter.primitiveKind,
     positionLol,
-    rotationLolDeg,
+    rotationLolDeg: rotationViewLolDeg,
     scaleLol,
     vfxScale,
   })
@@ -487,6 +553,8 @@ export function computeParticleTransform(input: ComputeParticleTransformInput): 
     transformPipeline,
     positionLol,
     rotationLolDeg,
+    rotationViewLolDeg,
+    birthRotationBaselineLol,
     scaleLol,
     worldMatrix: worldMatrixToFlat16(worldMatrix),
   }

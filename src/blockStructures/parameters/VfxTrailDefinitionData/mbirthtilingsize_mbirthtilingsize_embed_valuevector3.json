@@ -1,0 +1,17 @@
+{
+  "id": "mBirthTilingSize_mBirthTilingSize_embed_ValueVector3",
+  "block": "VfxTrailDefinitionData",
+  "parameterName": "mBirthTilingSize",
+  "name": "mBirthTilingSize",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-trail-definition-data__main-characters/brand/skins/skin0/particles/brand-base-basic-attack-mis-complex-emitter-definition-data--slot--8-primitive-m-trail-m-birth-tiling-size"
+  },
+  "type": "embed",
+  "embed": "ValueVector3",
+  "slots": {
+    "out": [
+      "ValueVector3"
+    ]
+  }
+}

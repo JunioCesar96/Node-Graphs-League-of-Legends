@@ -31,6 +31,15 @@ type ElementContextPropsInput = {
   instanceId?: string
 }
 
+/** Porta de entrada do cabeçalho do nó (ligações wireless recebidas). */
+export function canvasContextNodeInputPortProps(nodeId: string): Record<string, string> {
+  return {
+    [CANVAS_CONTEXT_ROOT_ATTR]: '',
+    [CANVAS_CONTEXT_TARGET_ATTR]: 'nodeInputPort',
+    [CANVAS_CONTEXT_NODE_ID_ATTR]: nodeId,
+  }
+}
+
 export function canvasContextElementProps(input: ElementContextPropsInput): Record<string, string> {
   const attrs: Record<string, string> = {
     [CANVAS_CONTEXT_ROOT_ATTR]: '',

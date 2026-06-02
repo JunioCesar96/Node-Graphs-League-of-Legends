@@ -14,6 +14,9 @@ import {
   type MapHashLinkEntry,
 } from '@/core/mapHashLinkValue'
 
+import { LangId } from '@/core/language/languageIds'
+import { useLanguage } from '@/language/LanguageProvider'
+
 import styles from '@/components/molecules/MapHashLinkPicker.module.css'
 
 type MapHashLinkPickerProps = {
@@ -24,6 +27,7 @@ type MapHashLinkPickerProps = {
 }
 
 export function MapHashLinkPicker({ value, onChange, onLinkEditorOpenChange }: MapHashLinkPickerProps) {
+  const { t } = useLanguage()
   const entries = useMemo(() => parseMapHashLinkString(value), [value])
   const [itemMenuOpen, setItemMenuOpen] = useState(false)
   const [removePickerOpen, setRemovePickerOpen] = useState(false)
@@ -216,12 +220,12 @@ export function MapHashLinkPicker({ value, onChange, onLinkEditorOpenChange }: M
           onClick={toggleItemMenu}
           type="button"
         >
-          entrada
+          {t(LangId.CtxMapEntry)}
         </button>
         {itemMenuOpen ? (
-          <div aria-label="Ações mapa" className={styles.itemSubmenu} role="menu">
+          <div aria-label={t(LangId.CtxMapActionsAria)} className={styles.itemSubmenu} role="menu">
             <button className={styles.itemSubmenuEntry} onClick={addEntry} role="menuitem" type="button">
-              + entrada
+              {t(LangId.CtxMapAddEntry)}
             </button>
             <button
               className={styles.itemSubmenuEntry}
@@ -230,7 +234,7 @@ export function MapHashLinkPicker({ value, onChange, onLinkEditorOpenChange }: M
               role="menuitem"
               type="button"
             >
-              − entrada
+              {t(LangId.CtxMapRemoveEntry)}
             </button>
           </div>
         ) : null}

@@ -12,6 +12,13 @@ export function isPositionInSelection(
   return selection.containsPosition(position)
 }
 
+export type RitualDragTextRange = {
+  startLineNumber: number
+  startColumn: number
+  endLineNumber: number
+  endColumn: number
+}
+
 export function readSelectionRitualText(editor: MonacoType.editor.IStandaloneCodeEditor): string {
   const model = editor.getModel()
   const selection = editor.getSelection()
@@ -19,6 +26,22 @@ export function readSelectionRitualText(editor: MonacoType.editor.IStandaloneCod
     return ''
   }
   return model.getValueInRange(selection).trim()
+}
+
+export function readSelectionRitualRange(
+  editor: MonacoType.editor.IStandaloneCodeEditor,
+): RitualDragTextRange | null {
+  const selection = editor.getSelection()
+  if (!selection || selection.isEmpty()) {
+    return null
+  }
+
+  return {
+    startLineNumber: selection.startLineNumber,
+    startColumn: selection.startColumn,
+    endLineNumber: selection.endLineNumber,
+    endColumn: selection.endColumn,
+  }
 }
 
 export function pointerDragDistance(

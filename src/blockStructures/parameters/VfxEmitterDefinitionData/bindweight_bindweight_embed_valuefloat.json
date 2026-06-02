@@ -1,0 +1,17 @@
+{
+  "id": "bindWeight_bindWeight_embed_ValueFloat",
+  "block": "VfxEmitterDefinitionData",
+  "parameterName": "bindWeight",
+  "name": "bindWeight",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-emitter-definition-data__entries-{particlePath}-complex-emitter-definition-data--slot--2-bind-weight"
+  },
+  "type": "embed",
+  "embed": "ValueFloat",
+  "slots": {
+    "out": [
+      "ValueFloat"
+    ]
+  }
+}

@@ -1,6 +1,5 @@
-import type { CSSProperties, HTMLAttributes, ReactNode, RefObject } from 'react'
-import { useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
+import type { HTMLAttributes, ReactNode, RefObject } from 'react'
+import { useMemo, useRef, useState } from 'react'
 
 import {
   SceneNodeEyeIcon,
@@ -8,9 +7,14 @@ import {
   SceneNodeLockIcon,
 } from '@/components/atoms/SceneNodesRowIcons'
 import { ViewportDockPinIcon } from '@/components/atoms/ViewportDockPinIcon'
+import { DockTabIcon } from '@/components/atoms/DockTabIcon'
+import { InspectorViewportDockShell } from '@/components/molecules/InspectorViewportDockShell'
+import { InspectorFloatingPanelShell } from '@/components/molecules/InspectorFloatingPanelShell'
 import { SceneNodesOptionsMenu } from '@/components/molecules/SceneNodesOptionsMenu'
 import { SceneNodesStatesSection } from '@/components/molecules/SceneNodesStatesSection'
 import type { CanvasNode, CanvasScene } from '@/core/canvasScene'
+import { LangId } from '@/core/language/languageIds'
+import { useLanguage } from '@/language/LanguageProvider'
 import type { SceneNodesStatePreset } from '@/core/sceneNodesStatePresets'
 import {
   createCompactElementCanvasVisibility,
@@ -26,9 +30,8 @@ import {
   type SceneNodesSortMode,
 } from '@/core/sceneNodesListSort'
 
+import dockStyles from '@/styles/inspectorViewportDock.module.css'
 import styles from '@/components/organisms/SceneNodesPanel.module.css'
-
-const SCENE_NODES_FLOAT_Z = 17
 
 export type SceneNodesPanelTab = 'nodes' | 'states'
 
@@ -79,103 +82,11 @@ type SceneNodesPanelProps = {
   onActiveTabChange?: (tab: SceneNodesPanelTab) => void
 }
 
-function readCssSpacePx(vars: string[]): number | null {
-  if (typeof document === 'undefined') {
-    return null
-  }
-
-  const probe = document.createElement('div')
-  probe.style.visibility = 'hidden'
-  probe.style.position = 'absolute'
-  document.body.appendChild(probe)
-
-  let value: number | null = null
-
-  for (const varName of vars) {
-    probe.style.padding = `var(${varName})`
-    const computed = getComputedStyle(probe).paddingTop
-    const parsed = Number.parseFloat(computed)
-
-    if (Number.isFinite(parsed)) {
-      value = parsed
-      break
-    }
-  }
-
-  document.body.removeChild(probe)
-  return value
-}
-
-function useDockedFloatingLayout(viewportDocked: boolean, minimized: boolean) {
-  const stripRef = useRef<HTMLDivElement | null>(null)
-  const [flyoutStyle, setFlyoutStyle] = useState<CSSProperties>({})
-
-  useLayoutEffect(() => {
-    if (!viewportDocked || minimized) {
-      setFlyoutStyle({})
-      return
-    }
-
-    let raf = 0
-
-    const syncPosition = () => {
-      cancelAnimationFrame(raf)
-      raf = requestAnimationFrame(() => {
-        const strip = stripRef.current
-        const toolbar = strip?.closest('[data-canvas-toolbar]')
-
-        if (!strip || !(toolbar instanceof HTMLElement)) {
-          return
-        }
-
-        const toolbarRect = toolbar.getBoundingClientRect()
-        const stripRect = strip.getBoundingClientRect()
-        const space = readCssSpacePx(['--space-3']) ?? 12
-        const marginX = readCssSpacePx(['--space-4']) ?? 16
-        const bottomPad = readCssSpacePx(['--space-5']) ?? 20
-        const panelWidth = Math.min(380, window.innerWidth - 32)
-        let left = stripRect.right - panelWidth
-        left = Math.min(Math.max(marginX, left), Math.max(marginX, window.innerWidth - marginX - panelWidth))
-        const top = toolbarRect.bottom + space
-        const maxHeight = Math.max(180, window.innerHeight - top - bottomPad)
-
-        setFlyoutStyle({
-          position: 'fixed',
-          top,
-          left,
-          width: panelWidth,
-          maxHeight,
-          zIndex: SCENE_NODES_FLOAT_Z,
-        })
-      })
-    }
-
-    syncPosition()
-    window.addEventListener('resize', syncPosition)
-    window.addEventListener('scroll', syncPosition, true)
-
-    return () => {
-      window.removeEventListener('resize', syncPosition)
-      window.removeEventListener('scroll', syncPosition, true)
-      cancelAnimationFrame(raf)
-    }
-  }, [minimized, viewportDocked])
-
-  return { flyoutStyle, stripRef }
-}
-
-function renderFloatingBody(flyout: ReactNode) {
-  if (typeof document === 'undefined') {
-    return null
-  }
-
-  return createPortal(flyout, document.body)
-}
-
 function PanelBody({
   activeTab,
   canDeleteSelected,
   headerActions,
+  hideHeader = false,
   onDeleteSelected,
   onFocusNode,
   onOpenOptions,
@@ -204,6 +115,7 @@ function PanelBody({
 }: {
   activeTab: SceneNodesPanelTab
   headerActions?: ReactNode
+  hideHeader?: boolean
   canDeleteSelected: boolean
   onDeleteSelected: () => void
   onFocusNode: (nodeId: string) => void
@@ -231,21 +143,24 @@ function PanelBody({
   onExportSceneNodesStatesJson: () => void
   onImportSceneNodesStatesJson: (file: File) => void
 }) {
+  const { t } = useLanguage()
   const nodesTabActive = activeTab === 'nodes'
   return (
     <div
       className={[styles.bodyLayout, !nodesTabActive ? styles.bodyLayoutFull : ''].filter(Boolean).join(' ')}
     >
       <div className={styles.mainColumn}>
-        <div className={styles.header}>
-          <div className={styles.headerMain}>
-            <span className={styles.eyebrow} {...panelDragHandleProps}>
-              Cena
-            </span>
-            <h2 className={styles.title}>Nodes em cena</h2>
+        {hideHeader ? null : (
+          <div className={styles.header}>
+            <div className={styles.headerMain}>
+              <span className={styles.eyebrow} {...panelDragHandleProps}>
+                Cena
+              </span>
+              <h2 className={styles.title}>{t(LangId.SceneNodesTitle)}</h2>
+            </div>
+            <div className={styles.headerActions}>{headerActions}</div>
           </div>
-          <div className={styles.headerActions}>{headerActions}</div>
-        </div>
+        )}
 
         <div
           aria-label="Secções do painel"
@@ -260,7 +175,7 @@ function PanelBody({
             role="tab"
             type="button"
           >
-            Nós ({sortedNodes.length})
+            {t(LangId.SceneNodesTabNodes, undefined, { count: sortedNodes.length })}
           </button>
           <button
             aria-selected={!nodesTabActive}
@@ -500,6 +415,7 @@ export function SceneNodesPanel({
   activeTab: activeTabProp,
   onActiveTabChange,
 }: SceneNodesPanelProps) {
+  const { t } = useLanguage()
   const [query, setQuery] = useState('')
   const [optionsOpen, setOptionsOpen] = useState(false)
   const [internalTab, setInternalTab] = useState<SceneNodesPanelTab>('nodes')
@@ -513,7 +429,6 @@ export function SceneNodesPanel({
     onActiveTabChange?.(tab)
   }
 
-  const { flyoutStyle, stripRef } = useDockedFloatingLayout(viewportDocked, minimized)
   const panelDragHandleProps = viewportDocked ? {} : dragHandleProps
 
   const filteredNodes = useMemo(
@@ -546,24 +461,48 @@ export function SceneNodesPanel({
   )
 
   const dockPinButton =
-    onDockToViewport || onUndockFromViewportToolbar ? (
+    viewportDocked && onUndockFromViewportToolbar ? (
       <button
-        aria-label={
-          viewportDocked ? 'Desacoplar lista de nós da barra da vista' : 'Acoplar lista de nós à barra da vista'
-        }
+        aria-label="Desacoplar lista de nós da barra da vista"
         className={styles.dockToggle}
-        onClick={() => {
-          if (viewportDocked) {
-            onUndockFromViewportToolbar?.()
-          } else {
-            onDockToViewport?.()
-          }
+        onClick={(event) => {
+          event.stopPropagation()
+          onUndockFromViewportToolbar()
         }}
+        onPointerDown={(event) => event.stopPropagation()}
         type="button"
       >
-        <ViewportDockPinIcon filled={viewportDocked} />
+        <ViewportDockPinIcon filled />
+      </button>
+    ) : onDockToViewport ? (
+      <button
+        aria-label="Acoplar lista de nós à barra da vista"
+        className={styles.dockToggle}
+        onClick={(event) => {
+          event.stopPropagation()
+          onDockToViewport()
+        }}
+        onPointerDown={(event) => event.stopPropagation()}
+        type="button"
+      >
+        <ViewportDockPinIcon filled={false} />
       </button>
     ) : null
+
+  const dockedHeaderActions = (
+    <>
+      <button
+        aria-label="Minimizar nodes em cena"
+        className={styles.toggle}
+        onClick={onToggleMinimized}
+        onPointerDown={(event) => event.stopPropagation()}
+        type="button"
+      >
+        −
+      </button>
+      {dockPinButton}
+    </>
+  )
 
   const toolbarActions = (
     <>
@@ -579,65 +518,38 @@ export function SceneNodesPanel({
     </>
   )
 
-  if (minimized) {
-    return (
-      <div
-        className={[
-          styles.inspectorMinimizedDockRow,
-          viewportDocked ? styles.inspectorMinimizedDockRowDocked : '',
-        ]
-          .filter(Boolean)
-          .join(' ')}
-        data-scene-nodes-viewport-docked={viewportDocked ? 'true' : undefined}
-      >
-        <button
-          aria-label="Expandir nodes em cena"
-          className={[styles.minimized, styles.minimizedReveal].join(' ')}
-          onClick={onToggleMinimized}
-          type="button"
-        >
-          <span className={styles.minimizedText}>Nodes em cena ({scene.nodes.length})</span>
-        </button>
-        {dockPinButton}
-      </div>
-    )
+  const panelBodyProps = {
+    activeTab,
+    canDeleteSelected,
+    onDeleteSelected,
+    onFocusNode,
+    onPatchNodeOverlay,
+    onOpenOptions: () => setOptionsOpen((open) => !open),
+    onRequestAddNode,
+    onTabChange: handleTabChange,
+    optionsButtonRef,
+    optionsOpen,
+    panelDragHandleProps,
+    query,
+    setQuery,
+    setSortMode: onSortModeChange,
+    sortMode,
+    sortedNodes,
+    compactVisibility,
+    sceneVisibilityContext,
+    onSelectNode,
+    selectedNodeIds,
+    sceneNodesStatePresets,
+    onSaveNewSceneNodesState: () => {
+      onSaveNewSceneNodesState()
+      handleTabChange('states')
+    },
+    onLoadSceneNodesState,
+    onDeleteSceneNodesState,
+    onOverwriteSceneNodesState,
+    onExportSceneNodesStatesJson,
+    onImportSceneNodesStatesJson,
   }
-
-  const panelContent = (
-    <PanelBody
-      activeTab={activeTab}
-      canDeleteSelected={canDeleteSelected}
-      headerActions={toolbarActions}
-      onDeleteSelected={onDeleteSelected}
-      onFocusNode={onFocusNode}
-      onPatchNodeOverlay={onPatchNodeOverlay}
-      onOpenOptions={() => setOptionsOpen((open) => !open)}
-      onRequestAddNode={onRequestAddNode}
-      onTabChange={handleTabChange}
-      optionsButtonRef={optionsButtonRef}
-      optionsOpen={optionsOpen}
-      panelDragHandleProps={panelDragHandleProps}
-      query={query}
-      setQuery={setQuery}
-      setSortMode={onSortModeChange}
-      sortMode={sortMode}
-      sortedNodes={sortedNodes}
-      compactVisibility={compactVisibility}
-      sceneVisibilityContext={sceneVisibilityContext}
-      onSelectNode={onSelectNode}
-      selectedNodeIds={selectedNodeIds}
-      sceneNodesStatePresets={sceneNodesStatePresets}
-      onSaveNewSceneNodesState={() => {
-        onSaveNewSceneNodesState()
-        handleTabChange('states')
-      }}
-      onLoadSceneNodesState={onLoadSceneNodesState}
-      onDeleteSceneNodesState={onDeleteSceneNodesState}
-      onOverwriteSceneNodesState={onOverwriteSceneNodesState}
-      onExportSceneNodesStatesJson={onExportSceneNodesStatesJson}
-      onImportSceneNodesStatesJson={onImportSceneNodesStatesJson}
-    />
-  )
 
   const optionsMenu =
     optionsOpen && optionsButtonRef.current ? (
@@ -674,37 +586,75 @@ export function SceneNodesPanel({
     ) : null
 
   if (viewportDocked) {
-    const flyoutAside = (
-      <aside
-        aria-label="Nodes em cena"
-        className={[styles.panel, styles.panelViewportFloatingBody].join(' ')}
-        style={flyoutStyle}
-      >
-        {panelContent}
-        {optionsMenu}
-      </aside>
-    )
-
     return (
-      <>
-        <div className={styles.inspectorChromeStrip} data-scene-nodes-viewport-strip ref={stripRef}>
-          <span
-            className={[styles.chromeStripEyebrow, styles.chromeStripEyebrowDocked].join(' ')}
-          >
-            Nós
-          </span>
-          <h2 className={styles.chromeStripTitle}>Nodes em cena</h2>
-          <div className={styles.headerActions}>{toolbarActions}</div>
-        </div>
-        {renderFloatingBody(flyoutAside)}
-      </>
+      <InspectorViewportDockShell
+        body={
+          <>
+            <PanelBody hideHeader {...panelBodyProps} />
+            {optionsMenu}
+          </>
+        }
+        bodyClassName="inspectorScrollHost"
+        expandAriaLabel="Expandir nodes em cena"
+        expandContent={<DockTabIcon kind="scene" />}
+        eyebrow={`${scene.nodes.length} nós`}
+        headerActions={dockedHeaderActions}
+        minimized={minimized}
+        onExpand={onToggleMinimized}
+        shellSurfaceClassName={dockStyles.dockedShellNode}
+        title={t(LangId.SceneNodesTitle)}
+      />
     )
   }
 
+  if (minimized) {
+    const minimizedRowClassName = [
+      styles.minimizedDockRow,
+      panelDragHandleProps?.onPointerDown ? styles.minimizedDockRowDraggable : '',
+    ]
+      .filter(Boolean)
+      .join(' ')
+
+    return (
+      <div className={minimizedRowClassName}>
+        <button
+          aria-label="Expandir nodes em cena"
+          className={styles.minimizedButton}
+          onClick={onToggleMinimized}
+          {...panelDragHandleProps}
+          type="button"
+        >
+          <span className={styles.minimizedIcon}>N</span>
+          <span className={styles.minimizedLabel}>
+            {t(LangId.SceneNodesTitle)} ({scene.nodes.length})
+          </span>
+        </button>
+        <div className={styles.minimizedDockActions}>{dockPinButton}</div>
+      </div>
+    )
+  }
+
+  const panelContent = (
+    <PanelBody headerActions={toolbarActions} hideHeader {...panelBodyProps} />
+  )
+
   return (
-    <aside aria-label="Nodes em cena" className={styles.panel}>
-      {panelContent}
-      {optionsMenu}
-    </aside>
+    <>
+      <InspectorFloatingPanelShell
+        ariaLabel="Nodes em cena"
+        body={
+          <>
+            {panelContent}
+            {optionsMenu}
+          </>
+        }
+        bodyClassName="inspectorScrollHost"
+        dragHandleProps={dragHandleProps}
+        eyebrow={`${scene.nodes.length} nós`}
+        headerActions={dockedHeaderActions}
+        shellSurfaceClassName={dockStyles.dockedShellNode}
+        title={t(LangId.SceneNodesTitle)}
+      />
+    </>
   )
 }

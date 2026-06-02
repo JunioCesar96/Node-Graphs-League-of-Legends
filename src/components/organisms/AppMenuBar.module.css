@@ -105,6 +105,34 @@
   background: rgb(255 211 105 / 10%);
 }
 
+.menuItemThemeToggle {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  color: var(--color-text-primary);
+  font-family: var(--font-ui);
+  font-size: 0.78rem;
+  text-align: left;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+}
+
+.menuItemThemeToggle:hover {
+  background: color-mix(in srgb, var(--color-text-primary) 6%, transparent);
+}
+
+.menuItemWithSubNested:hover > .menuSubPanel,
+.menuItemWithSubNested:focus-within > .menuSubPanel {
+  pointer-events: auto;
+  opacity: 1;
+  transform: translateX(0);
+}
+
 .menuCheckbox {
   display: grid;
   flex: 0 0 auto;

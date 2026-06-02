@@ -1,0 +1,25 @@
+{
+  "id": "vfx-distortion-definition-data__main-entries-0x04ff5c13-complex-emitter-definition-data-4-distortion-definition",
+  "title": "VfxDistortionDefinitionData",
+  "parameters": [
+    {
+      "id": "VfxDistortionDefinitionData_parameter_distortion",
+      "name": "distortion",
+      "type": "f32",
+      "defaultValue": "0.0025"
+    },
+    {
+      "id": "VfxDistortionDefinitionData_parameter_normalMapTexture",
+      "name": "normalMapTexture",
+      "type": "string",
+      "defaultValue": "ASSETS/Characters/Vladimir/Skins/Base/Particles/common_distort-twirl.tex"
+    }
+  ],
+  "embed": [],
+  "pointer": [],
+  "listEmbed": [],
+  "listPointer": [],
+  "list2Embed": [],
+  "list2Pointer": [],
+  "internalStructures": []
+}

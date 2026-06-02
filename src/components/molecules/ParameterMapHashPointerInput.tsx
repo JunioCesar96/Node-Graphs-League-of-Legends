@@ -6,6 +6,7 @@ import type {
   WirelessPortLink,
   WirelessPortPulseTarget,
 } from '@/core/connectionDisplay'
+import type { OutputSlotPeerActions } from '@/core/outputSlotPeerActions'
 import type { ElementViewMode, InternalStructureDefinition } from '@/core/nodeSchema'
 import { normalizeMapHashPointerString } from '@/core/mapHashPointerValue'
 
@@ -46,6 +47,7 @@ type ParameterMapHashPointerInputProps = {
   interactionLocked?: boolean
   onBlockedInteraction?: () => void
   onRetractFromTitle?: () => void
+  outputSlotPeerActions?: OutputSlotPeerActions
 }
 
 export function ParameterMapHashPointerInput({
@@ -73,6 +75,7 @@ export function ParameterMapHashPointerInput({
   interactionLocked,
   onBlockedInteraction,
   onRetractFromTitle,
+  outputSlotPeerActions,
 }: ParameterMapHashPointerInputProps) {
   return (
     <div className={className} data-parameter-type="mapHashPointer">
@@ -93,6 +96,7 @@ export function ParameterMapHashPointerInput({
         wirelessOutputLinks={wirelessOutputLinks}
         wirelessPortHandlers={wirelessPortHandlers}
         wirelessPortPulse={wirelessPortPulse}
+        outputSlotPeerActions={outputSlotPeerActions}
         onSelectedIndexChange={onSelectedIndexChange}
         onViewModeChange={onViewModeChange}
         parameterId={parameterId}

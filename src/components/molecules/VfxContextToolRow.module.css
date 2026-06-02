@@ -7,7 +7,7 @@
 
 .checkbox {
   flex-shrink: 0;
-  accent-color: #4ec8e8;
+  accent-color: var(--vfx-control-accent);
   cursor: pointer;
 }
 

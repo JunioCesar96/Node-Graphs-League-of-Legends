@@ -1,0 +1,17 @@
+{
+  "id": "birthRotation_birthRotation_embed_ValueFloat",
+  "block": "VfxEmitterLegacySimple",
+  "parameterName": "birthRotation",
+  "name": "birthRotation",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-emitter-legacy-simple__main-characters/brand/skins/skin0/particles/brand-base-q-blaze-mis-complex-emitter-definition-data--slot--13-legacy-simple_parameter_birthRotation"
+  },
+  "type": "embed",
+  "embed": "ValueFloat",
+  "slots": {
+    "out": [
+      "ValueFloat"
+    ]
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "id": "birthScale1_birthScale1_embed_ValueVector3",
+  "block": "VfxEmitterDefinitionData",
+  "parameterName": "birthScale1",
+  "name": "birthScale1",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-emitter-definition-data__main-characters/brand/skins/skin0/particles/brand-base-dance-complex-emitter-definition-data--slot--0-birth-scale1"
+  },
+  "type": "embed",
+  "embed": "ValueVector3",
+  "slots": {
+    "out": [
+      "ValueVector3"
+    ]
+  }
+}

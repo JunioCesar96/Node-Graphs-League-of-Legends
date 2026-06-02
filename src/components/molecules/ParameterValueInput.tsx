@@ -33,6 +33,7 @@ type ParameterValueInputProps = {
   className?: string
   type: NodeDataType
   value: string
+  fieldTitle?: string
   onCommit: (value: string) => void
   /** Chamado quando o campo ganha ou perde foco (layout do card pode reagir). */
   onFocusChange?: (focused: boolean) => void
@@ -43,11 +44,12 @@ export function ParameterValueInput({
   className,
   type: dataType,
   value,
+  fieldTitle,
   onCommit,
   onFocusChange,
 }: ParameterValueInputProps) {
   const [local, setLocal] = useState(value)
-  const [title, setTitle] = useState(() => getParameterInputHint(dataType))
+  const [hintTitle, setHintTitle] = useState(() => getParameterInputHint(dataType))
   const composingRef = useRef(false)
   const rejectTimerRef = useRef(0)
 
@@ -62,10 +64,10 @@ export function ParameterValueInput({
   }, [])
 
   const showRejection = () => {
-    setTitle(getParameterInputRejectionMessage(dataType))
+    setHintTitle(getParameterInputRejectionMessage(dataType))
     window.clearTimeout(rejectTimerRef.current)
     rejectTimerRef.current = window.setTimeout(() => {
-      setTitle(getParameterInputHint(dataType))
+      setHintTitle(getParameterInputHint(dataType))
     }, 2600)
   }
 
@@ -282,11 +284,15 @@ export function ParameterValueInput({
     )
   }
 
+  const defaultHint = getParameterInputHint(dataType)
+  const nativeTitle = hintTitle !== defaultHint ? hintTitle : (fieldTitle ?? hintTitle)
+
   return (
     <input
       aria-label={ariaLabel}
       className={className}
       data-parameter-type={dataType}
+      title={nativeTitle}
       inputMode={
         usesDecimalInputMode(dataType) ? 'decimal' : usesNumericInputMode(dataType) ? 'numeric' : undefined
       }
@@ -329,7 +335,6 @@ export function ParameterValueInput({
           event.currentTarget.blur()
         }
       }}
-      title={title}
       type="text"
       value={local}
     />

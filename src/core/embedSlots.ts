@@ -109,6 +109,13 @@ export function findSlotInEmbedSchema(
   return null
 }
 
+function embedBlockOwnsSlotId(block: EmbedDefinition, slotId: string): boolean {
+  if ((block.slots ?? []).some((s) => s.id === slotId)) {
+    return true
+  }
+  return parseEmbedSlotIndex(slotId, block.id) !== null
+}
+
 export function patchEmbedSlotInSchema(
   schema: NodeSchemaDefinition,
   slotId: string,
@@ -121,13 +128,24 @@ export function patchEmbedSlotInSchema(
   return {
     ...schema,
     embed: embed.map((block) => {
-      const slots = block.slots ?? ensureEmbedSlots(block)
-      if (!slots.some((s) => s.id === slotId)) {
+      if (!embedBlockOwnsSlotId(block, slotId)) {
         return block
       }
+
+      const slots = block.slots ?? []
+      const existing = slots.find((s) => s.id === slotId)
+      if (existing) {
+        return {
+          ...block,
+          slots: slots.map((s) => (s.id === slotId ? patch : s)),
+        }
+      }
+
+      const resolvedId =
+        parseEmbedSlotIndex(slotId, block.id) !== null ? slotId : embedSlotId(block.id, 0)
       return {
         ...block,
-        slots: slots.map((s) => (s.id === slotId ? patch : s)),
+        slots: [{ ...patch, id: resolvedId }],
       }
     }),
   }

@@ -1,0 +1,20 @@
+{
+  "id": "depthBiasFactors_depthBiasFactors",
+  "block": "VfxEmitterDefinitionData",
+  "parameterName": "depthBiasFactors",
+  "name": "depthBiasFactors",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-emitter-definition-data__entries-{particlePath}-complex-emitter-definition-data--slot--10_parameter_depthBiasFactors"
+  },
+  "type": "vec2",
+  "value": "-1, -200",
+  "slots": {
+    "in": [
+      "vec2"
+    ],
+    "out": [
+      "vec2"
+    ]
+  }
+}

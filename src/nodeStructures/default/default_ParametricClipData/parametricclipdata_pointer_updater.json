@@ -1,0 +1,11 @@
+{
+  "id": "ParametricClipData_pointer_Updater",
+  "title": "Updater",
+  "internalStructures": [
+    {
+      "id": "ParametricClipData_pointer_Updater-catalog-0",
+      "name": "IsMovingParametricUpdater",
+      "schemaId": "is-moving-parametric-updater__main-entries-characters-zac-animations-skin0-m-clip-data-map-spell3-back-updater"
+    }
+  ]
+}

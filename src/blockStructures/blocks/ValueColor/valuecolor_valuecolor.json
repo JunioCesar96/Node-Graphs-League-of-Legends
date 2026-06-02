@@ -1,0 +1,20 @@
+{
+  "id": "ValueColor_ValueColor",
+  "block": "Color",
+  "blockName": "ValueColor",
+  "type": "embed",
+  "name": "ValueColor",
+  "source": {
+    "kind": "block",
+    "nodeId": "value-color__entries-{particlePath}-complex-emitter-definition-data--slot--0-color"
+  },
+  "color": "#40ff56",
+  "headerSlots": [
+    "in[Color,birthColor,erosionMapChannelMixer]",
+    "out[ValueColorPreview]"
+  ],
+  "parameters": [
+    "constantValue",
+    "dynamics"
+  ]
+}

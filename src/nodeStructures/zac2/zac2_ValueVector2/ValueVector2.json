@@ -1,0 +1,19 @@
+{
+  "id": "value-vector2__main-entries-0x0eed7307-complex-emitter-definition-data-5-uv-scale",
+  "title": "ValueVector2",
+  "parameters": [
+    {
+      "id": "ValueVector2_parameter_constantValue",
+      "name": "constantValue",
+      "type": "vector2",
+      "defaultValue": "2, 1"
+    }
+  ],
+  "embed": [],
+  "pointer": [],
+  "listEmbed": [],
+  "listPointer": [],
+  "list2Embed": [],
+  "list2Pointer": [],
+  "internalStructures": []
+}

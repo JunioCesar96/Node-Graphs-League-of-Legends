@@ -1,6 +1,0 @@
-{
-  "id": "TrackData_parameter_mPriority",
-  "name": "mPriority",
-  "type": "u8",
-  "defaultValue": "0"
-}

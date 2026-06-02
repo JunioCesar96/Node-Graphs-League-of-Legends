@@ -1,0 +1,20 @@
+{
+  "id": "VfxShapeBox_VfxShapeBox",
+  "block": "SpawnShape",
+  "blockName": "VfxShapeBox",
+  "type": "pointer",
+  "name": "VfxShapeBox",
+  "source": {
+    "kind": "block",
+    "nodeId": "vfx-shape-box__main-characters/brand/skins/skin0/particles/brand-base-joke-complex-emitter-definition-data--slot--0-spawn-shape"
+  },
+  "color": "#40ff56",
+  "headerSlots": [
+    "in[SpawnShape]",
+    "out[VfxShapeBoxPreview]"
+  ],
+  "parameters": [
+    "flags",
+    "Size"
+  ]
+}

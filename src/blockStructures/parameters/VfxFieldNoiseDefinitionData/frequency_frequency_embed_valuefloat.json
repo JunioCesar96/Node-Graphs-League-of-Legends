@@ -1,0 +1,17 @@
+{
+  "id": "Frequency_Frequency_embed_ValueFloat",
+  "block": "VfxFieldNoiseDefinitionData",
+  "parameterName": "Frequency",
+  "name": "Frequency",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-field-noise-definition-data__main-characters/brand/skins/skin0/particles/brand-base-joke-complex-emitter-definition-data--slot--0-field-collection-definition-field-noise-definitions--slot--0-frequency"
+  },
+  "type": "embed",
+  "embed": "ValueFloat",
+  "slots": {
+    "out": [
+      "ValueFloat"
+    ]
+  }
+}

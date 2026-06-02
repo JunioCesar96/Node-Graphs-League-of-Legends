@@ -767,5 +767,10 @@ export function nodeSchemaFromStructureJson(raw: unknown): NodeSchemaDefinition 
     result.nomenclature = nomenclature
   }
 
+  const tag = typeof raw.tag === 'string' ? raw.tag.trim() : ''
+  if (tag.length > 0) {
+    result.tag = tag
+  }
+
   return result
 }

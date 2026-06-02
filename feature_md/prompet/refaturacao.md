@@ -65,3 +65,6 @@ Ao aplicar essa nova regra:
 **UI (Element menu):** Internal_Structures top-level permanecem na secção do card e em `internalStructures[]`, mas deixaram de ser tratadas como “elemento de nó” no menu **Element** (`+`/`-` global): são parâmetros estruturais geridos pelo ritual e ligação por porta, não por `catalog-structure` / remoção via picker global.
 
 Essa lógica de separação entre **Valor** e **Estrutura** está alinhada com o que você visualizou para o Zac? Se sim, a implementação da pilha deve focar em detectar se a linha contém um valor primitivo ou uma nova abertura de classe/estrutura.
+
+E uma descricao de forma simples e didica que como ultilizar as features novas caso, seja alguma que o ulsuaririo tenha que usar.
+E SECOES TEXTO EM INGLES E DEPOIS PORTUGUES.

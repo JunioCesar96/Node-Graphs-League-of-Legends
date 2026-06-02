@@ -1,0 +1,55 @@
+{
+  "id": "sound-event-data__m-event-data-map-0x73cb9f1b",
+  "title": "SoundEventData",
+  "parameters": [
+    {
+      "id": "SoundEventData_parameter_mIsKillEvent",
+      "name": "mIsKillEvent",
+      "type": "bool",
+      "defaultValue": "false"
+    },
+    {
+      "id": "SoundEventData_parameter_mIsLoop",
+      "name": "mIsLoop",
+      "type": "bool",
+      "defaultValue": "false"
+    },
+    {
+      "id": "SoundEventData_parameter_mSoundName",
+      "name": "mSoundName",
+      "type": "string",
+      "defaultValue": "Play_sfx_Zac_Zac_blastcone_fly"
+    }
+  ],
+  "embed": [],
+  "pointer": [],
+  "listEmbed": [],
+  "listPointer": [],
+  "list2Embed": [],
+  "list2Pointer": [],
+  "internalStructures": [],
+  "nomenclature": {
+    "group": "#3 Internal Structures",
+    "collection": "#3 Collection Block",
+    "collectionType": "SoundEventData",
+    "pathHierarchy": "main > entries:Characters/Zac/Animations/Skin0 > mClipDataMap:0x792ee8b0 > mEventDataMap:0x73cb9f1b",
+    "pathHierarchySteps": [
+      {
+        "id": "main",
+        "type": "#0 Root main"
+      },
+      {
+        "id": "entries:Characters/Zac/Animations/Skin0",
+        "type": "#2 Root Entry (AnimationGraphData)"
+      },
+      {
+        "id": "mClipDataMap:0x792ee8b0",
+        "type": "#3 Collection Block"
+      },
+      {
+        "id": "mEventDataMap:0x73cb9f1b",
+        "type": "#3 Collection Block"
+      }
+    ]
+  }
+}

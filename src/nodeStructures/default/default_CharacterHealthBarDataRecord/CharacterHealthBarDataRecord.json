@@ -1,0 +1,39 @@
+{
+  "id": "character-health-bar-data-record__main-entries-characters-zac-skins-skin0-health-bar-data",
+  "title": "CharacterHealthBarDataRecord",
+  "parameters": [
+    {
+      "id": "CharacterHealthBarDataRecord_parameter_unitHealthBarStyle",
+      "name": "unitHealthBarStyle",
+      "type": "u8",
+      "defaultValue": "12"
+    }
+  ],
+  "embed": [],
+  "pointer": [],
+  "listEmbed": [],
+  "listPointer": [],
+  "list2Embed": [],
+  "list2Pointer": [],
+  "internalStructures": [],
+  "nomenclature": {
+    "group": "#3 Internal Structures",
+    "collection": "#3 Embed Block",
+    "collectionType": "CharacterHealthBarDataRecord",
+    "pathHierarchy": "main > entries:Characters/Zac/Skins/Skin0 > HealthBarData",
+    "pathHierarchySteps": [
+      {
+        "id": "main",
+        "type": "#0 Root main"
+      },
+      {
+        "id": "entries:Characters/Zac/Skins/Skin0",
+        "type": "#2 Root Entry (SkinCharacterDataProperties)"
+      },
+      {
+        "id": "HealthBarData",
+        "type": "#3 Embed Block"
+      }
+    ]
+  }
+}

@@ -74,6 +74,8 @@ export function BlockParameterRow({
             disabled={interactionLocked}
             active={activeSlotId === inputSlotId}
             linked={Boolean(inputSlotLink)}
+            wireless={inputSlotLink?.routing === 'wireless'}
+            forced={inputSlotLink?.forced === true}
             pulsing={isBlockSlotPulsing(
               pulseSlotId ? { nodeId: canvasNodeId ?? '', slotId: pulseSlotId } : null,
               canvasNodeId ?? '',
@@ -129,6 +131,8 @@ export function BlockParameterRow({
             disabled={interactionLocked}
             active={activeSlotId === outputSlotId}
             linked={Boolean(outputSlotLink)}
+            wireless={outputSlotLink?.routing === 'wireless'}
+            forced={outputSlotLink?.forced === true}
             pulsing={isBlockSlotPulsing(
               pulseSlotId ? { nodeId: canvasNodeId ?? '', slotId: pulseSlotId } : null,
               canvasNodeId ?? '',

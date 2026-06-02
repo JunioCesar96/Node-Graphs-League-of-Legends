@@ -1,6 +1,0 @@
-{
-  "id": "VfxEmitterDefinitionData_parameter_texAddressModeBase",
-  "name": "texAddressModeBase",
-  "type": "u8",
-  "defaultValue": "0"
-}

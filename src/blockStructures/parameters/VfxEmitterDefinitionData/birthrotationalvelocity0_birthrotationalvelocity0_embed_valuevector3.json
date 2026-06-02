@@ -1,0 +1,17 @@
+{
+  "id": "birthRotationalVelocity0_birthRotationalVelocity0_embed_ValueVector3",
+  "block": "VfxEmitterDefinitionData",
+  "parameterName": "birthRotationalVelocity0",
+  "name": "birthRotationalVelocity0",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-emitter-definition-data__entries-{particlePath}-complex-emitter-definition-data--slot--1-birth-rotational-velocity0"
+  },
+  "type": "embed",
+  "embed": "ValueVector3",
+  "slots": {
+    "out": [
+      "ValueVector3"
+    ]
+  }
+}

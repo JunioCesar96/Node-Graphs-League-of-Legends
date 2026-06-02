@@ -1,0 +1,31 @@
+{
+  "id": "vfx-shape-cylinder__main-entries-0x0eed7307-complex-emitter-definition-data-1-spawn-shape",
+  "title": "VfxShapeCylinder",
+  "parameters": [
+    {
+      "id": "VfxShapeCylinder_parameter_flags",
+      "name": "flags",
+      "type": "u8",
+      "defaultValue": "1"
+    },
+    {
+      "id": "VfxShapeCylinder_parameter_height",
+      "name": "height",
+      "type": "f32",
+      "defaultValue": "60"
+    },
+    {
+      "id": "VfxShapeCylinder_parameter_radius",
+      "name": "radius",
+      "type": "f32",
+      "defaultValue": "250"
+    }
+  ],
+  "embed": [],
+  "pointer": [],
+  "listEmbed": [],
+  "listPointer": [],
+  "list2Embed": [],
+  "list2Pointer": [],
+  "internalStructures": []
+}

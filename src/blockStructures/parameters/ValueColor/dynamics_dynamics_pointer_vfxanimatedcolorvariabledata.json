@@ -1,0 +1,17 @@
+{
+  "id": "dynamics_dynamics_pointer_VfxAnimatedColorVariableData",
+  "block": "ValueColor",
+  "parameterName": "dynamics",
+  "name": "dynamics",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "value-color__entries-{particlePath}-complex-emitter-definition-data--slot--0-color-dynamics"
+  },
+  "type": "pointer",
+  "pointer": "VfxAnimatedColorVariableData",
+  "slots": {
+    "out": [
+      "VfxAnimatedColorVariableData"
+    ]
+  }
+}

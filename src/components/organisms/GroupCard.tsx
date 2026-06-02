@@ -1,4 +1,4 @@
-import type { PointerEvent } from 'react'
+import type { MouseEvent as ReactMouseEvent, PointerEvent, PointerEventHandler } from 'react'
 import { useMemo } from 'react'
 
 import { GroupParameterRow } from '@/components/molecules/GroupParameterRow'
@@ -10,6 +10,7 @@ import type { CanvasNode, CanvasScene } from '@/core/canvasScene'
 import { GROUP_CARD_WIDTH, groupHeaderSlotId, groupParameterSlotId, isGroupPointerSourcePath } from '@/core/groupSchema'
 import {
   STRUCTURE_CARD_MAX_WIDTH,
+  isStructureCardDragTarget,
   resolveGroupCardWidth,
 } from '@/core/structureCardLayout'
 import { groupTypeDefinitionById } from '@/core/groupStructureRegistry'
@@ -66,6 +67,8 @@ type GroupCardProps = {
   canvasScale?: number
   structureCardResizeModifierActive?: boolean
   onStructureCardResize?: (payload: { width: number; positionX: number }) => void
+  onSelect?: (event?: ReactMouseEvent<HTMLElement>) => void
+  onStartDrag?: PointerEventHandler<HTMLElement>
 }
 
 export function GroupCard({
@@ -90,6 +93,8 @@ export function GroupCard({
   canvasScale = 1,
   structureCardResizeModifierActive = false,
   onStructureCardResize,
+  onSelect,
+  onStartDrag,
 }: GroupCardProps) {
   const structure = canvasNode.groupStructure
   const cardWidth = resolveGroupCardWidth(canvasNode)
@@ -111,11 +116,28 @@ export function GroupCard({
 
   return (
     <article
-      className={[styles.card, selected ? styles.selected : '', interactionLocked ? styles.locked : '']
+      className={[
+        styles.card,
+        selected ? styles.selected : '',
+        interactionLocked ? styles.locked : '',
+        onStartDrag && !interactionLocked ? styles.draggable : '',
+      ]
         .filter(Boolean)
         .join(' ')}
       data-group-card="1"
       style={{ width: `${cardWidth}px` }}
+      onClick={(event) => {
+        if (interactionLocked || !isStructureCardDragTarget(event.target)) {
+          return
+        }
+        onSelect?.(event)
+      }}
+      onPointerDown={(event) => {
+        if (interactionLocked || !onStartDrag || !isStructureCardDragTarget(event.target)) {
+          return
+        }
+        onStartDrag(event)
+      }}
     >
       <StructureCardResizeHandles
         disabled={interactionLocked}

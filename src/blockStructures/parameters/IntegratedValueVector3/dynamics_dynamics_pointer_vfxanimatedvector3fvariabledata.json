@@ -1,0 +1,17 @@
+{
+  "id": "dynamics_dynamics_pointer_VfxAnimatedVector3fVariableData",
+  "block": "IntegratedValueVector3",
+  "parameterName": "dynamics",
+  "name": "dynamics",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "integrated-value-vector3__entries-{particlePath}-complex-emitter-definition-data--slot--0-world-acceleration-dynamics"
+  },
+  "type": "pointer",
+  "pointer": "VfxAnimatedVector3fVariableData",
+  "slots": {
+    "out": [
+      "VfxAnimatedVector3fVariableData"
+    ]
+  }
+}

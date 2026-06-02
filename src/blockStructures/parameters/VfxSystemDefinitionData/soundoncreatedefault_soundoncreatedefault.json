@@ -1,0 +1,20 @@
+{
+  "id": "soundOnCreateDefault_soundOnCreateDefault",
+  "block": "VfxSystemDefinitionData",
+  "parameterName": "soundOnCreateDefault",
+  "name": "soundOnCreateDefault",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-system-definition-data__entries-{particlePath}_parameter_soundOnCreateDefault"
+  },
+  "type": "string",
+  "value": "Play_sfx_Brand_BrandE_hit",
+  "slots": {
+    "in": [
+      "string"
+    ],
+    "out": [
+      "string"
+    ]
+  }
+}

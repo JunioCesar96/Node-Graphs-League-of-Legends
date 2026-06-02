@@ -61,6 +61,15 @@
   padding: var(--space-1) 0;
 }
 
+.draggable {
+  cursor: grab;
+  user-select: none;
+}
+
+.draggable:active {
+  cursor: grabbing;
+}
+
 .selected {
   outline: 2px solid var(--syntax-keyword);
   outline-offset: 2px;

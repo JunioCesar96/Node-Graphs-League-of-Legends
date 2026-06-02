@@ -152,6 +152,8 @@ export type CanvasConnection = {
   /** Destino slot de grupo (entrada). */
   toGroupSlotId?: string
   toGroupParameterId?: string
+  /** Ligação bloco com tipo de saída incompatível mas campo IN aceite (confirmada pelo utilizador). */
+  forced?: boolean
 }
 
 function coerceEmbeddedSchema(schema: NodeSchemaDefinition): NodeSchemaDefinition {
@@ -197,6 +199,7 @@ function migrateConnection(connection: CanvasConnection): CanvasConnection {
     ...(connection.fromGroupParameterId ? { fromGroupParameterId: connection.fromGroupParameterId } : {}),
     ...(connection.toGroupSlotId ? { toGroupSlotId: connection.toGroupSlotId } : {}),
     ...(connection.toGroupParameterId ? { toGroupParameterId: connection.toGroupParameterId } : {}),
+    ...(connection.forced ? { forced: true } : {}),
   }
 }
 
@@ -210,7 +213,15 @@ export type SceneNodesChrome = {
 
 export type SceneChromeState = {
   sceneNodes?: SceneNodesChrome
+  /** Barra de ferramentas da grade retraída (só ícone de ferramentas). */
+  toolbarCollapsed?: boolean
   toolbarVisibility?: CanvasToolbarVisibility
+  /** Fundo da grade do canvas (linhas). Predefinido: visível. */
+  showCanvasGrid?: boolean
+  /** Passo da grelha em px (predefinido: 32). */
+  canvasGridSize?: number
+  /** Opacidade das linhas 0–40 (predefinido: 7). */
+  canvasGridOpacity?: number
 }
 
 /** Filtro activo «Mostrar apenas nós ligados» (reavaliado ao mudar índice / modo compacto). */

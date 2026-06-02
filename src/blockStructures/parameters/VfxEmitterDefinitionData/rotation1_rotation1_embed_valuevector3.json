@@ -1,0 +1,17 @@
+{
+  "id": "rotation1_rotation1_embed_ValueVector3",
+  "block": "VfxEmitterDefinitionData",
+  "parameterName": "rotation1",
+  "name": "rotation1",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-emitter-definition-data__main-characters/brand/skins/skin0/particles/brand-base-dance-complex-emitter-definition-data--slot--1-rotation1"
+  },
+  "type": "embed",
+  "embed": "ValueVector3",
+  "slots": {
+    "out": [
+      "ValueVector3"
+    ]
+  }
+}

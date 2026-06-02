@@ -62,9 +62,20 @@
   z-index: 4;
   width: 10px;
   cursor: col-resize;
-  background: var(--vfx-resize-grip);
+  background: transparent;
   border: none;
   border-radius: 18px 0 0 18px;
+  opacity: 0;
+  transition:
+    opacity 140ms ease,
+    background 140ms ease;
+}
+
+.resizeDockWidth:hover,
+.resizeDockWidth:focus-visible,
+.resizeDockWidth:active {
+  opacity: 1;
+  background: var(--vfx-resize-grip);
 }
 
 .resizeE,

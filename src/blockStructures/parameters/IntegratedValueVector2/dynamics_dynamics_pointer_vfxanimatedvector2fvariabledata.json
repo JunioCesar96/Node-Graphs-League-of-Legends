@@ -1,0 +1,17 @@
+{
+  "id": "dynamics_dynamics_pointer_VfxAnimatedVector2fVariableData",
+  "block": "IntegratedValueVector2",
+  "parameterName": "dynamics",
+  "name": "dynamics",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "integrated-value-vector2__entries-{particlePath}-complex-emitter-definition-data--slot--8-particle-uv-scroll-rate-dynamics"
+  },
+  "type": "pointer",
+  "pointer": "VfxAnimatedVector2fVariableData",
+  "slots": {
+    "out": [
+      "VfxAnimatedVector2fVariableData"
+    ]
+  }
+}

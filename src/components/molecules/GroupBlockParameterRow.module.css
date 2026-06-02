@@ -107,7 +107,6 @@ input.input {
   border: 1px solid rgb(0 0 0 / 35%);
   border-radius: 4px;
   background: var(--group-block-field-bg);
-  color: var(--syntax-symbol);
   font-family: var(--font-data);
   font-size: var(--group-block-input-font-size);
   line-height: 1.35;
@@ -124,7 +123,6 @@ div.input {
   border: 1px solid rgb(0 0 0 / 35%);
   border-radius: 4px;
   background: var(--group-block-field-bg);
-  color: var(--syntax-symbol);
   font-family: var(--font-data);
   font-size: var(--group-block-input-font-size);
   line-height: 1.35;
@@ -142,12 +140,21 @@ div.input > button:only-of-type {
   min-height: calc(var(--group-block-field-min-height) - 4px);
 }
 
+div.input[data-parameter-type='bool'],
+div.input[data-parameter-type='flag'] {
+  color: var(--syntax-keyword);
+}
+
+div.input[data-parameter-type='bool'] > button,
+div.input[data-parameter-type='flag'] > button {
+  color: var(--syntax-keyword);
+}
+
 div.input > input {
   flex: 1 1 auto;
   min-width: 0;
   padding: 2px 4px;
   overflow: hidden;
-  color: inherit;
   font: inherit;
   line-height: 1.35;
   text-overflow: ellipsis;

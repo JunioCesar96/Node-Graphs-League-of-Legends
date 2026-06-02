@@ -1,0 +1,17 @@
+{
+  "id": "fieldCollectionDefinition_fieldCollectionDefinition_pointer_VfxFieldCollectionDefinitionData",
+  "block": "VfxEmitterDefinitionData",
+  "parameterName": "fieldCollectionDefinition",
+  "name": "fieldCollectionDefinition",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-emitter-definition-data__main-characters/brand/skins/skin0/particles/brand-base-joke-complex-emitter-definition-data--slot--0-field-collection-definition"
+  },
+  "type": "pointer",
+  "pointer": "VfxFieldCollectionDefinitionData",
+  "slots": {
+    "out": [
+      "VfxFieldCollectionDefinitionData"
+    ]
+  }
+}

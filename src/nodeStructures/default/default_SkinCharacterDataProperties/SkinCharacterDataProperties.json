@@ -1,0 +1,300 @@
+{
+  "id": "skin-character-data-properties__entries-characters-zac-skins-skin0",
+  "title": "SkinCharacterDataProperties",
+  "parameters": [
+    {
+      "id": "SkinCharacterDataProperties_parameter_armorMaterial",
+      "name": "armorMaterial",
+      "type": "string",
+      "defaultValue": "Flesh"
+    },
+    {
+      "id": "SkinCharacterDataProperties_parameter_championSkinName",
+      "name": "championSkinName",
+      "type": "string",
+      "defaultValue": "Zac"
+    },
+    {
+      "id": "SkinCharacterDataProperties_parameter_emoteBuffbone",
+      "name": "emoteBuffbone",
+      "type": "string",
+      "defaultValue": ""
+    },
+    {
+      "id": "SkinCharacterDataProperties_parameter_godrayFXbone",
+      "name": "godrayFXbone",
+      "type": "string",
+      "defaultValue": ""
+    },
+    {
+      "id": "SkinCharacterDataProperties_parameter_iconCircle",
+      "name": "iconCircle",
+      "type": "optionString",
+      "defaultValue": "ASSETS/Characters/Zac/HUD/Zac_Circle.tex"
+    },
+    {
+      "id": "SkinCharacterDataProperties_parameter_iconSquare",
+      "name": "iconSquare",
+      "type": "optionString",
+      "defaultValue": "ASSETS/Characters/Zac/HUD/Zac_Square.tex"
+    },
+    {
+      "id": "SkinCharacterDataProperties_parameter_mContextualActionData",
+      "name": "mContextualActionData",
+      "type": "link",
+      "defaultValue": "Characters/Zac/CAC/Zac_Base"
+    },
+    {
+      "id": "SkinCharacterDataProperties_parameter_metaDataTags",
+      "name": "metaDataTags",
+      "type": "string",
+      "defaultValue": "faction:zaun,gender:male"
+    },
+    {
+      "id": "SkinCharacterDataProperties_parameter_mResourceResolver",
+      "name": "mResourceResolver",
+      "type": "link",
+      "defaultValue": "Characters/Zac/Skins/Skin0/Resources"
+    },
+    {
+      "id": "SkinCharacterDataProperties_parameter_skinClassification",
+      "name": "skinClassification",
+      "type": "u32",
+      "defaultValue": "1"
+    }
+  ],
+  "embed": [
+    {
+      "id": "SkinCharacterDataProperties_embed_loadscreen",
+      "title": "loadscreen",
+      "internalStructures": [
+        {
+          "id": "skin-character-data-properties-loadscreen",
+          "name": "CensoredImage",
+          "schemaId": "censored-image__main-entries-characters-zac-skins-skin0-loadscreen"
+        }
+      ],
+      "slots": [
+        {
+          "id": "SkinCharacterDataProperties_embed_loadscreen__slot__0",
+          "name": "CensoredImage",
+          "schemaId": "censored-image__main-entries-characters-zac-skins-skin0-loadscreen"
+        }
+      ]
+    },
+    {
+      "id": "SkinCharacterDataProperties_embed_SkinAudioProperties",
+      "title": "SkinAudioProperties",
+      "internalStructures": [
+        {
+          "id": "skin-character-data-properties-skin-audio-properties",
+          "name": "SkinAudioProperties",
+          "schemaId": "skin-audio-properties__main-entries-characters-zac-skins-skin0-skin-audio-properties"
+        }
+      ],
+      "slots": [
+        {
+          "id": "SkinCharacterDataProperties_embed_SkinAudioProperties__slot__0",
+          "name": "SkinAudioProperties",
+          "schemaId": "skin-audio-properties__main-entries-characters-zac-skins-skin0-skin-audio-properties"
+        }
+      ]
+    },
+    {
+      "id": "SkinCharacterDataProperties_embed_SkinAnimationProperties",
+      "title": "SkinAnimationProperties",
+      "internalStructures": [
+        {
+          "id": "skin-character-data-properties-skin-animation-properties",
+          "name": "SkinAnimationProperties",
+          "schemaId": "skin-animation-properties__main-entries-characters-zac-skins-skin0-skin-animation-properties"
+        }
+      ],
+      "slots": [
+        {
+          "id": "SkinCharacterDataProperties_embed_SkinAnimationProperties__slot__0",
+          "name": "SkinAnimationProperties",
+          "schemaId": "skin-animation-properties__main-entries-characters-zac-skins-skin0-skin-animation-properties"
+        }
+      ]
+    },
+    {
+      "id": "SkinCharacterDataProperties_embed_skinMeshProperties",
+      "title": "skinMeshProperties",
+      "internalStructures": [
+        {
+          "id": "skin-character-data-properties-skin-mesh-properties",
+          "name": "SkinMeshDataProperties",
+          "schemaId": "skin-mesh-data-properties__main-entries-characters-zac-skins-skin0-skin-mesh-properties"
+        }
+      ],
+      "slots": [
+        {
+          "id": "SkinCharacterDataProperties_embed_skinMeshProperties__slot__0",
+          "name": "SkinMeshDataProperties",
+          "schemaId": "skin-mesh-data-properties__main-entries-characters-zac-skins-skin0-skin-mesh-properties"
+        }
+      ]
+    },
+    {
+      "id": "SkinCharacterDataProperties_embed_HealthBarData",
+      "title": "HealthBarData",
+      "internalStructures": [
+        {
+          "id": "skin-character-data-properties-health-bar-data",
+          "name": "CharacterHealthBarDataRecord",
+          "schemaId": "character-health-bar-data-record__main-entries-characters-zac-skins-skin0-health-bar-data"
+        }
+      ],
+      "slots": [
+        {
+          "id": "SkinCharacterDataProperties_embed_HealthBarData__slot__0",
+          "name": "CharacterHealthBarDataRecord",
+          "schemaId": "character-health-bar-data-record__main-entries-characters-zac-skins-skin0-health-bar-data"
+        }
+      ]
+    }
+  ],
+  "pointer": [],
+  "listEmbed": [
+    {
+      "id": "SkinCharacterDataProperties_listEmbed_idleParticlesEffects",
+      "title": "idleParticlesEffects",
+      "internalStructures": [
+        {
+          "id": "skin-character-data-properties-idle-particles-effects-0",
+          "name": "SkinCharacterDataProperties_CharacterIdleEffect",
+          "schemaId": "skin-character-data-properties-character-idle-effect__idle-particles-effects-0"
+        }
+      ],
+      "slots": [
+        {
+          "id": "SkinCharacterDataProperties_listEmbed_idleParticlesEffects__slot__0",
+          "name": "SkinCharacterDataProperties_CharacterIdleEffect",
+          "schemaId": "skin-character-data-properties-character-idle-effect__idle-particles-effects-0"
+        }
+      ]
+    }
+  ],
+  "listPointer": [],
+  "list2Embed": [],
+  "list2Pointer": [
+    {
+      "id": "SkinCharacterDataProperties_list2Pointer_PersistentEffectConditions",
+      "title": "PersistentEffectConditions",
+      "internalStructures": [
+        {
+          "id": "skin-character-data-properties-persistent-effect-conditions-0",
+          "name": "PersistentEffectConditionData",
+          "schemaId": "persistent-effect-condition-data__persistent-effect-conditions-0"
+        },
+        {
+          "id": "skin-character-data-properties-persistent-effect-conditions-1",
+          "name": "PersistentEffectConditionData",
+          "schemaId": "persistent-effect-condition-data__persistent-effect-conditions-1"
+        },
+        {
+          "id": "skin-character-data-properties-persistent-effect-conditions-2",
+          "name": "PersistentEffectConditionData",
+          "schemaId": "persistent-effect-condition-data__persistent-effect-conditions-2"
+        },
+        {
+          "id": "skin-character-data-properties-persistent-effect-conditions-3",
+          "name": "PersistentEffectConditionData",
+          "schemaId": "persistent-effect-condition-data__persistent-effect-conditions-3"
+        }
+      ],
+      "instances": [
+        {
+          "id": "SkinCharacterDataProperties_list2Pointer_PersistentEffectConditions-inst-0",
+          "title": "PersistentEffectConditionData",
+          "internalStructures": [
+            {
+              "id": "skin-character-data-properties-persistent-effect-conditions-0",
+              "name": "PersistentEffectConditionData",
+              "schemaId": "persistent-effect-condition-data__persistent-effect-conditions-0"
+            }
+          ],
+          "slots": [
+            {
+              "id": "SkinCharacterDataProperties_list2Pointer_PersistentEffectConditions-inst-0__slot__0",
+              "name": "PersistentEffectConditionData",
+              "schemaId": "persistent-effect-condition-data__persistent-effect-conditions-0"
+            }
+          ]
+        },
+        {
+          "id": "SkinCharacterDataProperties_list2Pointer_PersistentEffectConditions-inst-1",
+          "title": "PersistentEffectConditionData",
+          "internalStructures": [
+            {
+              "id": "skin-character-data-properties-persistent-effect-conditions-1",
+              "name": "PersistentEffectConditionData",
+              "schemaId": "persistent-effect-condition-data__persistent-effect-conditions-1"
+            }
+          ],
+          "slots": [
+            {
+              "id": "SkinCharacterDataProperties_list2Pointer_PersistentEffectConditions-inst-1__slot__0",
+              "name": "PersistentEffectConditionData",
+              "schemaId": "persistent-effect-condition-data__persistent-effect-conditions-1"
+            }
+          ]
+        },
+        {
+          "id": "SkinCharacterDataProperties_list2Pointer_PersistentEffectConditions-inst-2",
+          "title": "PersistentEffectConditionData",
+          "internalStructures": [
+            {
+              "id": "skin-character-data-properties-persistent-effect-conditions-2",
+              "name": "PersistentEffectConditionData",
+              "schemaId": "persistent-effect-condition-data__persistent-effect-conditions-2"
+            }
+          ],
+          "slots": [
+            {
+              "id": "SkinCharacterDataProperties_list2Pointer_PersistentEffectConditions-inst-2__slot__0",
+              "name": "PersistentEffectConditionData",
+              "schemaId": "persistent-effect-condition-data__persistent-effect-conditions-2"
+            }
+          ]
+        },
+        {
+          "id": "SkinCharacterDataProperties_list2Pointer_PersistentEffectConditions-inst-3",
+          "title": "PersistentEffectConditionData",
+          "internalStructures": [
+            {
+              "id": "skin-character-data-properties-persistent-effect-conditions-3",
+              "name": "PersistentEffectConditionData",
+              "schemaId": "persistent-effect-condition-data__persistent-effect-conditions-3"
+            }
+          ],
+          "slots": [
+            {
+              "id": "SkinCharacterDataProperties_list2Pointer_PersistentEffectConditions-inst-3__slot__0",
+              "name": "PersistentEffectConditionData",
+              "schemaId": "persistent-effect-condition-data__persistent-effect-conditions-3"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "internalStructures": [],
+  "nomenclature": {
+    "group": "#2 Entidades",
+    "collection": "#2 Root Entry (SkinCharacterDataProperties)",
+    "collectionType": "SkinCharacterDataProperties",
+    "pathHierarchy": "main > entries:Characters/Zac/Skins/Skin0",
+    "pathHierarchySteps": [
+      {
+        "id": "main",
+        "type": "#0 Root main"
+      },
+      {
+        "id": "entries:Characters/Zac/Skins/Skin0",
+        "type": "#2 Root Entry (SkinCharacterDataProperties)"
+      }
+    ]
+  }
+}

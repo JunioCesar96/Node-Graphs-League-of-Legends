@@ -153,6 +153,22 @@ export function GroupConnectionUsesSlot(connection: CanvasConnection, slotId: st
   return connection.fromGroupSlotId === slotId || connection.toGroupSlotId === slotId
 }
 
+/** Uma entrada de grupo só pode ter uma ligação — remove a anterior ao mesmo `toGroupSlotId`. */
+export function withoutConnectionsToGroupInputSlot(
+  connections: readonly CanvasConnection[],
+  toNodeId: string,
+  toGroupSlotId: string,
+): CanvasConnection[] {
+  return connections.filter(
+    (connection) =>
+      !(
+        isGroupSlotConnection(connection) &&
+        connection.toNodeId === toNodeId &&
+        connection.toGroupSlotId === toGroupSlotId
+      ),
+  )
+}
+
 export function propagateGroupConnectionValue(
   sourceStructure: GroupStructurePayload,
   targetStructure: GroupStructurePayload,

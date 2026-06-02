@@ -1,0 +1,21 @@
+{
+  "id": "VfxShapeCylinder_VfxShapeCylinder",
+  "block": "SpawnShape",
+  "blockName": "VfxShapeCylinder",
+  "type": "pointer",
+  "name": "VfxShapeCylinder",
+  "source": {
+    "kind": "block",
+    "nodeId": "vfx-shape-cylinder__entries-{particlePath}-complex-emitter-definition-data--slot--0-spawn-shape"
+  },
+  "color": "#40ff56",
+  "headerSlots": [
+    "in[SpawnShape]",
+    "out[VfxShapeCylinderPreview]"
+  ],
+  "parameters": [
+    "height",
+    "radius",
+    "flags"
+  ]
+}

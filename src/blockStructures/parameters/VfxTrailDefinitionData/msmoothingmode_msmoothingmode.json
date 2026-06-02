@@ -1,0 +1,20 @@
+{
+  "id": "mSmoothingMode_mSmoothingMode",
+  "block": "VfxTrailDefinitionData",
+  "parameterName": "mSmoothingMode",
+  "name": "mSmoothingMode",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-trail-definition-data__main-characters/brand/skins/skin0/particles/brand-base-q-blaze-mis-complex-emitter-definition-data--slot--1-primitive-m-trail_parameter_mSmoothingMode"
+  },
+  "type": "u8",
+  "value": "1",
+  "slots": {
+    "in": [
+      "u8"
+    ],
+    "out": [
+      "u8"
+    ]
+  }
+}

@@ -109,6 +109,13 @@ export function findSlotInPointerSchema(
   return null
 }
 
+function pointerBlockOwnsSlotId(block: PointerDefinition, slotId: string): boolean {
+  if ((block.slots ?? []).some((s) => s.id === slotId)) {
+    return true
+  }
+  return parsePointerSlotIndex(slotId, block.id) !== null
+}
+
 export function patchPointerSlotInSchema(
   schema: NodeSchemaDefinition,
   slotId: string,
@@ -121,13 +128,24 @@ export function patchPointerSlotInSchema(
   return {
     ...schema,
     pointer: pointer.map((block) => {
-      const slots = block.slots ?? ensurePointerSlots(block)
-      if (!slots.some((s) => s.id === slotId)) {
+      if (!pointerBlockOwnsSlotId(block, slotId)) {
         return block
       }
+
+      const slots = block.slots ?? []
+      const existing = slots.find((s) => s.id === slotId)
+      if (existing) {
+        return {
+          ...block,
+          slots: slots.map((s) => (s.id === slotId ? patch : s)),
+        }
+      }
+
+      const resolvedId =
+        parsePointerSlotIndex(slotId, block.id) !== null ? slotId : pointerSlotId(block.id, 0)
       return {
         ...block,
-        slots: slots.map((s) => (s.id === slotId ? patch : s)),
+        slots: [{ ...patch, id: resolvedId }],
       }
     }),
   }

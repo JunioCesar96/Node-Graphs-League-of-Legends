@@ -1,0 +1,96 @@
+.wrap {
+  position: relative;
+  min-width: 0;
+}
+
+.inputRow {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--space-1);
+  align-items: center;
+}
+
+.input,
+.search {
+  width: 100%;
+  min-width: 0;
+  padding: 6px 8px;
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 6px;
+  background: var(--group-surface-dark);
+  color: var(--group-text);
+  font-family: var(--font-data);
+  font-size: 0.74rem;
+}
+
+.input:focus,
+.search:focus {
+  outline: 2px solid rgb(128 255 230 / 45%);
+  outline-offset: 1px;
+}
+
+.toggle {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 6px;
+  background: var(--group-surface);
+  color: var(--group-text);
+  cursor: pointer;
+}
+
+.panel {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  left: 0;
+  z-index: 6;
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  background: rgb(20 20 20 / 98%);
+  border: 1px solid rgb(255 255 255 / 14%);
+  border-radius: 8px;
+  box-shadow: 0 12px 32px rgb(0 0 0 / 45%);
+}
+
+.search {
+  padding-left: 28px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' fill='%23c4c4c4' viewBox='0 0 16 16'%3E%3Cpath d='M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85zm-5.242 1.156a5 5 0 1 1 0-10 5 5 0 0 1 0 10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: 8px center;
+}
+
+.list {
+  max-height: 160px;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+}
+
+.option {
+  width: 100%;
+  padding: 6px 8px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--group-text);
+  font-family: var(--font-data);
+  font-size: 0.72rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.option:hover,
+.optionActive {
+  background: rgb(128 255 230 / 14%);
+}
+
+.empty {
+  margin: 0;
+  padding: 4px 6px;
+  color: rgb(196 196 196 / 65%);
+  font-size: 0.68rem;
+}

@@ -254,32 +254,8 @@ export function migrateLegacySceneToTabs(): SceneTabsPersisted {
   }
 }
 
-function hasLegacySceneStorage(): boolean {
-  try {
-    return window.localStorage.getItem(SCENE_STORAGE_KEY) !== null
-  } catch {
-    return false
-  }
-}
-
+/** Sempre inicia sem abas abertas; o utilizador cria ou abre uma cena manualmente. */
 export function getInitialSceneTabsPersisted(): SceneTabsPersisted {
-  const stored = loadSceneTabsPersisted()
-
-  if (stored && stored.tabs.length > 0) {
-    return stored
-  }
-
-  if (hasLegacySceneStorage()) {
-    const migrated = migrateLegacySceneToTabs()
-    migrated.activeTabId = migrated.tabs[0]!.id
-
-    return migrated
-  }
-
-  if (stored) {
-    return stored
-  }
-
   return { activeTabId: '', tabs: [] }
 }
 

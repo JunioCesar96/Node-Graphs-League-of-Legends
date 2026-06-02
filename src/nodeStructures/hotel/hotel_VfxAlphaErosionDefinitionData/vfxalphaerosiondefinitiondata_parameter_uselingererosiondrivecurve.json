@@ -1,6 +1,0 @@
-{
-  "id": "VfxAlphaErosionDefinitionData_parameter_UseLingerErosionDriveCurve",
-  "name": "UseLingerErosionDriveCurve",
-  "type": "bool",
-  "defaultValue": "false"
-}

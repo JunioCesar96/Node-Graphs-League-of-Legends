@@ -1,0 +1,17 @@
+{
+  "id": "ParticleIntegratedUvScrollMult_ParticleIntegratedUvScrollMult_embed_IntegratedValueVector2",
+  "block": "VfxTextureMultDefinitionData",
+  "parameterName": "ParticleIntegratedUvScrollMult",
+  "name": "ParticleIntegratedUvScrollMult",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-texture-mult-definition-data__entries-{particlePath}-complex-emitter-definition-data--slot--7-texture-mult-particle-integrated-uv-scroll-mult"
+  },
+  "type": "embed",
+  "embed": "IntegratedValueVector2",
+  "slots": {
+    "out": [
+      "IntegratedValueVector2"
+    ]
+  }
+}

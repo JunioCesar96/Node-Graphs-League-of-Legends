@@ -1,0 +1,17 @@
+{
+  "id": "alphaErosionDefinition_alphaErosionDefinition_pointer_VfxAlphaErosionDefinitionData",
+  "block": "VfxEmitterDefinitionData",
+  "parameterName": "alphaErosionDefinition",
+  "name": "alphaErosionDefinition",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-emitter-definition-data__entries-{particlePath}-complex-emitter-definition-data--slot--0-alpha-erosion-definition"
+  },
+  "type": "pointer",
+  "pointer": "VfxAlphaErosionDefinitionData",
+  "slots": {
+    "out": [
+      "VfxAlphaErosionDefinitionData"
+    ]
+  }
+}

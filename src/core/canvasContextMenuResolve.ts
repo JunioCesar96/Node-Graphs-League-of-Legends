@@ -39,6 +39,16 @@ export function resolveContextTarget(event: ReactMouseEvent): CanvasContextTarge
   if (contextEl) {
     const contextTarget = contextEl.getAttribute(CANVAS_CONTEXT_TARGET_ATTR)
 
+    if (contextTarget === 'nodeInputPort') {
+      const nodeId = contextEl.getAttribute(CANVAS_CONTEXT_NODE_ID_ATTR)
+
+      if (nodeId) {
+        return { type: 'nodeInputPort', nodeId }
+      }
+
+      return null
+    }
+
     if (contextTarget === 'element') {
       const nodeId = contextEl.getAttribute(CANVAS_CONTEXT_NODE_ID_ATTR)
       const kindRaw = contextEl.getAttribute(CANVAS_CONTEXT_KIND_ATTR)
@@ -92,6 +102,17 @@ export function resolveContextTarget(event: ReactMouseEvent): CanvasContextTarge
 
     if (connectionId) {
       return { type: 'connection', connectionId }
+    }
+  }
+
+  const inputPortEl = target.closest('[data-graph-port="input"]')
+  const inputPortNodeEl = inputPortEl?.closest('[data-canvas-node="true"]')
+
+  if (inputPortEl && inputPortNodeEl) {
+    const nodeId = inputPortNodeEl.getAttribute('data-canvas-node-id')
+
+    if (nodeId) {
+      return { type: 'nodeInputPort', nodeId }
     }
   }
 

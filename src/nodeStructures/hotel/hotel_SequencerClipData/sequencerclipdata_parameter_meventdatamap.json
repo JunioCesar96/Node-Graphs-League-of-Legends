@@ -1,6 +1,0 @@
-{
-  "id": "SequencerClipData_parameter_mEventDataMap",
-  "name": "mEventDataMap",
-  "type": "maphashpointer",
-  "defaultValue": ""
-}

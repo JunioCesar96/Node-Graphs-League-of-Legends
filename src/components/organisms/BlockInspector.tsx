@@ -1,20 +1,21 @@
 import type { HTMLAttributes } from 'react'
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
-import { createPortal } from 'react-dom'
+import { useMemo } from 'react'
 
 import { ViewportDockPinIcon } from '@/components/atoms/ViewportDockPinIcon'
+import { DockTabIcon } from '@/components/atoms/DockTabIcon'
 import { BlockInspectorParameterCard } from '@/components/molecules/BlockInspectorParameterCard'
-import { SurfaceThemeContextMenu } from '@/components/molecules/SurfaceThemeContextMenu'
+import { InspectorViewportDockShell } from '@/components/molecules/InspectorViewportDockShell'
+import { InspectorFloatingPanelShell } from '@/components/molecules/InspectorFloatingPanelShell'
 import type { BlockInspectorDraft, BlockInspectorDraftEntry } from '@/core/blockSchema'
 import type { CanvasNode } from '@/core/canvasScene'
 import { LangId } from '@/core/language/languageIds'
 import { blockTypeDefinitionById, blockTypeDefinitionsList } from '@/core/blockStructureRegistry'
 import { useLanguage } from '@/language/LanguageProvider'
-import { useSurfaceThemeContextMenu } from '@/hooks/useSurfaceThemeContextMenu'
-
+import dockStyles from '@/styles/inspectorViewportDock.module.css'
 import styles from './BlockInspector.module.css'
 
 type BlockInspectorProps = {
+  autoBuildBusy?: boolean
   node?: CanvasNode
   draft: BlockInspectorDraft | null
   knownBlockTypeIds?: readonly string[]
@@ -25,7 +26,10 @@ type BlockInspectorProps = {
   onDockToViewport?: () => void
   onUndockFromViewportToolbar?: (anchor: { clientX: number; clientY: number }) => void
   onDraftChange: (draft: BlockInspectorDraft) => void
+  onAutoBuild: () => void
   onGenerateBlock: () => void
+  onBuildParameters: () => void
+  onBuildBlock: () => void
   onRevertBlock: () => void
 }
 
@@ -63,12 +67,25 @@ function BlockInspectorBody({
   node,
   draft,
   knownBlockTypeIds = [],
+  autoBuildBusy = false,
   onDraftChange,
+  onAutoBuild,
   onGenerateBlock,
+  onBuildParameters,
+  onBuildBlock,
   onRevertBlock,
 }: Pick<
   BlockInspectorProps,
-  'node' | 'draft' | 'knownBlockTypeIds' | 'onDraftChange' | 'onGenerateBlock' | 'onRevertBlock'
+  | 'node'
+  | 'draft'
+  | 'knownBlockTypeIds'
+  | 'autoBuildBusy'
+  | 'onDraftChange'
+  | 'onAutoBuild'
+  | 'onGenerateBlock'
+  | 'onBuildParameters'
+  | 'onBuildBlock'
+  | 'onRevertBlock'
 >) {
   const { t } = useLanguage()
   const blockTypeOptions = useMemo(
@@ -140,6 +157,30 @@ function BlockInspectorBody({
       <div className={styles.actions}>
         <button
           type="button"
+          className={styles.secondary}
+          disabled={!node || autoBuildBusy}
+          onClick={onAutoBuild}
+        >
+          {t(LangId.BlockInspectorAutoBuild)}
+        </button>
+        <button
+          type="button"
+          className={styles.secondary}
+          disabled={exposedCount === 0}
+          onClick={onBuildParameters}
+        >
+          {t(LangId.BlockInspectorBuildParameter)}
+        </button>
+        <button
+          type="button"
+          className={styles.secondary}
+          disabled={exposedCount === 0}
+          onClick={onBuildBlock}
+        >
+          {t(LangId.BlockInspectorBuildBlock)}
+        </button>
+        <button
+          type="button"
           className={styles.primary}
           disabled={exposedCount === 0}
           onClick={onGenerateBlock}
@@ -157,6 +198,7 @@ function BlockInspectorBody({
 }
 
 export function BlockInspector({
+  autoBuildBusy = false,
   node,
   draft,
   knownBlockTypeIds,
@@ -167,52 +209,15 @@ export function BlockInspector({
   onDockToViewport,
   onUndockFromViewportToolbar,
   onDraftChange,
+  onAutoBuild,
   onGenerateBlock,
+  onBuildParameters,
+  onBuildBlock,
   onRevertBlock,
 }: BlockInspectorProps) {
   const { t } = useLanguage()
-  const {
-    surfaceThemeMenuAnchor,
-    openSurfaceThemeContextMenu,
-    closeSurfaceThemeContextMenu,
-  } = useSurfaceThemeContextMenu()
-  const stripRef = useRef<HTMLDivElement>(null)
-  const [flyoutStyle, setFlyoutStyle] = useState<CSSProperties>({})
   const inspectorTitle = t(LangId.BlockInspectorTitle)
   const defaultEyebrow = t(LangId.BlockInspectorDefaultEyebrow)
-
-  useLayoutEffect(() => {
-    if (!viewportDocked || minimized || !stripRef.current) {
-      return
-    }
-    const rect = stripRef.current.getBoundingClientRect()
-    setFlyoutStyle({
-      position: 'fixed',
-      top: rect.bottom + 8,
-      right: Math.max(16, window.innerWidth - rect.right),
-      zIndex: 40,
-    })
-  }, [minimized, viewportDocked, node?.id])
-
-  useEffect(() => {
-    if (!viewportDocked || minimized) {
-      return
-    }
-    const onResize = () => {
-      if (!stripRef.current) {
-        return
-      }
-      const rect = stripRef.current.getBoundingClientRect()
-      setFlyoutStyle({
-        position: 'fixed',
-        top: rect.bottom + 8,
-        right: Math.max(16, window.innerWidth - rect.right),
-        zIndex: 40,
-      })
-    }
-    window.addEventListener('resize', onResize)
-    return () => window.removeEventListener('resize', onResize)
-  }, [minimized, viewportDocked])
 
   const dockPinButton =
     viewportDocked && onUndockFromViewportToolbar ? (
@@ -242,17 +247,57 @@ export function BlockInspector({
       </button>
     ) : null
 
-  const chromeStripClassName = [
-    styles.inspectorChromeStrip,
-    !viewportDocked && dragHandleProps?.onPointerDown ? styles.inspectorChromeStripDraggable : '',
-  ]
-    .filter(Boolean)
-    .join(' ')
+  const headerActions = (
+    <>
+      <button
+        type="button"
+        className={styles.iconButton}
+        onClick={onToggleMinimized}
+        onPointerDown={(event) => event.stopPropagation()}
+        aria-label={t(LangId.InspectorMinimize)}
+      >
+        −
+      </button>
+      {dockPinButton}
+    </>
+  )
+
+  const inspectorBody = (
+    <BlockInspectorBody
+      autoBuildBusy={autoBuildBusy}
+      node={node}
+      draft={draft}
+      knownBlockTypeIds={knownBlockTypeIds}
+      onDraftChange={onDraftChange}
+      onAutoBuild={onAutoBuild}
+      onGenerateBlock={onGenerateBlock}
+      onBuildParameters={onBuildParameters}
+      onBuildBlock={onBuildBlock}
+      onRevertBlock={onRevertBlock}
+    />
+  )
+
+  if (viewportDocked) {
+    return (
+      <InspectorViewportDockShell
+        body={inspectorBody}
+        bodyClassName="inspectorScrollHost"
+        expandAriaLabel={t(LangId.BlockInspectorTitle)}
+        expandContent={<DockTabIcon kind="block" />}
+        eyebrow={node?.node.schema.title ?? defaultEyebrow}
+        headerActions={headerActions}
+        minimized={minimized}
+        onExpand={onToggleMinimized}
+        shellSurfaceClassName={dockStyles.dockedShellBlock}
+        title={inspectorTitle}
+      />
+    )
+  }
 
   if (minimized) {
     const minimizedRowClassName = [
       styles.minimizedDockRow,
-      !viewportDocked && dragHandleProps?.onPointerDown ? styles.minimizedDockRowDraggable : '',
+      dragHandleProps?.onPointerDown ? styles.minimizedDockRowDraggable : '',
     ]
       .filter(Boolean)
       .join(' ')
@@ -263,7 +308,7 @@ export function BlockInspector({
           type="button"
           className={styles.minimizedButton}
           onClick={onToggleMinimized}
-          {...(!viewportDocked ? dragHandleProps : {})}
+          {...dragHandleProps}
         >
           <span className={styles.minimizedIcon}>B</span>
           <span>{inspectorTitle}</span>
@@ -273,86 +318,16 @@ export function BlockInspector({
     )
   }
 
-  if (viewportDocked) {
-    const flyout = (
-      <aside
-        aria-label={inspectorTitle}
-        className={[styles.panel, styles.panelViewportFloatingBody].join(' ')}
-        style={flyoutStyle}
-        onContextMenu={openSurfaceThemeContextMenu}
-      >
-        <BlockInspectorBody
-          node={node}
-          draft={draft}
-          knownBlockTypeIds={knownBlockTypeIds}
-          onDraftChange={onDraftChange}
-          onGenerateBlock={onGenerateBlock}
-          onRevertBlock={onRevertBlock}
-        />
-      </aside>
-    )
-
-    return (
-      <>
-        <div className={chromeStripClassName} ref={stripRef} data-block-inspector-strip>
-          <span className={styles.chromeStripEyebrow}>{node?.node.schema.title ?? defaultEyebrow}</span>
-          <h2 className={styles.chromeStripTitle}>{inspectorTitle}</h2>
-          <div className={styles.headerActions}>
-            <button
-              type="button"
-              className={styles.iconButton}
-              onClick={onToggleMinimized}
-              onPointerDown={(event) => event.stopPropagation()}
-              aria-label={t(LangId.InspectorMinimize)}
-            >
-              −
-            </button>
-            {dockPinButton}
-          </div>
-        </div>
-        {createPortal(flyout, document.body)}
-        {surfaceThemeMenuAnchor ? (
-          <SurfaceThemeContextMenu
-            anchor={surfaceThemeMenuAnchor}
-            onClose={closeSurfaceThemeContextMenu}
-          />
-        ) : null}
-      </>
-    )
-  }
-
   return (
-    <aside className={styles.panel} aria-label={inspectorTitle} onContextMenu={openSurfaceThemeContextMenu}>
-      <div className={chromeStripClassName} {...dragHandleProps}>
-        <span className={styles.chromeStripEyebrow}>{node?.node.schema.title ?? defaultEyebrow}</span>
-        <h2 className={styles.chromeStripTitle}>{inspectorTitle}</h2>
-        <div className={styles.headerActions}>
-          <button
-            type="button"
-            className={styles.iconButton}
-            onClick={onToggleMinimized}
-            onPointerDown={(event) => event.stopPropagation()}
-            aria-label={t(LangId.InspectorMinimize)}
-          >
-            −
-          </button>
-          {dockPinButton}
-        </div>
-      </div>
-      <BlockInspectorBody
-        node={node}
-        draft={draft}
-        knownBlockTypeIds={knownBlockTypeIds}
-        onDraftChange={onDraftChange}
-        onGenerateBlock={onGenerateBlock}
-        onRevertBlock={onRevertBlock}
-      />
-      {surfaceThemeMenuAnchor ? (
-        <SurfaceThemeContextMenu
-          anchor={surfaceThemeMenuAnchor}
-          onClose={closeSurfaceThemeContextMenu}
-        />
-      ) : null}
-    </aside>
+    <InspectorFloatingPanelShell
+      ariaLabel={inspectorTitle}
+      body={inspectorBody}
+      bodyClassName="inspectorScrollHost"
+      dragHandleProps={dragHandleProps}
+      eyebrow={node?.node.schema.title ?? defaultEyebrow}
+      headerActions={headerActions}
+      shellSurfaceClassName={dockStyles.dockedShellBlock}
+      title={inspectorTitle}
+    />
   )
 }

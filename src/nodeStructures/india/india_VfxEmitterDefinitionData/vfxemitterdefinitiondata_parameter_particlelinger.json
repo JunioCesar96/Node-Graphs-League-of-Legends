@@ -1,6 +1,0 @@
-{
-  "id": "VfxEmitterDefinitionData_parameter_particleLinger",
-  "name": "particleLinger",
-  "type": "optionf32",
-  "defaultValue": "0"
-}

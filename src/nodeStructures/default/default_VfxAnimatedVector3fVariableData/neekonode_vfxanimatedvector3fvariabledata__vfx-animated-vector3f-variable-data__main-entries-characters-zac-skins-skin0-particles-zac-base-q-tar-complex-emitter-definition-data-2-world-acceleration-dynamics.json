@@ -1,0 +1,26 @@
+{
+  "id": "vfx-animated-vector3f-variable-data__main-entries-characters-zac-skins-skin0-particles-zac-base-q-tar-complex-emitter-definition-data-2-world-acceleration-dynamics",
+  "title": "VfxAnimatedVector3fVariableData",
+  "parameters": [
+    {
+      "id": "vfx-animated-vector3f-variable-data__main-entries-characters-zac-skins-skin0-particles-zac-base-q-tar-complex-emitter-definition-data-2-world-acceleration-dynamics_parameter_times",
+      "name": "times",
+      "type": "listF32",
+      "defaultValue": "0"
+    },
+    {
+      "id": "vfx-animated-vector3f-variable-data__main-entries-characters-zac-skins-skin0-particles-zac-base-q-tar-complex-emitter-definition-data-2-world-acceleration-dynamics_parameter_values",
+      "name": "values",
+      "type": "listVector3",
+      "defaultValue": "0, -1200, 0"
+    }
+  ],
+  "internalStructures": [],
+  "embed": [],
+  "pointer": [],
+  "listEmbed": [],
+  "listPointer": [],
+  "list2Embed": [],
+  "list2Pointer": [],
+  "tag": "neeko"
+}

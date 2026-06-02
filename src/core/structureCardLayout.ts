@@ -31,3 +31,13 @@ export function normalizeStructureCardWidth(
   const clamped = clampStructureCardWidth(width, minWidth)
   return clamped === minWidth ? undefined : clamped
 }
+
+/** Ignora cliques em slots, inputs e alças de resize — resto do card arrasta/seleciona. */
+export function isStructureCardDragTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof Element)) {
+    return false
+  }
+  return !target.closest(
+    '[data-structure-card-resize], [data-block-param-menu-root], [data-block-param-menu-portal], button, input, select, textarea, [contenteditable="true"]',
+  )
+}

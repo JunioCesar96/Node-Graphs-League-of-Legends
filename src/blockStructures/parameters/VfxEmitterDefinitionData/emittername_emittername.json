@@ -1,0 +1,20 @@
+{
+  "id": "emitterName_emitterName",
+  "block": "VfxEmitterDefinitionData",
+  "parameterName": "emitterName",
+  "name": "emitterName",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-emitter-definition-data__entries-{particlePath}-complex-emitter-definition-data--slot--0_parameter_emitterName"
+  },
+  "type": "string",
+  "value": "Pillar_bk2",
+  "slots": {
+    "in": [
+      "string"
+    ],
+    "out": [
+      "string"
+    ]
+  }
+}

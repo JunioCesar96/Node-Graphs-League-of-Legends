@@ -1,0 +1,156 @@
+.card {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  background: var(--block-surface);
+  border: 1px solid rgb(255 255 255 / 8%);
+  border-radius: 10px;
+}
+
+.card[data-exposed='0'] {
+  opacity: 0.72;
+}
+
+.cardHeader {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.exposeToggle {
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.iconPreview {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: rgb(255 255 255 / 92%);
+  border-radius: 4px;
+}
+
+.titleBlock {
+  min-width: 0;
+}
+
+.paramTitle {
+  display: block;
+  overflow: hidden;
+  color: var(--block-slot);
+  font-family: var(--font-data);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.typeBadge {
+  color: var(--block-slot);
+  font-family: var(--font-data);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.fieldGrid {
+  display: grid;
+  grid-template-columns: 72px 1fr;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.fieldLabel {
+  color: var(--block-text);
+  font-size: 0.72rem;
+}
+
+.fieldControl {
+  min-width: 0;
+}
+
+.textInput {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 6px;
+  background: var(--block-surface-dark);
+  color: var(--block-text);
+  font-family: var(--font-data);
+  font-size: 0.74rem;
+}
+
+.slotRow {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--space-1);
+  align-items: start;
+}
+
+.directionToggle {
+  min-width: 44px;
+  height: 32px;
+  padding: 0 8px;
+  border: 1px solid rgb(255 255 255 / 14%);
+  border-radius: 6px;
+  background: var(--block-surface-dark);
+  color: var(--block-text);
+  font-family: var(--font-data);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+}
+
+.directionToggle:hover {
+  border-color: var(--block-slot);
+  color: var(--block-slot);
+}
+
+.tagList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tag {
+  padding: 3px 10px;
+  border: 1px solid rgb(255 255 255 / 18%);
+  border-radius: 999px;
+  background: rgb(0 0 0 / 18%);
+  color: rgb(196 196 196 / 55%);
+  font-family: var(--font-data);
+  font-size: 0.68rem;
+  cursor: pointer;
+}
+
+.tag[data-active='1'] {
+  border-color: rgb(255 255 255 / 55%);
+  color: var(--block-text);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 8%);
+}
+
+.ritualHint {
+  margin: 0;
+  color: rgb(196 196 196 / 55%);
+  font-family: var(--font-data);
+  font-size: 0.62rem;
+}
+
+.pointerSlotHint {
+  font-size: 0.72rem;
+  color: rgb(196 196 196 / 70%);
+}
+
+.tag[data-locked='1'] {
+  cursor: default;
+}

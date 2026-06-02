@@ -1,0 +1,39 @@
+{
+  "id": "value-float__main-entries-characters-zac-skins-skin0-particles-zac-base-q-tar-complex-emitter-definition-data-0-particle-lifetime",
+  "title": "ValueFloat",
+  "parameters": [
+    {
+      "id": "value-float__main-entries-characters-zac-skins-skin0-particles-zac-base-q-tar-complex-emitter-definition-data-0-particle-lifetime_parameter_constantValue",
+      "name": "constantValue",
+      "type": "f32",
+      "defaultValue": "0.6"
+    }
+  ],
+  "internalStructures": [],
+  "embed": [],
+  "pointer": [
+    {
+      "id": "ValueFloat_pointer_dynamics",
+      "title": "dynamics",
+      "internalStructures": [
+        {
+          "id": "value-float-dynamics",
+          "name": "VfxAnimatedFloatVariableData",
+          "schemaId": "vfx-animated-float-variable-data__main-entries-characters-zac-skins-skin0-particles-zac-base-q-tar-complex-emitter-definition-data-0-particle-lifetime-dynamics"
+        }
+      ],
+      "slots": [
+        {
+          "id": "ValueFloat_pointer_dynamics__slot__0",
+          "name": "VfxAnimatedFloatVariableData",
+          "schemaId": "vfx-animated-float-variable-data__main-entries-characters-zac-skins-skin0-particles-zac-base-q-tar-complex-emitter-definition-data-0-particle-lifetime-dynamics"
+        }
+      ]
+    }
+  ],
+  "listEmbed": [],
+  "listPointer": [],
+  "list2Embed": [],
+  "list2Pointer": [],
+  "tag": "neeko"
+}

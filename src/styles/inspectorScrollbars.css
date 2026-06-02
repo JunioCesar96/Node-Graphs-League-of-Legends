@@ -1,0 +1,42 @@
+/**
+ * Scrollbars temáticas para inspetores e painéis com overflow.
+ */
+.inspectorScrollHost,
+.panel,
+.panelViewportFloatingBody,
+.panelViewportDockedBody {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb, rgb(255 255 255 / 28%))
+    var(--scrollbar-track, rgb(0 0 0 / 22%));
+}
+
+.inspectorScrollHost::-webkit-scrollbar,
+.panel::-webkit-scrollbar,
+.panelViewportFloatingBody::-webkit-scrollbar,
+.panelViewportDockedBody::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.inspectorScrollHost::-webkit-scrollbar-track,
+.panel::-webkit-scrollbar-track,
+.panelViewportFloatingBody::-webkit-scrollbar-track,
+.panelViewportDockedBody::-webkit-scrollbar-track {
+  background: var(--scrollbar-track, rgb(0 0 0 / 22%));
+  border-radius: 999px;
+}
+
+.inspectorScrollHost::-webkit-scrollbar-thumb,
+.panel::-webkit-scrollbar-thumb,
+.panelViewportFloatingBody::-webkit-scrollbar-thumb,
+.panelViewportDockedBody::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb, rgb(255 255 255 / 28%));
+  border-radius: 999px;
+}
+
+.inspectorScrollHost::-webkit-scrollbar-thumb:hover,
+.panel::-webkit-scrollbar-thumb:hover,
+.panelViewportFloatingBody::-webkit-scrollbar-thumb:hover,
+.panelViewportDockedBody::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover, rgb(255 255 255 / 42%));
+}

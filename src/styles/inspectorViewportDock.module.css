@@ -1,0 +1,360 @@
+/* Inspetor acoplado à barra — aba com ícone na toolbar + painel ab abixo. */
+
+.dockTab {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 26px;
+  min-width: 26px;
+  max-width: 26px;
+  height: 26px;
+  padding: 0;
+  margin: 0;
+  background: var(--app-panel-chrome-bg, var(--block-surface, rgb(37 37 38 / 88%)));
+  border: 1px solid var(--color-border-soft, rgb(0 0 0 / 35%));
+  border-radius: 999px;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 16%);
+  backdrop-filter: blur(12px);
+}
+
+.dockTabActive {
+  border-color: color-mix(in srgb, var(--selected-tab-bg, var(--jade-accent, #007acc)) 65%, transparent);
+  box-shadow:
+    0 6px 20px rgb(0 0 0 / 22%),
+    inset 0 0 0 1px color-mix(in srgb, var(--selected-tab-bg, var(--jade-accent, #007acc)) 35%, transparent);
+}
+
+.dockTab:hover:not(.dockTabActive),
+.dockTab:focus-within:not(.dockTabActive) {
+  border-color: color-mix(in srgb, var(--selected-tab-bg, var(--jade-accent, #007acc)) 65%, transparent);
+  box-shadow:
+    0 6px 20px rgb(0 0 0 / 22%),
+    inset 0 0 0 1px color-mix(in srgb, var(--selected-tab-bg, var(--jade-accent, #007acc)) 20%, transparent);
+}
+
+.dockTabIconButton {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  margin: 0;
+  line-height: 0;
+  color: inherit;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  border-radius: 999px;
+}
+
+.dockTabIconButton:focus-visible {
+  outline: 2px solid var(--selected-tab-bg, var(--port-child));
+  outline-offset: 2px;
+}
+
+.dockTabIconButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.dockTabGlyph {
+  display: block;
+  flex: none;
+  width: 14px;
+  height: 14px;
+  color: var(--text-color, var(--color-text-primary));
+  background-color: currentColor;
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+}
+
+.dockTabActive .dockTabGlyph {
+  color: var(--selected-tab-bg, var(--jade-accent, #007acc));
+}
+
+.dockTabChrome,
+[data-chrome-strip-toolbar] .dockTab {
+  width: 22px;
+  min-width: 22px;
+  max-width: 22px;
+  height: 22px;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 12%);
+}
+
+.dockTabChrome.dockTabActive,
+[data-chrome-strip-toolbar] .dockTabActive {
+  box-shadow:
+    0 1px 4px rgb(0 0 0 / 18%),
+    inset 0 0 0 1px color-mix(in srgb, var(--selected-tab-bg, var(--jade-accent, #007acc)) 35%, transparent);
+}
+
+.dockTabChrome .dockTabGlyph,
+[data-chrome-strip-toolbar] .dockTabGlyph {
+  width: 12px;
+  height: 12px;
+}
+
+.dockTabGlyphBlock {
+  mask-image: url('../assets/SVG/bloco.svg');
+  -webkit-mask-image: url('../assets/SVG/bloco.svg');
+}
+
+.dockTabGlyphGroup {
+  mask-image: url('../assets/SVG/grupo.svg');
+  -webkit-mask-image: url('../assets/SVG/grupo.svg');
+}
+
+.dockTabGlyphNode {
+  mask-image: url('../assets/SVG/node.svg');
+  -webkit-mask-image: url('../assets/SVG/node.svg');
+}
+
+.dockTabGlyphScene {
+  mask-image: url('../assets/SVG/node%20em%20cena.svg');
+  -webkit-mask-image: url('../assets/SVG/node%20em%20cena.svg');
+}
+
+.dockTabGlyphCamera {
+  mask-image: url('../assets/SVG/camera.svg');
+  -webkit-mask-image: url('../assets/SVG/camera.svg');
+}
+
+.dockTabGlyphZoom {
+  mask-image: url('../assets/SVG/zoom.svg');
+  -webkit-mask-image: url('../assets/SVG/zoom.svg');
+}
+
+.dockTabGlyphAddNode {
+  mask-image: url('../assets/SVG/add%20node.svg');
+  -webkit-mask-image: url('../assets/SVG/add%20node.svg');
+}
+
+.dockTabGlyphUndo {
+  mask-image: url('../assets/SVG/undo.svg');
+  -webkit-mask-image: url('../assets/SVG/undo.svg');
+}
+
+.dockTabGlyphRedo {
+  mask-image: url('../assets/SVG/redo.svg');
+  -webkit-mask-image: url('../assets/SVG/redo.svg');
+}
+
+.dockTabGlyphTools {
+  mask-image: url('../assets/SVG/tools.svg');
+  -webkit-mask-image: url('../assets/SVG/tools.svg');
+}
+
+.dockHeaderButton {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  color: var(--color-text-secondary);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  background: rgb(255 255 255 / 4%);
+  border: 1px solid var(--color-border-soft);
+  border-radius: 999px;
+}
+
+.dockHeaderButton:hover {
+  color: var(--text-color, var(--color-text-primary));
+  border-color: var(--selected-tab-bg, var(--jade-accent, #007acc));
+}
+
+.dockTabActions {
+  display: inline-flex;
+  flex-shrink: 0;
+  gap: var(--space-1);
+  align-items: center;
+  padding-right: var(--space-1);
+}
+
+/* Legado — mantido para inspetores desacoplados minimizados */
+.minimizedTab {
+  display: inline-flex;
+  gap: var(--space-1);
+  align-items: center;
+  min-width: 0;
+  max-width: min(360px, 42vw);
+  height: 42px;
+  padding: 0 var(--space-1) 0 var(--space-2);
+  background: var(--app-panel-chrome-bg, var(--block-surface, rgb(37 37 38 / 88%)));
+  border: 1px solid var(--color-border-soft, rgb(0 0 0 / 35%));
+  border-radius: 999px;
+  box-shadow: 0 8px 28px rgb(0 0 0 / 22%);
+  backdrop-filter: blur(12px);
+}
+
+.minimizedTabExpand {
+  display: inline-flex;
+  flex: 1 1 auto;
+  gap: var(--space-2);
+  align-items: center;
+  min-width: 0;
+  padding: 0 var(--space-2);
+  color: inherit;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  border-radius: 999px;
+}
+
+.minimizedTabExpand:focus-visible {
+  outline: 2px solid var(--port-child, var(--block-slot-out));
+  outline-offset: 2px;
+}
+
+.minimizedTabActions {
+  display: inline-flex;
+  flex-shrink: 0;
+  gap: var(--space-1);
+  align-items: center;
+  padding-right: var(--space-1);
+}
+
+.dockedShell {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: min(380px, calc(100vw - 64px));
+  overflow: hidden;
+  background: var(--app-panel-bg, var(--block-surface-dark, rgb(30 30 30 / 96%)));
+  border: 1px solid var(--color-border-soft, rgb(0 0 0 / 40%));
+  border-radius: 16px;
+  box-shadow:
+    0 24px 72px rgb(0 0 0 / 45%),
+    inset 0 1px 0 rgb(255 255 255 / 5%);
+  backdrop-filter: blur(16px);
+}
+
+.dockedHeader {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  min-width: 0;
+  padding: var(--space-2) var(--space-4);
+  background: var(--app-panel-chrome-bg, var(--block-surface, rgb(40 40 40 / 92%)));
+  border-bottom: 1px solid var(--color-border-soft, rgb(255 255 255 / 8%));
+  border-radius: 16px 16px 0 0;
+}
+
+.dockedHeaderMain {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: var(--space-1);
+  align-items: stretch;
+  min-width: 0;
+}
+
+.dockedTitle {
+  flex: none;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  color: var(--color-text-primary, var(--block-text));
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dockedEyebrow {
+  display: flex;
+  flex-direction: row;
+  gap: var(--space-2);
+  align-items: center;
+  justify-content: space-between;
+  min-width: 0;
+  color: var(--syntax-comment, var(--block-slot, var(--port-parent)));
+  font-family: var(--font-data);
+  font-size: 0.72rem;
+  line-height: 1.25;
+}
+
+.dockedHeaderActions {
+  display: inline-flex;
+  flex-shrink: 0;
+  gap: var(--space-1);
+  align-items: center;
+}
+
+.dockedHeaderDraggable {
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.dockedHeaderDraggable:active {
+  cursor: grabbing;
+}
+
+.inspectorFloatingShell {
+  max-height: min(640px, calc(100vh - 96px));
+}
+
+.dockedBody {
+  min-height: 0;
+  overflow: auto;
+}
+
+.dockedBodyPad {
+  padding: var(--space-4);
+}
+
+.dockedShellBlock {
+  background: var(--block-surface-dark);
+  border-color: rgb(0 0 0 / 40%);
+}
+
+.dockedShellBlock .dockedHeader {
+  background: var(--block-surface);
+}
+
+.dockedShellBlock .dockedEyebrow {
+  color: var(--block-slot);
+}
+
+.dockedShellBlock .dockedTitle {
+  color: var(--block-text);
+}
+
+.dockedShellGroup {
+  background: var(--group-surface-dark);
+  border-color: rgb(0 0 0 / 40%);
+}
+
+.dockedShellGroup .dockedHeader {
+  background: var(--group-surface);
+}
+
+.dockedShellGroup .dockedEyebrow {
+  color: var(--group-slot);
+}
+
+.dockedShellGroup .dockedTitle {
+  color: var(--group-text);
+}
+
+.dockedShellNode {
+  background: var(--app-panel-bg);
+  border-color: var(--color-border-soft);
+}
+
+.dockedShellNode .dockedHeader {
+  background: var(--app-panel-chrome-bg);
+}

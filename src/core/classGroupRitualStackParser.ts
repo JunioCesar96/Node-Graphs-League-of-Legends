@@ -577,12 +577,14 @@ function pushInternalStructure(
   fieldName: string,
   childSchemaId: string,
   linkIdSuffix?: string,
+  structOnlyEmpty = false,
 ): void {
   const suffix = linkIdSuffix ?? fieldName
   parentSchema.internalStructures.push({
     id: slugifyStructureId(`${parentType}-${suffix}`).replace(/^-+/, '') || fieldName.toLowerCase(),
     name: fieldName,
     schemaId: childSchemaId,
+    ...(structOnlyEmpty ? { structOnlyEmpty: true } : {}),
   })
 }
 
@@ -686,6 +688,7 @@ function pushEmbedInitialSlot(
   embedBlock: EmbedDefinition,
   childName: string,
   childSchemaId: string,
+  structOnlyEmpty = false,
 ): void {
   if ((embedBlock.slots ?? []).length >= 1) {
     return
@@ -695,6 +698,7 @@ function pushEmbedInitialSlot(
       id: embedSlotId(embedBlock.id, 0),
       name: childName,
       schemaId: childSchemaId,
+      ...(structOnlyEmpty ? { structOnlyEmpty: true } : {}),
     },
   ]
 }
@@ -717,6 +721,7 @@ function pushPointerInitialSlot(
   pointerBlock: PointerDefinition,
   childName: string,
   childSchemaId: string,
+  structOnlyEmpty = false,
 ): void {
   if ((pointerBlock.slots ?? []).length >= 1) {
     return
@@ -726,6 +731,7 @@ function pushPointerInitialSlot(
       id: pointerSlotId(pointerBlock.id, 0),
       name: childName,
       schemaId: childSchemaId,
+      ...(structOnlyEmpty ? { structOnlyEmpty: true } : {}),
     },
   ]
 }
@@ -752,6 +758,7 @@ function pushListPointerCatalogAndSlot(
   childSchemaId: string,
   segId: string,
   slotIndex: number,
+  structOnlyEmpty = false,
 ): void {
   pushListPointerCatalogItem(listPointer, parentType, childName, childSchemaId, segId)
   const slots = listPointer.slots ?? []
@@ -761,6 +768,7 @@ function pushListPointerCatalogAndSlot(
       id: listPointerSlotId(listPointer.id, slotIndex),
       name: childName,
       schemaId: childSchemaId,
+      ...(structOnlyEmpty ? { structOnlyEmpty: true } : {}),
     },
   ]
 }
@@ -773,6 +781,7 @@ function pushListEmbedCatalogAndSlot(
   childSchemaId: string,
   segId: string,
   slotIndex: number,
+  structOnlyEmpty = false,
 ): void {
   pushListEmbedCatalogItem(listEmbed, parentType, childName, childSchemaId, segId)
   const slots = listEmbed.slots ?? []
@@ -782,6 +791,7 @@ function pushListEmbedCatalogAndSlot(
       id: listEmbedSlotId(listEmbed.id, slotIndex),
       name: childName,
       schemaId: childSchemaId,
+      ...(structOnlyEmpty ? { structOnlyEmpty: true } : {}),
     },
   ]
 }
@@ -867,6 +877,7 @@ function pushList2EmbedInstance(
   childSchemaId: string,
   itemIdx: number,
   segId: string,
+  structOnlyEmpty = false,
 ): EmbedDefinition {
   pushList2EmbedCatalogItem(list2Embed, parentType, childName, childSchemaId, segId)
 
@@ -878,7 +889,7 @@ function pushList2EmbedInstance(
     internalStructures: catalogEntry ? [{ ...catalogEntry }] : [],
     slots: [],
   }
-  pushEmbedInitialSlot(instance, childName, childSchemaId)
+  pushEmbedInitialSlot(instance, childName, childSchemaId, structOnlyEmpty)
   list2Embed.instances.push(instance)
   return instance
 }
@@ -890,6 +901,7 @@ function pushList2PointerInstance(
   childSchemaId: string,
   itemIdx: number,
   segId: string,
+  structOnlyEmpty = false,
 ): PointerDefinition {
   pushList2PointerCatalogItem(list2Pointer, parentType, childName, childSchemaId, segId)
 
@@ -901,7 +913,7 @@ function pushList2PointerInstance(
     internalStructures: catalogEntry ? [{ ...catalogEntry }] : [],
     slots: [],
   }
-  pushPointerInitialSlot(instance, childName, childSchemaId)
+  pushPointerInitialSlot(instance, childName, childSchemaId, structOnlyEmpty)
   list2Pointer.instances.push(instance)
   return instance
 }
@@ -944,9 +956,17 @@ function parseList2EmbedBody(
         li += consumedHead.split('\n').length - 1
       }
 
-      const segId = `${fieldName}:${String(itemIdx)}:${childField}`
+      const segId = schemaInstanceKey(ctx, `${fieldName}:${String(itemIdx)}:${childField}`)
       const childSchema = ensureSchemaInstance(ctx, childName, segId)
-      pushList2EmbedInstance(list2Embed, parentType, childName, childSchema.id, itemIdx, segId)
+      pushList2EmbedInstance(
+        list2Embed,
+        parentType,
+        childName,
+        childSchema.id,
+        itemIdx,
+        segId,
+        innerSlice.trim().length === 0,
+      )
 
       pushScope(
         ctx,
@@ -987,9 +1007,17 @@ function parseList2EmbedBody(
       li += consumedHead.split('\n').length - 1
     }
 
-    const segId = `${fieldName}:${String(itemIdx)}`
+    const segId = schemaInstanceKey(ctx, `${fieldName}:${String(itemIdx)}`)
     const childSchema = ensureSchemaInstance(ctx, childName, segId)
-    pushList2EmbedInstance(list2Embed, parentType, childName, childSchema.id, itemIdx, segId)
+    pushList2EmbedInstance(
+      list2Embed,
+      parentType,
+      childName,
+      childSchema.id,
+      itemIdx,
+      segId,
+      innerSlice.trim().length === 0,
+    )
 
     pushScope(
       ctx,
@@ -1053,9 +1081,17 @@ function parseList2PointerBody(
         li += consumedHead.split('\n').length - 1
       }
 
-      const segId = `${fieldName}:${String(itemIdx)}:${childField}`
+      const segId = schemaInstanceKey(ctx, `${fieldName}:${String(itemIdx)}:${childField}`)
       const childSchema = ensureSchemaInstance(ctx, childName, segId)
-      pushList2PointerInstance(list2Pointer, parentType, childName, childSchema.id, itemIdx, segId)
+      pushList2PointerInstance(
+        list2Pointer,
+        parentType,
+        childName,
+        childSchema.id,
+        itemIdx,
+        segId,
+        innerSlice.trim().length === 0,
+      )
 
       pushScope(
         ctx,
@@ -1096,9 +1132,17 @@ function parseList2PointerBody(
       li += consumedHead.split('\n').length - 1
     }
 
-    const segId = `${fieldName}:${String(itemIdx)}`
+    const segId = schemaInstanceKey(ctx, `${fieldName}:${String(itemIdx)}`)
     const childSchema = ensureSchemaInstance(ctx, childName, segId)
-    pushList2PointerInstance(list2Pointer, parentType, childName, childSchema.id, itemIdx, segId)
+    pushList2PointerInstance(
+      list2Pointer,
+      parentType,
+      childName,
+      childSchema.id,
+      itemIdx,
+      segId,
+      innerSlice.trim().length === 0,
+    )
 
     pushScope(
       ctx,
@@ -1469,15 +1513,32 @@ function parseStructuralListBody(
         li += consumedHead.split('\n').length - 1
       }
 
-      const segId = `${fieldName}:${String(itemIdx)}:${childField}`
+      const segId = schemaInstanceKey(ctx, `${fieldName}:${String(itemIdx)}:${childField}`)
       const childSchema = ensureSchemaInstance(ctx, childName, segId)
+      const structOnlyEmpty = innerSlice.trim().length === 0
 
       if (listEmbed && inlineKind === 'embed') {
-        pushListEmbedCatalogAndSlot(listEmbed, parentType, childName, childSchema.id, segId, itemIdx)
+        pushListEmbedCatalogAndSlot(
+          listEmbed,
+          parentType,
+          childName,
+          childSchema.id,
+          segId,
+          itemIdx,
+          structOnlyEmpty,
+        )
       } else if (listPointer && inlineKind === 'pointer') {
-        pushListPointerCatalogAndSlot(listPointer, parentType, childName, childSchema.id, segId, itemIdx)
+        pushListPointerCatalogAndSlot(
+          listPointer,
+          parentType,
+          childName,
+          childSchema.id,
+          segId,
+          itemIdx,
+          structOnlyEmpty,
+        )
       } else {
-        pushInternalStructure(parentSchema, parentType, childField, childSchema.id, segId)
+        pushInternalStructure(parentSchema, parentType, childField, childSchema.id, segId, structOnlyEmpty)
       }
 
       pushScope(
@@ -1519,16 +1580,40 @@ function parseStructuralListBody(
       li += consumedHead.split('\n').length - 1
     }
 
-    const segId = `${fieldName}:${String(itemIdx)}`
+    const segId = schemaInstanceKey(ctx, `${fieldName}:${String(itemIdx)}`)
     const childSchema = ensureSchemaInstance(ctx, childName, segId)
+    const structOnlyEmpty = innerSlice.trim().length === 0
 
     if (listEmbed) {
-      pushListEmbedCatalogAndSlot(listEmbed, parentType, childName, childSchema.id, segId, itemIdx)
+      pushListEmbedCatalogAndSlot(
+        listEmbed,
+        parentType,
+        childName,
+        childSchema.id,
+        segId,
+        itemIdx,
+        structOnlyEmpty,
+      )
     } else if (listPointer) {
-      pushListPointerCatalogAndSlot(listPointer, parentType, childName, childSchema.id, segId, itemIdx)
+      pushListPointerCatalogAndSlot(
+        listPointer,
+        parentType,
+        childName,
+        childSchema.id,
+        segId,
+        itemIdx,
+        structOnlyEmpty,
+      )
     } else {
       const listItemFieldName = itemIdx === 0 ? fieldName : `${fieldName}:${String(itemIdx)}`
-      pushInternalStructure(parentSchema, parentType, listItemFieldName, childSchema.id, segId)
+      pushInternalStructure(
+        parentSchema,
+        parentType,
+        listItemFieldName,
+        childSchema.id,
+        segId,
+        structOnlyEmpty,
+      )
     }
 
     pushScope(
@@ -1833,8 +1918,9 @@ function parseBlockBody(ctx: ParseCtx, parentType: string, body: string): void {
 
       const childSchema = ensureSchemaInstance(ctx, childName, schemaInstanceKey(ctx, fieldName))
       const embedBlock = ensureEmbedBlock(parentSchema, parentType, fieldName)
+      const structOnlyEmpty = innerSlice.trim().length === 0
       pushEmbedCatalogItem(embedBlock, parentType, childName, childSchema.id, fieldName)
-      pushEmbedInitialSlot(embedBlock, childName, childSchema.id)
+      pushEmbedInitialSlot(embedBlock, childName, childSchema.id, structOnlyEmpty)
 
       pushScope(
         ctx,
@@ -1874,8 +1960,9 @@ function parseBlockBody(ctx: ParseCtx, parentType: string, body: string): void {
 
       const childSchema = ensureSchemaInstance(ctx, childName, schemaInstanceKey(ctx, fieldName))
       const pointerBlock = ensurePointerBlock(parentSchema, parentType, fieldName)
+      const structOnlyEmpty = innerSlice.trim().length === 0
       pushPointerCatalogItem(pointerBlock, parentType, childName, childSchema.id, fieldName)
-      pushPointerInitialSlot(pointerBlock, childName, childSchema.id)
+      pushPointerInitialSlot(pointerBlock, childName, childSchema.id, structOnlyEmpty)
 
       pushScope(
         ctx,
@@ -1914,7 +2001,14 @@ function parseBlockBody(ctx: ParseCtx, parentType: string, body: string): void {
       }
 
       const childSchema = ensureSchemaInstance(ctx, childName, schemaInstanceKey(ctx, fieldName))
-      pushInternalStructure(parentSchema, parentType, fieldName, childSchema.id)
+      pushInternalStructure(
+        parentSchema,
+        parentType,
+        fieldName,
+        childSchema.id,
+        undefined,
+        innerSlice.trim().length === 0,
+      )
 
       pushScope(
         ctx,
@@ -1949,8 +2043,16 @@ function parseBlockBody(ctx: ParseCtx, parentType: string, body: string): void {
 
         const anonField = `anon-${parentType.toLowerCase()}`
         const childSchema = ensureSchema(ctx, childName)
+        const structOnlyEmpty = innerSlice.trim().length === 0
 
-        pushInternalStructure(parentSchema, parentType, anonField, childSchema.id, `${anonField}-${childName}`)
+        pushInternalStructure(
+          parentSchema,
+          parentType,
+          anonField,
+          childSchema.id,
+          `${anonField}-${childName}`,
+          structOnlyEmpty,
+        )
 
         pushScope(
           ctx,

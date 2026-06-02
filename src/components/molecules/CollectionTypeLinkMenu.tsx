@@ -4,6 +4,9 @@ import { createPortal } from 'react-dom'
 import type { CanvasNode } from '@/core/canvasScene'
 import type { InternalStructureDefinition } from '@/core/nodeSchema'
 
+import { LangId } from '@/core/language/languageIds'
+import { useLanguage } from '@/language/LanguageProvider'
+
 import styles from './CollectionTypeLinkMenu.module.css'
 
 export const COLLECTION_TYPE_LINK_MENU_ROOT_ATTR = 'data-collection-type-link-menu-root'
@@ -29,6 +32,7 @@ export function CollectionTypeLinkMenu({
   onClose,
   onSelect,
 }: CollectionTypeLinkMenuProps) {
+  const { t } = useLanguage()
   const menuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -69,10 +73,16 @@ export function CollectionTypeLinkMenu({
       role="menu"
       style={{ left: `${anchor.left}px`, top: `${anchor.top}px` }}
     >
-      <p className={styles.heading}>Compatible {collectionType} Nodes</p>
-      <p className={styles.sectionLabel}>Origem · {fromNode.node.schema.title}</p>
+      <p className={styles.heading}>
+        {t(LangId.CtxCollectionLinkHeading, 'Compatible {type} nodes', { type: collectionType })}
+      </p>
+      <p className={styles.sectionLabel}>
+        {t(LangId.CtxCollectionLinkOrigin, 'Source · {title}', { title: fromNode.node.schema.title })}
+      </p>
 
-      <p className={styles.sectionLabel}>Ligação actual · {structure.name}</p>
+      <p className={styles.sectionLabel}>
+        {t(LangId.CtxCollectionLinkCurrent, 'Current link · {name}', { name: structure.name })}
+      </p>
       {currentTarget ? (
         <button
           data-active="true"
@@ -83,12 +93,12 @@ export function CollectionTypeLinkMenu({
           <small>{currentTarget.id}</small>
         </button>
       ) : (
-        <p className={styles.emptyState}>Sem ligação</p>
+        <p className={styles.emptyState}>{t(LangId.CtxCollectionLinkNoLink)}</p>
       )}
 
       {otherCompatibleNodes.length > 0 ? (
         <>
-          <p className={styles.sectionLabel}>Coleções compatíveis</p>
+          <p className={styles.sectionLabel}>{t(LangId.CtxCollectionLinkCompatible)}</p>
           {otherCompatibleNodes.map((node) => (
             <button key={node.id} onClick={() => onSelect(node.id)} type="button">
               <span>{node.node.schema.title}</span>

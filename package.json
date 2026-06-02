@@ -11,6 +11,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "vfx:coverage": "vitest run src/core/vfx/vfxCoverageMatrix.test.ts",
+    "vfx:audit-semantics": "vitest run src/core/vfx/semantic/emitterSemanticAudit.test.ts",
+    "vfx:audit-transforms": "vitest run src/core/vfx/semantic/transformPipelineAudit.test.ts",
     "reconvert:class": "npx vite-node scripts/reconvert-class-pack.ts class",
     "reconvert:ccg": "npx vite-node scripts/reconvert-class-pack.ts ccg",
     "jade-bridge:dev": "node scripts/jade/mock-bridge-server.mjs",

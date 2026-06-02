@@ -1,0 +1,84 @@
+.blockSlot {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  height: 12px;
+  padding: 0;
+  border: 2px solid var(--block-slot);
+  border-radius: 50%;
+  background: var(--block-surface-dark);
+  cursor: crosshair;
+  transition: box-shadow 120ms ease, transform 120ms ease;
+}
+
+.blockSlot[data-variant='out'] {
+  border-color: var(--block-slot-out);
+}
+
+.blockSlot[data-variant='in'] {
+  border-color: var(--block-slot-in);
+}
+
+.blockSlot[data-active='1'] {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--block-slot-out) 35%, transparent);
+  transform: scale(1.08);
+}
+
+.blockSlot[data-linked='1'] {
+  background: color-mix(in srgb, var(--block-slot-out) 18%, transparent);
+}
+
+.blockSlot[data-wireless='1'] {
+  width: 18px;
+  height: 18px;
+  color: var(--syntax-property);
+  background: var(--color-node-surface);
+  border-color: var(--syntax-property);
+  box-shadow:
+    0 0 0 1px rgb(156 220 254 / 28%),
+    0 0 12px rgb(156 220 254 / 22%);
+}
+
+/** Ligação forçada: inverte cores IN/OUT nos ports sem fio. */
+.blockSlot[data-wireless='1'][data-forced='1'][data-variant='out'] {
+  color: var(--block-slot-in);
+  border-color: var(--block-slot-in);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--block-slot-in) 35%, transparent),
+    0 0 12px color-mix(in srgb, var(--block-slot-in) 28%, transparent);
+}
+
+.blockSlot[data-wireless='1'][data-forced='1'][data-variant='in'] {
+  color: var(--block-slot-out);
+  border-color: var(--block-slot-out);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--block-slot-out) 35%, transparent),
+    0 0 12px color-mix(in srgb, var(--block-slot-out) 28%, transparent);
+}
+
+.chainIcon {
+  width: 14px;
+  height: 14px;
+}
+
+.blockSlot[data-pulsing='1'] {
+  animation: blockSlotPulse 900ms ease-in-out infinite;
+}
+
+@keyframes blockSlotPulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--block-slot-out) 20%, transparent);
+  }
+
+  50% {
+    box-shadow: 0 0 0 5px color-mix(in srgb, var(--block-slot-out) 45%, transparent);
+  }
+}
+
+.blockSlot:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}

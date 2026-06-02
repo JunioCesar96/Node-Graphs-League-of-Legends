@@ -1,0 +1,20 @@
+{
+  "id": "Fresnel_Fresnel",
+  "block": "VfxReflectionDefinitionData",
+  "parameterName": "Fresnel",
+  "name": "Fresnel",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-reflection-definition-data__main-characters/brand/skins/skin0/particles/brand-base-p-fire-mark3-complex-emitter-definition-data--slot--3-reflection-definition_parameter_Fresnel"
+  },
+  "type": "f32",
+  "value": "0.25",
+  "slots": {
+    "in": [
+      "f32"
+    ],
+    "out": [
+      "f32"
+    ]
+  }
+}

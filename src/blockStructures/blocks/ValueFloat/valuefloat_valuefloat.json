@@ -1,0 +1,20 @@
+{
+  "id": "ValueFloat_ValueFloat",
+  "block": "rate",
+  "blockName": "ValueFloat",
+  "type": "embed",
+  "name": "ValueFloat",
+  "source": {
+    "kind": "block",
+    "nodeId": "value-float__entries-{particlePath}-complex-emitter-definition-data--slot--0-rate"
+  },
+  "color": "#40ff56",
+  "headerSlots": [
+    "in[rate,particleLifetime,bindWeight,birthFrameRate,erosionDriveCurve]",
+    "out[ValueFloatPreview]"
+  ],
+  "parameters": [
+    "constantValue",
+    "dynamics"
+  ]
+}

@@ -457,12 +457,77 @@
   opacity: 0;
 }
 
-.inspectorMinimizedDockRow {
+.minimizedDockRow {
   display: inline-flex;
-  gap: var(--space-2);
+  gap: var(--space-1);
   align-items: center;
+  max-width: min(420px, calc(100vw - 48px));
+  height: 42px;
+  padding: 0 var(--space-1) 0 var(--space-2);
+  background: var(--app-panel-bg-strong);
+  border: 1px solid var(--color-border-soft);
+  border-radius: 999px;
+  box-shadow: 0 8px 28px rgb(0 0 0 / 22%);
+  backdrop-filter: blur(12px);
 }
 
-.inspectorMinimizedDockRowDocked .minimized {
+.minimizedDockRowDraggable .minimizedButton {
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.minimizedDockRowDraggable .minimizedButton:active {
+  cursor: grabbing;
+}
+
+.minimizedButton {
+  display: inline-flex;
+  flex: 1 1 auto;
+  gap: var(--space-2);
+  align-items: center;
+  min-width: 0;
+  padding: 0 var(--space-1);
+  color: var(--color-text-primary);
   cursor: pointer;
+  background: transparent;
+  border: none;
+}
+
+.minimizedLabel {
+  min-width: 0;
+  overflow: hidden;
+  font-family: var(--font-data);
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.minimizedIcon {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  color: var(--port-child);
+  font-family: var(--font-data);
+  font-size: 0.72rem;
+  font-weight: 700;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--port-child) 18%, transparent);
+}
+
+.minimizedDockActions {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  padding-right: var(--space-1);
+}
+
+.minimizedDockRow .dockToggle {
+  width: 28px;
+  height: 28px;
+  background: rgb(0 0 0 / 18%);
 }

@@ -1,0 +1,31 @@
+{
+  "id": "integrated-value-vector3__main-entries-0x0eed7307-complex-emitter-definition-data-4-world-acceleration",
+  "title": "IntegratedValueVector3",
+  "parameters": [],
+  "embed": [],
+  "pointer": [
+    {
+      "id": "IntegratedValueVector3_pointer_dynamics",
+      "title": "dynamics",
+      "internalStructures": [
+        {
+          "id": "integrated-value-vector3-dynamics",
+          "name": "VfxAnimatedVector3fVariableData",
+          "schemaId": "vfx-animated-vector3f-variable-data__main-entries-0x0eed7307-complex-emitter-definition-data-4-world-acceleration-dynamics"
+        }
+      ],
+      "slots": [
+        {
+          "id": "IntegratedValueVector3_pointer_dynamics__slot__0",
+          "name": "VfxAnimatedVector3fVariableData",
+          "schemaId": "vfx-animated-vector3f-variable-data__main-entries-0x0eed7307-complex-emitter-definition-data-4-world-acceleration-dynamics"
+        }
+      ]
+    }
+  ],
+  "listEmbed": [],
+  "listPointer": [],
+  "list2Embed": [],
+  "list2Pointer": [],
+  "internalStructures": []
+}

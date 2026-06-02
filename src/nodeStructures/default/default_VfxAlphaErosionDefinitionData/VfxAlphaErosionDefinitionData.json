@@ -1,0 +1,86 @@
+{
+  "id": "vfx-alpha-erosion-definition-data__main-entries-0xa2fa6a01-complex-emitter-definition-data-10-alpha-erosion-definition",
+  "title": "VfxAlphaErosionDefinitionData",
+  "parameters": [
+    {
+      "id": "VfxAlphaErosionDefinitionData_parameter_erosionMapName",
+      "name": "erosionMapName",
+      "type": "string",
+      "defaultValue": "ASSETS/Characters/zac/Skins/Base/Particles/Morgana_Base_W_Tar_Ground_erode.tex"
+    },
+    {
+      "id": "VfxAlphaErosionDefinitionData_parameter_UseLingerErosionDriveCurve",
+      "name": "UseLingerErosionDriveCurve",
+      "type": "bool",
+      "defaultValue": "true"
+    }
+  ],
+  "embed": [
+    {
+      "id": "VfxAlphaErosionDefinitionData_embed_erosionDriveCurve",
+      "title": "erosionDriveCurve",
+      "internalStructures": [
+        {
+          "id": "vfx-alpha-erosion-definition-data-erosion-drive-curve",
+          "name": "ValueFloat",
+          "schemaId": "value-float__main-entries-0xa2fa6a01-complex-emitter-definition-data-10-alpha-erosion-definition-erosion-drive-curve"
+        }
+      ],
+      "slots": [
+        {
+          "id": "VfxAlphaErosionDefinitionData_embed_erosionDriveCurve__slot__0",
+          "name": "ValueFloat",
+          "schemaId": "value-float__main-entries-0xa2fa6a01-complex-emitter-definition-data-10-alpha-erosion-definition-erosion-drive-curve"
+        }
+      ]
+    },
+    {
+      "id": "VfxAlphaErosionDefinitionData_embed_LingerErosionDriveCurve",
+      "title": "LingerErosionDriveCurve",
+      "internalStructures": [
+        {
+          "id": "vfx-alpha-erosion-definition-data-linger-erosion-drive-curve",
+          "name": "ValueFloat",
+          "schemaId": "value-float__main-entries-0xa2fa6a01-complex-emitter-definition-data-10-alpha-erosion-definition-linger-erosion-drive-curve"
+        }
+      ],
+      "slots": [
+        {
+          "id": "VfxAlphaErosionDefinitionData_embed_LingerErosionDriveCurve__slot__0",
+          "name": "ValueFloat",
+          "schemaId": "value-float__main-entries-0xa2fa6a01-complex-emitter-definition-data-10-alpha-erosion-definition-linger-erosion-drive-curve"
+        }
+      ]
+    }
+  ],
+  "pointer": [],
+  "listEmbed": [],
+  "listPointer": [],
+  "list2Embed": [],
+  "list2Pointer": [],
+  "internalStructures": [],
+  "nomenclature": {
+    "group": "#3 Internal Structures",
+    "collection": "#3 Pointer Node",
+    "collectionType": "VfxAlphaErosionDefinitionData",
+    "pathHierarchy": "main > entries:0xa2fa6a01 > complexEmitterDefinitionData:10 > alphaErosionDefinition",
+    "pathHierarchySteps": [
+      {
+        "id": "main",
+        "type": "#0 Root main"
+      },
+      {
+        "id": "entries:0xa2fa6a01",
+        "type": "#2 Root Entry (VfxSystemDefinitionData)"
+      },
+      {
+        "id": "complexEmitterDefinitionData:10",
+        "type": "#3 Collection Block"
+      },
+      {
+        "id": "alphaErosionDefinition",
+        "type": "#3 Pointer Node"
+      }
+    ]
+  }
+}

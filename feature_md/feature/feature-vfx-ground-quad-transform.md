@@ -11,8 +11,8 @@
 | --- | --- |
 | Branch Name | `feature-vfx-ground-quad-transform` |
 | Feature Name(s) | VFX Ground Quad Transform Pipeline (ArbitraryQuad / ground decals) |
-| Current Version | `1.5.0` |
-| Commit Hash | `b2ea03b` |
+| Current Version | `1.5.2` |
+| Commit Hash | (pending) |
 
 ---
 
@@ -35,9 +35,14 @@ flowchart TD
   ritual[Ritual VfxEmitter text] --> parse[ritualParseVfx]
   parse --> frame[computeEmitterFrameState]
   frame --> groundCheck{isGroundLayer?}
-  groundCheck -->|yes| scaleRemap[remapLoLQuadScaleForPlane]
+  groundCheck -->|yes| classify[classifyLoLGroundQuadScale]
+  classify -->|decal| scaleRemap[remapLoLQuadScaleForPlane]
+  classify -->|flipbookSquare| squareRemap["remap L,L,1"]
+  classify -->|strip/neutral| preserve[preserve axes]
+  squareRemap --> mat
   groundCheck -->|no| billboardFix[fixBillboardScaleVec3]
   scaleRemap --> mat[buildMaterialParams]
+  preserve --> mat
   billboardFix --> mat
   mat --> mesh[VfxTexturedEmitter]
   mesh --> quat[composePlaneMeshQuaternion]
@@ -81,7 +86,10 @@ sequenceDiagram
 
 | Status | Name | Feature | Technical Description | Parameters / Return |
 | --- | --- | --- | --- | --- |
-| `[NOVO]` | `remapLoLQuadScaleForPlane` | Ground scale | Smallest LoL axis → thickness (Z=1); two largest → plane width/height | `vec3` → `vec3` |
+| `[NOVO]` | `isFlipbookTexDiv` | Ground scale | `texDiv` cols or rows > 1 → spritesheet flipbook | `vec2` → bool |
+| `[NOVO]` | `classifyLoLGroundQuadScale` | Ground scale | texDiv flipbook first, then birthScale heuristics | `vec3`, `texDiv?` → kind |
+| `[NOVO]` | `LOL_GROUND_QUAD_SCALE_THRESHOLDS` | Ground scale | `STRIP_RATIO`, `DECAL_SIMILARITY`, `THICKNESS_RATIO`, `FLIPBOOK_UNIT_PAIR_RATIO` | constants |
+| `[ATUALIZADO]` | `remapLoLQuadScaleForPlane` | Ground scale | Remaps decal + flipbookSquare (`{L,1,1}` → `{L,L,1}`) | `vec3` → `vec3` |
 | `[NOVO]` | `birthRotationGroundInPlaneEuler` | Ground rotation | Skips “lay flat” euler; only in-plane spin (LoL Z → Three Y) | `birthRot`, `rotVel`, `time` → euler rad |
 | `[NOVO]` | `composePlaneMeshQuaternion` | Mesh transform | Quaternion composition base × birth (replaces Euler sum) | `planeBase`, `birth` → `Quaternion` |
 | `[NOVO]` | `eulerRadiansToQuaternion` | Mesh transform | Helper for R3F mesh rotation | `euler` → `Quaternion` |
@@ -100,7 +108,16 @@ sequenceDiagram
 
 Emitters using `VfxPrimitiveArbitraryQuad` with `isGroundLayer: true` (e.g. Brand `cracks2` with `birthScale0: {55, 600, 600}`) were rendered as a thin strip on the ground. The preview mapped LoL scale directly onto `PlaneGeometry` in XY, then applied `planeBaseRotation` (+90° X). The smallest axis (55, intended as normal/thickness) became visible width on world X (~55 × 600 strip instead of ~600 × 600 decal).
 
-**Scale fix:** `remapLoLQuadScaleForPlane` runs only when `isGroundLayer` is true (via `fixScaleVec3`). If the smallest component is less than 20% of the largest, it is treated as thickness (`scale.z = 1`); the other two components become `scale.x` and `scale.y` in original order. Balanced scales like `{200, 200, 1}` are unchanged. Non-ground billboards still use `fixBillboardScaleVec3` (zero-axis convention).
+**Scale classification:** Not every `isGroundLayer` + `ArbitraryQuad` is a planar decal. `classifyLoLGroundQuadScale` distinguishes:
+
+- **Decal** (remap): two large similar axes + thin thickness — e.g. `cracks2` `{55, 600, 600}`.
+- **FlipbookSquare** (remap to `{L,L,1}`): any emitter with `texDiv` grid **greater than 1×1** (e.g. `{5,4}`), **or** birthScale pattern `{L,1,1}`. UV grid is `texDiv` + `numFrames`; `1,1` in birthScale is not the sheet layout.
+- **Strip** (preserve): dominant axis with distinct secondary axes — e.g. `{10, 300, 1}`.
+- **Neutral** (preserve): balanced scales — e.g. `{60, 50, 50}`.
+
+**Scale fix:** `remapLoLQuadScaleForPlane` remaps `decal` (smallest → thickness) and `flipbookSquare` (max axis → both plane dimensions). Strips/neutral keep LoL axes. UV spritesheet is unchanged (`spriteUvParams` in `VfxTexturedEmitter`).
+
+**Debug:** Labels: teal = decal, amber = flipbookSquare, red = strip, gray = neutral.
 
 **Rotation fix:** `birthRotation0` values such as `{-90, -90, 0}` orient the quad to the ground in the real client; `planeBaseRotation('ground')` already lays the mesh flat. Applying full `lolRotationDegreesToThreeEuler` plus Euler addition duplicated that orientation and broke the decal. For ground layers, `birthRotationGroundInPlaneEuler` only applies spin around the ground normal (LoL Z → Three Y). `VfxTexturedEmitter` composes `planeBaseRotation` and frame rotation with `composePlaneMeshQuaternion` and disables camera billboard lock for ground emitters.
 
@@ -122,7 +139,7 @@ Emitters using `VfxPrimitiveArbitraryQuad` with `isGroundLayer: true` (e.g. Bran
 | 4 | Optional: in **Cena 3D** panel, enable **Debug transform** to see axes and scale box per particle |
 | 5 | Keep **VFX cam lock** on for billboards; ground decals ignore cam lock automatically |
 
-**Tip:** Compare `cracks2` before/after — `birthScale0: {55, 600, 600}` should read as ~600×600 on the ground plane.
+**Tip:** `cracks2` ~600×600 (decal); Brand W `fire_ring_red` ~300×300 (`flipbookSquare`, UV 5×4 via `texDiv`). Enable **Debug transform** for kind labels.
 
 ---
 
@@ -130,7 +147,11 @@ Emitters using `VfxPrimitiveArbitraryQuad` with `isGroundLayer: true` (e.g. Bran
 
 Emitters com `VfxPrimitiveArbitraryQuad` e `isGroundLayer: true` (ex.: `cracks2` com `birthScale0: {55, 600, 600}`) apareciam como faixa fina no chão. O preview aplicava a escala LoL directamente ao `PlaneGeometry` em XY e depois `planeBaseRotation` (+90° X). O menor eixo (55, espessura/normal) tornava-se largura visível em X (~55×600 em vez de decal ~600×600).
 
-**Correcção de escala:** `remapLoLQuadScaleForPlane` só corre com `isGroundLayer`. Se o menor componente for &lt; 20% do maior, vira espessura (`scale.z = 1`); os outros dois eixos passam a `scale.x` e `scale.y`. Escalas equilibradas como `{200, 200, 1}` mantêm-se. Billboards sem ground continuam com `fixBillboardScaleVec3`.
+**Classificação de escala:** **flipbookSquare** quando `texDiv` > 1×1 (qualquer grelha multi-célula) ou `{L,1,1}`; **decal** (`cracks2`); **strip** só sem spritesheet multi-célula; **neutral** equilibrado.
+
+**Correcção de escala:** Remapeia `decal` e `flipbookSquare` (`{L,1,1}` → `{L,L,1}`). Strips preservam eixos. UV do spritesheet inalterado.
+
+**Debug:** ciano = decal, âmbar = flipbookSquare, vermelho = strip, cinza = neutral.
 
 **Correcção de rotação:** `birthRotation0` como `{-90, -90, 0}` já é absorvido por `planeBaseRotation`; `birthRotationGroundInPlaneEuler` aplica só giro no plano (Z LoL → Y Three). O renderer usa quaternions (`composePlaneMeshQuaternion`) e desactiva cam-lock em decals de chão.
 
@@ -150,7 +171,7 @@ Emitters com `VfxPrimitiveArbitraryQuad` e `isGroundLayer: true` (ex.: `cracks2`
 | 4 | Opcional: no painel **Cena 3D**, active **Debug transform** para ver eixos e caixa de escala por partícula |
 | 5 | **VFX cam lock** pode ficar activo; decals de chão ignoram o lock automaticamente |
 
-**Dica:** No `cracks2`, `birthScale0: {55, 600, 600}` deve corresponder visualmente a ~600×600 no plano do chão.
+**Dica:** `cracks2` decal ~600×600; `fire_ring_red` quadrado ~300×300 (`flipbookSquare`) + UV 5×4. Use **Debug transform** para ver a classificação.
 
 ---
 
@@ -158,11 +179,12 @@ Emitters com `VfxPrimitiveArbitraryQuad` e `isGroundLayer: true` (ex.: `cracks2`
 
 | Check | Status |
 | --- | --- |
+| Vitest `classifyLoLGroundQuadScale` (decal + flipbookSquare + strip) | Done |
 | Vitest `remapLoLQuadScaleForPlane` | Done |
-| Vitest synthetic `cracks2` scale | Done |
+| Vitest synthetic `cracks2` + `fire_ring_red` 300×300 | Done |
 | Vitest END_Ground_Core / Splat / hoop regression | Done |
 | Vitest `composePlaneMeshQuaternion` | Done |
-| Visual validation Brand `cracks2` in VFX Dock | Manual |
+| Visual validation Brand `cracks2` + `fire_ring_red` in VFX Dock | Manual |
 
 ---
 

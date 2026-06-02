@@ -1,0 +1,19 @@
+{
+  "id": "VfxPrimitiveArbitraryTrail_VfxPrimitiveArbitraryTrail",
+  "block": "primitive",
+  "blockName": "VfxPrimitiveArbitraryTrail",
+  "type": "pointer",
+  "name": "VfxPrimitiveArbitraryTrail",
+  "source": {
+    "kind": "block",
+    "nodeId": "vfx-primitive-arbitrary-trail__main-characters/brand/skins/skin0/particles/brand-base-q-blaze-mis-complex-emitter-definition-data--slot--1-primitive"
+  },
+  "color": "#40ff56",
+  "headerSlots": [
+    "in[primitive]",
+    "out[VfxPrimitiveArbitraryTrailPreview]"
+  ],
+  "parameters": [
+    "mTrail"
+  ]
+}

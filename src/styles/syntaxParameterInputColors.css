@@ -1,0 +1,73 @@
+/**
+ * Syntax colors for parameter value fields (group/block cards, etc.).
+ * Mirrors SyntaxType.module.css — driven by Jade --syntax-* tokens.
+ */
+
+:where(input, select, textarea, button, div)[data-parameter-type='string'],
+:where(input, select, textarea, button, div)[data-parameter-type='listString'],
+:where(input, select, textarea, button, div)[data-parameter-type='optionString'] {
+  color: var(--syntax-string);
+}
+
+:where(input, select, textarea, button, div)[data-parameter-type='bool'],
+:where(input, select, textarea, button, div)[data-parameter-type='flag'] {
+  color: var(--syntax-keyword);
+}
+
+:where(input, select, textarea, button, div)[data-parameter-type='u32'],
+:where(input, select, textarea, button, div)[data-parameter-type='i8'],
+:where(input, select, textarea, button, div)[data-parameter-type='u8'],
+:where(input, select, textarea, button, div)[data-parameter-type='i16'],
+:where(input, select, textarea, button, div)[data-parameter-type='u16'],
+:where(input, select, textarea, button, div)[data-parameter-type='i32'],
+:where(input, select, textarea, button, div)[data-parameter-type='i64'],
+:where(input, select, textarea, button, div)[data-parameter-type='u64'],
+:where(input, select, textarea, button, div)[data-parameter-type='listHash'] {
+  color: var(--syntax-integer);
+}
+
+:where(input, select, textarea, button, div)[data-parameter-type='f32'],
+:where(input, select, textarea, button, div)[data-parameter-type='float'],
+:where(input, select, textarea, button, div)[data-parameter-type='listF32'],
+:where(input, select, textarea, button, div)[data-parameter-type='optionF32'] {
+  color: var(--syntax-float);
+}
+
+:where(input, select, textarea, button, div)[data-parameter-type='double'] {
+  color: var(--syntax-double);
+}
+
+:where(input, select, textarea, button, div)[data-parameter-type='vector2'],
+:where(input, select, textarea, button, div)[data-parameter-type='listVector2'] {
+  color: var(--syntax-vector2);
+}
+
+:where(input, select, textarea, button, div)[data-parameter-type='vector3'],
+:where(input, select, textarea, button, div)[data-parameter-type='listVector3'],
+:where(input, select, textarea, button, div)[data-parameter-type='optionVector3'] {
+  color: var(--syntax-vector3);
+}
+
+:where(input, select, textarea, button, div)[data-parameter-type='vector4'],
+:where(input, select, textarea, button, div)[data-parameter-type='listVector4'],
+:where(input, select, textarea, button, div)[data-parameter-type='rgba'] {
+  color: var(--syntax-vector4);
+}
+
+:where(input, select, textarea, button, div)[data-parameter-type='mtx44'] {
+  color: var(--syntax-mtx44);
+}
+
+:where(input, select, textarea, button, div)[data-parameter-type='link'],
+:where(input, select, textarea, button, div)[data-parameter-type='mapHashLink'] {
+  color: var(--syntax-link);
+}
+
+:where(input, select, textarea, button, div)[data-parameter-type='mapHashPointer'],
+:where(input, select, textarea, button, div)[data-parameter-type='mapU64Pointer'] {
+  color: var(--syntax-pointer, var(--syntax-link));
+}
+
+:where(input, select, textarea, button, div)[data-parameter-type='mapHashEmbed'] {
+  color: var(--syntax-embed, var(--syntax-link));
+}

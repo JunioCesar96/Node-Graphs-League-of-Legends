@@ -4,10 +4,6 @@ import { filterCharacterNames } from '@/core/characterList'
 import { LangId } from '@/core/language/languageIds'
 import { isChampionInConvertedSet, getGltfUrl } from '@/core/vfx/characterGltfCatalog'
 import { championToGltfBaseName } from '@/core/vfx/characterGltfNaming'
-import {
-  resolveCharacterEngineRotationXDeg,
-  resolveCharacterEngineScale,
-} from '@/core/vfx/characterEngineVfx'
 import { defaultChampionSknRelativePath } from '@/core/vfx/vfxCharacterAssets'
 import { useLanguage } from '@/language/LanguageProvider'
 
@@ -298,13 +294,6 @@ export function VfxCharacterPanel({
             <VfxCharacterGltfPreviewSlot
               animationName={scene.animationName}
               baseName={championToGltfBaseName(scene.selectedChampion)}
-              engineScale={resolveCharacterEngineScale(
-                scene.characterEngineResizeEnabled,
-                vfxScale,
-              )}
-              rotationXLolDeg={resolveCharacterEngineRotationXDeg(
-                scene.characterEngineRotationEnabled,
-              )}
               url={getGltfUrl(scene.selectedChampion)}
             />
             {scene.animationNames.length > 0 ? (

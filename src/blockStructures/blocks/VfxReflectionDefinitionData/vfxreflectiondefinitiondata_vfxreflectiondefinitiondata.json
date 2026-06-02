@@ -1,0 +1,21 @@
+{
+  "id": "VfxReflectionDefinitionData_VfxReflectionDefinitionData",
+  "block": "reflectionDefinition",
+  "blockName": "VfxReflectionDefinitionData",
+  "type": "pointer",
+  "name": "VfxReflectionDefinitionData",
+  "source": {
+    "kind": "block",
+    "nodeId": "vfx-reflection-definition-data__main-characters/brand/skins/skin0/particles/brand-base-p-fire-mark3-complex-emitter-definition-data--slot--3-reflection-definition"
+  },
+  "color": "#40ff56",
+  "headerSlots": [
+    "in[reflectionDefinition]",
+    "out[VfxReflectionDefinitionDataPreview]"
+  ],
+  "parameters": [
+    "Fresnel",
+    "fresnelColor",
+    "reflectionFresnelColor"
+  ]
+}

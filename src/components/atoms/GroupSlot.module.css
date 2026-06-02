@@ -1,0 +1,48 @@
+.GroupSlot {
+  flex: 0 0 auto;
+  width: 12px;
+  height: 12px;
+  padding: 0;
+  border: 2px solid var(--group-slot);
+  border-radius: 50%;
+  background: var(--group-surface-dark);
+  cursor: crosshair;
+  transition: box-shadow 120ms ease, transform 120ms ease;
+}
+
+.GroupSlot[data-variant='out'] {
+  border-color: var(--group-slot-out);
+}
+
+.GroupSlot[data-variant='in'] {
+  border-color: var(--group-slot-in);
+}
+
+.GroupSlot[data-active='1'] {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--group-slot-out) 35%, transparent);
+  transform: scale(1.08);
+}
+
+.GroupSlot[data-linked='1'] {
+  background: color-mix(in srgb, var(--group-slot-out) 18%, transparent);
+}
+
+.GroupSlot[data-pulsing='1'] {
+  animation: GroupSlotPulse 900ms ease-in-out infinite;
+}
+
+@keyframes GroupSlotPulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--group-slot-out) 20%, transparent);
+  }
+
+  50% {
+    box-shadow: 0 0 0 5px color-mix(in srgb, var(--group-slot-out) 45%, transparent);
+  }
+}
+
+.GroupSlot:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}

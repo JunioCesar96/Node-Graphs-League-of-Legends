@@ -1,0 +1,20 @@
+{
+  "id": "VfxPaletteDefinitionData_VfxPaletteDefinitionData",
+  "block": "paletteDefinition",
+  "blockName": "VfxPaletteDefinitionData",
+  "type": "pointer",
+  "name": "VfxPaletteDefinitionData",
+  "source": {
+    "kind": "block",
+    "nodeId": "vfx-palette-definition-data__main-characters/brand/skins/skin0/particles/brand-base-joke-complex-emitter-definition-data--slot--1-palette-definition"
+  },
+  "color": "#40ff56",
+  "headerSlots": [
+    "in[paletteDefinition]",
+    "out[VfxPaletteDefinitionDataPreview]"
+  ],
+  "parameters": [
+    "paletteCount",
+    "paletteSelector"
+  ]
+}

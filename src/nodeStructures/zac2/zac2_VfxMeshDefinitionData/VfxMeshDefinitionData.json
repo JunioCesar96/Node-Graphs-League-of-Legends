@@ -1,0 +1,19 @@
+{
+  "id": "vfx-mesh-definition-data__main-entries-0x0eed7307-complex-emitter-definition-data-5-primitive-m-mesh",
+  "title": "VfxMeshDefinitionData",
+  "parameters": [
+    {
+      "id": "VfxMeshDefinitionData_parameter_mSimpleMeshName",
+      "name": "mSimpleMeshName",
+      "type": "string",
+      "defaultValue": "ASSETS/Characters/Vladimir/Skins/Skin14/Particles/Vladimir_Skin14_FlatPlane.scb"
+    }
+  ],
+  "embed": [],
+  "pointer": [],
+  "listEmbed": [],
+  "listPointer": [],
+  "list2Embed": [],
+  "list2Pointer": [],
+  "internalStructures": []
+}

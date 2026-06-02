@@ -1,0 +1,55 @@
+{
+  "id": "vfx-reflection-definition-data__main-entries-0x7b3a4b5f-complex-emitter-definition-data-6-reflection-definition",
+  "title": "VfxReflectionDefinitionData",
+  "parameters": [
+    {
+      "id": "VfxReflectionDefinitionData_parameter_reflectionFresnel",
+      "name": "reflectionFresnel",
+      "type": "f32",
+      "defaultValue": "0.22"
+    },
+    {
+      "id": "VfxReflectionDefinitionData_parameter_reflectionFresnelColor",
+      "name": "reflectionFresnelColor",
+      "type": "vector4",
+      "defaultValue": "0.1, 0.3, 0.08, 1"
+    },
+    {
+      "id": "VfxReflectionDefinitionData_parameter_reflectionMapTexture",
+      "name": "reflectionMapTexture",
+      "type": "string",
+      "defaultValue": "ASSETS/Characters/Zac/Skins/Base/particles/Samira_CubeMap.dds"
+    }
+  ],
+  "embed": [],
+  "pointer": [],
+  "listEmbed": [],
+  "listPointer": [],
+  "list2Embed": [],
+  "list2Pointer": [],
+  "internalStructures": [],
+  "nomenclature": {
+    "group": "#3 Internal Structures",
+    "collection": "#3 Pointer Node",
+    "collectionType": "VfxReflectionDefinitionData",
+    "pathHierarchy": "main > entries:0x7b3a4b5f > complexEmitterDefinitionData:6 > reflectionDefinition",
+    "pathHierarchySteps": [
+      {
+        "id": "main",
+        "type": "#0 Root main"
+      },
+      {
+        "id": "entries:0x7b3a4b5f",
+        "type": "#2 Root Entry (VfxSystemDefinitionData)"
+      },
+      {
+        "id": "complexEmitterDefinitionData:6",
+        "type": "#3 Collection Block"
+      },
+      {
+        "id": "reflectionDefinition",
+        "type": "#3 Pointer Node"
+      }
+    ]
+  }
+}

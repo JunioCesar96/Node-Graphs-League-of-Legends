@@ -1,0 +1,19 @@
+{
+  "id": "VfxPrimitiveCameraTrail_VfxPrimitiveCameraTrail",
+  "block": "primitive",
+  "blockName": "VfxPrimitiveCameraTrail",
+  "type": "pointer",
+  "name": "VfxPrimitiveCameraTrail",
+  "source": {
+    "kind": "block",
+    "nodeId": "vfx-primitive-camera-trail__main-characters/brand/skins/skin0/particles/brand-base-basic-attack-mis-complex-emitter-definition-data--slot--8-primitive"
+  },
+  "color": "#40ff56",
+  "headerSlots": [
+    "in[primitive]",
+    "out[VfxPrimitiveCameraTrailPreview]"
+  ],
+  "parameters": [
+    "mTrail"
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "id": "uvScale_uvScale_embed_ValueVector2",
+  "block": "VfxEmitterDefinitionData",
+  "parameterName": "uvScale",
+  "name": "uvScale",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-emitter-definition-data__entries-{particlePath}-complex-emitter-definition-data--slot--0_parameter_uvScale"
+  },
+  "type": "embed",
+  "embed": "ValueVector2",
+  "slots": {
+    "out": [
+      "ValueVector2"
+    ]
+  }
+}

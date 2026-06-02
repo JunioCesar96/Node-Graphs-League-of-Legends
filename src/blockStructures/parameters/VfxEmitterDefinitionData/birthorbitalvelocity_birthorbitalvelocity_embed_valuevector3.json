@@ -1,0 +1,17 @@
+{
+  "id": "birthOrbitalVelocity_birthOrbitalVelocity_embed_ValueVector3",
+  "block": "VfxEmitterDefinitionData",
+  "parameterName": "birthOrbitalVelocity",
+  "name": "birthOrbitalVelocity",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-emitter-definition-data__main-characters/brand/skins/skin0/particles/brand-base-dance-complex-emitter-definition-data--slot--2-birth-orbital-velocity"
+  },
+  "type": "embed",
+  "embed": "ValueVector3",
+  "slots": {
+    "out": [
+      "ValueVector3"
+    ]
+  }
+}

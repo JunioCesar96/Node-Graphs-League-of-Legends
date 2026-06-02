@@ -1,4 +1,7 @@
 .viewport {
+  --canvas-grid-step: 32px;
+  --canvas-grid-line-strength: 1;
+
   position: relative;
   display: flex;
   flex-direction: column;
@@ -8,12 +11,30 @@
   padding: var(--space-4);
   overflow: hidden;
   background:
-    linear-gradient(var(--canvas-grid-line) 1px, transparent 1px),
-    linear-gradient(90deg, var(--canvas-grid-line) 1px, transparent 1px),
-    radial-gradient(circle at 18% 22%, var(--canvas-grid-glow-a), transparent 18rem),
-    radial-gradient(circle at 84% 70%, var(--canvas-grid-glow-b), transparent 22rem),
+    linear-gradient(
+        color-mix(
+          in srgb,
+          var(--canvas-grid-line) calc(var(--canvas-grid-line-strength) * 100%),
+          transparent
+        )
+        1px,
+        transparent 1px
+      ),
+    linear-gradient(
+        90deg,
+        color-mix(
+          in srgb,
+          var(--canvas-grid-line) calc(var(--canvas-grid-line-strength) * 100%),
+          transparent
+        )
+        1px,
+        transparent 1px
+      ),
     var(--canvas-grid-base);
-  background-size: 32px 32px, 32px 32px, auto, auto, auto;
+  background-size:
+    var(--canvas-grid-step) var(--canvas-grid-step),
+    var(--canvas-grid-step) var(--canvas-grid-step),
+    auto;
   border: 1px solid var(--color-border-soft);
   border-radius: 28px;
   box-shadow: inset 0 1px 0 rgb(255 255 255 / 5%);
@@ -30,12 +51,29 @@
   flex: 1;
   min-height: 0 !important;
   background:
-    linear-gradient(var(--canvas-grid-line) 1px, transparent 1px),
-    linear-gradient(90deg, var(--canvas-grid-line) 1px, transparent 1px),
-    radial-gradient(circle at 18% 22%, var(--canvas-grid-glow-a), transparent 18rem),
-    radial-gradient(circle at 84% 70%, var(--canvas-grid-glow-b), transparent 22rem),
+    linear-gradient(
+        color-mix(
+          in srgb,
+          var(--canvas-grid-line) calc(var(--canvas-grid-line-strength) * 100%),
+          transparent
+        )
+        1px,
+        transparent 1px
+      ),
+    linear-gradient(
+        90deg,
+        color-mix(
+          in srgb,
+          var(--canvas-grid-line) calc(var(--canvas-grid-line-strength) * 100%),
+          transparent
+        )
+        1px,
+        transparent 1px
+      ),
     transparent;
-  background-size: 32px 32px, 32px 32px, auto, auto;
+  background-size:
+    var(--canvas-grid-step) var(--canvas-grid-step),
+    var(--canvas-grid-step) var(--canvas-grid-step);
   border: none;
   border-top: none;
   border-radius: 0;
@@ -103,6 +141,28 @@
   filter: drop-shadow(0 0 8px rgb(64 255 86 / 28%));
 }
 
+.connectionBlockRigid {
+  stroke-linejoin: round;
+}
+
+.connectionBlockWireless {
+  stroke-dasharray: 7 8;
+  opacity: 0.75;
+}
+
+.connectionBlockForced {
+  stroke: var(--block-slot-in);
+  filter: drop-shadow(0 0 8px rgb(76 175 80 / 32%));
+}
+
+.connectionBlockForced.connectionBlockWireless {
+  stroke: var(--block-slot-in);
+}
+
+.connectionBlockHaloForced {
+  stroke: rgb(76 175 80 / 14%);
+}
+
 .connectionBlockHalo {
   fill: none;
   stroke: rgb(64 255 86 / 12%);
@@ -154,7 +214,8 @@
 }
 
 .nodeWirelessLinked {
-  outline-color: var(--syntax-property);
+  outline-color: transparent;
+  box-shadow: inset 0 0 0 1px rgb(120 255 180 / 55%);
 }
 
 .nodeLinkDropTarget {
@@ -184,6 +245,16 @@
   opacity: 0.88;
 }
 
+.viewportNoGrid {
+  background: var(--bg-base, var(--editor-bg, var(--color-canvas)));
+  background-size: auto;
+}
+
+.viewportAttached.viewportNoGrid {
+  background: var(--bg-base, var(--editor-bg, var(--color-canvas)));
+  background-size: auto;
+}
+
 .toolbar {
   position: sticky;
   top: 0;
@@ -197,6 +268,51 @@
   width: 100%;
   margin-bottom: var(--space-4);
   pointer-events: none;
+}
+
+.toolbarWithoutControls {
+  margin-bottom: var(--space-4);
+}
+
+.controlsChromeHost {
+  display: flex;
+  flex: 0 1 auto;
+  align-items: center;
+  max-width: min(52vw, 520px);
+  min-width: 0;
+  height: 100%;
+  overflow: visible;
+  pointer-events: auto;
+}
+
+.controlsChromeScroll {
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: visible;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.controlsChromeScroll::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.controls.controlsChromeEmbedded .controlsInspectorSlot {
+  flex-shrink: 0;
+  width: 22px;
+  min-width: 22px;
+  max-width: 22px;
+  height: 22px;
+}
+
+.controls.controlsChromeEmbedded .controlsInspectorSlot > * {
+  flex-shrink: 0;
+  width: 22px;
+  min-width: 22px;
+  max-width: 22px;
+  height: 22px;
 }
 
 .legend {
@@ -218,19 +334,67 @@
 .controls {
   display: inline-flex;
   flex-wrap: wrap;
-  gap: var(--space-1);
+  gap: var(--space-2);
   align-items: center;
   margin-left: auto;
-  padding: var(--space-1);
+  padding: var(--space-3) var(--space-4);
   color: var(--color-text-secondary);
   font-family: var(--font-data);
-  font-size: 0.72rem;
-  background: color-mix(in srgb, var(--color-node-surface) 86%, transparent);
+  font-size: 0.78rem;
+  background: var(--app-menu-bg);
   border: 1px solid var(--color-border-soft);
-  border-radius: 999px;
-  backdrop-filter: blur(12px);
+  border-radius: 16px;
   cursor: default;
   pointer-events: auto;
+}
+
+.controlsCollapsed {
+  flex-wrap: nowrap;
+  gap: 0;
+  padding: var(--space-2);
+  border-radius: 12px;
+}
+
+/* Barra de ferramentas embutida na faixa de abas (sobrescreve `.controls` flutuante). */
+.controls.controlsChromeEmbedded {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  gap: var(--space-2);
+  align-items: center;
+  align-self: center;
+  width: max-content;
+  max-width: 100%;
+  height: 26px;
+  min-height: 26px;
+  max-height: 26px;
+  margin-left: 0;
+  padding: 0 4px;
+  overflow: visible;
+  color: var(--color-text-secondary);
+  font-family: var(--font-data);
+  font-size: 0.78rem;
+  cursor: default;
+  pointer-events: auto;
+  background: var(--app-menu-bg);
+  border: 1px solid var(--color-border-soft);
+  border-radius: 10px;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+  border-bottom-left-radius: 0;
+  box-shadow: none;
+}
+
+.controls.controlsChromeEmbedded.controlsCollapsed {
+  gap: 2px;
+  padding: 0 4px;
+  border-radius: 10px;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+.controlsCollapsed .controlsInspectorSlot {
+  margin-inline-start: 0;
 }
 
 .controls button {
@@ -238,13 +402,17 @@
   height: 30px;
   padding: 0 var(--space-2);
   color: var(--color-text-primary);
-  background: color-mix(in srgb, var(--color-text-primary) 5%, transparent);
+  background: transparent;
   border: 1px solid transparent;
   border-radius: 999px;
 }
 
 .controls button:hover {
   border-color: var(--port-child);
+}
+
+.controlsInspectorSlot button:hover {
+  border-color: transparent;
 }
 
 .controls button:disabled {
@@ -296,18 +464,25 @@
 }
 
 .controlsInspectorSlot {
-  display: inline-flex;
-  flex-shrink: 0;
+  position: relative;
+  display: flex;
+  flex: 0 0 auto;
   align-items: center;
-  max-width: min(360px, 42vw);
-  margin-inline-start: var(--space-1);
-  padding-inline-start: var(--space-1);
-  border-left: 1px solid var(--color-border-soft);
+  justify-content: center;
+  box-sizing: border-box;
+  width: 26px;
+  min-width: 26px;
+  max-width: 26px;
+  padding: 0;
+  margin-inline-start: 0;
   overflow: visible;
 }
 
 .controlsInspectorSlot > * {
-  min-width: 0;
+  flex: 0 0 auto;
+  width: 26px;
+  min-width: 26px;
+  max-width: 26px;
 }
 
 .legendItem {

@@ -1,0 +1,19 @@
+{
+  "id": "value-color__main-entries-0x0eed7307-complex-emitter-definition-data-5-birth-color",
+  "title": "ValueColor",
+  "parameters": [
+    {
+      "id": "ValueColor_parameter_constantValue",
+      "name": "constantValue",
+      "type": "vector4",
+      "defaultValue": "1, 1, 1, 0.39"
+    }
+  ],
+  "embed": [],
+  "pointer": [],
+  "listEmbed": [],
+  "listPointer": [],
+  "list2Embed": [],
+  "list2Pointer": [],
+  "internalStructures": []
+}

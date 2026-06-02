@@ -1,0 +1,166 @@
+{
+  "id": "vfx-system-definition-data__entries-0xa2fa6a01",
+  "title": "VfxSystemDefinitionData",
+  "parameters": [
+    {
+      "id": "VfxSystemDefinitionData_parameter_flags",
+      "name": "flags",
+      "type": "u16",
+      "defaultValue": "199"
+    },
+    {
+      "id": "VfxSystemDefinitionData_parameter_particleName",
+      "name": "particleName",
+      "type": "string",
+      "defaultValue": "my_morgana_poca"
+    },
+    {
+      "id": "VfxSystemDefinitionData_parameter_particlePath",
+      "name": "particlePath",
+      "type": "string",
+      "defaultValue": "my_morgana_poca"
+    }
+  ],
+  "embed": [],
+  "pointer": [],
+  "listEmbed": [],
+  "listPointer": [
+    {
+      "id": "VfxSystemDefinitionData_listPointer_complexEmitterDefinitionData",
+      "title": "complexEmitterDefinitionData",
+      "internalStructures": [
+        {
+          "id": "vfx-system-definition-data-complex-emitter-definition-data-0",
+          "name": "VfxEmitterDefinitionData",
+          "schemaId": "vfx-emitter-definition-data__complex-emitter-definition-data-0"
+        },
+        {
+          "id": "vfx-system-definition-data-complex-emitter-definition-data-1",
+          "name": "VfxEmitterDefinitionData",
+          "schemaId": "vfx-emitter-definition-data__complex-emitter-definition-data-1"
+        },
+        {
+          "id": "vfx-system-definition-data-complex-emitter-definition-data-2",
+          "name": "VfxEmitterDefinitionData",
+          "schemaId": "vfx-emitter-definition-data__complex-emitter-definition-data-2"
+        },
+        {
+          "id": "vfx-system-definition-data-complex-emitter-definition-data-3",
+          "name": "VfxEmitterDefinitionData",
+          "schemaId": "vfx-emitter-definition-data__complex-emitter-definition-data-3"
+        },
+        {
+          "id": "vfx-system-definition-data-complex-emitter-definition-data-4",
+          "name": "VfxEmitterDefinitionData",
+          "schemaId": "vfx-emitter-definition-data__complex-emitter-definition-data-4"
+        },
+        {
+          "id": "vfx-system-definition-data-complex-emitter-definition-data-5",
+          "name": "VfxEmitterDefinitionData",
+          "schemaId": "vfx-emitter-definition-data__complex-emitter-definition-data-5"
+        },
+        {
+          "id": "vfx-system-definition-data-complex-emitter-definition-data-6",
+          "name": "VfxEmitterDefinitionData",
+          "schemaId": "vfx-emitter-definition-data__complex-emitter-definition-data-6"
+        },
+        {
+          "id": "vfx-system-definition-data-complex-emitter-definition-data-7",
+          "name": "VfxEmitterDefinitionData",
+          "schemaId": "vfx-emitter-definition-data__complex-emitter-definition-data-7"
+        },
+        {
+          "id": "vfx-system-definition-data-complex-emitter-definition-data-8",
+          "name": "VfxEmitterDefinitionData",
+          "schemaId": "vfx-emitter-definition-data__complex-emitter-definition-data-8"
+        },
+        {
+          "id": "vfx-system-definition-data-complex-emitter-definition-data-9",
+          "name": "VfxEmitterDefinitionData",
+          "schemaId": "vfx-emitter-definition-data__complex-emitter-definition-data-9"
+        },
+        {
+          "id": "vfx-system-definition-data-complex-emitter-definition-data-10",
+          "name": "VfxEmitterDefinitionData",
+          "schemaId": "vfx-emitter-definition-data__complex-emitter-definition-data-10"
+        }
+      ],
+      "slots": [
+        {
+          "id": "VfxSystemDefinitionData_listPointer_complexEmitterDefinitionData__slot__0",
+          "name": "VfxEmitterDefinitionData",
+          "schemaId": "vfx-emitter-definition-data__complex-emitter-definition-data-0"
+        },
+        {
+          "id": "VfxSystemDefinitionData_listPointer_complexEmitterDefinitionData__slot__1",
+          "name": "VfxEmitterDefinitionData",
+          "schemaId": "vfx-emitter-definition-data__complex-emitter-definition-data-1"
+        },
+        {
+          "id": "VfxSystemDefinitionData_listPointer_complexEmitterDefinitionData__slot__2",
+          "name": "VfxEmitterDefinitionData",
+          "schemaId": "vfx-emitter-definition-data__complex-emitter-definition-data-2"
+        },
+        {
+          "id": "VfxSystemDefinitionData_listPointer_complexEmitterDefinitionData__slot__3",
+          "name": "VfxEmitterDefinitionData",
+          "schemaId": "vfx-emitter-definition-data__complex-emitter-definition-data-3"
+        },
+        {
+          "id": "VfxSystemDefinitionData_listPointer_complexEmitterDefinitionData__slot__4",
+          "name": "VfxEmitterDefinitionData",
+          "schemaId": "vfx-emitter-definition-data__complex-emitter-definition-data-4"
+        },
+        {
+          "id": "VfxSystemDefinitionData_listPointer_complexEmitterDefinitionData__slot__5",
+          "name": "VfxEmitterDefinitionData",
+          "schemaId": "vfx-emitter-definition-data__complex-emitter-definition-data-5"
+        },
+        {
+          "id": "VfxSystemDefinitionData_listPointer_complexEmitterDefinitionData__slot__6",
+          "name": "VfxEmitterDefinitionData",
+          "schemaId": "vfx-emitter-definition-data__complex-emitter-definition-data-6"
+        },
+        {
+          "id": "VfxSystemDefinitionData_listPointer_complexEmitterDefinitionData__slot__7",
+          "name": "VfxEmitterDefinitionData",
+          "schemaId": "vfx-emitter-definition-data__complex-emitter-definition-data-7"
+        },
+        {
+          "id": "VfxSystemDefinitionData_listPointer_complexEmitterDefinitionData__slot__8",
+          "name": "VfxEmitterDefinitionData",
+          "schemaId": "vfx-emitter-definition-data__complex-emitter-definition-data-8"
+        },
+        {
+          "id": "VfxSystemDefinitionData_listPointer_complexEmitterDefinitionData__slot__9",
+          "name": "VfxEmitterDefinitionData",
+          "schemaId": "vfx-emitter-definition-data__complex-emitter-definition-data-9"
+        },
+        {
+          "id": "VfxSystemDefinitionData_listPointer_complexEmitterDefinitionData__slot__10",
+          "name": "VfxEmitterDefinitionData",
+          "schemaId": "vfx-emitter-definition-data__complex-emitter-definition-data-10"
+        }
+      ]
+    }
+  ],
+  "list2Embed": [],
+  "list2Pointer": [],
+  "internalStructures": [],
+  "nomenclature": {
+    "group": "#2 Entidades",
+    "collection": "#2 Root Entry (VfxSystemDefinitionData)",
+    "collectionType": "VfxSystemDefinitionData",
+    "pathHierarchy": "main > entries:0xa2fa6a01",
+    "pathHierarchySteps": [
+      {
+        "id": "main",
+        "type": "#0 Root main"
+      },
+      {
+        "id": "entries:0xa2fa6a01",
+        "type": "#2 Root Entry (VfxSystemDefinitionData)"
+      }
+    ]
+  }
+}

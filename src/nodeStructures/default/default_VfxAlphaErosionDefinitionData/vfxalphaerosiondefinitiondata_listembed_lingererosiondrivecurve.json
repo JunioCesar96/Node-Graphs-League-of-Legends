@@ -1,0 +1,11 @@
+{
+  "id": "VfxAlphaErosionDefinitionData_listEmbed_LingerErosionDriveCurve",
+  "title": "LingerErosionDriveCurve",
+  "internalStructures": [
+    {
+      "id": "VfxAlphaErosionDefinitionData_listEmbed_LingerErosionDriveCurve-catalog-0",
+      "name": "ValueFloat",
+      "schemaId": "value-float__main-entries-0xa2fa6a01-complex-emitter-definition-data-10-alpha-erosion-definition-linger-erosion-drive-curve"
+    }
+  ]
+}

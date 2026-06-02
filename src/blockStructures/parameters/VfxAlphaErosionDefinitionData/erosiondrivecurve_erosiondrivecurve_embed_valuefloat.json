@@ -1,0 +1,17 @@
+{
+  "id": "erosionDriveCurve_erosionDriveCurve_embed_ValueFloat",
+  "block": "VfxAlphaErosionDefinitionData",
+  "parameterName": "erosionDriveCurve",
+  "name": "erosionDriveCurve",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-alpha-erosion-definition-data__entries-{particlePath}-complex-emitter-definition-data--slot--0-alpha-erosion-definition-erosion-drive-curve"
+  },
+  "type": "embed",
+  "embed": "ValueFloat",
+  "slots": {
+    "out": [
+      "ValueFloat"
+    ]
+  }
+}

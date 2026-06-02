@@ -1,0 +1,94 @@
+{
+  "id": "skin-audio-properties__main-entries-characters-zac-skins-skin0-skin-audio-properties",
+  "title": "SkinAudioProperties",
+  "parameters": [
+    {
+      "id": "SkinAudioProperties_parameter_tagEventList",
+      "name": "tagEventList",
+      "type": "listString",
+      "defaultValue": "Zac"
+    }
+  ],
+  "embed": [],
+  "pointer": [],
+  "listEmbed": [],
+  "listPointer": [],
+  "list2Embed": [
+    {
+      "id": "SkinAudioProperties_list2Embed_bankUnits",
+      "title": "bankUnits",
+      "internalStructures": [
+        {
+          "id": "skin-audio-properties-bank-units-0",
+          "name": "BankUnit",
+          "schemaId": "bank-unit__bank-units-0"
+        },
+        {
+          "id": "skin-audio-properties-bank-units-1",
+          "name": "BankUnit",
+          "schemaId": "bank-unit__bank-units-1"
+        }
+      ],
+      "instances": [
+        {
+          "id": "SkinAudioProperties_list2Embed_bankUnits-inst-0",
+          "title": "BankUnit",
+          "internalStructures": [
+            {
+              "id": "skin-audio-properties-bank-units-0",
+              "name": "BankUnit",
+              "schemaId": "bank-unit__bank-units-0"
+            }
+          ],
+          "slots": [
+            {
+              "id": "SkinAudioProperties_list2Embed_bankUnits-inst-0__slot__0",
+              "name": "BankUnit",
+              "schemaId": "bank-unit__bank-units-0"
+            }
+          ]
+        },
+        {
+          "id": "SkinAudioProperties_list2Embed_bankUnits-inst-1",
+          "title": "BankUnit",
+          "internalStructures": [
+            {
+              "id": "skin-audio-properties-bank-units-1",
+              "name": "BankUnit",
+              "schemaId": "bank-unit__bank-units-1"
+            }
+          ],
+          "slots": [
+            {
+              "id": "SkinAudioProperties_list2Embed_bankUnits-inst-1__slot__0",
+              "name": "BankUnit",
+              "schemaId": "bank-unit__bank-units-1"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "list2Pointer": [],
+  "internalStructures": [],
+  "nomenclature": {
+    "group": "#3 Internal Structures",
+    "collection": "#3 Embed Block",
+    "collectionType": "SkinAudioProperties",
+    "pathHierarchy": "main > entries:Characters/Zac/Skins/Skin0 > SkinAudioProperties",
+    "pathHierarchySteps": [
+      {
+        "id": "main",
+        "type": "#0 Root main"
+      },
+      {
+        "id": "entries:Characters/Zac/Skins/Skin0",
+        "type": "#2 Root Entry (SkinCharacterDataProperties)"
+      },
+      {
+        "id": "SkinAudioProperties",
+        "type": "#3 Embed Block"
+      }
+    ]
+  }
+}

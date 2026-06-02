@@ -8,7 +8,7 @@
   flex: 1;
   min-width: 0;
   padding: 0;
-  color: inherit;
+  color: var(--syntax-keyword);
   font: inherit;
   text-align: left;
   background: transparent;

@@ -1,0 +1,7 @@
+{
+  "id": "VfxSystemDefinitionData",
+  "title": "Vfx System Definition Data",
+  "color": "#ffff00",
+  "icon": "VfxSystem.png",
+  "headerSlots": ["output[VfxSystemDefinitionDataPreview]"]
+}

@@ -1,0 +1,17 @@
+{
+  "id": "emitterLinger_emitterLinger_optionF32",
+  "block": "VfxEmitterDefinitionData",
+  "parameterName": "emitterLinger",
+  "name": "emitterLinger",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-emitter-definition-data__entries-{particlePath}-complex-emitter-definition-data--slot--1_parameter_emitterLinger"
+  },
+  "type": "optionF32",
+  "item": "0.5",
+  "slots": {
+    "out": [
+      "f32"
+    ]
+  }
+}

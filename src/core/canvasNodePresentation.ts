@@ -1,6 +1,11 @@
 import type { CSSProperties } from 'react'
 
-import type { CanvasNode } from '@/core/canvasScene'
+import type { CanvasNode, CanvasScene } from '@/core/canvasScene'
+import {
+  createCompactElementCanvasVisibility,
+  type CompactElementCanvasVisibility,
+} from '@/core/compactElementBranchVisibility'
+import { collectLinkVisibilityVisibleIds } from '@/core/sceneNodeLinkVisibility'
 import { parseRgbaString, rgbaToCss } from '@/core/rgbaColor'
 
 export function getNodeDisplayTitle(canvasNode: CanvasNode): string {
@@ -13,20 +18,81 @@ export function getNodeDisplayTitle(canvasNode: CanvasNode): string {
   return canvasNode.node.schema.title
 }
 
-export function isNodeVisibleOnCanvas(canvasNode: CanvasNode): boolean {
-  return canvasNode.sceneHidden !== true
+export type MapHashEmbedCanvasVisibility = CompactElementCanvasVisibility
+
+export {
+  createCompactElementCanvasVisibility,
+  type CompactElementCanvasVisibility,
+}
+
+export const createMapHashEmbedCanvasVisibility = createCompactElementCanvasVisibility
+
+export type NodeVisibilitySceneContext = Pick<
+  CanvasScene,
+  'linkVisibilityFilter' | 'connections' | 'nodes'
+>
+
+export function isNodeVisibleOnCanvas(
+  canvasNode: CanvasNode,
+  compactVisibility?: CompactElementCanvasVisibility,
+  sceneContext?: NodeVisibilitySceneContext,
+): boolean {
+  if (canvasNode.sceneHidden === true) {
+    return false
+  }
+
+  if (canvasNode.branchForceVisible === true) {
+    return true
+  }
+
+  if (sceneContext?.linkVisibilityFilter) {
+    const allowed = collectLinkVisibilityVisibleIds(sceneContext)
+
+    if (allowed && !allowed.has(canvasNode.id)) {
+      return false
+    }
+  }
+
+  if (compactVisibility?.hiddenNodeIds?.has(canvasNode.id)) {
+    return false
+  }
+
+  return true
+}
+
+export function isNodeBodyEffectivelyCollapsed(
+  canvasNode: CanvasNode,
+  compactVisibility?: CompactElementCanvasVisibility,
+): boolean {
+  if (canvasNode.bodyCollapsed === true) {
+    return true
+  }
+
+  if (canvasNode.bodyCollapsed === false) {
+    return false
+  }
+
+  return compactVisibility?.listCollapsedBodyNodeIds?.has(canvasNode.id) === true
 }
 
 /** Nós ocultos na cena não entram em seleccionar todos / marquee / clique no canvas. */
-export function isNodeSelectableOnCanvas(canvasNode: CanvasNode): boolean {
-  return isNodeVisibleOnCanvas(canvasNode)
+export function isNodeSelectableOnCanvas(
+  canvasNode: CanvasNode,
+  compactVisibility?: CompactElementCanvasVisibility,
+  sceneContext?: NodeVisibilitySceneContext,
+): boolean {
+  return isNodeVisibleOnCanvas(canvasNode, compactVisibility, sceneContext)
 }
 
-export function filterSelectableNodeIds(scene: { nodes: CanvasNode[] }, nodeIds: readonly string[]): string[] {
+export function filterSelectableNodeIds(
+  scene: NodeVisibilitySceneContext & { nodes: CanvasNode[] },
+  nodeIds: readonly string[],
+  compactVisibility?: CompactElementCanvasVisibility,
+): string[] {
   return nodeIds.filter((id) => {
     const node = scene.nodes.find((entry) => entry.id === id)
 
-    return node !== undefined && isNodeSelectableOnCanvas(node)
+    return node !== undefined && isNodeSelectableOnCanvas(node, compactVisibility, scene)
   })
 }
 

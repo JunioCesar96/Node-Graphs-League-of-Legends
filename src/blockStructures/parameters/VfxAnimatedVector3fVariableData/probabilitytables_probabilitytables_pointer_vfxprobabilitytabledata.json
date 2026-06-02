@@ -1,0 +1,17 @@
+{
+  "id": "probabilityTables_probabilityTables_pointer_VfxProbabilityTableData",
+  "block": "VfxAnimatedVector3fVariableData",
+  "parameterName": "probabilityTables",
+  "name": "probabilityTables",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-animated-vector3f-variable-data__entries-{particlePath}-complex-emitter-definition-data--slot--0-birth-velocity-dynamics-probability-tables"
+  },
+  "type": "pointer",
+  "pointer": "VfxProbabilityTableData",
+  "slots": {
+    "out": [
+      "VfxProbabilityTableData"
+    ]
+  }
+}

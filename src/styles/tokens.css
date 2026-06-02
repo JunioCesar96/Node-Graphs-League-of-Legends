@@ -1,4 +1,9 @@
-:root {
+/**
+ * Tema `default` — ver `src/appThemes/default.json` e `data-app-theme` no `<html>`.
+ * `:root` mantém os mesmos valores como fallback antes do JS aplicar o tema activo.
+ */
+:root,
+html[data-app-theme='default'] {
   color-scheme: dark;
 
   --color-canvas: #1e1e1e;
@@ -29,6 +34,20 @@
 
   --port-parent: #4caf50;
   --port-child: #ffc107;
+
+  /** Toggle / range / checkbox — tema default (studio, docks, painéis flutuantes). */
+  --app-control-accent: #4ec8e8;
+  --app-control-toggle-on: var(--port-parent);
+  --app-control-toggle-off: color-mix(in srgb, var(--color-canvas) 65%, rgb(255 255 255 / 10%));
+  --app-control-toggle-off-border: color-mix(in srgb, var(--color-border) 75%, rgb(255 255 255 / 12%));
+  --app-control-toggle-thumb: #fff;
+  --app-control-range-track: color-mix(in srgb, var(--color-canvas) 50%, rgb(0 0 0));
+  --app-control-range-track-border: color-mix(in srgb, var(--color-border-soft) 90%, transparent);
+  --app-control-range-fill: var(--app-control-accent);
+  --app-control-range-thumb: var(--app-control-accent);
+  --app-studio-panel-bg: color-mix(in srgb, var(--color-canvas) 86%, rgb(0 0 0));
+  --app-studio-panel-border: color-mix(in srgb, var(--port-child) 22%, transparent);
+  --app-studio-eyebrow: color-mix(in srgb, var(--port-child) 72%, var(--color-text-muted));
 
   --font-ui: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-data: "Fira Code", "Cascadia Code", "SFMono-Regular", Consolas, monospace;
@@ -74,8 +93,14 @@
   /** Linha compacta na paleta ≈ cabeçalho do node + gap + uma linha de tags (estrutura / tipos). */
   --palette-add-compact-min-height: calc(var(--node-header-min-block-size) + var(--space-2) + 1.375rem);
 
+  /** Linha compacta de bloco na paleta (swatch + uma linha de título). */
+  --palette-block-compact-min-height: calc(0.82rem * 1.2 + var(--space-2) * 2);
+
   /** Uma linha da grelha da paleta «Add node» (tarja compacta + gap entre linhas). */
   --palette-add-row-stride: calc(var(--palette-add-compact-min-height) + var(--space-2));
+
+  /** Distância abaixo do botão «Add node» quando a paleta abre ancorada (`data-shortcut-scope="node-palette"`). */
+  --node-palette-anchor-top-gap: 10px;
 
   /** Cards Grupo / Bloco — layout de parâmetros no canvas. */
   --group-block-card-width: 360px;
@@ -126,8 +151,9 @@
 
   --canvas-grid-line: rgb(255 255 255 / 4%);
   --canvas-grid-base: rgb(0 0 0 / 16%);
-  --canvas-grid-glow-a: rgb(76 175 80 / 10%);
-  --canvas-grid-glow-b: rgb(255 193 7 / 9%);
+  --scrollbar-thumb: color-mix(in srgb, var(--color-text-primary) 28%, transparent);
+  --scrollbar-thumb-hover: color-mix(in srgb, var(--color-text-primary) 42%, transparent);
+  --scrollbar-track: color-mix(in srgb, var(--color-canvas) 88%, rgb(0 0 0));
   --app-menu-bg: rgb(0 0 0 / 28%);
   --app-menu-panel-bg: rgb(19 19 19 / 94%);
   --code-dock-header-bg: transparent;
@@ -200,6 +226,8 @@
   --vfx-viewport-glow: rgb(40 120 160 / 8%);
   --vfx-checker-tile: rgb(40 44 52);
   --vfx-checker-base: rgb(28 32 40);
+  --vfx-control-accent: #4ec8e8;
+  --vfx-range-track: color-mix(in srgb, var(--vfx-text-strong) 12%, transparent);
 }
 
 html[data-jade-surface-theme='on'] {
@@ -212,8 +240,7 @@ html[data-jade-surface-theme='on'] {
 
   --canvas-grid-line: color-mix(in srgb, var(--text-color, #fff) 7%, transparent);
   --canvas-grid-base: color-mix(in srgb, var(--editor-bg, #1e1e1e) 84%, rgb(0 0 0));
-  --canvas-grid-glow-a: color-mix(in srgb, var(--jade-accent, #4caf50) 12%, transparent);
-  --canvas-grid-glow-b: color-mix(in srgb, var(--port-child, #ffc107) 10%, transparent);
+  --scrollbar-track: color-mix(in srgb, var(--editor-bg, #1e1e1e) 88%, rgb(0 0 0));
 
   --app-menu-bg: color-mix(in srgb, var(--window-bg, #1e1e1e) 72%, rgb(0 0 0));
   --app-menu-panel-bg: color-mix(in srgb, var(--window-bg, #191919) 94%, rgb(0 0 0));
@@ -315,4 +342,6 @@ html[data-jade-surface-theme='on'] {
   --vfx-viewport-glow: color-mix(in srgb, var(--vfx-accent) 8%, transparent);
   --vfx-checker-tile: color-mix(in srgb, var(--tab-bg, #282c34) 88%, var(--editor-bg));
   --vfx-checker-base: color-mix(in srgb, var(--editor-bg, #1c2028) 92%, rgb(0 0 0));
+  --vfx-control-accent: var(--jade-accent, var(--selected-tab-bg, #007acc));
+  --vfx-range-track: color-mix(in srgb, var(--text-muted, #fff) 28%, var(--editor-bg, #000));
 }

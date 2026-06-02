@@ -1,0 +1,20 @@
+{
+  "id": "beginIn_beginIn",
+  "block": "VfxSoftParticleDefinitionData",
+  "parameterName": "beginIn",
+  "name": "beginIn",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-soft-particle-definition-data__main-characters/brand/skins/skin0/particles/brand-base-joke-complex-emitter-definition-data--slot--2-soft-particle-params_parameter_beginIn"
+  },
+  "type": "f32",
+  "value": "5",
+  "slots": {
+    "in": [
+      "f32"
+    ],
+    "out": [
+      "f32"
+    ]
+  }
+}

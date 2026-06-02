@@ -1,0 +1,109 @@
+.panel {
+  position: fixed;
+  z-index: 46;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  width: min(280px, calc(100vw - 24px));
+  padding: var(--space-4);
+  color: var(--color-text-secondary);
+  background: var(--app-studio-panel-bg);
+  border: 1px solid var(--app-studio-panel-border);
+  border-radius: 14px;
+  box-shadow:
+    0 24px 64px rgb(0 0 0 / 42%),
+    inset 0 1px 0 rgb(255 255 255 / 6%);
+  backdrop-filter: blur(16px);
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.eyebrow {
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: var(--app-studio-eyebrow);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.title {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-top: var(--space-2);
+  border-top: 1px solid color-mix(in srgb, var(--color-border-soft) 72%, transparent);
+}
+
+.sectionLabel {
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: var(--app-studio-eyebrow);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.toggleRow {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  justify-content: space-between;
+  min-height: 36px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.rowLabel {
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+.rangeBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.rangeHead {
+  display: flex;
+  gap: var(--space-2);
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.rangeLabel {
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+.rangeValue {
+  min-width: 2.5rem;
+  font-family: var(--font-data);
+  font-size: 0.72rem;
+  color: var(--color-text-secondary);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.rangeMarks {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-data);
+  font-size: 0.58rem;
+  color: var(--color-text-muted);
+}
+
+.rangeMarks span {
+  font-variant-numeric: tabular-nums;
+}

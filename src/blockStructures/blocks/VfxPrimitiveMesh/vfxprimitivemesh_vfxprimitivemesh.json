@@ -1,0 +1,19 @@
+{
+  "id": "VfxPrimitiveMesh_VfxPrimitiveMesh",
+  "block": "primitive",
+  "blockName": "VfxPrimitiveMesh",
+  "type": "pointer",
+  "name": "VfxPrimitiveMesh",
+  "source": {
+    "kind": "block",
+    "nodeId": "vfx-primitive-mesh__entries-{particlePath}-complex-emitter-definition-data--slot--5-primitive"
+  },
+  "color": "#40ff56",
+  "headerSlots": [
+    "in[primitive]",
+    "out[VfxPrimitiveMeshPreview]"
+  ],
+  "parameters": [
+    "mMesh"
+  ]
+}

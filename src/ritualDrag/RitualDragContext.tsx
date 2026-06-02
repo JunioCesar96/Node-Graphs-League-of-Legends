@@ -9,12 +9,15 @@ import {
 } from 'react'
 
 import type { CanvasPosition } from '@/core/canvasScene'
+import type { RitualDragTextRange } from '@/ritualDrag/ritualDragSelection'
 
 export type RitualDragPhase =
   | 'idle'
   | 'hint'
   | 'hintCtrl'
+  | 'hintLink'
   | 'dragging'
+  | 'linkDragging'
   | 'buildingNeeko'
   | 'readyNeeko'
 
@@ -32,18 +35,25 @@ export type NeekoStagingState = {
 export type RitualDragSession = {
   phase: RitualDragPhase
   text: string
+  /** Intervalo no editor (1-based, estilo Monaco) gravado no Shift+arrasto. */
+  textRange: RitualDragTextRange | null
   pointer: RitualDragPointer
   hoveredNeekoCanvasNodeId: string | null
+  /** Nó do grafo sob o cursor durante vinculação (Shift+arrasto do código). */
+  hoveredLinkCanvasNodeId: string | null
   neekoStaging: NeekoStagingState | null
 }
 
 type RitualDragContextValue = RitualDragSession & {
   showHint: (pointer: RitualDragPointer) => void
   showHintCtrl: (pointer: RitualDragPointer) => void
+  showHintLink: (pointer: RitualDragPointer) => void
   hideHint: () => void
   startDrag: (text: string, pointer: RitualDragPointer) => void
+  startLinkDrag: (text: string, pointer: RitualDragPointer, textRange: RitualDragTextRange) => void
   updatePointer: (pointer: RitualDragPointer) => void
   setHoveredNeeko: (canvasNodeId: string | null) => void
+  setHoveredLinkNode: (canvasNodeId: string | null) => void
   beginNeekoStaging: (canvasPosition: CanvasPosition, pointer: RitualDragPointer) => void
   setNeekoStagingProgress: (progress: number) => void
   completeNeekoStaging: (canvasNodeId: string) => void
@@ -56,14 +66,18 @@ type RitualDragContextValue = RitualDragSession & {
   cancelNeekoStaging: () => void
   cancel: () => void
   consumeDrop: () => string | null
+  /** Consome arrasto de vinculação (Shift): texto + intervalo no editor. */
+  consumeLinkBindDrop: () => { text: string; textRange: RitualDragTextRange } | null
   failBuildAndConsumeText: () => string | null
 }
 
 const IDLE_SESSION: RitualDragSession = {
   phase: 'idle',
   text: '',
+  textRange: null,
   pointer: { x: 0, y: 0 },
   hoveredNeekoCanvasNodeId: null,
+  hoveredLinkCanvasNodeId: null,
   neekoStaging: null,
 }
 
@@ -88,7 +102,12 @@ export function RitualDragProvider({ children }: { children: ReactNode }) {
 
   const showHint = useCallback((pointer: RitualDragPointer) => {
     setSession((prev) => {
-      if (prev.phase === 'dragging' || prev.phase === 'buildingNeeko' || prev.phase === 'readyNeeko') {
+      if (
+        prev.phase === 'dragging' ||
+        prev.phase === 'linkDragging' ||
+        prev.phase === 'buildingNeeko' ||
+        prev.phase === 'readyNeeko'
+      ) {
         return prev
       }
       return {
@@ -101,7 +120,12 @@ export function RitualDragProvider({ children }: { children: ReactNode }) {
 
   const showHintCtrl = useCallback((pointer: RitualDragPointer) => {
     setSession((prev) => {
-      if (prev.phase === 'dragging' || prev.phase === 'buildingNeeko' || prev.phase === 'readyNeeko') {
+      if (
+        prev.phase === 'dragging' ||
+        prev.phase === 'linkDragging' ||
+        prev.phase === 'buildingNeeko' ||
+        prev.phase === 'readyNeeko'
+      ) {
         return prev
       }
       return {
@@ -112,9 +136,29 @@ export function RitualDragProvider({ children }: { children: ReactNode }) {
     })
   }, [])
 
+  const showHintLink = useCallback((pointer: RitualDragPointer) => {
+    setSession((prev) => {
+      if (
+        prev.phase === 'dragging' ||
+        prev.phase === 'linkDragging' ||
+        prev.phase === 'buildingNeeko' ||
+        prev.phase === 'readyNeeko'
+      ) {
+        return prev
+      }
+      return {
+        ...prev,
+        phase: 'hintLink',
+        pointer,
+      }
+    })
+  }, [])
+
   const hideHint = useCallback(() => {
     setSession((prev) =>
-      prev.phase === 'hint' || prev.phase === 'hintCtrl' ? IDLE_SESSION : prev,
+      prev.phase === 'hint' || prev.phase === 'hintCtrl' || prev.phase === 'hintLink'
+        ? IDLE_SESSION
+        : prev,
     )
   }, [])
 
@@ -125,18 +169,40 @@ export function RitualDragProvider({ children }: { children: ReactNode }) {
     setSession({
       phase: 'dragging',
       text: text.trim(),
+      textRange: null,
       pointer,
       hoveredNeekoCanvasNodeId: null,
+      hoveredLinkCanvasNodeId: null,
       neekoStaging: null,
     })
   }, [])
+
+  const startLinkDrag = useCallback(
+    (text: string, pointer: RitualDragPointer, textRange: RitualDragTextRange) => {
+      if (!text.trim()) {
+        return
+      }
+      setSession({
+        phase: 'linkDragging',
+        text: text.trim(),
+        textRange,
+        pointer,
+        hoveredNeekoCanvasNodeId: null,
+        hoveredLinkCanvasNodeId: null,
+        neekoStaging: null,
+      })
+    },
+    [],
+  )
 
   const updatePointer = useCallback((pointer: RitualDragPointer) => {
     setSession((prev) => {
       if (
         prev.phase !== 'hint' &&
         prev.phase !== 'hintCtrl' &&
+        prev.phase !== 'hintLink' &&
         prev.phase !== 'dragging' &&
+        prev.phase !== 'linkDragging' &&
         prev.phase !== 'buildingNeeko' &&
         prev.phase !== 'readyNeeko'
       ) {
@@ -159,6 +225,18 @@ export function RitualDragProvider({ children }: { children: ReactNode }) {
         return prev
       }
       return { ...prev, hoveredNeekoCanvasNodeId: canvasNodeId }
+    })
+  }, [])
+
+  const setHoveredLinkNode = useCallback((canvasNodeId: string | null) => {
+    setSession((prev) => {
+      if (prev.phase !== 'linkDragging') {
+        return prev
+      }
+      if (prev.hoveredLinkCanvasNodeId === canvasNodeId) {
+        return prev
+      }
+      return { ...prev, hoveredLinkCanvasNodeId: canvasNodeId }
     })
   }, [])
 
@@ -280,6 +358,18 @@ export function RitualDragProvider({ children }: { children: ReactNode }) {
     return null
   }, [])
 
+  const consumeLinkBindDrop = useCallback(() => {
+    const current = sessionRef.current
+    if (current.phase !== 'linkDragging' || !current.text.trim() || !current.textRange) {
+      setSession(IDLE_SESSION)
+      return null
+    }
+
+    const payload = { text: current.text, textRange: current.textRange }
+    setSession(IDLE_SESSION)
+    return payload
+  }, [])
+
   const failBuildAndConsumeText = useCallback(() => {
     const current = sessionRef.current
     const text = current.text.trim() ? current.text : null
@@ -292,10 +382,13 @@ export function RitualDragProvider({ children }: { children: ReactNode }) {
       ...session,
       showHint,
       showHintCtrl,
+      showHintLink,
       hideHint,
       startDrag,
+      startLinkDrag,
       updatePointer,
       setHoveredNeeko,
+      setHoveredLinkNode,
       beginNeekoStaging,
       setNeekoStagingProgress,
       completeNeekoStaging,
@@ -303,16 +396,20 @@ export function RitualDragProvider({ children }: { children: ReactNode }) {
       cancelNeekoStaging,
       cancel,
       consumeDrop,
+      consumeLinkBindDrop,
       failBuildAndConsumeText,
     }),
     [
       session,
       showHint,
       showHintCtrl,
+      showHintLink,
       hideHint,
       startDrag,
+      startLinkDrag,
       updatePointer,
       setHoveredNeeko,
+      setHoveredLinkNode,
       beginNeekoStaging,
       setNeekoStagingProgress,
       completeNeekoStaging,
@@ -320,6 +417,7 @@ export function RitualDragProvider({ children }: { children: ReactNode }) {
       cancelNeekoStaging,
       cancel,
       consumeDrop,
+      consumeLinkBindDrop,
       failBuildAndConsumeText,
     ],
   )

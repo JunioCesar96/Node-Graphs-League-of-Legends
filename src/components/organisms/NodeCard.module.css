@@ -122,11 +122,25 @@
 }
 
 .neekoIcon {
+  display: block;
   width: 5.5rem;
   height: 5.5rem;
   margin-top: var(--space-1);
-  object-fit: contain;
-  opacity: 0.9;
+  color: var(--text-color, var(--color-text-primary));
   pointer-events: none;
   user-select: none;
+  background-color: currentColor;
+  mask-image: url('../../assets/neeko_icon.png');
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+  -webkit-mask-image: url('../../assets/neeko_icon.png');
+  -webkit-mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+}
+
+.neekoDropZoneActive .neekoIcon,
+.neekoDropZoneTransforming .neekoIcon {
+  color: var(--selected-tab-bg, var(--jade-accent, #007acc));
 }

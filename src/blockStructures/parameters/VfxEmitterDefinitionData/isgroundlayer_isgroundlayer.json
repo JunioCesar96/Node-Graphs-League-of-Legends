@@ -1,0 +1,20 @@
+{
+  "id": "isGroundLayer_isGroundLayer",
+  "block": "VfxEmitterDefinitionData",
+  "parameterName": "isGroundLayer",
+  "name": "isGroundLayer",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-emitter-definition-data__entries-{particlePath}-complex-emitter-definition-data--slot--1_parameter_isGroundLayer"
+  },
+  "type": "flag",
+  "value": "true",
+  "slots": {
+    "in": [
+      "flag"
+    ],
+    "out": [
+      "flag"
+    ]
+  }
+}

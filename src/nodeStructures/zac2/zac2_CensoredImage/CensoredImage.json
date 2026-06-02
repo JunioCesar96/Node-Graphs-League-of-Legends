@@ -1,0 +1,19 @@
+{
+  "id": "censored-image__main-entries-characters-zac-skins-skin0-loadscreen",
+  "title": "CensoredImage",
+  "parameters": [
+    {
+      "id": "CensoredImage_parameter_image",
+      "name": "image",
+      "type": "string",
+      "defaultValue": "ASSETS/Characters/Zac/Skins/Base/ZacLoadScreen.tex"
+    }
+  ],
+  "embed": [],
+  "pointer": [],
+  "listEmbed": [],
+  "listPointer": [],
+  "list2Embed": [],
+  "list2Pointer": [],
+  "internalStructures": []
+}

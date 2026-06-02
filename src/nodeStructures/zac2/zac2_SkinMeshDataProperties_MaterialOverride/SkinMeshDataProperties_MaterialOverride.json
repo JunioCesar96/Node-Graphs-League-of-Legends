@@ -1,0 +1,31 @@
+{
+  "id": "skin-mesh-data-properties-material-override__material-override-1",
+  "title": "SkinMeshDataProperties_MaterialOverride",
+  "parameters": [
+    {
+      "id": "SkinMeshDataProperties_MaterialOverride_parameter_glossTexture",
+      "name": "glossTexture",
+      "type": "string",
+      "defaultValue": "ASSETS/Characters/Zac/Skins/Base/Zac_base_ult_TX_GM.tex"
+    },
+    {
+      "id": "SkinMeshDataProperties_MaterialOverride_parameter_Submesh",
+      "name": "Submesh",
+      "type": "string",
+      "defaultValue": "Ult"
+    },
+    {
+      "id": "SkinMeshDataProperties_MaterialOverride_parameter_texture",
+      "name": "texture",
+      "type": "string",
+      "defaultValue": "ASSETS/Characters/Zac/Skins/Base/Zac_base_ult_TX_CM.tex"
+    }
+  ],
+  "embed": [],
+  "pointer": [],
+  "listEmbed": [],
+  "listPointer": [],
+  "list2Embed": [],
+  "list2Pointer": [],
+  "internalStructures": []
+}

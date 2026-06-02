@@ -1,0 +1,20 @@
+{
+  "id": "flags_flags",
+  "block": "VfxShapeSphere",
+  "parameterName": "flags",
+  "name": "flags",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-shape-sphere__main-characters/brand/skins/skin0/particles/brand-base-basic-attack-tar-complex-emitter-definition-data--slot--0-spawn-shape_parameter_flags"
+  },
+  "type": "u8",
+  "value": "1",
+  "slots": {
+    "in": [
+      "u8"
+    ],
+    "out": [
+      "u8"
+    ]
+  }
+}

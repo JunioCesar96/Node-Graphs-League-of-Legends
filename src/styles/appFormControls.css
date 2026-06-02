@@ -1,0 +1,114 @@
+/**
+ * Toggle, checkbox e range alinhados ao tema `default` (`--app-control-*` em tokens.css).
+ * Importado em global.css; activo em painéis com `data-app-form-controls`.
+ */
+
+/* Checkbox quadrado padrão (painéis sem estilo local de interruptor). */
+[data-app-form-controls] input[type='checkbox']:not([data-app-toggle-input]) {
+  width: 1.125rem;
+  height: 1.125rem;
+  accent-color: var(--app-control-accent);
+  cursor: pointer;
+}
+
+[data-app-form-controls] input[type='range'] {
+  --range-fill-percent: 50%;
+  width: 100%;
+  height: 18px;
+  accent-color: var(--app-control-accent);
+  cursor: pointer;
+  background: transparent;
+}
+
+[data-app-form-controls] input[type='range']:disabled {
+  cursor: not-allowed;
+  opacity: 0.35;
+}
+
+[data-app-form-controls] input[type='range']::-webkit-slider-runnable-track {
+  height: 4px;
+  border: 1px solid var(--app-control-range-track-border);
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    var(--app-control-range-fill) 0%,
+    var(--app-control-range-fill) var(--range-fill-percent),
+    var(--app-control-range-track) var(--range-fill-percent),
+    var(--app-control-range-track) 100%
+  );
+}
+
+[data-app-form-controls] input[type='range']::-webkit-slider-thumb {
+  width: 12px;
+  height: 12px;
+  margin-top: -5px;
+  appearance: none;
+  background: var(--app-control-range-thumb);
+  border: none;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 20%);
+}
+
+[data-app-form-controls] input[type='range']::-moz-range-track {
+  height: 4px;
+  border: 1px solid var(--app-control-range-track-border);
+  border-radius: 999px;
+  background: var(--app-control-range-track);
+}
+
+[data-app-form-controls] input[type='range']::-moz-range-progress {
+  height: 4px;
+  border-radius: 999px 0 0 999px;
+  background: var(--app-control-range-fill);
+}
+
+[data-app-form-controls] input[type='range']::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  appearance: none;
+  background: var(--app-control-range-thumb);
+  border: none;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 20%);
+}
+
+[data-app-form-controls] [data-app-toggle] {
+  position: relative;
+  flex-shrink: 0;
+  width: 38px;
+  height: 22px;
+  padding: 0;
+  cursor: pointer;
+  background: var(--app-control-toggle-off);
+  border: 1px solid var(--app-control-toggle-off-border);
+  border-radius: 999px;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease;
+}
+
+[data-app-form-controls] [data-app-toggle][data-on='true'] {
+  background: var(--app-control-toggle-on);
+  border-color: color-mix(in srgb, var(--app-control-toggle-on) 70%, rgb(0 0 0));
+}
+
+[data-app-form-controls] [data-app-toggle]:focus-visible {
+  outline: 2px solid var(--app-control-accent);
+  outline-offset: 2px;
+}
+
+[data-app-form-controls] [data-app-toggle-thumb] {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  background: var(--app-control-toggle-thumb);
+  border-radius: 50%;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 28%);
+  transition: transform 160ms ease;
+}
+
+[data-app-form-controls] [data-app-toggle][data-on='true'] [data-app-toggle-thumb] {
+  transform: translateX(16px);
+}

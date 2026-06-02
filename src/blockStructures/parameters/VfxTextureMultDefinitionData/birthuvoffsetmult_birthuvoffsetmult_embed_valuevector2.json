@@ -1,0 +1,17 @@
+{
+  "id": "birthUVOffsetMult_birthUVOffsetMult_embed_ValueVector2",
+  "block": "VfxTextureMultDefinitionData",
+  "parameterName": "birthUVOffsetMult",
+  "name": "birthUVOffsetMult",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-texture-mult-definition-data__entries-{particlePath}-complex-emitter-definition-data--slot--7-texture-mult-birth-uv-offset-mult"
+  },
+  "type": "embed",
+  "embed": "ValueVector2",
+  "slots": {
+    "out": [
+      "ValueVector2"
+    ]
+  }
+}

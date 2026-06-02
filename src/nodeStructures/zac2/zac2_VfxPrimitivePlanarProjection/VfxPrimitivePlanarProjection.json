@@ -1,0 +1,31 @@
+{
+  "id": "vfx-primitive-planar-projection__main-entries-0x04ff5c13-complex-emitter-definition-data-2-primitive",
+  "title": "VfxPrimitivePlanarProjection",
+  "parameters": [],
+  "embed": [
+    {
+      "id": "VfxPrimitivePlanarProjection_embed_mProjection",
+      "title": "mProjection",
+      "internalStructures": [
+        {
+          "id": "vfx-primitive-planar-projection-m-projection",
+          "name": "VfxProjectionDefinitionData",
+          "schemaId": "vfx-projection-definition-data__main-entries-0x04ff5c13-complex-emitter-definition-data-2-primitive-m-projection"
+        }
+      ],
+      "slots": [
+        {
+          "id": "VfxPrimitivePlanarProjection_embed_mProjection__slot__0",
+          "name": "VfxProjectionDefinitionData",
+          "schemaId": "vfx-projection-definition-data__main-entries-0x04ff5c13-complex-emitter-definition-data-2-primitive-m-projection"
+        }
+      ]
+    }
+  ],
+  "pointer": [],
+  "listEmbed": [],
+  "listPointer": [],
+  "list2Embed": [],
+  "list2Pointer": [],
+  "internalStructures": []
+}

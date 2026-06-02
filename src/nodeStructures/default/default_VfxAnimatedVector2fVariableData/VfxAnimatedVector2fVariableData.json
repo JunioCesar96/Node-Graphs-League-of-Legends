@@ -1,0 +1,82 @@
+{
+  "id": "vfx-animated-vector2f-variable-data__main-entries-0x7b3a4b5f-complex-emitter-definition-data-3-uv-scale-dynamics",
+  "title": "VfxAnimatedVector2fVariableData",
+  "parameters": [
+    {
+      "id": "VfxAnimatedVector2fVariableData_parameter_times",
+      "name": "times",
+      "type": "listF32",
+      "defaultValue": "0.5\n1"
+    },
+    {
+      "id": "VfxAnimatedVector2fVariableData_parameter_values",
+      "name": "values",
+      "type": "listVector2",
+      "defaultValue": "1, 1.5\n0.5, 6"
+    }
+  ],
+  "embed": [],
+  "pointer": [],
+  "listEmbed": [],
+  "listPointer": [
+    {
+      "id": "VfxAnimatedVector2fVariableData_listPointer_probabilityTables",
+      "title": "probabilityTables",
+      "internalStructures": [
+        {
+          "id": "vfx-animated-vector2f-variable-data-probability-tables-0",
+          "name": "VfxProbabilityTableData",
+          "schemaId": "vfx-probability-table-data__probability-tables-0"
+        },
+        {
+          "id": "vfx-animated-vector2f-variable-data-probability-tables-1",
+          "name": "VfxProbabilityTableData",
+          "schemaId": "vfx-probability-table-data__probability-tables-1"
+        }
+      ],
+      "slots": [
+        {
+          "id": "VfxAnimatedVector2fVariableData_listPointer_probabilityTables__slot__0",
+          "name": "VfxProbabilityTableData",
+          "schemaId": "vfx-probability-table-data__probability-tables-0"
+        },
+        {
+          "id": "VfxAnimatedVector2fVariableData_listPointer_probabilityTables__slot__1",
+          "name": "VfxProbabilityTableData",
+          "schemaId": "vfx-probability-table-data__probability-tables-1"
+        }
+      ]
+    }
+  ],
+  "list2Embed": [],
+  "list2Pointer": [],
+  "internalStructures": [],
+  "nomenclature": {
+    "group": "#3 Internal Structures",
+    "collection": "#3 Pointer Node",
+    "collectionType": "VfxAnimatedVector2fVariableData",
+    "pathHierarchy": "main > entries:0x7b3a4b5f > complexEmitterDefinitionData:3 > uvScale > dynamics",
+    "pathHierarchySteps": [
+      {
+        "id": "main",
+        "type": "#0 Root main"
+      },
+      {
+        "id": "entries:0x7b3a4b5f",
+        "type": "#2 Root Entry (VfxSystemDefinitionData)"
+      },
+      {
+        "id": "complexEmitterDefinitionData:3",
+        "type": "#3 Collection Block"
+      },
+      {
+        "id": "uvScale",
+        "type": "#3 Embed Block"
+      },
+      {
+        "id": "dynamics",
+        "type": "#3 Pointer Node"
+      }
+    ]
+  }
+}

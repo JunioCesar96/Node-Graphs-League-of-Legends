@@ -1,0 +1,20 @@
+{
+  "id": "erosionMapName_erosionMapName",
+  "block": "VfxAlphaErosionDefinitionData",
+  "parameterName": "erosionMapName",
+  "name": "erosionMapName",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-alpha-erosion-definition-data__entries-{particlePath}-complex-emitter-definition-data--slot--0-alpha-erosion-definition_parameter_erosionMapName"
+  },
+  "type": "string",
+  "value": "ASSETS/Characters/Brand/Skins/Base/Particles/Brand_Base_Q_ErosionPack01.tex",
+  "slots": {
+    "in": [
+      "string"
+    ],
+    "out": [
+      "string"
+    ]
+  }
+}

@@ -13,10 +13,24 @@
   cursor: default;
 }
 
+.overlayAnchored {
+  position: fixed;
+  z-index: 10050;
+  display: block;
+  padding: 0;
+  overflow: hidden;
+}
+
 .root {
   position: relative;
   align-self: start;
   width: min(560px, calc(100% - 2rem));
+}
+
+.rootAnchored {
+  position: fixed;
+  z-index: 10051;
+  width: min(560px, calc(100vw - 1rem));
 }
 
 .panel {
@@ -40,11 +54,27 @@
   align-items: center;
   justify-content: space-between;
   flex-shrink: 0;
+  margin: calc(-1 * var(--space-2)) calc(-1 * var(--space-2)) 0;
+  padding: var(--space-2) var(--space-2) var(--space-1);
   color: var(--color-text-muted);
   font-family: var(--font-data);
   font-size: 0.72rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+  border-radius: 18px 18px 10px 10px;
+}
+
+.header:hover {
+  color: var(--color-text-secondary);
+  background: var(--app-subtle-surface);
+}
+
+.header[data-dragging='true'] {
+  cursor: grabbing;
+  background: var(--app-subtle-surface-hover);
 }
 
 .header kbd {
@@ -86,6 +116,40 @@
   font-family: var(--font-data);
   font-size: 0.68rem;
   line-height: 1.35;
+}
+
+.catalogToggle {
+  display: inline-flex;
+  align-self: flex-start;
+  flex-shrink: 0;
+  gap: 2px;
+  padding: 3px;
+  background: rgb(0 0 0 / 18%);
+  border: 1px solid var(--color-border-soft);
+  border-radius: 12px;
+}
+
+.catalogToggle button {
+  min-width: 5.5rem;
+  padding: 0.45rem 0.85rem;
+  color: var(--color-text-muted);
+  font-family: var(--font-data);
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 9px;
+}
+
+.catalogToggle button:hover {
+  color: var(--color-text-secondary);
+}
+
+.catalogToggle button[aria-pressed='true'] {
+  color: var(--color-text-primary);
+  background: rgb(255 255 255 / 6%);
+  border-color: rgb(255 255 255 / 14%);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 8%);
 }
 
 .tags {

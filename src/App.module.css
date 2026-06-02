@@ -8,13 +8,35 @@
 }
 
 .sceneTabRow {
+  position: relative;
+  z-index: 12;
   display: flex;
   flex-shrink: 0;
-  align-items: flex-end;
+  gap: var(--space-3);
+  align-items: stretch;
   width: 100%;
   min-width: 0;
   min-height: 28px;
+  overflow: visible;
   border-bottom: 1px solid var(--color-border-soft);
+}
+
+.sceneToolbarChrome {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  align-self: stretch;
+  min-height: 0;
+  margin-right: var(--space-1);
+  overflow: visible;
+  pointer-events: auto;
+}
+
+.sceneTabBarSlot {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: flex-end;
+  min-width: 0;
 }
 
 .graphColumn {

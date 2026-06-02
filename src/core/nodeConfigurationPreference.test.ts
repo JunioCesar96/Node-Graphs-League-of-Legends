@@ -2,10 +2,14 @@ import { describe, expect, it, beforeEach } from 'vitest'
 
 import {
   DEFAULT_CLASS_GROUP_PACK_FOLDER,
+  DEFAULT_CODE_TO_NODE_GRAPH_PACK_FOLDER,
   STORAGE_CLASS_GROUP_PACK_FOLDER_KEY,
+  STORAGE_CODE_TO_NODE_GRAPH_PACK_FOLDER_KEY,
   getClassGroupConverterPackFolder,
+  getCodeToNodeGraphPackFolder,
   parseClassGroupPackFolderName,
   setClassGroupConverterPackFolder,
+  setCodeToNodeGraphPackFolder,
 } from '@/core/nodeConfigurationPreference'
 
 describe('nodeConfigurationPreference', () => {
@@ -32,5 +36,16 @@ describe('nodeConfigurationPreference', () => {
     expect(parseClassGroupPackFolderName('default')).toBeNull()
     expect(setClassGroupConverterPackFolder('')).toBeNull()
     expect(getClassGroupConverterPackFolder()).toBe(DEFAULT_CLASS_GROUP_PACK_FOLDER)
+  })
+
+  it('usa default por defeito em Code To Node Graph', () => {
+    window.localStorage.removeItem(STORAGE_CODE_TO_NODE_GRAPH_PACK_FOLDER_KEY)
+    expect(getCodeToNodeGraphPackFolder()).toBe(DEFAULT_CODE_TO_NODE_GRAPH_PACK_FOLDER)
+  })
+
+  it('persiste pasta Code To Node Graph', () => {
+    window.localStorage.removeItem(STORAGE_CODE_TO_NODE_GRAPH_PACK_FOLDER_KEY)
+    expect(setCodeToNodeGraphPackFolder('meu-pack')).toBe('meu-pack')
+    expect(getCodeToNodeGraphPackFolder()).toBe('meu-pack')
   })
 })

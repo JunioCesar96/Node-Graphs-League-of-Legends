@@ -1,0 +1,20 @@
+{
+  "id": "disableBackfaceCull_disableBackfaceCull",
+  "block": "VfxEmitterDefinitionData",
+  "parameterName": "disableBackfaceCull",
+  "name": "disableBackfaceCull",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-emitter-definition-data__entries-{particlePath}-complex-emitter-definition-data--slot--5_parameter_disableBackfaceCull"
+  },
+  "type": "bool",
+  "value": "true",
+  "slots": {
+    "in": [
+      "bool"
+    ],
+    "out": [
+      "bool"
+    ]
+  }
+}

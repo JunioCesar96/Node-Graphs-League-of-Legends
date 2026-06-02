@@ -1,0 +1,20 @@
+{
+  "id": "particleName_particleName",
+  "block": "VfxSystemDefinitionData",
+  "parameterName": "particleName",
+  "name": "particleName",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-system-definition-data__entries-{particlePath}_parameter_particleName"
+  },
+  "type": "string",
+  "value": "Brand_Base_E_Conflagration_buf",
+  "slots": {
+    "in": [
+      "string"
+    ],
+    "out": [
+      "string"
+    ]
+  }
+}

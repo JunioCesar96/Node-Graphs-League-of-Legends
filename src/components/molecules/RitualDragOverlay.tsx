@@ -46,6 +46,19 @@ function DocumentIcon() {
   )
 }
 
+function LinkIcon() {
+  return (
+    <svg viewBox="0 0 20 20" width="18" height="18" fill="none" aria-hidden>
+      <path
+        d="M7.5 12.5l5-5M8.5 7.5h-2a2.5 2.5 0 1 0 0 5h2M11.5 12.5h2a2.5 2.5 0 1 0 0-5h-2"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+    </svg>
+  )
+}
+
 function DragMoveIcon() {
   return (
     <svg viewBox="0 0 20 20" width="18" height="18" fill="none" aria-hidden>
@@ -73,7 +86,12 @@ export function RitualDragOverlay() {
     <div className={styles.overlay} aria-hidden>
       {ritualDrag.phase === 'hint' ? (
         <div className={styles.hint} style={{ left: x, top: y }}>
-          Ctrl+Drag
+          Ctrl+arrasto · Neeko
+        </div>
+      ) : null}
+      {ritualDrag.phase === 'hintLink' ? (
+        <div className={styles.hint} style={{ left: x, top: y }}>
+          Shift+arrasto · Vincular área
         </div>
       ) : null}
       {ritualDrag.phase === 'hintCtrl' ? (
@@ -89,6 +107,16 @@ export function RitualDragOverlay() {
           <NeekoSpeechBubble x={x} y={y}>
             Na grade: pressione ou solte Ctrl para criar Neeko node
           </NeekoSpeechBubble>
+        </>
+      ) : null}
+      {ritualDrag.phase === 'linkDragging' ? (
+        <>
+          <div className={styles.dragHintIcon} style={{ left: x, top: y }}>
+            <LinkIcon />
+          </div>
+          <div className={styles.buildMessage} style={{ left: x, top: y + 28 }}>
+            Solte no nó para vincular esta área do código
+          </div>
         </>
       ) : null}
       {ritualDrag.phase === 'readyNeeko' ? (

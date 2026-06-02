@@ -322,20 +322,74 @@
   word-break: break-word;
 }
 
-/* Linha minimizada: cápsula + botão pin (inspector com ou sem nó). */
-.inspectorMinimizedDockRow {
+.minimizedDockRow {
   display: inline-flex;
+  gap: var(--space-1);
+  align-items: center;
+  max-width: min(520px, calc(100vw - 48px));
+  height: 42px;
+  padding: 0 var(--space-1) 0 var(--space-2);
+  background: var(--app-panel-bg-strong);
+  border: 1px solid var(--color-border-soft);
+  border-radius: 999px;
+  box-shadow: 0 8px 28px rgb(0 0 0 / 22%);
+  backdrop-filter: blur(12px);
+}
+
+.minimizedDockRowDraggable .minimizedButton {
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.minimizedDockRowDraggable .minimizedButton:active {
+  cursor: grabbing;
+}
+
+.minimizedButton {
+  display: inline-flex;
+  flex: 1 1 auto;
   gap: var(--space-2);
   align-items: center;
-}
-
-.inspectorMinimizedDockRow .dockToggle {
-  flex-shrink: 0;
-}
-
-/* Minimizado + acoplado à barra da vista: sem arrastar a cápsula. */
-.inspectorMinimizedDockRowDocked .minimized {
+  min-width: 0;
+  padding: 0 var(--space-1);
+  color: var(--color-text-primary);
   cursor: pointer;
+  background: transparent;
+  border: none;
+}
+
+.minimizedLabel {
+  min-width: 0;
+  overflow: hidden;
+  font-family: var(--font-data);
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.minimizedDockActions {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  padding-right: var(--space-1);
+}
+
+.minimizedDockRow .minimizedIcon {
+  display: inline-grid;
+  flex: 0 0 22px;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  opacity: 1;
+}
+
+.minimizedDockRow .dockToggle {
+  width: 28px;
+  height: 28px;
+  background: rgb(0 0 0 / 18%);
 }
 
 .meta {

@@ -70,7 +70,7 @@
 }
 
 .overlayItem input {
-  accent-color: #4ec8e8;
+  accent-color: var(--vfx-control-accent);
 }
 
 .overlayCheckboxOnly {

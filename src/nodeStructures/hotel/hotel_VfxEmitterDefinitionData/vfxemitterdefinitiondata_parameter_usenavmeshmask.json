@@ -1,6 +1,0 @@
-{
-  "id": "VfxEmitterDefinitionData_parameter_useNavmeshMask",
-  "name": "useNavmeshMask",
-  "type": "flag",
-  "defaultValue": "false"
-}

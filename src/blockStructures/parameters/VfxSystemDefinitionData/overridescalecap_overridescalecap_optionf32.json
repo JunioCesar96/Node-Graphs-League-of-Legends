@@ -1,0 +1,17 @@
+{
+  "id": "overrideScaleCap_overrideScaleCap_optionF32",
+  "block": "VfxSystemDefinitionData",
+  "parameterName": "overrideScaleCap",
+  "name": "overrideScaleCap",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-system-definition-data__main-characters/brand/skins/skin0/particles/brand-base-p-fire-mark3_parameter_overrideScaleCap"
+  },
+  "type": "optionF32",
+  "item": "600",
+  "slots": {
+    "out": [
+      "f32"
+    ]
+  }
+}

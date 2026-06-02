@@ -1,0 +1,59 @@
+{
+  "id": "value-float__main-entries-0xa2fa6a01-complex-emitter-definition-data-10-alpha-erosion-definition-erosion-drive-curve",
+  "title": "ValueFloat",
+  "parameters": [],
+  "embed": [],
+  "pointer": [
+    {
+      "id": "ValueFloat_pointer_dynamics",
+      "title": "dynamics",
+      "internalStructures": [
+        {
+          "id": "value-float-dynamics",
+          "name": "VfxAnimatedFloatVariableData",
+          "schemaId": "vfx-animated-float-variable-data__main-entries-0xa2fa6a01-complex-emitter-definition-data-10-alpha-erosion-definition-erosion-drive-curve-dynamics"
+        }
+      ],
+      "slots": [
+        {
+          "id": "ValueFloat_pointer_dynamics__slot__0",
+          "name": "VfxAnimatedFloatVariableData",
+          "schemaId": "vfx-animated-float-variable-data__main-entries-0xa2fa6a01-complex-emitter-definition-data-10-alpha-erosion-definition-erosion-drive-curve-dynamics"
+        }
+      ]
+    }
+  ],
+  "listEmbed": [],
+  "listPointer": [],
+  "list2Embed": [],
+  "list2Pointer": [],
+  "internalStructures": [],
+  "nomenclature": {
+    "group": "#3 Internal Structures",
+    "collection": "#3 Embed Block",
+    "collectionType": "ValueFloat",
+    "pathHierarchy": "main > entries:0xa2fa6a01 > complexEmitterDefinitionData:10 > alphaErosionDefinition > erosionDriveCurve",
+    "pathHierarchySteps": [
+      {
+        "id": "main",
+        "type": "#0 Root main"
+      },
+      {
+        "id": "entries:0xa2fa6a01",
+        "type": "#2 Root Entry (VfxSystemDefinitionData)"
+      },
+      {
+        "id": "complexEmitterDefinitionData:10",
+        "type": "#3 Collection Block"
+      },
+      {
+        "id": "alphaErosionDefinition",
+        "type": "#3 Pointer Node"
+      },
+      {
+        "id": "erosionDriveCurve",
+        "type": "#3 Embed Block"
+      }
+    ]
+  }
+}

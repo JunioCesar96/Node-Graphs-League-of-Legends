@@ -55,7 +55,29 @@ import {
   revertBlockTokensFromNode,
 } from '@/core/blockTokenCodegen'
 import { syncBlockParameterEdit, applyBlockStructureToNodeValues } from '@/core/syncBlockToCode'
-import { canConnectBlockSlots, findBlockSlotEndpoint, propagateBlockConnectionValue } from '@/core/blockSlotConnections'
+import type { BlockDefinitionJsonDocument } from '@/core/blockDefinitionJson'
+import {
+  resolveSchemaIdForBlockDefinition,
+} from '@/core/blockDefinitionJson'
+import {
+  mergeBlockHierarchyIntoScene,
+  planBlockHierarchySpawn,
+} from '@/core/blockHierarchySpawn'
+import { persistMissingBlockParameterCatalog, persistMissingBlockParameterCatalogForDefinitions } from '@/core/blockParameterCatalogPersist'
+import {
+  addParameterToBlockStructure,
+  applyBlockStructureWithTokens,
+  removeParameterFromBlockStructure,
+  updateParameterInBlockStructure,
+} from '@/core/blockCatalogMutations'
+import type { BlockParameterJsonDocument } from '@/core/blockParameterJson'
+import {
+  applyBlockSlotConnectionToScene,
+  type BlockDefinitionSpawnLinkContext,
+  classifyBlockSlotConnection,
+  findBlockSlotEndpoint,
+} from '@/core/blockSlotConnections'
+import { resolveBlockHeaderInputSlotIdForLink } from '@/core/blockCardHeaderSlots'
 import type { GroupInspectorDraft } from '@/core/groupSchema'
 import { GROUP_CARD_WIDTH, isGroupPointerSourcePath } from '@/core/groupSchema'
 import { normalizeStructureCardWidth } from '@/core/structureCardLayout'
@@ -65,7 +87,12 @@ import {
   revertGroupTokensFromNode,
 } from '@/core/groupTokenCodegen'
 import { syncGroupParameterEdit, applyGroupStructureToNodeValues } from '@/core/syncGroupToCode'
-import { canConnectGroupSlots, findGroupSlotEndpoint, propagateGroupConnectionValue } from '@/core/groupSlotConnections'
+import {
+  canConnectGroupSlots,
+  findGroupSlotEndpoint,
+  propagateGroupConnectionValue,
+  withoutConnectionsToGroupInputSlot,
+} from '@/core/groupSlotConnections'
 import { groupInspectorTagsFromEntry } from '@/core/groupInspectorUi'
 import {
   applySceneHiddenToNodeIds,
@@ -870,7 +897,11 @@ export function useSceneHistory(options?: {
   const patchSceneChrome = useCallback(
     (patch: {
       sceneNodes?: Partial<SceneNodesChrome>
+      toolbarCollapsed?: boolean
       toolbarVisibility?: SceneChromeState['toolbarVisibility']
+      showCanvasGrid?: boolean
+      canvasGridSize?: number
+      canvasGridOpacity?: number
     }) => {
       setSceneHistory((currentHistory) => {
         const present = currentHistory.present
@@ -879,19 +910,35 @@ export function useSceneHistory(options?: {
           patch.sceneNodes !== undefined
             ? { ...prev.sceneNodes, ...patch.sceneNodes }
             : prev.sceneNodes
+        const nextToolbarCollapsed =
+          patch.toolbarCollapsed !== undefined ? patch.toolbarCollapsed : prev.toolbarCollapsed
         const nextToolbar =
           patch.toolbarVisibility !== undefined ? patch.toolbarVisibility : prev.toolbarVisibility
+        const nextShowCanvasGrid =
+          patch.showCanvasGrid !== undefined ? patch.showCanvasGrid : prev.showCanvasGrid
+        const nextGridSize =
+          patch.canvasGridSize !== undefined ? patch.canvasGridSize : prev.canvasGridSize
+        const nextGridOpacity =
+          patch.canvasGridOpacity !== undefined ? patch.canvasGridOpacity : prev.canvasGridOpacity
 
         if (
           sceneNodesChromeEqual(prev.sceneNodes, nextSceneNodes) &&
-          prev.toolbarVisibility === nextToolbar
+          prev.toolbarCollapsed === nextToolbarCollapsed &&
+          prev.toolbarVisibility === nextToolbar &&
+          prev.showCanvasGrid === nextShowCanvasGrid &&
+          prev.canvasGridSize === nextGridSize &&
+          prev.canvasGridOpacity === nextGridOpacity
         ) {
           return currentHistory
         }
 
         const nextChrome: SceneChromeState = {
           ...(nextSceneNodes !== undefined ? { sceneNodes: nextSceneNodes } : {}),
+          ...(nextToolbarCollapsed !== undefined ? { toolbarCollapsed: nextToolbarCollapsed } : {}),
           ...(nextToolbar !== undefined ? { toolbarVisibility: nextToolbar } : {}),
+          ...(nextShowCanvasGrid !== undefined ? { showCanvasGrid: nextShowCanvasGrid } : {}),
+          ...(nextGridSize !== undefined ? { canvasGridSize: nextGridSize } : {}),
+          ...(nextGridOpacity !== undefined ? { canvasGridOpacity: nextGridOpacity } : {}),
         }
 
         return {
@@ -1426,6 +1473,145 @@ export function useSceneHistory(options?: {
       })
     },
     [updateScene, schemaLookup],
+  )
+
+  const createBlockNodeFromDefinition = useCallback(
+    (
+      definition: BlockDefinitionJsonDocument,
+      position?: CanvasPosition,
+      spawnLink?: BlockDefinitionSpawnLinkContext,
+    ): { ok: true; nodeId: string } | { ok: false; error: string } => {
+      const blockName = definition.blockName?.trim() ?? ''
+      if (!blockName) {
+        return { ok: false, error: 'Definição de bloco sem blockName.' }
+      }
+
+      const schemaId = resolveSchemaIdForBlockDefinition(blockName, schemaLookup)
+      if (!schemaId) {
+        return {
+          ok: false,
+          error: `Schema não encontrado para o bloco "${blockName}".`,
+        }
+      }
+
+      const schema = schemaLookup[schemaId]
+      if (!schema) {
+        return { ok: false, error: `Schema "${schemaId}" indisponível.` }
+      }
+
+      let createdId: string | null = null
+
+      updateScene((currentScene) => {
+        const spawnPosition = position ?? getNextDetachedNodePosition(currentScene)
+        // Ao inserir bloco pelo catálogo, começa sempre vazio.
+        const spawnDefinition: BlockDefinitionJsonDocument = {
+          ...definition,
+          parameters: [],
+        }
+        const plan = planBlockHierarchySpawn(
+          spawnDefinition,
+          schema,
+          schemaLookup,
+          currentScene,
+          spawnPosition,
+        )
+
+        if (!plan) {
+          return currentScene
+        }
+
+        createdId = plan.rootNodeId
+
+        queueMicrotask(() =>
+          setSelectionState({
+            ids: [plan.rootNodeId],
+            primaryId: plan.rootNodeId,
+          }),
+        )
+
+        let nextScene = mergeBlockHierarchyIntoScene(currentScene, plan)
+
+        if (spawnLink) {
+          const inputSlotId = resolveBlockHeaderInputSlotIdForLink(
+            definition.blockName,
+            definition.headerSlots,
+            {
+              fromParameterName: spawnLink.fromParameterName,
+              outTypes: spawnLink.outTypes,
+              targetBlockName: definition.blockName,
+              targetDisplayName: definition.name,
+            },
+          )
+          if (inputSlotId) {
+            const linked = applyBlockSlotConnectionToScene(nextScene, {
+              fromNodeId: spawnLink.fromNodeId,
+              fromBlockSlotId: spawnLink.fromBlockSlotId,
+              fromBlockParameterId: spawnLink.fromBlockParameterId,
+              toNodeId: plan.rootNodeId,
+              toBlockSlotId: inputSlotId,
+              allowForced: true,
+            })
+            if (linked) {
+              nextScene = linked
+            }
+          }
+        }
+
+        return nextScene
+      })
+
+      if (!createdId) {
+        return { ok: false, error: 'Não foi possível criar o nó do bloco.' }
+      }
+
+      void persistMissingBlockParameterCatalog(definition, schemaLookup).then((writeResult) => {
+        if (!writeResult.ok) {
+          console.warn(
+            '[createBlockNodeFromDefinition] Falha ao gravar parâmetros no disco:',
+            writeResult.error,
+            writeResult.errors,
+          )
+          return
+        }
+        const count =
+          (writeResult.written?.length ?? 0) + (writeResult.overwritten?.length ?? 0)
+        if (count > 0) {
+          console.info(
+            `[createBlockNodeFromDefinition] Parâmetros gravados em blockStructures/parameters/ (${count} ficheiro(s)).`,
+          )
+        }
+      })
+
+      return { ok: true, nodeId: createdId }
+    },
+    [updateScene, schemaLookup],
+  )
+
+  const syncBlockParameterCatalogFromDefinitions = useCallback(
+    async (definitions: readonly BlockDefinitionJsonDocument[]) => {
+      const writeResult = await persistMissingBlockParameterCatalogForDefinitions(
+        definitions,
+        schemaLookup,
+      )
+      if (!writeResult.ok) {
+        console.warn(
+          '[syncBlockParameterCatalogFromDefinitions] Falha ao gravar parâmetros:',
+          writeResult.error,
+          writeResult.errors,
+        )
+        return writeResult
+      }
+
+      const count = (writeResult.written?.length ?? 0) + (writeResult.overwritten?.length ?? 0)
+      if (count > 0) {
+        console.info(
+          `[syncBlockParameterCatalogFromDefinitions] Parâmetros gravados (${count} ficheiro(s)).`,
+        )
+      }
+
+      return writeResult
+    },
+    [schemaLookup],
   )
 
   const spawnNeekoNodeAtPosition = useCallback(
@@ -3149,84 +3335,43 @@ export function useSceneHistory(options?: {
     [updateScene],
   )
 
-  const connectBlockSlots = useCallback(
+  const addBlockParameterFromCatalog = useCallback(
     (
-      fromNodeId: string,
-      fromBlockSlotId: string,
-      fromBlockParameterId: string | undefined,
-      toNodeId: string,
-      toBlockSlotId: string,
-      toBlockParameterId: string | undefined,
-    ) => {
+      nodeId: string,
+      doc: BlockParameterJsonDocument,
+    ): { ok: true } | { ok: false; error: string } => {
+      let error: string | undefined
+      let didApply = false
+
       updateScene((currentScene) => {
-        const fromNode = currentScene.nodes.find((node) => node.id === fromNodeId)
-        const toNode = currentScene.nodes.find((node) => node.id === toNodeId)
-        if (!fromNode?.blockStructure || !toNode?.blockStructure) {
+        const canvasNode = currentScene.nodes.find((node) => node.id === nodeId)
+        if (!canvasNode?.blockStructure) {
+          error = 'Bloco não encontrado.'
           return currentScene
         }
 
-        const fromEndpoint = findBlockSlotEndpoint(fromNode, fromBlockSlotId)
-        const toEndpoint = findBlockSlotEndpoint(toNode, toBlockSlotId)
-        if (!fromEndpoint || !toEndpoint || !canConnectBlockSlots(fromEndpoint, toEndpoint)) {
+        const added = addParameterToBlockStructure(canvasNode.blockStructure, doc, {
+          disableSimpleSlotsByDefault: true,
+          complexOutputOnlyByDefault: true,
+        })
+        if (added.error) {
+          error = added.error
           return currentScene
         }
 
-        const connectionId = `block:${fromNodeId}:${fromBlockSlotId}->${toNodeId}:${toBlockSlotId}`
-        if (currentScene.connections.some((connection) => connection.id === connectionId)) {
-          return currentScene
-        }
-
-        let nextFromStructure = fromNode.blockStructure
-        let nextToStructure = toNode.blockStructure
-
-        if (fromBlockParameterId && toBlockParameterId) {
-          const propagated = propagateBlockConnectionValue(
-            fromNode.blockStructure,
-            toNode.blockStructure,
-            fromBlockParameterId,
-            toBlockParameterId,
-          )
-          if (propagated) {
-            nextFromStructure = propagated.source
-            nextToStructure = propagated.target
-          }
-        }
-
-        const connection: CanvasConnection = {
-          id: connectionId,
-          fromNodeId,
-          fromInternalStructureId: `__block__:${fromBlockSlotId}`,
-          toNodeId,
-          routing: 'wireless',
-          fromBlockSlotId,
-          ...(fromBlockParameterId ? { fromBlockParameterId } : {}),
-          toBlockSlotId,
-          ...(toBlockParameterId ? { toBlockParameterId } : {}),
-        }
-
-        const fromApplied = applyBlockStructureToNodeValues(currentScene, {
-          ...fromNode,
-          blockStructure: nextFromStructure,
-        }, nextFromStructure)
-        const toApplied = applyBlockStructureToNodeValues(currentScene, {
-          ...toNode,
-          blockStructure: nextToStructure,
-        }, nextToStructure)
-
-        const childPatchMap = new Map([
-          ...fromApplied.childPatches,
-          ...toApplied.childPatches,
-        ].map((patch) => [patch.nodeId, patch.node]))
+        const applied = applyBlockStructureWithTokens(currentScene, canvasNode, added.structure)
+        const childPatchMap = new Map(applied.childPatches.map((patch) => [patch.nodeId, patch.node]))
+        didApply = true
 
         return {
           ...currentScene,
-          connections: [...currentScene.connections, connection],
           nodes: currentScene.nodes.map((node) => {
-            if (node.id === fromNodeId) {
-              return { ...node, blockStructure: nextFromStructure, node: fromApplied.node }
-            }
-            if (node.id === toNodeId) {
-              return { ...node, blockStructure: nextToStructure, node: toApplied.node }
+            if (node.id === nodeId) {
+              return {
+                ...node,
+                node: applied.node,
+                blockStructure: added.structure,
+              }
             }
             const childPatch = childPatchMap.get(node.id)
             if (childPatch) {
@@ -3235,6 +3380,108 @@ export function useSceneHistory(options?: {
             return node
           }),
         }
+      })
+
+      if (error) {
+        return { ok: false, error }
+      }
+      if (!didApply) {
+        return { ok: false, error: 'Não foi possível adicionar o parâmetro.' }
+      }
+      return { ok: true }
+    },
+    [updateScene],
+  )
+
+  const removeBlockParameter = useCallback(
+    (nodeId: string, paramId: string) => {
+      updateScene((currentScene) => {
+        const canvasNode = currentScene.nodes.find((node) => node.id === nodeId)
+        if (!canvasNode?.blockStructure) {
+          return currentScene
+        }
+
+        const structure = removeParameterFromBlockStructure(canvasNode.blockStructure, paramId)
+        const applied = applyBlockStructureWithTokens(currentScene, canvasNode, structure)
+        const childPatchMap = new Map(applied.childPatches.map((patch) => [patch.nodeId, patch.node]))
+
+        return {
+          ...currentScene,
+          nodes: currentScene.nodes.map((node) => {
+            if (node.id === nodeId) {
+              return {
+                ...node,
+                node: applied.node,
+                blockStructure: structure,
+              }
+            }
+            const childPatch = childPatchMap.get(node.id)
+            if (childPatch) {
+              return { ...node, node: childPatch }
+            }
+            return node
+          }),
+        }
+      })
+    },
+    [updateScene],
+  )
+
+  const updateBlockParameterFromInspector = useCallback(
+    (nodeId: string, paramId: string, entry: BlockInspectorDraft['entries'][number]) => {
+      updateScene((currentScene) => {
+        const canvasNode = currentScene.nodes.find((node) => node.id === nodeId)
+        if (!canvasNode?.blockStructure) {
+          return currentScene
+        }
+
+        const structure = updateParameterInBlockStructure(canvasNode.blockStructure, paramId, entry)
+        const applied = applyBlockStructureWithTokens(currentScene, canvasNode, structure)
+        const childPatchMap = new Map(applied.childPatches.map((patch) => [patch.nodeId, patch.node]))
+
+        return {
+          ...currentScene,
+          nodes: currentScene.nodes.map((node) => {
+            if (node.id === nodeId) {
+              return {
+                ...node,
+                node: applied.node,
+                blockStructure: structure,
+              }
+            }
+            const childPatch = childPatchMap.get(node.id)
+            if (childPatch) {
+              return { ...node, node: childPatch }
+            }
+            return node
+          }),
+        }
+      })
+    },
+    [updateScene],
+  )
+
+  const connectBlockSlots = useCallback(
+    (
+      fromNodeId: string,
+      fromBlockSlotId: string,
+      fromBlockParameterId: string | undefined,
+      toNodeId: string,
+      toBlockSlotId: string,
+      toBlockParameterId: string | undefined,
+      allowForced = false,
+    ) => {
+      updateScene((currentScene) => {
+        const linked = applyBlockSlotConnectionToScene(currentScene, {
+          fromNodeId,
+          fromBlockSlotId,
+          fromBlockParameterId,
+          toNodeId,
+          toBlockSlotId,
+          toBlockParameterId,
+          allowForced,
+        })
+        return linked ?? currentScene
       })
     },
     [updateScene],
@@ -3507,9 +3754,15 @@ export function useSceneHistory(options?: {
           ...toApplied.childPatches,
         ].map((patch) => [patch.nodeId, patch.node]))
 
+        const connections = withoutConnectionsToGroupInputSlot(
+          currentScene.connections,
+          toNodeId,
+          toGroupSlotId,
+        )
+
         return {
           ...currentScene,
-          connections: [...currentScene.connections, connection],
+          connections: [...connections, connection],
           nodes: currentScene.nodes.map((node) => {
             if (node.id === fromNodeId) {
               return { ...node, groupStructure: nextFromStructure, node: fromApplied.node }
@@ -3563,6 +3816,8 @@ export function useSceneHistory(options?: {
     relinkInternalStructureSlot,
     createChildNode,
     createRootNode,
+    createBlockNodeFromDefinition,
+    syncBlockParameterCatalogFromDefinitions,
     spawnNeekoNodeAtPosition,
     deleteNodeIds,
     deleteSelectedNodes,
@@ -3620,6 +3875,9 @@ export function useSceneHistory(options?: {
     generateBlockFromNode,
     revertBlockView,
     updateBlockParameter,
+    addBlockParameterFromCatalog,
+    removeBlockParameter,
+    updateBlockParameterFromInspector,
     connectBlockSlots,
     buildBlockInspectorDraft,
     getBlockInspectorDraft,

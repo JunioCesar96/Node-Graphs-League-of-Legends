@@ -8,13 +8,14 @@ import { ParameterMapHashPointerInput } from '@/components/molecules/ParameterMa
 import { ParameterMapU64PointerInput } from '@/components/molecules/ParameterMapU64PointerInput'
 import { ParameterValueInput } from '@/components/molecules/ParameterValueInput'
 import {
-  isRetractedElementPulsing,
+  retractedElementPulseVariant,
   type WirelessPortHandlers,
   type WirelessPortLink,
   type WirelessPortPulseTarget,
 } from '@/core/connectionDisplay'
 import { canvasContextElementProps } from '@/core/canvasContextMenuAttributes'
 import { elementTitleDoubleClickRetractProps } from '@/core/elementTitleInteraction'
+import type { OutputSlotPeerActions } from '@/core/outputSlotPeerActions'
 import type {
   ElementViewKey,
   ElementViewMode,
@@ -60,6 +61,7 @@ type ParameterItemProps = {
   wirelessOutputLinks?: ReadonlyMap<string, WirelessPortLink>
   wirelessPortHandlers?: WirelessPortHandlers
   wirelessPortPulse?: WirelessPortPulseTarget
+  outputSlotPeerActions?: OutputSlotPeerActions
   elementViewKey?: ElementViewKey
   viewMode?: ElementViewMode
   selectedIndex?: number
@@ -91,6 +93,7 @@ export function ParameterItem({
   wirelessOutputLinks,
   wirelessPortHandlers,
   wirelessPortPulse,
+  outputSlotPeerActions,
   elementViewKey,
   viewMode = 'list',
   selectedIndex = 0,
@@ -132,6 +135,7 @@ export function ParameterItem({
         wirelessOutputLinks={wirelessOutputLinks}
         wirelessPortHandlers={wirelessPortHandlers}
         wirelessPortPulse={wirelessPortPulse}
+        outputSlotPeerActions={outputSlotPeerActions}
         onSelectedIndexChange={onElementSelectedIndexChange}
         onViewModeChange={onElementViewModeChange}
         parameterId={parameter.id}
@@ -159,6 +163,7 @@ export function ParameterItem({
         wirelessOutputLinks={wirelessOutputLinks}
         wirelessPortHandlers={wirelessPortHandlers}
         wirelessPortPulse={wirelessPortPulse}
+        outputSlotPeerActions={outputSlotPeerActions}
         onSelectedIndexChange={onElementSelectedIndexChange}
         onViewModeChange={onElementViewModeChange}
         parameterId={parameter.id}
@@ -186,6 +191,7 @@ export function ParameterItem({
         wirelessOutputLinks={wirelessOutputLinks}
         wirelessPortHandlers={wirelessPortHandlers}
         wirelessPortPulse={wirelessPortPulse}
+        outputSlotPeerActions={outputSlotPeerActions}
         onSelectedIndexChange={onElementSelectedIndexChange}
         onViewModeChange={onElementViewModeChange}
         parameterId={parameter.id}
@@ -263,8 +269,8 @@ export function ParameterItem({
           parameterType={parameter.type}
           onExpand={onExpandFromRetracted}
           reorderHandlers={parameterNameReorderHandlers}
-          wirelessPulse={
-            elementViewKey ? isRetractedElementPulsing(wirelessPortPulse, elementViewKey) : false
+          pulseVariant={
+            elementViewKey ? retractedElementPulseVariant(wirelessPortPulse, elementViewKey) : undefined
           }
         />
       </li>
@@ -294,7 +300,9 @@ export function ParameterItem({
         <div className={styles.cellName}>{hintAndName}</div>
         <div className={styles.cellType}>
           <div className={styles.typeUnderName}>
-            <SyntaxType className={styles.typeLabel} type={parameter.type} />
+            <span>
+              <SyntaxType className={styles.typeLabel} type={parameter.type} />
+            </span>
           </div>
         </div>
         <div

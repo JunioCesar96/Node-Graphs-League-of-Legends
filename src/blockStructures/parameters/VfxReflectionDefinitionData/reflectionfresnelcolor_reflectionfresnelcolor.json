@@ -1,0 +1,20 @@
+{
+  "id": "reflectionFresnelColor_reflectionFresnelColor",
+  "block": "VfxReflectionDefinitionData",
+  "parameterName": "reflectionFresnelColor",
+  "name": "reflectionFresnelColor",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-reflection-definition-data__entries-{particlePath}-complex-emitter-definition-data--slot--0-reflection-definition_parameter_reflectionFresnelColor"
+  },
+  "type": "vec4",
+  "value": "0.1, 0.3, 0.08, 1",
+  "slots": {
+    "in": [
+      "vec4"
+    ],
+    "out": [
+      "vec4"
+    ]
+  }
+}

@@ -1,6 +1,0 @@
-{
-  "id": "VfxAlphaErosionDefinitionData_parameter_erosionFeatherIn",
-  "name": "erosionFeatherIn",
-  "type": "f32",
-  "defaultValue": "0"
-}

@@ -3,6 +3,7 @@ import type { GraphCanvasHandle } from '@/components/organisms/GraphCanvas'
 import type { CSSProperties, PointerEvent } from 'react'
 
 import { ConsoleNotificationCapsule } from '@/components/molecules/ConsoleNotificationCapsule'
+import { CanvasViewportStatusBar } from '@/components/molecules/CanvasViewportStatusBar'
 import { SceneTabBar } from '@/components/molecules/SceneTabBar'
 import type { TabContextMenuAction } from '@/components/molecules/TabContextMenu'
 import { NewCodeFileDialog } from '@/components/molecules/NewCodeFileDialog'
@@ -20,6 +21,7 @@ import {
   VFX_DOCK_MIN_WIDTH,
 } from '@/components/organisms/VfxDock'
 import { getPreference } from '@jade/lib/preferenceStore'
+import { initAppTheme } from '@/core/appTheme'
 import { refreshJadeSurfaceTheme } from '@/core/jadeSurfaceTheme'
 import { pushCodeRecentFile, readCodeRecentFiles } from '@/jade/codeRecentFiles'
 import {
@@ -32,10 +34,35 @@ import {
 } from '@/components/organisms/codeDockFloatingRect'
 import { GraphCanvas } from '@/components/organisms/GraphCanvas'
 import { DEFAULT_CANVAS_TOOLBAR_VISIBILITY } from '@/core/canvasToolbarVisibility'
+import {
+  toggleViewportToolbarDock,
+  type ViewportToolbarDockId,
+} from '@/core/viewportToolbarDock'
 import { ParameterValueLinkPicker } from '@/components/molecules/ParameterValueLinkPicker'
 import { NodeInspector } from '@/components/organisms/NodeInspector'
 import { BlockInspector } from '@/components/organisms/BlockInspector'
+import {
+  BlockParameterInspector,
+  type BlockParameterInspectorTarget,
+} from '@/components/organisms/BlockParameterInspector'
+import type { BlockDefinitionJsonDocument } from '@/core/blockDefinitionJson'
 import { GroupInspector } from '@/components/organisms/GroupInspector'
+import { BlockingProgressDialog } from '@/components/molecules/BlockingProgressDialog'
+import {
+  buildBlockAutoBuildPlan,
+  buildBlockAutoBuildPlanFromViewCode,
+} from '@/core/blockAutoBuild'
+import { codeToBlockScene } from '@/core/codeToBlockScene'
+import {
+  executeAutoBuildWorkItems,
+  flattenAutoBuildWorkItems,
+  type AutoBuildProgress,
+  type AutoBuildRunResult,
+} from '@/core/blockAutoBuildExecutor'
+import { buildBlockDefinitionJsonDocument } from '@/core/blockDefinitionJson'
+import { writeBlockDefinitionDocument } from '@/core/blockDefinitionStorage'
+import { buildBlockParameterJsonDocuments } from '@/core/blockParameterJson'
+import { writeBlockParameterDocuments } from '@/core/blockParameterStorage'
 import { blockTypeDefinitionsList } from '@/core/blockStructureRegistry'
 import { SceneNodesPanel, type SceneNodesPanelTab } from '@/components/organisms/SceneNodesPanel'
 import {
@@ -137,6 +164,7 @@ import { applyRitualSnippetScalarsToNode } from '@/core/applyRitualSnippetScalar
 import {
   emitNodeRitualViewCodeText,
   emitNodeBlockViewCodeText,
+  emitNodeBlockCardPreviewCodeText,
   emitNodeGroupViewCodeText,
   syncNodeToBoundCodeRange,
   type NodeCodeEditorBinding,
@@ -416,6 +444,11 @@ function App() {
     generateBlockFromNode,
     revertBlockView,
     updateBlockParameter,
+    createBlockNodeFromDefinition,
+    syncBlockParameterCatalogFromDefinitions,
+    addBlockParameterFromCatalog,
+    removeBlockParameter,
+    updateBlockParameterFromInspector,
     connectBlockSlots,
     getBlockInspectorDraft,
     updateBlockInspectorDraft,
@@ -531,9 +564,30 @@ function App() {
   const [inspectorMinimized, setInspectorMinimized] = useState(false)
   const [inspectorOffset, setInspectorOffset] = useState<InspectorOffset>({ x: 0, y: 0 })
   const [inspectorViewportDocked, setInspectorViewportDocked] = useState(true)
+  const [blockParameterInspectorTarget, setBlockParameterInspectorTarget] =
+    useState<BlockParameterInspectorTarget | null>(null)
+
   const [blockInspectorMinimized, setBlockInspectorMinimized] = useState(false)
   const [blockInspectorViewportDocked, setBlockInspectorViewportDocked] = useState(true)
   const [blockInspectorOffset, setBlockInspectorOffset] = useState<InspectorOffset>({ x: 0, y: 0 })
+  const [autoBuildUi, setAutoBuildUi] = useState<{
+    phase: 'running' | 'confirmCancel' | 'summary' | 'error'
+    progress: AutoBuildProgress
+    result?: AutoBuildRunResult
+    errorMessage?: string
+  } | null>(null)
+  const autoBuildCancelRef = useRef(false)
+  const blockAutoBuildBusy = autoBuildUi !== null
+  const [blockCardPreviewUi, setBlockCardPreviewUi] = useState<{
+    phase: 'running' | 'confirmCancel' | 'summary' | 'error'
+    completed: number
+    total: number
+    currentLabel: string
+    summaryBody?: string
+    summaryTitle?: string
+  } | null>(null)
+  const blockCardPreviewCancelRef = useRef(false)
+  const blockCardPreviewBusy = blockCardPreviewUi !== null
   const blockInspectorMovedDuringPointer = useRef(false)
   const blockInspectorDragGesture = useRef<InspectorDragGesture | null>(null)
   const [groupInspectorMinimized, setGroupInspectorMinimized] = useState(false)
@@ -548,6 +602,9 @@ function App() {
   const [sceneNodesPanelTab, setSceneNodesPanelTab] = useState<SceneNodesPanelTab>('nodes')
   const [sceneNodesOffset, setSceneNodesOffset] = useState<InspectorOffset>({ x: 0, y: 0 })
   const [sceneNodesViewportDocked, setSceneNodesViewportDocked] = useState(true)
+  const [activeViewportToolbarDock, setActiveViewportToolbarDock] =
+    useState<ViewportToolbarDockId | null>(null)
+  const [canvasToolbarChromeHost, setCanvasToolbarChromeHost] = useState<HTMLDivElement | null>(null)
   const [codeDockOpen, setCodeDockOpen] = useState(false)
   const [codeDockWidth, setCodeDockWidth] = useState(CODE_DOCK_DEFAULT_WIDTH)
   const [codeDockFloating, setCodeDockFloating] = useState(false)
@@ -761,43 +818,40 @@ function App() {
   }, [nodeConfigurationMode, showConfirmByCatalogId])
 
   /** Ao desacoplar pelo pin: alinha o inspector lateral ao chip da barra (X) e coloca o topo a stripBottom + `--space-3`. */
-  const applyInspectorOffsetFromViewportStrip = useCallback(() => {
-    const column = graphColumnRef.current
+  const applyInspectorOffsetFromViewportStrip = useCallback(
+    (options?: { minimized?: boolean }) => {
+      const column = graphColumnRef.current
 
-    if (!column) {
-      setInspectorOffset({ x: 0, y: 0 })
-      return
-    }
+      if (!column) {
+        setInspectorOffset({ x: 0, y: 0 })
+        return
+      }
 
-    const strip = column.querySelector('[data-inspector-viewport-strip]')
+      const strip = column.querySelector('[data-inspector-viewport-strip]')
 
-    if (!(strip instanceof HTMLElement)) {
-      setInspectorOffset({ x: 0, y: 0 })
-      return
-    }
+      if (!(strip instanceof HTMLElement)) {
+        setInspectorOffset({ x: 0, y: 0 })
+        return
+      }
 
-    const sr = strip.getBoundingClientRect()
-    const col = column.getBoundingClientRect()
-    const narrow = typeof window !== 'undefined' && window.matchMedia('(max-width: 900px)').matches
-    const marginEdge = readRootSpacePx(narrow ? '--space-3' : '--space-5')
-    const marginBelowStrip = readRootSpacePx('--space-3')
+      const useMinimized = options?.minimized ?? inspectorMinimized
 
-    const defaultRight = col.right - marginEdge
+      setInspectorOffset(
+        computeInspectorDockOffsetFromStrip(column, strip, useMinimized),
+      )
+    },
+    [inspectorMinimized],
+  )
 
-    /** Coincide com `.inspectorDockExpanded` / `.inspectorDockMinimized` + altura da faixa chrome. */
-    const defaultTop = inspectorMinimized
-      ? col.bottom - marginEdge - INSPECTOR_CHROME_STRIP_PX
-      : col.top + col.height - marginEdge - INSPECTOR_CHROME_STRIP_PX
-
-    setInspectorOffset({
-      x: sr.right - defaultRight,
-      y: sr.bottom + marginBelowStrip - defaultTop,
-    })
-  }, [inspectorMinimized])
+  const toggleViewportToolbarDockById = useCallback((dockId: ViewportToolbarDockId) => {
+    setActiveViewportToolbarDock((current) => toggleViewportToolbarDock(current, dockId))
+  }, [])
 
   const handleUndockFromViewportToolbar = useCallback(() => {
-    applyInspectorOffsetFromViewportStrip()
+    setInspectorMinimized(true)
+    applyInspectorOffsetFromViewportStrip({ minimized: true })
     setInspectorViewportDocked(false)
+    setActiveViewportToolbarDock((current) => (current === 'node' ? null : current))
   }, [applyInspectorOffsetFromViewportStrip])
 
   const applyBlockInspectorOffsetFromViewportStrip = useCallback(
@@ -834,13 +888,15 @@ function App() {
     (anchor?: InspectorDockAnchor) => {
       applyBlockInspectorOffsetFromViewportStrip(anchor)
       setBlockInspectorViewportDocked(false)
+      setActiveViewportToolbarDock((current) => (current === 'block' ? null : current))
     },
     [applyBlockInspectorOffsetFromViewportStrip],
   )
 
   const applyGroupInspectorOffsetFromViewportStrip = useCallback(
-    (anchor?: InspectorDockAnchor) => {
+    (anchor?: InspectorDockAnchor, options?: { minimized?: boolean }) => {
       const column = graphColumnRef.current
+      const useMinimized = options?.minimized ?? groupInspectorMinimized
 
       if (!column) {
         setGroupInspectorOffset({ x: 0, y: 0 })
@@ -849,7 +905,7 @@ function App() {
 
       if (anchor) {
         setGroupInspectorOffset(
-          computeInspectorDockOffsetFromPointer(column, anchor, groupInspectorMinimized),
+          computeInspectorDockOffsetFromPointer(column, anchor, useMinimized),
         )
         return
       }
@@ -862,7 +918,7 @@ function App() {
       }
 
       setGroupInspectorOffset(
-        computeInspectorDockOffsetFromStrip(column, strip, groupInspectorMinimized),
+        computeInspectorDockOffsetFromStrip(column, strip, useMinimized),
       )
     },
     [groupInspectorMinimized],
@@ -870,47 +926,55 @@ function App() {
 
   const handleUndockGroupInspectorFromViewportToolbar = useCallback(
     (anchor?: InspectorDockAnchor) => {
-      applyGroupInspectorOffsetFromViewportStrip(anchor)
+      setGroupInspectorMinimized(true)
+      applyGroupInspectorOffsetFromViewportStrip(anchor, { minimized: true })
       setGroupInspectorViewportDocked(false)
+      setActiveViewportToolbarDock((current) => (current === 'group' ? null : current))
     },
     [applyGroupInspectorOffsetFromViewportStrip],
   )
 
-  const applySceneNodesOffsetFromViewportStrip = useCallback(() => {
-    const column = graphColumnRef.current
+  const applySceneNodesOffsetFromViewportStrip = useCallback(
+    (options?: { minimized?: boolean }) => {
+      const column = graphColumnRef.current
 
-    if (!column) {
-      setSceneNodesOffset({ x: 0, y: 0 })
-      return
-    }
+      if (!column) {
+        setSceneNodesOffset({ x: 0, y: 0 })
+        return
+      }
 
-    const strip = column.querySelector('[data-scene-nodes-viewport-strip]')
+      const strip = column.querySelector('[data-scene-nodes-viewport-strip]')
 
-    if (!(strip instanceof HTMLElement)) {
-      setSceneNodesOffset({ x: 0, y: 0 })
-      return
-    }
+      if (!(strip instanceof HTMLElement)) {
+        setSceneNodesOffset({ x: 0, y: 0 })
+        return
+      }
 
-    const sr = strip.getBoundingClientRect()
-    const col = column.getBoundingClientRect()
-    const narrow = typeof window !== 'undefined' && window.matchMedia('(max-width: 900px)').matches
-    const marginEdge = readRootSpacePx(narrow ? '--space-3' : '--space-5')
-    const marginBelowStrip = readRootSpacePx('--space-3')
-    const defaultLeft = col.left + marginEdge
-    const defaultTop = sceneNodesMinimized
-      ? col.bottom - marginEdge - INSPECTOR_CHROME_STRIP_PX
-      : col.top + col.height - marginEdge - INSPECTOR_CHROME_STRIP_PX
+      const useMinimized = options?.minimized ?? sceneNodesMinimized
+      const sr = strip.getBoundingClientRect()
+      const col = column.getBoundingClientRect()
+      const narrow = typeof window !== 'undefined' && window.matchMedia('(max-width: 900px)').matches
+      const marginEdge = readRootSpacePx(narrow ? '--space-3' : '--space-5')
+      const marginBelowStrip = readRootSpacePx('--space-3')
+      const defaultLeft = col.left + marginEdge
+      const defaultTop = useMinimized
+        ? col.bottom - marginEdge - INSPECTOR_CHROME_STRIP_PX
+        : col.top + col.height - marginEdge - INSPECTOR_CHROME_STRIP_PX
 
-    setSceneNodesOffset({
-      x: sr.left - defaultLeft,
-      y: sr.bottom + marginBelowStrip - defaultTop,
-    })
-  }, [sceneNodesMinimized])
+      setSceneNodesOffset({
+        x: sr.left - defaultLeft,
+        y: sr.bottom + marginBelowStrip - defaultTop,
+      })
+    },
+    [sceneNodesMinimized],
+  )
 
   const handleUndockSceneNodesFromViewportToolbar = useCallback(() => {
-    applySceneNodesOffsetFromViewportStrip()
+    patchSceneChrome({ sceneNodes: { minimized: true } })
+    applySceneNodesOffsetFromViewportStrip({ minimized: true })
     setSceneNodesViewportDocked(false)
-  }, [applySceneNodesOffsetFromViewportStrip])
+    setActiveViewportToolbarDock((current) => (current === 'scene' ? null : current))
+  }, [applySceneNodesOffsetFromViewportStrip, patchSceneChrome])
 
   useEffect(() => {
     const loadTooltips = async () => {
@@ -932,6 +996,7 @@ function App() {
     }
 
     void loadTooltips()
+    void initAppTheme()
     void refreshJadeSurfaceTheme()
   }, [])
 
@@ -1250,6 +1315,37 @@ function App() {
     async (folder: string) => startCodeToCanvasWizard(folder),
     [startCodeToCanvasWizard],
   )
+
+  const handleCodeToNodeBlock = useCallback(async () => {
+    const converted = codeToBlockScene(codeText, extendSchemaLookup)
+
+    if (!converted.ok) {
+      window.alert(converted.error)
+      return false
+    }
+
+    const sceneTitle = stripExtension(codeDockFileName).trim() || 'Cena'
+    openOrReplaceSceneByTitle(sceneTitle, converted.scene)
+    selectNode(converted.rootNodeId)
+    graphCanvasRef.current?.focusSelectionIntoView([converted.rootNodeId])
+
+    if (converted.warnings.length > 0) {
+      const preview = converted.warnings.slice(0, 30).join('\n')
+      const suffix =
+        converted.warnings.length > 30
+          ? `\n… e mais ${String(converted.warnings.length - 30)} aviso(s).`
+          : ''
+      window.alert(`[Code To Node Block]\n\n${preview}${suffix}`)
+    }
+
+    return true
+  }, [
+    codeDockFileName,
+    codeText,
+    extendSchemaLookup,
+    openOrReplaceSceneByTitle,
+    selectNode,
+  ])
 
   const handleDismissCodeToCanvasWizard = useCallback(() => {
     const summary = codeToCanvasWizardController.summary
@@ -1644,7 +1740,12 @@ function App() {
   )
 
   const loadTextIntoCodeDock = useCallback(
-    async (text: string, fileName: string, via: string, options?: { fullText?: boolean }) => {
+    async (
+      text: string,
+      fileName: string,
+      via: string,
+      options?: { fullText?: boolean; suppressConvertedOpenAlert?: boolean },
+    ) => {
       const maxPreview = 500_000
       const raw =
         options?.fullText || text.length <= maxPreview
@@ -1660,7 +1761,7 @@ function App() {
       setCodeDockOpen(true)
       applyCodeDockJadeBanner(unhashed.via, status)
 
-      if (needsBinConversionOnOpen(normalized)) {
+      if (needsBinConversionOnOpen(normalized) && !options?.suppressConvertedOpenAlert) {
         window.alert(`«${normalized}» convertido e aberto no painel Código (${via}).`)
       } else if (unhashed.changed && unhashed.via === 'fnv-fallback' && unhashed.warning) {
         console.warn('[jadeEditorTextResolve] fallback FNV:', unhashed.warning)
@@ -1791,6 +1892,149 @@ function App() {
       }
     },
     [extendSchemaLookup, hasOpenSceneTabs, loadTextIntoCodeDock, scene],
+  )
+
+  const handlePreviewBlockCardCode = useCallback(
+    async (nodeId: string) => {
+      if (blockCardPreviewBusy) {
+        return
+      }
+
+      if (!hasOpenSceneTabs) {
+        window.alert('Abra uma cena de trabalho antes de pré-visualizar código de bloco.')
+        return
+      }
+
+      const canvasNode = scene.nodes.find((entry) => entry.id === nodeId)
+      if (!canvasNode) {
+        return
+      }
+
+      const title = canvasNode.node.schema.title
+      const fileName = `preview_block_${sanitizeCodeDockBaseName(title)}.bin`
+
+      const nextFrame = () =>
+        new Promise<void>((resolve) => {
+          window.requestAnimationFrame(() => resolve())
+        })
+
+      const totalSteps = 4
+      const setRunningProgress = (completed: number, currentLabel: string) => {
+        setBlockCardPreviewUi((current) => {
+          if (!current || current.phase === 'confirmCancel') {
+            return current
+          }
+          return {
+            phase: 'running',
+            completed,
+            total: totalSteps,
+            currentLabel,
+          }
+        })
+      }
+
+      const isCancelled = () => blockCardPreviewCancelRef.current
+
+      blockCardPreviewCancelRef.current = false
+      setBlockCardPreviewUi({
+        phase: 'running',
+        completed: 0,
+        total: totalSteps,
+        currentLabel: 'A preparar conversão…',
+      })
+
+      try {
+        await nextFrame()
+        if (isCancelled()) {
+          setBlockCardPreviewUi({
+            phase: 'summary',
+            completed: 0,
+            total: totalSteps,
+            currentLabel: '',
+            summaryTitle: 'Conversão cancelada',
+            summaryBody: 'A conversão do Código Preview Block foi cancelada antes de iniciar.',
+          })
+          return
+        }
+
+        setRunningProgress(1, 'A sincronizar valores do card…')
+        await nextFrame()
+        if (isCancelled()) {
+          setBlockCardPreviewUi({
+            phase: 'summary',
+            completed: 1,
+            total: totalSteps,
+            currentLabel: '',
+            summaryTitle: 'Conversão cancelada',
+            summaryBody: 'A conversão do Código Preview Block foi cancelada pelo utilizador.',
+          })
+          return
+        }
+
+        const result = emitNodeBlockCardPreviewCodeText(
+          hydrateScene(scene),
+          extendSchemaLookup,
+          nodeId,
+        )
+
+        if (!result.ok) {
+          setBlockCardPreviewUi({
+            phase: 'error',
+            completed: 1,
+            total: totalSteps,
+            currentLabel: '',
+            summaryTitle: 'Falha na conversão',
+            summaryBody: result.error,
+          })
+          return
+        }
+
+        if (isCancelled()) {
+          setBlockCardPreviewUi({
+            phase: 'summary',
+            completed: 2,
+            total: totalSteps,
+            currentLabel: '',
+            summaryTitle: 'Conversão cancelada',
+            summaryBody: 'A conversão do Código Preview Block foi cancelada antes de abrir o resultado.',
+          })
+          return
+        }
+
+        setRunningProgress(3, 'A abrir no dock de código…')
+        await nextFrame()
+
+        loadTextIntoCodeDock(result.text, fileName, 'Código Preview Block', {
+          fullText: true,
+          suppressConvertedOpenAlert: true,
+        })
+
+        const warningLines =
+          result.warnings.length > 0
+            ? `\n\nAvisos (${String(result.warnings.length)}):\n${result.warnings.slice(0, 10).join('\n')}`
+            : ''
+
+        setBlockCardPreviewUi({
+          phase: 'summary',
+          completed: totalSteps,
+          total: totalSteps,
+          currentLabel: '',
+          summaryTitle: 'Conversão concluída',
+          summaryBody: `Código Preview Block gerado com sucesso para «${title}».${warningLines}`,
+        })
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        setBlockCardPreviewUi({
+          phase: 'error',
+          completed: 0,
+          total: totalSteps,
+          currentLabel: '',
+          summaryTitle: 'Falha na conversão',
+          summaryBody: message,
+        })
+      }
+    },
+    [blockCardPreviewBusy, extendSchemaLookup, hasOpenSceneTabs, loadTextIntoCodeDock, scene],
   )
 
   const handleViewNodeGroupCode = useCallback(
@@ -2302,6 +2546,7 @@ function App() {
 
       setInspectorViewportDocked(false)
       setInspectorMinimized(true)
+      setActiveViewportToolbarDock((current) => (current === 'node' ? null : current))
       setInspectorGrabFollowActive(true)
       setInspectorGrabFollowCoords({ x: event.clientX, y: event.clientY })
       return
@@ -2434,6 +2679,11 @@ function App() {
       return
     }
 
+    if (blockInspectorViewportDocked) {
+      toggleViewportToolbarDockById('block')
+      return
+    }
+
     setBlockInspectorMinimized((value) => !value)
   }
 
@@ -2443,12 +2693,22 @@ function App() {
       return
     }
 
+    if (groupInspectorViewportDocked) {
+      toggleViewportToolbarDockById('group')
+      return
+    }
+
     setGroupInspectorMinimized((value) => !value)
   }
 
   const toggleInspectorMinimized = () => {
     if (inspectorMovedDuringPointer.current) {
       inspectorMovedDuringPointer.current = false
+      return
+    }
+
+    if (inspectorViewportDocked) {
+      toggleViewportToolbarDockById('node')
       return
     }
 
@@ -2512,8 +2772,32 @@ function App() {
       return
     }
 
+    if (sceneNodesViewportDocked) {
+      toggleViewportToolbarDockById('scene')
+      return
+    }
+
     patchSceneChrome({ sceneNodes: { minimized: !sceneNodesMinimized } })
   }
+
+  const blockInspectorMinimizedEffective =
+    blockInspectorViewportDocked
+      ? activeViewportToolbarDock !== 'block'
+      : blockInspectorMinimized
+
+  const groupInspectorMinimizedEffective =
+    groupInspectorViewportDocked
+      ? activeViewportToolbarDock !== 'group'
+      : groupInspectorMinimized
+
+  const inspectorMinimizedEffective =
+    inspectorViewportDocked && !inspectorGrabFollowActive
+      ? activeViewportToolbarDock !== 'node'
+      : inspectorMinimized
+
+  const sceneNodesMinimizedEffective = sceneNodesViewportDocked
+    ? activeViewportToolbarDock !== 'scene'
+    : sceneNodesMinimized
 
   const inspectorDockClassName = [
     styles.inspectorDock,
@@ -2783,6 +3067,247 @@ function App() {
     refreshBlockInspectorDraft,
   ])
 
+  const handleBuildBlockDefinition = useCallback(async () => {
+    if (!blockInspectorTarget || !blockInspectorDraft) {
+      return
+    }
+
+    const result = buildBlockDefinitionJsonDocument(
+      blockInspectorDraft,
+      scene,
+      blockInspectorTarget,
+    )
+
+    if (!result.ok) {
+      window.alert(
+        t(LangId.BlockInspectorBuildBlockFailed, undefined, {
+          error: result.error,
+        }),
+      )
+      return
+    }
+
+    const writeResult = await writeBlockDefinitionDocument(result.document)
+
+    if (!writeResult.ok) {
+      window.alert(
+        t(LangId.BlockInspectorBuildBlockFailed, undefined, {
+          error: writeResult.error ?? 'Erro desconhecido',
+        }),
+      )
+      return
+    }
+
+    const written = writeResult.written ?? result.document.id
+    const overwrittenNote = writeResult.overwritten ? ' (substituído)' : ''
+
+    window.alert(
+      t(LangId.BlockInspectorBuildBlockDone, undefined, {
+        written,
+        overwritten: overwrittenNote,
+      }),
+    )
+  }, [blockInspectorDraft, blockInspectorTarget, scene, t])
+
+  const handleBuildBlockParameters = useCallback(async () => {
+    if (!blockInspectorTarget || !blockInspectorDraft) {
+      return
+    }
+
+    const marked = blockInspectorDraft.entries.filter((entry) => entry.exposed)
+    if (marked.length === 0) {
+      return
+    }
+
+    const { documents, errors: buildErrors } = buildBlockParameterJsonDocuments(
+      marked,
+      blockInspectorDraft,
+      scene,
+      blockInspectorTarget,
+      extendSchemaLookup,
+    )
+
+    if (documents.length === 0) {
+      window.alert(
+        buildErrors.length > 0
+          ? t(LangId.BlockInspectorBuildParameterFailed, undefined, {
+              error: buildErrors.join('\n'),
+            })
+          : t(LangId.BlockInspectorBuildParameterFailed, undefined, { error: 'Nenhum documento válido' }),
+      )
+      return
+    }
+
+    const writeResult = await writeBlockParameterDocuments(documents)
+
+    if (!writeResult.ok) {
+      window.alert(
+        t(LangId.BlockInspectorBuildParameterFailed, undefined, {
+          error: writeResult.error ?? 'Erro desconhecido',
+        }),
+      )
+      return
+    }
+
+    const written = writeResult.written ?? []
+    const overwritten = writeResult.overwritten ?? []
+    const serverErrors = [...buildErrors, ...(writeResult.errors ?? []), ...(writeResult.skipped ?? [])]
+
+    const overwrittenNote =
+      overwritten.length > 0 ? ` (${overwritten.length} substituídos)` : ''
+
+    window.alert(
+      t(LangId.BlockInspectorBuildParameterDone, undefined, {
+        written: String(written.length),
+        overwritten: overwrittenNote,
+      }) + (serverErrors.length > 0 ? `\n\n${serverErrors.join('\n')}` : ''),
+    )
+  }, [blockInspectorDraft, blockInspectorTarget, extendSchemaLookup, scene, t])
+
+  const closeAutoBuildUi = useCallback(() => {
+    autoBuildCancelRef.current = false
+    setAutoBuildUi(null)
+  }, [])
+
+  const formatAutoBuildSummaryBody = useCallback(
+    (result: AutoBuildRunResult) => {
+      const lines = [
+        t(LangId.BlockInspectorAutoBuildSummaryBody, undefined, {
+          nodes: String(result.nodesProcessed),
+          written: String(result.written.length),
+          overwritten: String(result.overwritten.length),
+          errors: String(result.errors.length),
+        }),
+      ]
+
+      if (result.errors.length > 0) {
+        lines.push('', result.errors.join('\n'))
+      }
+
+      return lines.join('\n')
+    },
+    [t],
+  )
+
+  const runBlockAutoBuildPlan = useCallback(
+    async (plan: ReturnType<typeof buildBlockAutoBuildPlan>) => {
+      if (blockAutoBuildBusy) {
+        return
+      }
+
+      if (plan.errors.includes('NO_NODES')) {
+        setAutoBuildUi({
+          phase: 'error',
+          progress: { completed: 0, total: 0, currentLabel: '', currentKind: 'parameter' },
+          errorMessage: t(LangId.BlockInspectorAutoBuildNoMain),
+        })
+        return
+      }
+
+      if (plan.errors.includes('EMPTY_CODE')) {
+        setAutoBuildUi({
+          phase: 'error',
+          progress: { completed: 0, total: 0, currentLabel: '', currentKind: 'parameter' },
+          errorMessage: t(LangId.CodeBuildBlockEmptyEditor),
+        })
+        return
+      }
+
+      const items = flattenAutoBuildWorkItems(plan)
+
+      if (items.length === 0) {
+        setAutoBuildUi({
+          phase: 'error',
+          progress: { completed: 0, total: 0, currentLabel: '', currentKind: 'parameter' },
+          errorMessage: t(LangId.BlockInspectorAutoBuildFailed, undefined, {
+            error:
+              plan.errors.filter((entry) => entry !== 'NO_NODES' && entry !== 'EMPTY_CODE').join('\n') ||
+              'Nenhum documento válido gerado',
+          }),
+        })
+        return
+      }
+
+      autoBuildCancelRef.current = false
+      setAutoBuildUi({
+        phase: 'running',
+        progress: {
+          completed: 0,
+          total: items.length,
+          currentLabel: items[0]?.label ?? '',
+          currentKind: items[0]?.kind ?? 'parameter',
+        },
+      })
+
+      const result = await executeAutoBuildWorkItems({
+        items,
+        nodesProcessed: plan.nodeResults.length,
+        planErrors: plan.errors,
+        shouldCancel: () => autoBuildCancelRef.current,
+        onProgress: (progress) => {
+          setAutoBuildUi((current) => {
+            if (!current || current.phase === 'confirmCancel') {
+              return current
+            }
+            return {
+              ...current,
+              phase: 'running',
+              progress,
+            }
+          })
+        },
+      })
+
+      setAutoBuildUi({
+        phase: 'summary',
+        progress: {
+          completed: result.cancelled
+            ? result.written.length + result.overwritten.length
+            : items.length,
+          total: items.length,
+          currentLabel: '',
+          currentKind: 'parameter',
+        },
+        result,
+      })
+    },
+    [blockAutoBuildBusy, t],
+  )
+
+  const handleAutoBuildBlockHierarchy = useCallback(async () => {
+    await runBlockAutoBuildPlan(buildBlockAutoBuildPlan(scene, extendSchemaLookup))
+  }, [extendSchemaLookup, runBlockAutoBuildPlan, scene])
+
+  const handleCodeBuildBlock = useCallback(async () => {
+    if (!hasOpenSceneTabs) {
+      window.alert('Abra uma cena de trabalho antes de gerar blocos a partir do código.')
+      return false
+    }
+
+    const viewCodeResult = buildBlockAutoBuildPlanFromViewCode(scene, extendSchemaLookup, {
+      rootNodeId: primarySelectedId ?? undefined,
+    })
+
+    if (viewCodeResult.exportedText.trim()) {
+      const canvasNode = scene.nodes.find((entry) => entry.id === viewCodeResult.exportNodeId)
+      const title = canvasNode?.node.schema.title ?? 'ritual'
+      const fileName = `build_${sanitizeCodeDockBaseName(title)}.bin`
+      loadTextIntoCodeDock(viewCodeResult.exportedText, fileName, 'Code Build Block', {
+        fullText: true,
+      })
+    }
+
+    await runBlockAutoBuildPlan(viewCodeResult.plan)
+    return true
+  }, [
+    extendSchemaLookup,
+    hasOpenSceneTabs,
+    loadTextIntoCodeDock,
+    primarySelectedId,
+    runBlockAutoBuildPlan,
+    scene,
+  ])
+
   const handleRevertBlock = useCallback(() => {
     if (!blockInspectorTarget) {
       return
@@ -2819,7 +3344,7 @@ function App() {
     () => ({
       onDockToViewport: () => {
         setBlockInspectorViewportDocked(true)
-        setBlockInspectorMinimized(false)
+        setActiveViewportToolbarDock('block')
       },
       onUndockFromViewportToolbar: handleUndockBlockInspectorFromViewportToolbar,
     }),
@@ -2842,12 +3367,16 @@ function App() {
 
   const blockInspectorControlsSlot = blockInspectorTarget ? (
     <BlockInspector
+      autoBuildBusy={blockAutoBuildBusy}
       draft={blockInspectorDraft}
       knownBlockTypeIds={knownBlockTypeIds}
-      minimized={blockInspectorMinimized}
+      minimized={blockInspectorMinimizedEffective}
       node={blockInspectorTarget}
+      onAutoBuild={handleAutoBuildBlockHierarchy}
       onDraftChange={(draft) => updateBlockInspectorDraft(blockInspectorTarget.id, draft)}
       onGenerateBlock={handleGenerateBlock}
+      onBuildParameters={handleBuildBlockParameters}
+      onBuildBlock={handleBuildBlockDefinition}
       onRevertBlock={handleRevertBlock}
       onToggleMinimized={toggleBlockInspectorMinimized}
       {...blockInspectorPickHandlers}
@@ -2857,13 +3386,17 @@ function App() {
 
   const blockInspectorSidebar = blockInspectorTarget ? (
     <BlockInspector
+      autoBuildBusy={blockAutoBuildBusy}
       draft={blockInspectorDraft}
       dragHandleProps={blockInspectorDragHandleProps}
       knownBlockTypeIds={knownBlockTypeIds}
       minimized={blockInspectorMinimized}
       node={blockInspectorTarget}
+      onAutoBuild={handleAutoBuildBlockHierarchy}
       onDraftChange={(draft) => updateBlockInspectorDraft(blockInspectorTarget.id, draft)}
       onGenerateBlock={handleGenerateBlock}
+      onBuildParameters={handleBuildBlockParameters}
+      onBuildBlock={handleBuildBlockDefinition}
       onRevertBlock={handleRevertBlock}
       onToggleMinimized={toggleBlockInspectorMinimized}
       {...blockInspectorPickHandlers}
@@ -2940,7 +3473,7 @@ function App() {
     () => ({
       onDockToViewport: () => {
         setGroupInspectorViewportDocked(true)
-        setGroupInspectorMinimized(false)
+        setActiveViewportToolbarDock('group')
       },
       onUndockFromViewportToolbar: handleUndockGroupInspectorFromViewportToolbar,
     }),
@@ -2950,7 +3483,7 @@ function App() {
   const groupInspectorControlsSlot = groupInspectorTarget ? (
     <GroupInspector
       draft={groupInspectorDraft}
-      minimized={groupInspectorMinimized}
+      minimized={groupInspectorMinimizedEffective}
       node={groupInspectorTarget}
       onDraftChange={(draft) => updateGroupInspectorDraft(groupInspectorTarget.id, draft)}
       onGenerateGroup={handleGenerateGroup}
@@ -3487,7 +4020,7 @@ function App() {
     () => ({
       onDockToViewport: () => {
         setInspectorViewportDocked(true)
-        setInspectorMinimized(false)
+        setActiveViewportToolbarDock('node')
       },
       onUndockFromViewportToolbar: handleUndockFromViewportToolbar,
     }),
@@ -3498,7 +4031,7 @@ function App() {
     () => ({
       onDockToViewport: () => {
         setSceneNodesViewportDocked(true)
-        setSceneNodesMinimized(false)
+        setActiveViewportToolbarDock('scene')
       },
       onUndockFromViewportToolbar: handleUndockSceneNodesFromViewportToolbar,
     }),
@@ -3580,8 +4113,13 @@ function App() {
   )
 
   const expandSceneNodesPanel = useCallback(() => {
+    if (sceneNodesViewportDocked) {
+      setActiveViewportToolbarDock('scene')
+      return
+    }
+
     patchSceneChrome({ sceneNodes: { minimized: false } })
-  }, [patchSceneChrome])
+  }, [patchSceneChrome, sceneNodesViewportDocked])
 
   const openSceneNodesStatesTab = useCallback(() => {
     expandSceneNodesPanel()
@@ -3655,7 +4193,7 @@ function App() {
     ...sceneNodesPickHandlers,
     canDeleteSelected: sceneNodesCanDelete,
     dragHandleProps: sceneNodesDragHandleProps,
-    minimized: sceneNodesMinimized,
+    minimized: sceneNodesMinimizedEffective,
     sceneNodesStatePresets,
     onSaveNewSceneNodesState: handleSaveNewSceneNodesState,
     onLoadSceneNodesState: applySceneNodesStatePreset,
@@ -3735,19 +4273,38 @@ function App() {
         <div className={styles.graphColumn} ref={graphColumnRef}>
           <div className={styles.graphSurface}>
             <div className={styles.sceneTabRow}>
-              <SceneTabBar
-                attached
-                onActivate={activateTab}
-                onClose={closeTab}
-                onNewTab={() => createWorkScene(t(LangId.SceneTabNew))}
-                onTabAction={handleSceneTabAction}
-                tabs={tabBarItems}
-              />
+              {hasOpenSceneTabs ? (
+                <div
+                  className={styles.sceneToolbarChrome}
+                  data-canvas-toolbar-chrome=""
+                  ref={setCanvasToolbarChromeHost}
+                />
+              ) : null}
+              <div className={styles.sceneTabBarSlot}>
+                <SceneTabBar
+                  attached
+                  onActivate={activateTab}
+                  onClose={closeTab}
+                  onNewTab={() => createWorkScene(t(LangId.SceneTabNew))}
+                  onTabAction={handleSceneTabAction}
+                  tabs={tabBarItems}
+                />
+              </div>
+              {hasOpenSceneTabs ? (
+                <CanvasViewportStatusBar
+                  nodeCount={scene.nodes.length}
+                  pan={scene.camera?.pan ?? { x: 0, y: 0 }}
+                  scale={scene.camera?.scale ?? 1}
+                />
+              ) : null}
             </div>
             <div className={styles.graphColumnMain}>
           {hasOpenSceneTabs ? (
           <GraphCanvas
+            activeViewportToolbarDock={activeViewportToolbarDock}
             attachedViewport
+            toolbarChromeHost={canvasToolbarChromeHost}
+            onViewportToolbarDockToggle={toggleViewportToolbarDockById}
             ref={graphCanvasRef}
             availableSchemas={availableSchemas}
             canRedo={sceneHistory.future.length > 0}
@@ -3786,6 +4343,15 @@ function App() {
             onRelinkInternalStructure={relinkInternalStructureSlot}
             onCreateChildNode={createChildNode}
             onCreateRootNode={createRootNode}
+            onCreateBlockFromDefinition={(definition, position, spawnLink) =>
+              createBlockNodeFromDefinition(definition, position, spawnLink)
+            }
+            onSyncBlockParameterCatalog={syncBlockParameterCatalogFromDefinitions}
+            onAddBlockParameterFromCatalog={addBlockParameterFromCatalog}
+            onRemoveBlockParameter={removeBlockParameter}
+            onEditBlockParameter={(nodeId, param) => {
+              setBlockParameterInspectorTarget({ nodeId, paramId: param.idParameter, parameter: param })
+            }}
             onDeleteNodeIds={deleteNodeIds}
             onToggleNodeBodyCollapsed={toggleNodeBodyCollapsed}
             onToggleStructureCardParamsExpanded={toggleStructureCardParamsExpanded}
@@ -3802,9 +4368,15 @@ function App() {
             onToolbarVisibilityChange={(toolbarVisibility) =>
               patchSceneChrome({ toolbarVisibility })
             }
+            onToolbarCollapsedChange={(toolbarCollapsed) => patchSceneChrome({ toolbarCollapsed })}
+            toolbarCollapsed={scene.sceneChrome?.toolbarCollapsed !== false}
             toolbarVisibility={
               scene.sceneChrome?.toolbarVisibility ?? DEFAULT_CANVAS_TOOLBAR_VISIBILITY
             }
+            showCanvasGrid={scene.sceneChrome?.showCanvasGrid !== false}
+            canvasGridSize={scene.sceneChrome?.canvasGridSize}
+            canvasGridOpacity={scene.sceneChrome?.canvasGridOpacity}
+            onCanvasGridChange={(patch) => patchSceneChrome(patch)}
             onNodeLockedInteraction={() => showToastByCatalogId(MESSENGER_TOAST_NODE_LOCKED)}
             onPatchNodeSceneOverlay={patchNodeSceneOverlay}
             onSceneNodesPanelRequest={expandSceneNodesPanel}
@@ -3812,6 +4384,7 @@ function App() {
             onGraphsToCode={() => void handleGraphsToCode()}
             onViewNodeCode={handleViewNodeCode}
             onViewNodeBlockCode={handleViewNodeBlockCode}
+            onPreviewBlockCardCode={handlePreviewBlockCardCode}
             onViewNodeGroupCode={handleViewNodeGroupCode}
             onPreviewNodeVfx={handlePreviewNodeVfx}
             onSyncNodeValueToCode={handleSyncNodeValueToCode}
@@ -3871,7 +4444,7 @@ function App() {
                   {...inspectorPickHandlers}
                   canDelete={inspectorCanDelete}
                   dragHandleProps={inspectorDragHandleProps}
-                  minimized={inspectorMinimized}
+                  minimized={inspectorMinimizedEffective}
                   nodeConfigurationMode={nodeConfigurationMode}
                   node={inspectorTarget}
                   onAddHashStringInNode={nodeConfigurationMode ? addHashStringInNode : undefined}
@@ -4108,6 +4681,8 @@ function App() {
                 onCodeToNodeGraphStepByStep: handleCodeToNodeGraphStepByStep,
                 onCodeToNewNodeGraph: handleCodeToNewNodeGraph,
                 onCodeToNewNodeGraphStepByStep: handleCodeToNewNodeGraphStepByStep,
+                onCodeToNodeBlock: handleCodeToNodeBlock,
+                onCodeBuildBlock: handleCodeBuildBlock,
                 getDefaultStructurePackFolder: getCodeToNodeGraphPackFolder,
                 getDefaultNewNodeGraphPackFolder: getCodeToNewNodeGraphPackFolder,
               }}
@@ -4136,6 +4711,106 @@ function App() {
         <GraphsToCodeProgressDialog progress={graphsToCodeProgress} />
       ) : null}
 
+      {blockCardPreviewUi ? (
+        <BlockingProgressDialog
+          cancelConfirmMessage="Tem a certeza que deseja cancelar a conversão do Código Preview Block?"
+          cancelConfirmNoLabel="Continuar conversão"
+          cancelConfirmTitle="Cancelar conversão"
+          cancelConfirmYesLabel="Sim, cancelar"
+          cancelLabel="Cancelar"
+          closeLabel="OK"
+          completed={blockCardPreviewUi.completed}
+          onCancelConfirm={() => {
+            blockCardPreviewCancelRef.current = true
+            setBlockCardPreviewUi((current) =>
+              current ? { ...current, phase: 'running' } : current,
+            )
+          }}
+          onCancelDismiss={() => {
+            setBlockCardPreviewUi((current) =>
+              current ? { ...current, phase: 'running' } : current,
+            )
+          }}
+          onCancelRequest={() => {
+            setBlockCardPreviewUi((current) =>
+              current && current.phase === 'running'
+                ? { ...current, phase: 'confirmCancel' }
+                : current,
+            )
+          }}
+          onClose={() => {
+            blockCardPreviewCancelRef.current = false
+            setBlockCardPreviewUi(null)
+          }}
+          phase={blockCardPreviewUi.phase}
+          progressCountLabel={`${String(blockCardPreviewUi.completed)}/${String(blockCardPreviewUi.total)}`}
+          statusLabel={blockCardPreviewUi.phase === 'running' ? blockCardPreviewUi.currentLabel : undefined}
+          summaryBody={blockCardPreviewUi.summaryBody}
+          summaryTitle={blockCardPreviewUi.summaryTitle}
+          title="Código Preview Block"
+          total={blockCardPreviewUi.total}
+        />
+      ) : null}
+
+      {autoBuildUi ? (
+        <BlockingProgressDialog
+          cancelConfirmMessage={t(LangId.BlockInspectorAutoBuildCancelConfirmMessage)}
+          cancelConfirmNoLabel={t(LangId.BlockInspectorAutoBuildCancelConfirmContinue)}
+          cancelConfirmTitle={t(LangId.BlockInspectorAutoBuildCancelConfirmTitle)}
+          cancelConfirmYesLabel={t(LangId.BlockInspectorAutoBuildCancelConfirmYes)}
+          cancelLabel={t(LangId.BlockInspectorAutoBuildCancel)}
+          closeLabel={t(LangId.BlockInspectorAutoBuildClose)}
+          completed={autoBuildUi.progress.completed}
+          onCancelConfirm={() => {
+            autoBuildCancelRef.current = true
+            setAutoBuildUi((current) =>
+              current ? { ...current, phase: 'running' } : current,
+            )
+          }}
+          onCancelDismiss={() => {
+            setAutoBuildUi((current) =>
+              current ? { ...current, phase: 'running' } : current,
+            )
+          }}
+          onCancelRequest={() => {
+            setAutoBuildUi((current) =>
+              current && current.phase === 'running'
+                ? { ...current, phase: 'confirmCancel' }
+                : current,
+            )
+          }}
+          onClose={closeAutoBuildUi}
+          phase={autoBuildUi.phase}
+          progressCountLabel={t(LangId.BlockInspectorAutoBuildProgressCount, undefined, {
+            completed: String(autoBuildUi.progress.completed),
+            total: String(autoBuildUi.progress.total),
+          })}
+          statusLabel={
+            autoBuildUi.phase === 'running'
+              ? t(LangId.BlockInspectorAutoBuildBuilding, undefined, {
+                  name: autoBuildUi.progress.currentLabel,
+                })
+              : undefined
+          }
+          summaryBody={
+            autoBuildUi.phase === 'error'
+              ? autoBuildUi.errorMessage
+              : autoBuildUi.result
+                ? formatAutoBuildSummaryBody(autoBuildUi.result)
+                : undefined
+          }
+          summaryTitle={
+            autoBuildUi.phase === 'error'
+              ? t(LangId.BlockInspectorAutoBuildProgressTitle)
+              : autoBuildUi.result?.cancelled
+                ? t(LangId.BlockInspectorAutoBuildCancelledTitle)
+                : t(LangId.BlockInspectorAutoBuildSummaryTitle)
+          }
+          title={t(LangId.BlockInspectorAutoBuildProgressTitle)}
+          total={autoBuildUi.progress.total}
+        />
+      ) : null}
+
       <CodeToCanvasWizardPanel
         controller={codeToCanvasWizardController}
         onDismissDone={handleDismissCodeToCanvasWizard}
@@ -4146,6 +4821,26 @@ function App() {
         onDismissDone={handleDismissCodeToNewNodeGraphWizard}
         title="Code to new node graph — passo a passo"
       />
+
+      {blockParameterInspectorTarget ? (
+        <div
+          style={{
+            position: 'fixed',
+            right: 24,
+            top: 96,
+            zIndex: 9000,
+            pointerEvents: 'auto',
+          }}
+        >
+          <BlockParameterInspector
+            target={blockParameterInspectorTarget}
+            onClose={() => setBlockParameterInspectorTarget(null)}
+            onApply={(nodeId, paramId, entry) =>
+              updateBlockParameterFromInspector(nodeId, paramId, entry)
+            }
+          />
+        </div>
+      ) : null}
 
       <NewCodeFileDialog
         isOpen={newCodeFileDialogOpen}

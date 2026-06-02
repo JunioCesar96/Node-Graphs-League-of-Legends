@@ -1,0 +1,20 @@
+{
+  "id": "VfxShapeSphere_VfxShapeSphere",
+  "block": "SpawnShape",
+  "blockName": "VfxShapeSphere",
+  "type": "pointer",
+  "name": "VfxShapeSphere",
+  "source": {
+    "kind": "block",
+    "nodeId": "vfx-shape-sphere__main-characters/brand/skins/skin0/particles/brand-base-i-fire-hand-extension-complex-emitter-definition-data--slot--3-spawn-shape"
+  },
+  "color": "#40ff56",
+  "headerSlots": [
+    "in[SpawnShape]",
+    "out[VfxShapeSpherePreview]"
+  ],
+  "parameters": [
+    "radius",
+    "flags"
+  ]
+}

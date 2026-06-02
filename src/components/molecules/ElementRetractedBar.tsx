@@ -1,6 +1,7 @@
 import type { PointerEventHandler } from 'react'
 
 import { SyntaxType } from '@/components/atoms/SyntaxType'
+import type { PortPulseVariant } from '@/core/connectionDisplay'
 import type { NodeDataType } from '@/core/nodeSchema'
 
 import styles from './ElementRetractedBar.module.css'
@@ -21,7 +22,7 @@ type ElementRetractedBarProps = {
   onExpand: () => void
   reorderHandlers?: ElementRetractedReorderHandlers
   expandAriaLabel?: string
-  wirelessPulse?: boolean
+  pulseVariant?: PortPulseVariant
 }
 
 export function ElementRetractedBar({
@@ -31,12 +32,17 @@ export function ElementRetractedBar({
   onExpand,
   reorderHandlers,
   expandAriaLabel,
-  wirelessPulse = false,
+  pulseVariant,
 }: ElementRetractedBarProps) {
+  const pulseClass =
+    pulseVariant === 'focus'
+      ? styles.barFocusPulse
+      : pulseVariant === 'wireless'
+        ? styles.barWirelessPulse
+        : ''
+
   return (
-    <div
-      className={[styles.bar, wirelessPulse ? styles.barWirelessPulse : ''].filter(Boolean).join(' ')}
-    >
+    <div className={[styles.bar, pulseClass].filter(Boolean).join(' ')}>
       <button
         aria-label={expandAriaLabel ?? `Expandir ${title}`}
         className={styles.expandButton}

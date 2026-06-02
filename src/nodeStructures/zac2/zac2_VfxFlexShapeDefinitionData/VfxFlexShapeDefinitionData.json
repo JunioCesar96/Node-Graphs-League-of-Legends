@@ -1,0 +1,25 @@
+{
+  "id": "vfx-flex-shape-definition-data__main-entries-0x0eed7307-complex-emitter-definition-data-1-flex-shape-definition",
+  "title": "VfxFlexShapeDefinitionData",
+  "parameters": [
+    {
+      "id": "VfxFlexShapeDefinitionData_parameter_scaleBirthScaleByBoundObjectSize",
+      "name": "scaleBirthScaleByBoundObjectSize",
+      "type": "f32",
+      "defaultValue": "0.005"
+    },
+    {
+      "id": "VfxFlexShapeDefinitionData_parameter_scaleEmitOffsetByBoundObjectSize",
+      "name": "scaleEmitOffsetByBoundObjectSize",
+      "type": "f32",
+      "defaultValue": "0.005"
+    }
+  ],
+  "embed": [],
+  "pointer": [],
+  "listEmbed": [],
+  "listPointer": [],
+  "list2Embed": [],
+  "list2Pointer": [],
+  "internalStructures": []
+}

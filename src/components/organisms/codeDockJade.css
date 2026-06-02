@@ -13,6 +13,16 @@
   cursor: grab !important;
 }
 
+.codeDockJadeScope .codeDockRitualLink,
+.codeDockJadeScope .codeDockRitualLink * {
+  cursor: alias !important;
+}
+
+body.ritualLinkDragging,
+body.ritualLinkDragging * {
+  cursor: alias !important;
+}
+
 .codeDockJadeScope {
   --vscode-menu-background: #252526;
   --vscode-menu-foreground: #cccccc;
@@ -25,6 +35,14 @@
 .codeDockJadeScope .menu-bar {
   border-bottom: 1px solid var(--border, #2a2a2a);
   min-height: 28px;
+}
+
+.codeDockJadeScope .menu-option-theme-toggle {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
 }
 
 .codeDockJadeScope .menu-bar--interactions-disabled,

@@ -3,12 +3,8 @@ import { hydrateScene } from '@/core/canvasScene'
 import { syncSceneCollapsedBodyWireless } from '@/core/compactConnectionRouting'
 import {
   findParsedSchemaInRegistry,
-  MAIN_SCHEMA_ID,
-  normalizeStandaloneClassGroupRitual,
-  parseClassGroupRitualWithStack,
   type MutableClassGroupSchema,
 } from '@/core/classGroupRitualStackParser'
-import { MAP_ENTRY_HEAD_REGEX, STRUCT_ONLY_LINE } from '@/core/classGroupFieldClassifier'
 import { collectChildLinks } from '@/core/codeToCanvasScene'
 import {
   finalizeNewNodeGraphScene,
@@ -18,10 +14,17 @@ import {
 } from '@/core/codeToNewNodeGraph'
 import { createUniqueNodeId } from '@/core/canvasNodeIds'
 import { defaultNewCanvasNodeLayout } from '@/core/nodeCardSections'
+import type { NodeSchemaDefinition } from '@/core/nodeSchema'
 import {
   NEEKO_DISK_PACK_FOLDER,
   prepareNeekoSchemasForDisk,
 } from '@/core/neekoNodeDiskLayout'
+import {
+  prepareClassGroupRitualParse,
+  resolveNeekoRootParsedId,
+} from '@/core/ritualCodePrepare'
+
+export { resolveNeekoRootParsedId } from '@/core/ritualCodePrepare'
 
 export const NEEKO_SCHEMA_ID = 'neeko'
 
@@ -51,8 +54,30 @@ export type NeekoTransformResult =
   | { ok: true; scene: CanvasScene; warnings: string[]; rootCanvasNodeId: string }
   | { ok: false; error: string }
 
+export const NEEKO_SCHEMA_TAG = 'neeko'
+
 export function isNeekoSchemaId(schemaId: string): boolean {
   return schemaId === NEEKO_SCHEMA_ID
+}
+
+/** Instâncias Neeko materializadas usam `tipo__caminho-slug` (ex.: value-float__main-entries-…). */
+const NEEKO_INSTANCE_SCHEMA_ID = /^[a-z0-9][a-z0-9-]*__[a-z0-9][a-z0-9-]/
+
+export function isNeekoTaggedSchema(schema: { id: string; tag?: string }): boolean {
+  if (isNeekoSchemaId(schema.id)) {
+    return false
+  }
+  if (schema.tag === NEEKO_SCHEMA_TAG) {
+    return true
+  }
+  return NEEKO_INSTANCE_SCHEMA_ID.test(schema.id)
+}
+
+export function stampNeekoTagOnSchema(schema: NodeSchemaDefinition): NodeSchemaDefinition {
+  if (isNeekoSchemaId(schema.id)) {
+    return schema
+  }
+  return { ...schema, tag: NEEKO_SCHEMA_TAG }
 }
 
 export function neekoPhaseSequence(): readonly NewNodeMaterializePhase[] {
@@ -72,128 +97,14 @@ export function stripNeekoTransientFromScene(scene: CanvasScene): CanvasScene {
   return changed ? { ...scene, nodes } : scene
 }
 
-function inferStandaloneRootTypeTitle(source: string): string | null {
-  for (const line of source.replace(/\r\n/g, '\n').split('\n')) {
-    const trimmed = line.trim()
-    if (trimmed === '' || trimmed.startsWith('#')) {
-      continue
-    }
-
-    const mapEntry = MAP_ENTRY_HEAD_REGEX.exec(trimmed)
-    if (mapEntry?.[3]) {
-      return mapEntry[3]!
-    }
-
-    const structOnly = STRUCT_ONLY_LINE.exec(trimmed)
-    if (structOnly?.[1]) {
-      return structOnly[1]!
-    }
-
-    break
-  }
-
-  return null
-}
-
-function findRootParsedIdByTypeTitle(
-  registry: Map<string, MutableClassGroupSchema>,
-  candidateIds: readonly string[],
-  typeTitle: string,
-): string | null {
-  for (const id of candidateIds) {
-    const schema = registry.get(id)
-    if (schema?.title === typeTitle) {
-      return id
-    }
-  }
-
-  for (const id of candidateIds) {
-    if (id === typeTitle || id.startsWith(`${typeTitle}__`)) {
-      return id
-    }
-  }
-
-  const titleLower = typeTitle.toLowerCase()
-  for (const id of candidateIds) {
-    const schema = registry.get(id)
-    if (schema?.title.toLowerCase() === titleLower) {
-      return id
-    }
-  }
-
-  return null
-}
-
-export function resolveNeekoRootParsedId(
-  registry: Map<string, MutableClassGroupSchema>,
-  rootSchemaIds: ReadonlySet<string>,
-  options?: { sourceText?: string },
-): { rootParsedId: string; warnings: string[] } | { error: string } {
-  const roots = [...rootSchemaIds]
-  const warnings: string[] = []
-
-  if (roots.length === 0) {
-    return { error: 'Nenhum tipo raiz encontrado no ritual.' }
-  }
-
-  const nonMain = roots.filter((id) => id !== MAIN_SCHEMA_ID)
-
-  if (roots.length === 1 && roots[0] !== MAIN_SCHEMA_ID) {
-    return { rootParsedId: roots[0]!, warnings }
-  }
-
-  if (roots.includes(MAIN_SCHEMA_ID)) {
-    const main = registry.get(MAIN_SCHEMA_ID)
-    if (!main) {
-      return { error: 'Schema main ausente no parse.' }
-    }
-    const links = collectChildLinks(main)
-    if (links.length === 0) {
-      return { error: 'Ritual com entries: map sem entradas para transformar.' }
-    }
-    if (links.length > 1) {
-      warnings.push(
-        `Várias entradas em main; a usar a primeira («${links[0]!.childParsedId}»).`,
-      )
-    }
-    return { rootParsedId: links[0]!.childParsedId, warnings }
-  }
-
-  if (nonMain.length > 0) {
-    const inferredTitle = options?.sourceText
-      ? inferStandaloneRootTypeTitle(options.sourceText)
-      : null
-
-    if (inferredTitle && nonMain.length > 1) {
-      const matched = findRootParsedIdByTypeTitle(registry, nonMain, inferredTitle)
-      if (matched) {
-        warnings.push(`Vários tipos raiz; a usar «${matched}» (tipo inferido do ritual).`)
-        return { rootParsedId: matched, warnings }
-      }
-    }
-
-    if (nonMain.length > 1) {
-      warnings.push(`Vários tipos raiz; a usar «${nonMain[0]!}».`)
-    }
-    return { rootParsedId: nonMain[0]!, warnings }
-  }
-
-  return { rootParsedId: roots[0]!, warnings }
-}
-
 export function prepareNeekoTransform(source: string): PrepareNeekoTransformResult {
+  const prepared = prepareClassGroupRitualParse(source)
+  if (!prepared.ok) {
+    return prepared
+  }
+
   const text = source.replace(/\r\n/g, '\n').trim()
-
-  if (text.length === 0) {
-    return { ok: false, error: 'Texto ritual vazio.' }
-  }
-
-  const normalized = normalizeStandaloneClassGroupRitual(text)
-  const parsed = parseClassGroupRitualWithStack(normalized)
-
-  if (parsed.registry.size === 0) {
-    return { ok: false, error: 'Nenhum schema gerado a partir do ritual.' }
-  }
+  const parsed = prepared.parse
 
   const resolved = resolveNeekoRootParsedId(parsed.registry, parsed.rootSchemaIds, {
     sourceText: text,
@@ -257,7 +168,11 @@ export class NeekoGraphBuilder extends NewNodeGraphBuilder {
       return
     }
 
-    const node = materializeParsedSchemaAtPhase(parsed, this.replaceCanvasNodeId, 'internals')
+    const materialized = materializeParsedSchemaAtPhase(parsed, this.replaceCanvasNodeId, 'internals')
+    const node = {
+      ...materialized,
+      schema: stampNeekoTagOnSchema(materialized.schema),
+    }
     const canvasNode: CanvasNode = {
       ...this.existingRootCanvasNode,
       node,
@@ -324,7 +239,11 @@ export class NeekoGraphBuilder extends NewNodeGraphBuilder {
     }
 
     const instanceId = createUniqueNodeId(parsed.id, this.nodes)
-    const node = materializeParsedSchemaAtPhase(parsed, instanceId, 'full')
+    const materialized = materializeParsedSchemaAtPhase(parsed, instanceId, 'full')
+    const node = {
+      ...materialized,
+      schema: stampNeekoTagOnSchema(materialized.schema),
+    }
     const position = this.layoutPosition(depth, siblingIndex)
 
     const canvasNode: CanvasNode = {
