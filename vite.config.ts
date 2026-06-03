@@ -7,6 +7,8 @@ import { defineConfig } from 'vitest/config'
 import { vitePluginCharacterGltf } from './vite.plugin.characterGltf'
 import { vitePluginJadeBridgeDev } from './vite.plugin.jadeBridgeDev'
 import { vitePluginLanguage } from './vite.plugin.language'
+import { vitePluginAddonsList } from './vite.plugin.addonsList'
+import { vitePluginGalleryFolder } from './vite.plugin.galleryFolder'
 import { vitePluginBlockParametersWrite } from './vite.plugin.blockParametersWrite'
 import { vitePluginNodeStructuresWrite } from './vite.plugin.nodeStructuresWrite'
 import { vitePluginWorkspaceSync } from './vite.plugin.workspaceSync'
@@ -48,9 +50,11 @@ export default defineConfig(({ mode }) => {
         ? [
             vitePluginJadeBridgeDev(path.resolve(__dirname)),
             vitePluginCharacterGltf(path.resolve(__dirname)),
+            vitePluginGalleryFolder(),
           ]
         : []),
       vitePluginNodeStructuresWrite(path.resolve(__dirname)),
+      vitePluginAddonsList(path.resolve(__dirname)),
       vitePluginBlockParametersWrite(path.resolve(__dirname)),
       vitePluginWorkspaceSync(path.resolve(__dirname)),
       vitePluginLanguage(path.resolve(__dirname)),

@@ -70,6 +70,11 @@ export type CanvasPosition = {
   y: number
 }
 
+export type AddonInstancePayload = {
+  addonId: string
+  outputValues: Record<string, unknown>
+}
+
 /** Deslocamento (pan) e zoom da vista do canvas — persistido no layout do workspace. */
 export type SceneCamera = {
   pan: CanvasPosition
@@ -111,6 +116,10 @@ export type CanvasNode = {
   groupStructure?: GroupStructurePayload
   /** Quando true, renderiza GroupCard em vez de NodeCard. */
   groupViewActive?: boolean
+  /** Metadados do sistema Add-on (pacotes em public/addons). */
+  addonInstance?: AddonInstancePayload
+  /** Quando true, renderiza AddonCard. */
+  addonViewActive?: boolean
   /** Card grupo/bloco: parâmetros em duas linhas (nome completo + valor). Omitido = linha única compacta. */
   structureCardParamsExpanded?: boolean
   /** Largura manual do card grupo/bloco (px). Omitido = largura padrão (360). */
@@ -152,6 +161,10 @@ export type CanvasConnection = {
   /** Destino slot de grupo (entrada). */
   toGroupSlotId?: string
   toGroupParameterId?: string
+  /** Origem slot de add-on (saída). */
+  fromAddonSlotId?: string
+  /** Destino slot de add-on (entrada). */
+  toAddonSlotId?: string
   /** Ligação bloco com tipo de saída incompatível mas campo IN aceite (confirmada pelo utilizador). */
   forced?: boolean
 }
@@ -199,6 +212,8 @@ function migrateConnection(connection: CanvasConnection): CanvasConnection {
     ...(connection.fromGroupParameterId ? { fromGroupParameterId: connection.fromGroupParameterId } : {}),
     ...(connection.toGroupSlotId ? { toGroupSlotId: connection.toGroupSlotId } : {}),
     ...(connection.toGroupParameterId ? { toGroupParameterId: connection.toGroupParameterId } : {}),
+    ...(connection.fromAddonSlotId ? { fromAddonSlotId: connection.fromAddonSlotId } : {}),
+    ...(connection.toAddonSlotId ? { toAddonSlotId: connection.toAddonSlotId } : {}),
     ...(connection.forced ? { forced: true } : {}),
   }
 }

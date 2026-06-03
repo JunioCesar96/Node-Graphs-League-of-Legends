@@ -1,0 +1,43 @@
+<div class="addon-string-prefix-ui">
+  <label>
+    {slot:prefix}<span>{1}</span>{/slot}
+    <input type="text" name="prefix" placeholder="{4}" value="" />
+  </label>
+  <label>
+    {slot:text}<span>{2}</span>{/slot}
+    <input type="text" name="text" placeholder="{5}" value="" />
+  </label>
+  <div class="addon-output-row">
+    {slot:result}<span>{3}</span>{/slot}
+    <output name="result" class="addon-output-row-output"></output>
+  </div>
+  <pre name="console-log" class="addon-console-log" style="display: none;"></pre>
+  <br>
+</div>
+
+<style>
+  .addon-output-row {
+    color: #ff00ff;
+  }
+  .addon-output-row span {
+    color: #ff00ff;
+  }
+  .addon-output-row output {
+    color: #ff00ff;
+  }
+  .addon-output-row pre {
+    color: #ff00ff;
+  }
+  .addon-string-prefix-ui{
+    width: 280px;
+    height: 160px;
+    color: var(--color-text-primary);
+    overflow: hidden;
+  }
+  .addon-output-row-output {
+    color: var(--syntax-string-color)!important;
+    height: 20px!important;
+    width: 100%!important;
+  }
+  
+</style>

@@ -1,0 +1,13 @@
+{
+  "0": "Prefixo de Texto",
+  "1": "Prefixo",
+  "2": "Texto",
+  "3": "Resultado",
+  "4": "ex: [VFX] ",
+  "5": "texto de entrada",
+  "6": "Adicione uma conexão de entrada para o texto",
+  "20": "League of Legends",
+  "21": "Utilitário",
+  "22": "Texto",
+  "23": "Concatena um prefixo configurável ao texto de entrada e expõe o resultado num slot de saída."
+}

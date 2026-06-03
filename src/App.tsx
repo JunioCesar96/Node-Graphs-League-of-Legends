@@ -45,6 +45,7 @@ import {
   BlockParameterInspector,
   type BlockParameterInspectorTarget,
 } from '@/components/organisms/BlockParameterInspector'
+import { fetchAddonsFromDisk } from '@/blockStructures/addonRegistry'
 import type { BlockDefinitionJsonDocument } from '@/core/blockDefinitionJson'
 import { GroupInspector } from '@/components/organisms/GroupInspector'
 import { BlockingProgressDialog } from '@/components/molecules/BlockingProgressDialog'
@@ -320,6 +321,10 @@ function App() {
     setPaletteSignal((ticket) => ticket + 1)
   }, [])
 
+  useEffect(() => {
+    void fetchAddonsFromDisk()
+  }, [])
+
   const mergedPackFolderBySchemaId = useMemo(
     () => ({
       ...schemaPackFolderBySchemaId,
@@ -445,6 +450,9 @@ function App() {
     revertBlockView,
     updateBlockParameter,
     createBlockNodeFromDefinition,
+    createAddonNode,
+    applyAddonOutputsToScene,
+    connectAddonSlots,
     syncBlockParameterCatalogFromDefinitions,
     addBlockParameterFromCatalog,
     removeBlockParameter,
@@ -4346,6 +4354,11 @@ function App() {
             onCreateBlockFromDefinition={(definition, position, spawnLink) =>
               createBlockNodeFromDefinition(definition, position, spawnLink)
             }
+            onCreateAddonFromCatalog={(addonId, position, spawnLink) =>
+              createAddonNode(addonId, position, spawnLink)
+            }
+            onApplyAddonOutputs={applyAddonOutputsToScene}
+            onConnectAddonSlots={connectAddonSlots}
             onSyncBlockParameterCatalog={syncBlockParameterCatalogFromDefinitions}
             onAddBlockParameterFromCatalog={addBlockParameterFromCatalog}
             onRemoveBlockParameter={removeBlockParameter}

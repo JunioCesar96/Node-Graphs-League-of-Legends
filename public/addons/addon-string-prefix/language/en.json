@@ -1,0 +1,13 @@
+{
+  "0": "String Prefix",
+  "1": "Prefix",
+  "2": "Text",
+  "3": "Result",
+  "4": "e.g. [VFX] ",
+  "5": "input text",
+  "6": "Add an input connection for the text",
+  "20": "League of Legends",
+  "21": "Utility",
+  "22": "Text",
+  "23": "Concatenates a configurable prefix to the input text and exposes the result on an output slot."
+}

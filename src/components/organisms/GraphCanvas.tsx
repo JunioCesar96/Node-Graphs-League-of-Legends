@@ -29,8 +29,12 @@ import {
 } from '@/core/blockDefinitionLinkPalette'
 import { RitualNeekoStagingPreview } from '@/components/molecules/RitualNeekoStagingPreview'
 import { NodeCard } from '@/components/organisms/NodeCard'
+import { AddonCardHost } from '@/components/molecules/AddonCardHost'
 import { BlockCard } from '@/components/organisms/BlockCard'
 import { GroupCard } from '@/components/organisms/GroupCard'
+import { connectionInvolvesAddon } from '@/core/addonSlotConnections'
+import { useAddonCanvasLinks } from '@/hooks/useAddonCanvasLinks'
+import { resolveAddonDropFromDataTransfer } from '@/ritualDrag/addonDropHandler'
 import { useRitualDragOptional } from '@/ritualDrag/RitualDragContext'
 import { useRitualDragCanvasDrop } from '@/hooks/useRitualDragCanvasDrop'
 import type { CanvasConnection, CanvasNode, CanvasPosition, CanvasScene, SceneCamera } from '@/core/canvasScene'
@@ -187,7 +191,14 @@ import {
 import { buildContextMenuItems } from '@/core/canvasContextMenuItems'
 import { LangId } from '@/core/language/languageIds'
 import { useLanguage } from '@/language/LanguageProvider'
-import { MESSENGER_CONFIRM_BLOCK_CONNECTION_FORCED } from '@/messenger_popup/messengerCatalog'
+import {
+  MESSENGER_CONFIRM_ADDON_CONNECTION_FORCED,
+  MESSENGER_CONFIRM_BLOCK_CONNECTION_FORCED,
+} from '@/messenger_popup/messengerCatalog'
+import {
+  classifyCrossSlotRequest,
+  type CrossSlotConnectRequest,
+} from '@/core/crossSlotConnections'
 import { useMessengerPopup } from '@/messenger_popup/MessengerPopupProvider'
 import {
   DEFAULT_CANVAS_TOOLBAR_VISIBILITY,
@@ -198,10 +209,12 @@ import {
 import { resolveContextTarget } from '@/core/canvasContextMenuResolve'
 import {
   collectGraphPortAnchors,
+  collectAddonSlotAnchors,
   emptyPortAnchorMaps,
   graphPointFromElementCenter,
   outputAnchorKey,
   type PortAnchorMaps,
+  type GraphPanPoint,
 } from '@/core/graphPortAnchors'
 import { parseSetConnectionRoutingMenuId } from '@/core/connectionRoutingMenu'
 import {
@@ -304,6 +317,47 @@ type GraphCanvasProps = {
     position?: CanvasPosition,
     spawnLink?: BlockDefinitionSpawnLinkContext,
   ) => { ok: true; nodeId: string } | { ok: false; error: string }
+  onCreateAddonFromCatalog?: (
+    addonId: string,
+    position?: CanvasPosition,
+    spawnLink?: {
+      fromNodeId: string
+      fromAddonSlotId?: string
+      fromBlockSlotId?: string
+      fromBlockParameterId?: string
+      toAddonSlotName?: string
+    },
+  ) => Promise<{ ok: true; nodeId: string } | { ok: false; error: string }>
+  onApplyAddonOutputs?: (nodeId: string, outputs: Record<string, unknown>) => void
+  onConnectAddonSlots?: (
+    request:
+      | {
+          kind: 'addon'
+          fromNodeId: string
+          fromAddonSlotId: string
+          toNodeId: string
+          toAddonSlotId: string
+          allowForced?: boolean
+        }
+      | {
+          kind: 'blockToAddon'
+          fromNodeId: string
+          fromBlockSlotId: string
+          fromBlockParameterId?: string
+          toNodeId: string
+          toAddonSlotId: string
+          allowForced?: boolean
+        }
+      | {
+          kind: 'addonToBlock'
+          fromNodeId: string
+          fromAddonSlotId: string
+          toNodeId: string
+          toBlockSlotId: string
+          toBlockParameterId?: string
+          allowForced?: boolean
+        },
+  ) => void
   onSyncBlockParameterCatalog?: (
     definitions: readonly BlockDefinitionJsonDocument[],
   ) => Promise<{ ok: boolean; error?: string }>
@@ -1620,6 +1674,9 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     onConnectBlockSlots,
     onUpdateGroupParameter,
     onConnectGroupSlots,
+    onCreateAddonFromCatalog,
+    onApplyAddonOutputs,
+    onConnectAddonSlots,
     onNodeLockedInteraction,
     onPatchNodeSceneOverlay,
     onSceneNodesPanelRequest,
@@ -1676,10 +1733,24 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
   const pendingLinkRef = useRef<PendingLink | null>(null)
   const [linkDropContext, setLinkDropContext] = useState<GraphDropLinkContext | null>(null)
   const [blockDropLinkContext, setBlockDropLinkContext] = useState<BlockDropLinkContext | null>(null)
+  const [addonDropLinkContext, setAddonDropLinkContext] = useState<{
+    fromNodeId: string
+    fromAddonSlotId: string
+    position: CanvasPosition
+  } | null>(null)
   const [isPaletteOpen, setIsPaletteOpen] = useState(false)
   const [pan, setPan] = useState<PanPoint>(() => scene.camera?.pan ?? { x: 0, y: 0 })
   const [scale, setScale] = useState(() => scene.camera?.scale ?? 1)
   const nodeDragGesture = useRef<NodeDragGesture | null>(null)
+
+  useEffect(() => {
+    const cancelActiveNodeDrag = () => {
+      nodeDragGesture.current = null
+    }
+    document.addEventListener('addon-context-menu-open', cancelActiveNodeDrag)
+    return () => document.removeEventListener('addon-context-menu-open', cancelActiveNodeDrag)
+  }, [])
+
   const panGesture = useRef<PanGesture | null>(null)
   const middlePanGestureRef = useRef<PanGesture | null>(null)
   const marqueeGestureRef = useRef<{ additive: boolean; pointerId: number; start: CanvasPosition } | null>(null)
@@ -1807,6 +1878,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
 
   const canvasBounds = getCanvasBounds(scene)
   const [portAnchors, setPortAnchors] = useState<PortAnchorMaps>(emptyPortAnchorMaps)
+  const [addonSlotAnchors, setAddonSlotAnchors] = useState<Map<string, GraphPanPoint>>(() => new Map())
 
   useLayoutEffect(() => {
     const el = canvasRef.current
@@ -1816,6 +1888,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     }
 
     setPortAnchors(collectGraphPortAnchors(el, scale))
+    setAddonSlotAnchors(collectAddonSlotAnchors(el, scale))
   }, [
     canvasBounds.height,
     canvasBounds.width,
@@ -1883,6 +1956,72 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     [scene],
   )
 
+  const tryConnectCrossSlots = useCallback(
+    (request: CrossSlotConnectRequest, allowForced = false): boolean => {
+      if (!onConnectAddonSlots) {
+        return false
+      }
+
+      const connectionClass = classifyCrossSlotRequest(scene.nodes, request)
+      if (connectionClass.kind === 'incompatible') {
+        return false
+      }
+
+      if (connectionClass.kind === 'forced' && !allowForced) {
+        showConfirmByCatalogId(MESSENGER_CONFIRM_ADDON_CONNECTION_FORCED, {
+          replacements: {
+            outputType: connectionClass.outputType,
+            inputType: connectionClass.inputType,
+            outputLabel: connectionClass.outputLabel,
+            inputLabel: connectionClass.inputLabel,
+          },
+          onConfirm: () => {
+            tryConnectCrossSlots(request, true)
+          },
+        })
+        return false
+      }
+
+      onConnectAddonSlots({
+        ...request,
+        allowForced: connectionClass.kind === 'forced' || allowForced,
+      })
+      return true
+    },
+    [onConnectAddonSlots, scene.nodes, showConfirmByCatalogId],
+  )
+
+  const addonLinks = useAddonCanvasLinks({
+    scene,
+    scale,
+    canvasRef,
+    addonSlotAnchors,
+    visibleNodeIds: useMemo(
+      () => new Set(scene.nodes.filter((n) => isNodeVisibleOnCanvas(n, compactElementVisibility, scene)).map((n) => n.id)),
+      [compactElementVisibility, scene],
+    ),
+    tryConnectCrossSlots: onConnectAddonSlots ? tryConnectCrossSlots : undefined,
+    onSelectNode,
+    onOpenAddonPalette: onCreateAddonFromCatalog
+      ? (context) => {
+          setAddonDropLinkContext(context)
+          setPaletteSpawnPosition(context.position)
+          setPaletteScreenAnchor(null)
+          setIsPaletteOpen(true)
+        }
+      : undefined,
+    endBlockLinkDraft: () => {
+      pendingBlockLinkRef.current = null
+      setPendingBlockLink(null)
+      setBlockLinkDraftPoint(null)
+    },
+    endGroupLinkDraft: () => {
+      pendingGroupLinkRef.current = null
+      setPendingGroupLink(null)
+      setGroupLinkDraftPoint(null)
+    },
+  })
+
   const visibleNodeIds = useMemo(
     () =>
       new Set(
@@ -1912,6 +2051,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       .filter(
         (connection) =>
           isBlockSlotConnection(connection) &&
+          !connectionInvolvesAddon(connection) &&
           connection.routing !== 'wireless' &&
           visibleNodeIds.has(connection.fromNodeId) &&
           visibleNodeIds.has(connection.toNodeId),
@@ -2146,15 +2286,51 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
   const resolveBlockLinkDrop = useCallback(
     (clientX: number, clientY: number) => {
       const pending = pendingBlockLinkRef.current
-      if (!pending || !onConnectBlockSlots) {
+      if (!pending) {
         return
+      }
+      if (!onConnectBlockSlots && !onConnectAddonSlots) {
+        return
+      }
+
+      const el = document.elementFromPoint(clientX, clientY)
+      const addonSlotEl = el instanceof Element ? el.closest('[data-addon-slot-id]') : null
+      if (addonSlotEl instanceof HTMLElement && onConnectAddonSlots) {
+        const direction = addonSlotEl.getAttribute('data-addon-slot-direction')
+        const addonToNodeId = addonSlotEl.getAttribute('data-addon-slot-node-id')
+        const toAddonSlotId = addonSlotEl.getAttribute('data-addon-slot-id')
+        if (
+          direction === 'input' &&
+          addonToNodeId &&
+          toAddonSlotId &&
+          addonToNodeId !== pending.fromNodeId
+        ) {
+          tryConnectCrossSlots({
+            kind: 'blockToAddon',
+            fromNodeId: pending.fromNodeId,
+            fromBlockSlotId: pending.fromBlockSlotId,
+            fromBlockParameterId: pending.fromBlockParameterId,
+            toNodeId: addonToNodeId,
+            toAddonSlotId,
+          })
+          endBlockLinkDraft()
+          onSelectNode(addonToNodeId)
+          return
+        }
       }
 
       const canvasEl = canvasRef.current
       let toNodeId: string | null = null
       let toBlockSlotId: string | null = null
 
-      if (canvasEl) {
+      if (canvasEl && onConnectAddonSlots) {
+        if (addonLinks.resolveBlockLinkDropOnAddon(pending, clientX, clientY)) {
+          endBlockLinkDraft()
+          return
+        }
+      }
+
+      if (canvasEl && onConnectBlockSlots) {
         const point = graphClientToPosition(canvasEl, scale, clientX, clientY)
         const hit = findBlockSlotAtPoint(scene.nodes, point)
         if (hit && hit.direction === 'input' && hit.nodeId !== pending.fromNodeId) {
@@ -2164,7 +2340,6 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       }
 
       if (!toNodeId || !toBlockSlotId) {
-        const el = document.elementFromPoint(clientX, clientY)
         const slotEl = el instanceof Element ? el.closest('[data-block-slot-id]') : null
         if (slotEl instanceof HTMLElement) {
           const direction = slotEl.getAttribute('data-block-slot-direction')
@@ -2176,7 +2351,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
           }
         } else {
           const canvasElForDrop = canvasRef.current
-          if (canvasElForDrop) {
+          if (canvasElForDrop && onConnectBlockSlots) {
             const dropPosition = graphClientToPosition(canvasElForDrop, scale, clientX, clientY)
             const fromNode = scene.nodes.find((node) => node.id === pending.fromNodeId)
             const endpoint =
@@ -2207,6 +2382,11 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
         }
       }
 
+      if (!onConnectBlockSlots) {
+        endBlockLinkDraft()
+        return
+      }
+
       const paramMatch = /^block-param:(.+):input$/.exec(toBlockSlotId)
       tryConnectBlockSlots(
         pending.fromNodeId,
@@ -2219,7 +2399,16 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       endBlockLinkDraft()
       onSelectNode(toNodeId)
     },
-    [endBlockLinkDraft, onSelectNode, scale, scene.nodes, tryConnectBlockSlots],
+    [
+      addonLinks,
+      endBlockLinkDraft,
+      onConnectAddonSlots,
+      onSelectNode,
+      scale,
+      scene.nodes,
+      tryConnectBlockSlots,
+      tryConnectCrossSlots,
+    ],
   )
 
   const resolveGroupLinkDrop = useCallback(
@@ -3028,6 +3217,42 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     ],
   )
 
+  const handlePaletteAddonPick = useCallback(
+    (addonId: string) => {
+      if (!onCreateAddonFromCatalog) {
+        closePalette()
+        return
+      }
+
+      const dropContext = addonDropLinkContext
+      const spawnLink = dropContext
+        ? {
+            fromNodeId: dropContext.fromNodeId,
+            fromAddonSlotId: dropContext.fromAddonSlotId,
+          }
+        : undefined
+
+      void onCreateAddonFromCatalog(addonId, paletteSpawnPosition ?? undefined, spawnLink).then(
+        (result) => {
+          if (result.ok) {
+            onSelectNode(result.nodeId)
+          } else {
+            window.alert(result.error)
+          }
+        },
+      )
+      setAddonDropLinkContext(null)
+      closePalette()
+    },
+    [
+      addonDropLinkContext,
+      closePalette,
+      onCreateAddonFromCatalog,
+      onSelectNode,
+      paletteSpawnPosition,
+    ],
+  )
+
   const handlePaletteBlockPick = useCallback(
     (definition: BlockDefinitionJsonDocument) => {
       if (!onCreateBlockFromDefinition) {
@@ -3282,7 +3507,11 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
   }
 
   const startNodeDrag = (event: PointerEvent<HTMLElement>, canvasNode: CanvasNode) => {
-    if (event.button !== 0 || isNodeLocked(canvasNode)) {
+    if (
+      event.button !== 0 ||
+      isNodeLocked(canvasNode) ||
+      document.body.dataset.addonContextMenuActive === '1'
+    ) {
       return
     }
 
@@ -3306,7 +3535,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
   const moveNodeDrag = (event: PointerEvent<HTMLDivElement>) => {
     const gesture = nodeDragGesture.current
 
-    if (!gesture) {
+    if (!gesture || document.body.dataset.addonContextMenuActive === '1') {
       return
     }
 
@@ -4604,14 +4833,20 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
 
       {isPaletteOpen ? (
         <AddNodePalette
+          addonsCatalogEnabled={Boolean(addonDropLinkContext) || (!linkDropContext && !blockDropLinkContext)}
           blocksCatalogEnabled={Boolean(blockDropLinkContext) || !linkDropContext}
           blockDefinitionFilter={blockDropLinkContext ? blockDefinitionMatchesDropContext : undefined}
           blockDropLinkContext={blockDropLinkContext ?? undefined}
           heading={
-            linkDropContext || blockDropLinkContext ? t(LangId.NodePaletteLinkHeading) : undefined
+            linkDropContext || blockDropLinkContext || addonDropLinkContext
+              ? t(LangId.NodePaletteLinkHeading)
+              : undefined
           }
-          initialCatalogMode={blockDropLinkContext ? 'blocks' : 'nodes'}
+          initialCatalogMode={
+            addonDropLinkContext ? 'addons' : blockDropLinkContext ? 'blocks' : 'nodes'
+          }
           onClose={closePalette}
+          onPickAddon={handlePaletteAddonPick}
           onPickBlock={handlePaletteBlockPick}
           onPickSchema={handlePalettePick}
           onSyncBlockParameterCatalog={onSyncBlockParameterCatalog}
@@ -4705,6 +4940,31 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
         onPointerDown={handleViewportPointerDown}
         onPointerMove={handleViewportPointerMove}
         onPointerUp={handleViewportPointerUp}
+        onDragOver={(event) => {
+          if (resolveAddonDropFromDataTransfer(event.dataTransfer)) {
+            event.preventDefault()
+            event.dataTransfer.dropEffect = 'copy'
+          }
+        }}
+        onDrop={(event) => {
+          const addonId = resolveAddonDropFromDataTransfer(event.dataTransfer)
+          if (!addonId || !onCreateAddonFromCatalog) {
+            return
+          }
+          event.preventDefault()
+          const canvasEl = canvasRef.current
+          if (!canvasEl) {
+            return
+          }
+          const position = graphClientToPosition(canvasEl, scale, event.clientX, event.clientY)
+          void onCreateAddonFromCatalog(addonId, position).then((result) => {
+            if (result.ok) {
+              onSelectNode(result.nodeId)
+            } else {
+              window.alert(result.error)
+            }
+          })
+        }}
         ref={viewportBodyRef}
         {...{ [GRAPH_CANVAS_SCOPE_ATTR]: GRAPH_CANVAS_SCOPE_ID }}
       >
@@ -4824,6 +5084,59 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
               />
             </g>
           ))}
+          {addonLinks.addonConnectionPaths.map((connection) => (
+            <g key={connection.id}>
+              {onRemoveConnection || onCycleConnectionRouting ? (
+                <path
+                  aria-label={`Ligação add-on ${connection.id}`}
+                  className={styles.connectionHit}
+                  d={connection.d}
+                  data-canvas-wire="true"
+                  {...{ [CANVAS_CONNECTION_ID_ATTR]: connection.id }}
+                  onContextMenu={handleContextMenu}
+                  onPointerDown={(event) => {
+                    event.preventDefault()
+                    event.stopPropagation()
+                    if (event.ctrlKey || event.metaKey) {
+                      onRemoveConnection?.(connection.id)
+                      return
+                    }
+                    onCycleConnectionRouting?.(connection.id)
+                  }}
+                />
+              ) : null}
+              <path
+                className={[
+                  styles.connectionBlockHalo,
+                  connection.forced ? styles.connectionBlockHaloForced : '',
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
+                d={connection.d}
+              />
+              <path
+                className={[
+                  styles.connectionBlock,
+                  connection.forced ? styles.connectionBlockForced : '',
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
+                d={connection.d}
+                markerEnd="url(#connection-arrow-block)"
+              />
+            </g>
+          ))}
+          {addonLinks.pendingAddonLink && addonLinks.addonLinkDraftPoint ? (
+            <path
+              className={styles.connectionBlockDraft}
+              d={addonLinks.createAddonDraftConnectionPath(
+                addonLinks.pendingAddonLink.draftAnchor.sx,
+                addonLinks.pendingAddonLink.draftAnchor.sy,
+                addonLinks.addonLinkDraftPoint.x,
+                addonLinks.addonLinkDraftPoint.y,
+              )}
+            />
+          ) : null}
           {groupConnectionPaths.map((connection) => (
             <g key={connection.id}>
               {onRemoveConnection || onCycleConnectionRouting ? (
@@ -4912,6 +5225,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
           const isSelected = selectedNodeIds.includes(canvasNode.id)
           const cardHandlesSelection =
             (canvasNode.groupViewActive && !!canvasNode.groupStructure) ||
+            (canvasNode.addonViewActive && !!canvasNode.addonInstance) ||
             (canvasNode.blockViewActive && !!canvasNode.blockStructure)
           const pendingFromNode = pendingLink
             ? scene.nodes.find((node) => node.id === pendingLink.fromNodeId)
@@ -4963,7 +5277,78 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
                 top: `${canvasNode.position.y}px`,
               }}
             >
-              {canvasNode.groupViewActive && canvasNode.groupStructure ? (
+              {canvasNode.addonViewActive && canvasNode.addonInstance ? (
+                <AddonCardHost
+                  canvasNode={canvasNode}
+                  scene={scene}
+                  selected={isSelected}
+                  interactionLocked={nodeLocked}
+                  activeAddonSlotId={addonLinks.pendingAddonLink?.fromAddonSlotId}
+                  onGraphStateMutation={(nodeId, outputs) =>
+                    onApplyAddonOutputs?.(nodeId, outputs)
+                  }
+                  onAddonOutputPointerDown={(slotId, event) => {
+                    if (event.button !== 0) {
+                      return
+                    }
+                    event.stopPropagation()
+                    addonLinks.beginAddonOutputLink(canvasNode.id, slotId)
+                    event.currentTarget.setPointerCapture(event.pointerId)
+                  }}
+                  onAddonOutputPointerUp={(slotId, event) => {
+                    event.stopPropagation()
+                    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+                      event.currentTarget.releasePointerCapture(event.pointerId)
+                    }
+                  }}
+                  onAddonOutputPointerCancel={(_slotId, event) => {
+                    event.stopPropagation()
+                    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+                      event.currentTarget.releasePointerCapture(event.pointerId)
+                    }
+                    addonLinks.endAddonLinkDraft()
+                  }}
+                  onAddonOutputPointerMove={(_slotId, event) => {
+                    addonLinks.setAddonLinkDraftPointFromClient(event.clientX, event.clientY)
+                  }}
+                  onAddonInputPointerUp={(slotId, event) => {
+                    const pendingAddon = addonLinks.getPendingAddonLink()
+                    if (pendingAddon && onConnectAddonSlots) {
+                      tryConnectCrossSlots({
+                        kind: 'addon',
+                        fromNodeId: pendingAddon.fromNodeId,
+                        fromAddonSlotId: pendingAddon.fromAddonSlotId,
+                        toNodeId: canvasNode.id,
+                        toAddonSlotId: slotId,
+                      })
+                      addonLinks.endAddonLinkDraft()
+                      onSelectNode(canvasNode.id)
+                      return
+                    }
+                    const pendingBlock = pendingBlockLinkRef.current
+                    if (pendingBlock && onConnectAddonSlots) {
+                      tryConnectCrossSlots({
+                        kind: 'blockToAddon',
+                        fromNodeId: pendingBlock.fromNodeId,
+                        fromBlockSlotId: pendingBlock.fromBlockSlotId,
+                        fromBlockParameterId: pendingBlock.fromBlockParameterId,
+                        toNodeId: canvasNode.id,
+                        toAddonSlotId: slotId,
+                      })
+                      endBlockLinkDraft()
+                      onSelectNode(canvasNode.id)
+                      return
+                    }
+                    addonLinks.resolveAddonLinkDrop(event.clientX, event.clientY)
+                  }}
+                  onSelect={(event) =>
+                    onSelectNode(canvasNode.id, { additive: Boolean(event?.shiftKey) })
+                  }
+                  onStartDrag={
+                    nodeLocked ? undefined : (event) => startNodeDrag(event, canvasNode)
+                  }
+                />
+              ) : canvasNode.groupViewActive && canvasNode.groupStructure ? (
               <GroupCard
                 canvasNode={canvasNode}
                 scene={scene}
@@ -5072,10 +5457,37 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
                   }
                   resolveBlockLinkDrop(event.clientX, event.clientY)
                 }}
-                onBlockHeaderInputPointerUp={(_slotId, event) => {
+                onBlockHeaderInputPointerUp={(slotId, event) => {
+                  const pendingAddon = addonLinks.getPendingAddonLink()
+                  if (pendingAddon && onConnectAddonSlots) {
+                    tryConnectCrossSlots({
+                      kind: 'addonToBlock',
+                      fromNodeId: pendingAddon.fromNodeId,
+                      fromAddonSlotId: pendingAddon.fromAddonSlotId,
+                      toNodeId: canvasNode.id,
+                      toBlockSlotId: slotId,
+                    })
+                    addonLinks.endAddonLinkDraft()
+                    onSelectNode(canvasNode.id)
+                    return
+                  }
                   resolveBlockLinkDrop(event.clientX, event.clientY)
                 }}
-                onBlockInputPointerUp={(_paramId, _slotId, event) => {
+                onBlockInputPointerUp={(paramId, slotId, event) => {
+                  const pendingAddon = addonLinks.getPendingAddonLink()
+                  if (pendingAddon && onConnectAddonSlots) {
+                    tryConnectCrossSlots({
+                      kind: 'addonToBlock',
+                      fromNodeId: pendingAddon.fromNodeId,
+                      fromAddonSlotId: pendingAddon.fromAddonSlotId,
+                      toNodeId: canvasNode.id,
+                      toBlockSlotId: slotId,
+                      toBlockParameterId: paramId,
+                    })
+                    addonLinks.endAddonLinkDraft()
+                    onSelectNode(canvasNode.id)
+                    return
+                  }
                   resolveBlockLinkDrop(event.clientX, event.clientY)
                 }}
                 onBlockSlotWirelessHoverStart={handleBlockSlotWirelessHoverStart}

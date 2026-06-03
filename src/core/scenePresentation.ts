@@ -46,6 +46,9 @@ export type CanvasNodePresentationEntry = {
   locked?: boolean
   blockViewActive?: boolean
   groupViewActive?: boolean
+  addonViewActive?: boolean
+  addonId?: string
+  addonOutputValues?: Record<string, unknown>
   structureCardParamsExpanded?: boolean
   structureCardWidth?: number
 }
@@ -221,6 +224,12 @@ export function canvasNodePresentationFromNode(canvasNode: CanvasNode): CanvasNo
     ...(canvasNode.locked ? { locked: true } : {}),
     ...(canvasNode.blockViewActive ? { blockViewActive: true } : {}),
     ...(canvasNode.groupViewActive ? { groupViewActive: true } : {}),
+    ...(canvasNode.addonViewActive ? { addonViewActive: true } : {}),
+    ...(canvasNode.addonInstance?.addonId ? { addonId: canvasNode.addonInstance.addonId } : {}),
+    ...(canvasNode.addonInstance?.outputValues &&
+    Object.keys(canvasNode.addonInstance.outputValues).length > 0
+      ? { addonOutputValues: structuredClone(canvasNode.addonInstance.outputValues) }
+      : {}),
     ...(canvasNode.structureCardParamsExpanded ? { structureCardParamsExpanded: true } : {}),
     ...(canvasNode.structureCardWidth !== undefined
       ? { structureCardWidth: canvasNode.structureCardWidth }
@@ -264,6 +273,17 @@ export function canvasNodeOverlayFromPresentation(
     ...(entry.locked ? { locked: true } : {}),
     ...(entry.blockViewActive ? { blockViewActive: true } : {}),
     ...(entry.groupViewActive ? { groupViewActive: true } : {}),
+    ...(entry.addonViewActive && entry.addonId
+      ? {
+          addonViewActive: true,
+          addonInstance: {
+            addonId: entry.addonId,
+            outputValues: entry.addonOutputValues
+              ? structuredClone(entry.addonOutputValues)
+              : {},
+          },
+        }
+      : {}),
     ...(entry.structureCardParamsExpanded ? { structureCardParamsExpanded: true } : {}),
     ...(entry.structureCardWidth !== undefined ? { structureCardWidth: entry.structureCardWidth } : {}),
   }

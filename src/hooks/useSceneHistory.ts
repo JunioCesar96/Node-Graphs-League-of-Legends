@@ -78,6 +78,15 @@ import {
   findBlockSlotEndpoint,
 } from '@/core/blockSlotConnections'
 import { resolveBlockHeaderInputSlotIdForLink } from '@/core/blockCardHeaderSlots'
+import { preloadAddonPackage } from '@/blockStructures/addonRegistry'
+import { createAddonPlaceholderInstance } from '@/core/addonPlaceholderNode'
+import { applyAddonSlotConnectionToScene, addonSlotId } from '@/core/addonSlotConnections'
+import {
+  applyBlockOutputToAddonInput,
+  applyAddonOutputToBlockInput,
+} from '@/core/addonBridgeConnections'
+import { syncConnectedAddonOutputs } from '@/core/addonOutputPropagation'
+import { applyAddonOutputs } from '@/nodeStructures/instanceEvaluator'
 import type { GroupInspectorDraft } from '@/core/groupSchema'
 import { GROUP_CARD_WIDTH, isGroupPointerSourcePath } from '@/core/groupSchema'
 import { normalizeStructureCardWidth } from '@/core/structureCardLayout'
@@ -1585,6 +1594,185 @@ export function useSceneHistory(options?: {
       return { ok: true, nodeId: createdId }
     },
     [updateScene, schemaLookup],
+  )
+
+  const createAddonNode = useCallback(
+    async (
+      addonId: string,
+      position?: CanvasPosition,
+      spawnLink?: {
+        fromNodeId: string
+        fromAddonSlotId?: string
+        fromBlockSlotId?: string
+        fromBlockParameterId?: string
+        toAddonSlotName?: string
+      },
+    ): Promise<{ ok: true; nodeId: string } | { ok: false; error: string }> => {
+      try {
+        await preloadAddonPackage(addonId)
+      } catch (err) {
+        return {
+          ok: false,
+          error: err instanceof Error ? err.message : `Falha ao carregar add-on "${addonId}".`,
+        }
+      }
+
+      let createdId: string | null = null
+
+      updateScene((currentScene) => {
+        const instanceId = createUniqueNodeId(`addon-${addonId}`, currentScene.nodes)
+        const node = createAddonPlaceholderInstance(instanceId)
+        const spawnPosition = position ?? getNextDetachedNodePosition(currentScene)
+
+        createdId = instanceId
+
+        queueMicrotask(() =>
+          setSelectionState({
+            ids: [instanceId],
+            primaryId: instanceId,
+          }),
+        )
+
+        let nextScene: CanvasScene = {
+          ...currentScene,
+          nodes: [
+            ...currentScene.nodes,
+            {
+              id: instanceId,
+              node,
+              position: spawnPosition,
+              addonViewActive: true,
+              addonInstance: {
+                addonId,
+                outputValues: {},
+              },
+            },
+          ],
+        }
+
+        if (spawnLink) {
+          const toSlotName = spawnLink.toAddonSlotName ?? 'text'
+          const toAddonSlotId = addonSlotId(toSlotName, 'input')
+
+          if (spawnLink.fromBlockSlotId) {
+            const linked = applyBlockOutputToAddonInput(nextScene, {
+              fromNodeId: spawnLink.fromNodeId,
+              fromBlockSlotId: spawnLink.fromBlockSlotId,
+              fromBlockParameterId: spawnLink.fromBlockParameterId,
+              toNodeId: instanceId,
+              toAddonSlotId,
+            })
+            if (linked) {
+              nextScene = linked
+            }
+          } else if (spawnLink.fromAddonSlotId) {
+            const linked = applyAddonSlotConnectionToScene(nextScene, {
+              fromNodeId: spawnLink.fromNodeId,
+              fromAddonSlotId: spawnLink.fromAddonSlotId,
+              toNodeId: instanceId,
+              toAddonSlotId,
+            })
+            if (linked) {
+              nextScene = linked
+            }
+          }
+        }
+
+        return nextScene
+      })
+
+      if (!createdId) {
+        return { ok: false, error: 'Não foi possível criar o nó add-on.' }
+      }
+
+      return { ok: true, nodeId: createdId }
+    },
+    [updateScene],
+  )
+
+  const applyAddonOutputsToScene = useCallback(
+    (nodeId: string, outputs: Record<string, unknown>) => {
+      updateScene((currentScene) => applyAddonOutputs(currentScene, nodeId, outputs))
+    },
+    [updateScene],
+  )
+
+  const connectAddonSlots = useCallback(
+    (
+      request:
+        | {
+            kind: 'addon'
+            fromNodeId: string
+            fromAddonSlotId: string
+            toNodeId: string
+            toAddonSlotId: string
+            allowForced?: boolean
+          }
+        | {
+            kind: 'blockToAddon'
+            fromNodeId: string
+            fromBlockSlotId: string
+            fromBlockParameterId?: string
+            toNodeId: string
+            toAddonSlotId: string
+            allowForced?: boolean
+          }
+        | {
+            kind: 'addonToBlock'
+            fromNodeId: string
+            fromAddonSlotId: string
+            toNodeId: string
+            toBlockSlotId: string
+            toBlockParameterId?: string
+            allowForced?: boolean
+          },
+    ) => {
+      updateScene((currentScene) => {
+        let nextScene = currentScene
+
+        if (request.kind === 'addon') {
+          nextScene =
+            applyAddonSlotConnectionToScene(currentScene, {
+              fromNodeId: request.fromNodeId,
+              fromAddonSlotId: request.fromAddonSlotId,
+              toNodeId: request.toNodeId,
+              toAddonSlotId: request.toAddonSlotId,
+              allowForced: request.allowForced,
+            }) ?? currentScene
+        } else if (request.kind === 'blockToAddon') {
+          nextScene =
+            applyBlockOutputToAddonInput(currentScene, {
+              fromNodeId: request.fromNodeId,
+              fromBlockSlotId: request.fromBlockSlotId,
+              fromBlockParameterId: request.fromBlockParameterId,
+              toNodeId: request.toNodeId,
+              toAddonSlotId: request.toAddonSlotId,
+              allowForced: request.allowForced,
+            }) ?? currentScene
+        } else {
+          nextScene =
+            applyAddonOutputToBlockInput(currentScene, {
+              fromNodeId: request.fromNodeId,
+              fromAddonSlotId: request.fromAddonSlotId,
+              toNodeId: request.toNodeId,
+              toBlockSlotId: request.toBlockSlotId,
+              toBlockParameterId: request.toBlockParameterId,
+              allowForced: request.allowForced,
+            }) ?? currentScene
+        }
+
+        if (nextScene === currentScene) {
+          return currentScene
+        }
+
+        if (request.kind === 'addon' || request.kind === 'addonToBlock') {
+          nextScene = syncConnectedAddonOutputs(nextScene, request.fromNodeId)
+        }
+
+        return nextScene
+      })
+    },
+    [updateScene],
   )
 
   const syncBlockParameterCatalogFromDefinitions = useCallback(
@@ -3350,10 +3538,7 @@ export function useSceneHistory(options?: {
           return currentScene
         }
 
-        const added = addParameterToBlockStructure(canvasNode.blockStructure, doc, {
-          disableSimpleSlotsByDefault: true,
-          complexOutputOnlyByDefault: true,
-        })
+        const added = addParameterToBlockStructure(canvasNode.blockStructure, doc)
         if (added.error) {
           error = added.error
           return currentScene
@@ -3817,6 +4002,9 @@ export function useSceneHistory(options?: {
     createChildNode,
     createRootNode,
     createBlockNodeFromDefinition,
+    createAddonNode,
+    applyAddonOutputsToScene,
+    connectAddonSlots,
     syncBlockParameterCatalogFromDefinitions,
     spawnNeekoNodeAtPosition,
     deleteNodeIds,

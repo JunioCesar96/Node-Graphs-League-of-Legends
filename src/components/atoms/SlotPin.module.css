@@ -1,0 +1,34 @@
+.slotPin {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  height: 12px;
+  padding: 0;
+  margin: -4px;
+  border: 2px solid var(--block-slot);
+  border-radius: 50%;
+  background: var(--block-surface-dark);
+  cursor: crosshair;
+  touch-action: none;
+  transition: box-shadow 120ms ease, transform 120ms ease;
+}
+
+.slotPin[data-direction='output'] {
+  border-color: var(--block-slot-out);
+}
+
+.slotPin[data-direction='input'] {
+  border-color: var(--block-slot-in);
+}
+
+.slotPin[data-active='1'] {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--block-slot-out) 35%, transparent);
+  transform: scale(1.08);
+}
+
+.slotPin:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}

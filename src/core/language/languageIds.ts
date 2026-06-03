@@ -565,6 +565,15 @@ export const LangId = {
   CodeToolsCodeBuildBlock: 553,
   CodeBuildBlockEmptyEditor: 554,
   BlockConnectionForcedConfirm: 555,
+  NodePaletteCatalogAddons: 556,
+  NodePaletteAddonInstallTitle: 557,
+  NodePaletteAddonInstallHint: 558,
+  NodePaletteAddonInstallSearching: 559,
+  NodePaletteAddonInstallSuccess: 560,
+  NodePaletteAddonInstallDevOnly: 561,
+  NodePaletteAddonsEmpty: 562,
+  NodePaletteAddonsLoading: 563,
+  NodePaletteSearchAddonsPlaceholder: 564,
 } as const
 
 export type LangIdValue = (typeof LangId)[keyof typeof LangId]

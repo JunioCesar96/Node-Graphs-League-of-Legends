@@ -2,8 +2,15 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent, PointerEvent } from 'react'
 
 import { ExpandActionCapsule, type ExpandActionCapsuleKind } from '@/components/molecules/ExpandActionCapsule'
+import { PaletteAddAddonOption } from '@/components/molecules/PaletteAddAddonOption'
+import { PaletteAddonInstallZone } from '@/components/molecules/PaletteAddonInstallZone'
 import { PaletteAddBlockOption } from '@/components/molecules/PaletteAddBlockOption'
 import { PaletteAddNodeOption } from '@/components/molecules/PaletteAddNodeOption'
+import {
+  fetchAddonsFromDisk,
+  listAddonManifests,
+  matchesAddonQuery,
+} from '@/blockStructures/addonRegistry'
 import {
   blockDefinitionsList,
   matchesBlockDefinitionQuery,
@@ -41,7 +48,7 @@ const MAX_SCROLL_SPEED = 28
 const EXPAND_CAPSULE_LIFETIME_SECONDS = 5
 
 type PaletteScrollDirection = 'down' | 'idle' | 'up'
-type PaletteCatalogMode = 'nodes' | 'blocks'
+type PaletteCatalogMode = 'nodes' | 'blocks' | 'addons'
 
 /** Teste: m/n controlam expandir/retrair (m = expandir, n = retrair), com hover na linha ou atalho global quando o foco não está no campo de pesquisa. */
 type PaletteExpandOverride = 'compact' | 'default' | 'expanded'
@@ -93,8 +100,10 @@ type AddNodePaletteProps = {
   blocksCatalogEnabled?: boolean
   heading?: string
   onClose: () => void
+  onPickAddon?: (addonId: string) => void
   onPickBlock?: (definition: BlockDefinitionJsonDocument) => void
   onPickSchema: (schema: NodeSchemaDefinition) => void
+  addonsCatalogEnabled?: boolean
   onSyncBlockParameterCatalog?: (
     definitions: readonly BlockDefinitionJsonDocument[],
   ) => Promise<{ ok: boolean; error?: string }>
@@ -116,12 +125,14 @@ type AddNodePaletteProps = {
 }
 
 export function AddNodePalette({
+  addonsCatalogEnabled = true,
   blocksCatalogEnabled = true,
   blockDefinitionFilter,
   blockDropLinkContext,
   heading,
   initialCatalogMode = 'nodes',
   onClose,
+  onPickAddon,
   onPickBlock,
   onPickSchema,
   onSyncBlockParameterCatalog,
@@ -152,6 +163,9 @@ export function AddNodePalette({
   )
   const [diskBlockDefinitionsLoading, setDiskBlockDefinitionsLoading] = useState(false)
   const [diskBlockDefinitionsError, setDiskBlockDefinitionsError] = useState<string | null>(null)
+  const [diskAddonManifests, setDiskAddonManifests] = useState(() => [...listAddonManifests()])
+  const [diskAddonsLoading, setDiskAddonsLoading] = useState(false)
+  const [diskAddonsError, setDiskAddonsError] = useState<string | null>(null)
 
   const [structureSubfolderMenuOpen, setStructureSubfolderMenuOpen] = useState(false)
   const [structureSubfolderMenuQuery, setStructureSubfolderMenuQuery] = useState('')
@@ -214,6 +228,20 @@ export function AddNodePalette({
     return () => {
       cancelled = true
     }
+  }, [])
+
+  const refreshAddonsCatalog = useCallback(() => {
+    setDiskAddonsLoading(true)
+    setDiskAddonsError(null)
+
+    void fetchAddonsFromDisk().then((result) => {
+      setDiskAddonsLoading(false)
+      if (result.ok) {
+        setDiskAddonManifests([...result.manifests])
+        return
+      }
+      setDiskAddonsError(result.error)
+    })
   }, [])
 
   const refreshBlocksCatalog = useCallback(() => {
@@ -399,6 +427,11 @@ export function AddNodePalette({
   )
 
   const blockDefinitions = diskBlockDefinitions
+  const filteredAddons = useMemo(() => {
+    const q = paletteQuery.trim()
+    return diskAddonManifests.filter((manifest) => matchesAddonQuery(manifest, q))
+  }, [diskAddonManifests, paletteQuery])
+
   const filteredBlocks = useMemo(() => {
     const matched = blockDefinitions
       .filter((definition) => (blockDefinitionFilter ? blockDefinitionFilter(definition) : true))
@@ -411,8 +444,13 @@ export function AddNodePalette({
     return sortBlockDefinitionsForLinkDrop(matched, blockDropLinkContext)
   }, [blockDefinitionFilter, blockDefinitions, blockDropLinkContext, paletteQuery])
 
+  const isAddonsMode = addonsCatalogEnabled && paletteCatalogMode === 'addons'
   const isBlocksMode = blocksCatalogEnabled && paletteCatalogMode === 'blocks'
-  const paletteResultCount = isBlocksMode ? filteredBlocks.length : filteredSchemas.length
+  const paletteResultCount = isAddonsMode
+    ? filteredAddons.length
+    : isBlocksMode
+      ? filteredBlocks.length
+      : filteredSchemas.length
 
   useEffect(() => {
     if (!blocksCatalogEnabled && paletteCatalogMode === 'blocks') {
@@ -632,7 +670,11 @@ export function AddNodePalette({
   }, [])
 
   const handlePaletteKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
-    const activeListLength = isBlocksMode ? filteredBlocks.length : filteredSchemas.length
+    const activeListLength = isAddonsMode
+      ? filteredAddons.length
+      : isBlocksMode
+        ? filteredBlocks.length
+        : filteredSchemas.length
 
     if (event.key === 'Escape') {
       if (structureSubfolderMenuOpen) {
@@ -667,6 +709,15 @@ export function AddNodePalette({
     }
 
     if (event.key === 'Enter') {
+      if (isAddonsMode) {
+        const activeAddon = filteredAddons[activeSchemaIndex]
+        if (activeAddon && onPickAddon) {
+          event.preventDefault()
+          onPickAddon(activeAddon.id)
+        }
+        return
+      }
+
       if (isBlocksMode) {
         const activeBlock = filteredBlocks[activeSchemaIndex]
         if (activeBlock && onPickBlock) {
@@ -865,7 +916,7 @@ export function AddNodePalette({
             <span>{heading ?? t(LangId.NodePaletteHeading)}</span>
             <kbd>Ctrl K</kbd>
           </div>
-          {blocksCatalogEnabled ? (
+          {blocksCatalogEnabled || addonsCatalogEnabled ? (
             <div
               aria-label={t(LangId.NodePaletteCatalogNodes)}
               className={styles.catalogToggle}
@@ -883,26 +934,45 @@ export function AddNodePalette({
               >
                 {t(LangId.NodePaletteCatalogNodes)}
               </button>
-              <button
-                aria-pressed={paletteCatalogMode === 'blocks'}
-                type="button"
-                onClick={() => {
-                  setPaletteCatalogMode('blocks')
-                  setHighlightedSchemaIndex(0)
-                  setPaletteHoveredOptionIndex(null)
-                  setPaletteExpandOverride('default')
-                  refreshBlocksCatalog()
-                }}
-              >
-                {t(LangId.NodePaletteCatalogBlocks)}
-              </button>
+              {blocksCatalogEnabled ? (
+                <button
+                  aria-pressed={paletteCatalogMode === 'blocks'}
+                  type="button"
+                  onClick={() => {
+                    setPaletteCatalogMode('blocks')
+                    setHighlightedSchemaIndex(0)
+                    setPaletteHoveredOptionIndex(null)
+                    setPaletteExpandOverride('default')
+                    refreshBlocksCatalog()
+                  }}
+                >
+                  {t(LangId.NodePaletteCatalogBlocks)}
+                </button>
+              ) : null}
+              {addonsCatalogEnabled ? (
+                <button
+                  aria-pressed={paletteCatalogMode === 'addons'}
+                  type="button"
+                  onClick={() => {
+                    setPaletteCatalogMode('addons')
+                    setHighlightedSchemaIndex(0)
+                    setPaletteHoveredOptionIndex(null)
+                    setPaletteExpandOverride('default')
+                    refreshAddonsCatalog()
+                  }}
+                >
+                  {t(LangId.NodePaletteCatalogAddons)}
+                </button>
+              ) : null}
             </div>
           ) : null}
           <input
             aria-activedescendant={
-              isBlocksMode
-                ? filteredBlocks[activeSchemaIndex]?.id
-                : filteredSchemas[activeSchemaIndex]?.id
+              isAddonsMode
+                ? filteredAddons[activeSchemaIndex]?.id
+                : isBlocksMode
+                  ? filteredBlocks[activeSchemaIndex]?.id
+                  : filteredSchemas[activeSchemaIndex]?.id
             }
             aria-controls="node-schema-results"
             aria-label={t(LangId.NodePaletteSearchAria)}
@@ -916,9 +986,11 @@ export function AddNodePalette({
             }}
             onKeyDown={handlePaletteKeyDown}
             placeholder={
-              isBlocksMode
-                ? t(LangId.NodePaletteSearchBlocksPlaceholder)
-                : t(LangId.NodePaletteSearchPlaceholder)
+              isAddonsMode
+                ? t(LangId.NodePaletteSearchAddonsPlaceholder)
+                : isBlocksMode
+                  ? t(LangId.NodePaletteSearchBlocksPlaceholder)
+                  : t(LangId.NodePaletteSearchPlaceholder)
             }
             ref={paletteInputRef}
             role="combobox"
@@ -933,7 +1005,7 @@ export function AddNodePalette({
               Blocos pelo registo estático ({diskBlockDefinitionsError})
             </p>
           ) : null}
-          {!isBlocksMode ? (
+          {!isBlocksMode && !isAddonsMode ? (
           <div className={styles.filterRows}>
             <div className={styles.tags} aria-label="Organization modes">
               <button
@@ -1154,6 +1226,7 @@ export function AddNodePalette({
             ) : null}
           </div>
           ) : null}
+          {isAddonsMode ? <PaletteAddonInstallZone onInstalled={refreshAddonsCatalog} /> : null}
           <div
             className={styles.results}
             id="node-schema-results"
@@ -1161,15 +1234,60 @@ export function AddNodePalette({
             role="listbox"
             style={{
               '--palette-expand-slots': String(
-                Math.min(Math.max((isBlocksMode ? filteredBlocks.length : filteredSchemas.length) - 4, 0), 10),
+                Math.min(
+                  Math.max(
+                    (isAddonsMode
+                      ? filteredAddons.length
+                      : isBlocksMode
+                        ? filteredBlocks.length
+                        : filteredSchemas.length) - 4,
+                    0,
+                  ),
+                  10,
+                ),
               ),
               '--palette-rows': String(
-                Math.min(Math.max(isBlocksMode ? filteredBlocks.length : filteredSchemas.length, 1), 14),
+                Math.min(
+                  Math.max(
+                    isAddonsMode
+                      ? filteredAddons.length
+                      : isBlocksMode
+                        ? filteredBlocks.length
+                        : filteredSchemas.length,
+                    1,
+                  ),
+                  14,
+                ),
               ),
             } as CSSProperties & Record<'--palette-rows' | '--palette-expand-slots', string>}
             onPointerLeave={handlePaletteResultsPointerLeave}
           >
-            {isBlocksMode ? (
+            {isAddonsMode ? (
+              diskAddonsLoading ? (
+                <div className={styles.empty}>{t(LangId.NodePaletteAddonsLoading)}</div>
+              ) : diskAddonsError ? (
+                <div className={styles.empty}>{diskAddonsError}</div>
+              ) : filteredAddons.length > 0 ? (
+                filteredAddons.map((manifest, index) => (
+                  <PaletteAddAddonOption
+                    key={manifest.id}
+                    manifest={manifest}
+                    expanded={paletteOptionExpanded(index)}
+                    highlighted={index === activeSchemaIndex}
+                    onPick={(id) => onPickAddon?.(id)}
+                    onPointerEnter={() => {
+                      setHighlightedSchemaIndex(index)
+                      setPaletteHoveredOptionIndex(index)
+                    }}
+                    onPointerLeave={() => {
+                      setPaletteHoveredOptionIndex(null)
+                    }}
+                  />
+                ))
+              ) : (
+                <div className={styles.empty}>{t(LangId.NodePaletteAddonsEmpty)}</div>
+              )
+            ) : isBlocksMode ? (
               filteredBlocks.length > 0 ? (
                 filteredBlocks.map((definition, index) => (
                   <PaletteAddBlockOption

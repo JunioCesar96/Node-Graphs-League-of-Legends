@@ -72,6 +72,9 @@ export type WorkspaceLayoutNodeEntry = {
   locked?: boolean
   blockViewActive?: boolean
   groupViewActive?: boolean
+  addonViewActive?: boolean
+  addonId?: string
+  addonOutputValues?: Record<string, unknown>
 }
 
 export type WorkspaceLayoutFile = {
@@ -245,6 +248,11 @@ function layoutEntryFromPresentation(
     ...(presentation.locked ? { locked: true } : {}),
     ...(presentation.blockViewActive ? { blockViewActive: true } : {}),
     ...(presentation.groupViewActive ? { groupViewActive: true } : {}),
+    ...(presentation.addonViewActive ? { addonViewActive: true } : {}),
+    ...(presentation.addonId ? { addonId: presentation.addonId } : {}),
+    ...(presentation.addonOutputValues
+      ? { addonOutputValues: structuredClone(presentation.addonOutputValues) }
+      : {}),
   }
 }
 
@@ -449,6 +457,8 @@ function parseConnection(raw: unknown): CanvasConnection | null {
     ...(typeof raw.toGroupParameterId === 'string'
       ? { toGroupParameterId: raw.toGroupParameterId }
       : {}),
+    ...(typeof raw.fromAddonSlotId === 'string' ? { fromAddonSlotId: raw.fromAddonSlotId } : {}),
+    ...(typeof raw.toAddonSlotId === 'string' ? { toAddonSlotId: raw.toAddonSlotId } : {}),
     ...(raw.forced === true ? { forced: true } : {}),
   }
 }
@@ -588,6 +598,17 @@ export function mergeWorkspaceToScene(bundle: WorkspaceBundle): CanvasScene | nu
       node: nodeInstance,
       ...(logicNode.blockStructure ? { blockStructure: structuredClone(logicNode.blockStructure) } : {}),
       ...(presentation.blockViewActive ? { blockViewActive: true } : {}),
+      ...(presentation.addonViewActive && presentation.addonId
+        ? {
+            addonViewActive: true,
+            addonInstance: {
+              addonId: presentation.addonId,
+              outputValues: presentation.addonOutputValues
+                ? structuredClone(presentation.addonOutputValues)
+                : {},
+            },
+          }
+        : {}),
     })
   }
 

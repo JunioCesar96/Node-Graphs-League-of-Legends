@@ -524,5 +524,14 @@
   "552": "Code To Node Block",
   "553": "Code Build Block",
   "554": "View Code export produced empty text. Select a root or Main node in the scene.",
-  "555": "Although this input slot accepts the link, your output node is not compatible with this block's type. Force the connection?"
+  "555": "Although this input slot accepts the link, your output node is not compatible with this block's type. Force the connection?",
+  "556": "Addons",
+  "557": "Install Addon",
+  "558": "Drag the folder here",
+  "559": "Searching for manifest.json…",
+  "560": "Installed successfully.",
+  "561": "Install is only available in the development server.",
+  "562": "No add-ons found.",
+  "563": "Loading add-ons…",
+  "564": "Search add-on by name or id…"
 }

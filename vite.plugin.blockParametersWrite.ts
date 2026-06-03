@@ -3,6 +3,12 @@ import path from 'node:path'
 
 import type { Plugin } from 'vite'
 
+import { handleAddonsListRequest } from './vite.addonsListHandler'
+import {
+  handleAddonsInstallAvailableRequest,
+  handleAddonsInstallRequest,
+} from './vite.addonsInstallHandler'
+import { normalizeApiPathname } from './vite.devApiPath'
 import { sanitizeBlockParameterFileStem, sanitizeBlockStructureFolderName } from './src/core/blockParameterFileStem'
 
 function sanitizeBlockDefinitionFileStem(id: string): string | null {
@@ -216,7 +222,22 @@ export function vitePluginBlockParametersWrite(projectRoot: string): Plugin {
     configureServer(server) {
       server.middlewares.use(async (req, res, next) => {
         const url = new URL(req.url ?? '/', 'http://localhost')
-        const pathname = url.pathname
+        const pathname = normalizeApiPathname(req.url)
+
+        if (pathname === '/api/addons-list' && req.method === 'GET') {
+          void handleAddonsListRequest(projectRoot, res)
+          return
+        }
+
+        if (pathname === '/api/addons-install-available' && req.method === 'GET') {
+          handleAddonsInstallAvailableRequest(res)
+          return
+        }
+
+        if (pathname === '/api/addons-install' && req.method === 'POST') {
+          void handleAddonsInstallRequest(projectRoot, req, res)
+          return
+        }
 
         if (
           pathname !== '/api/block-parameters-write' &&

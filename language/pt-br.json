@@ -524,5 +524,14 @@
   "552": "Code To Node Block",
   "553": "Code Build Block",
   "554": "A exportação «Ver código» produziu texto vazio. Selecione um nó raiz ou Main na cena.",
-  "555": "Embora este slot de entrada aceite a ligação, o seu nó de saída não é compatível com o tipo deste bloco. Deseja forçar a conexão?"
+  "555": "Embora este slot de entrada aceite a ligação, o seu nó de saída não é compatível com o tipo deste bloco. Deseja forçar a conexão?",
+  "556": "Addons",
+  "557": "Instalar Addon",
+  "558": "Arraste a pasta para cá",
+  "559": "A procurar manifest.json…",
+  "560": "Instalado com sucesso.",
+  "561": "Instalação disponível apenas no servidor de desenvolvimento.",
+  "562": "Nenhum add-on encontrado.",
+  "563": "A carregar add-ons…",
+  "564": "Pesquisar add-on por nome ou id…"
 }
