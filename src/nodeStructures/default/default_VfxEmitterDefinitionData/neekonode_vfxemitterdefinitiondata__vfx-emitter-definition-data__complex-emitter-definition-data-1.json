@@ -1,0 +1,274 @@
+{
+  "id": "vfx-emitter-definition-data__complex-emitter-definition-data-1",
+  "title": "VfxEmitterDefinitionData",
+  "parameters": [
+    {
+      "id": "vfx-emitter-definition-data__complex-emitter-definition-data-1_parameter_alphaRef",
+      "name": "alphaRef",
+      "type": "u8",
+      "defaultValue": "0"
+    },
+    {
+      "id": "vfx-emitter-definition-data__complex-emitter-definition-data-1_parameter_blendMode",
+      "name": "blendMode",
+      "type": "u8",
+      "defaultValue": "4"
+    },
+    {
+      "id": "vfx-emitter-definition-data__complex-emitter-definition-data-1_parameter_emitOffset",
+      "name": "emitOffset",
+      "type": "vector3",
+      "defaultValue": "0, 10, 0"
+    },
+    {
+      "id": "vfx-emitter-definition-data__complex-emitter-definition-data-1_parameter_emitterLinger",
+      "name": "emitterLinger",
+      "type": "optionF32",
+      "defaultValue": "0.225"
+    },
+    {
+      "id": "vfx-emitter-definition-data__complex-emitter-definition-data-1_parameter_emitterName",
+      "name": "emitterName",
+      "type": "string",
+      "defaultValue": "Glow2"
+    },
+    {
+      "id": "vfx-emitter-definition-data__complex-emitter-definition-data-1_parameter_importance",
+      "name": "importance",
+      "type": "u8",
+      "defaultValue": "3"
+    },
+    {
+      "id": "vfx-emitter-definition-data__complex-emitter-definition-data-1_parameter_isUniformScale",
+      "name": "isUniformScale",
+      "type": "flag",
+      "defaultValue": "true"
+    },
+    {
+      "id": "vfx-emitter-definition-data__complex-emitter-definition-data-1_parameter_particleIsLocalOrientation",
+      "name": "particleIsLocalOrientation",
+      "type": "flag",
+      "defaultValue": "true"
+    },
+    {
+      "id": "vfx-emitter-definition-data__complex-emitter-definition-data-1_parameter_particleLinger",
+      "name": "particleLinger",
+      "type": "optionF32",
+      "defaultValue": ""
+    },
+    {
+      "id": "vfx-emitter-definition-data__complex-emitter-definition-data-1_parameter_texture",
+      "name": "texture",
+      "type": "string",
+      "defaultValue": "ASSETS/Characters/Brand/Skins/Base/Particles/Brand_Base_Q_RadGrad.tex"
+    }
+  ],
+  "internalStructures": [],
+  "embed": [
+    {
+      "id": "VfxEmitterDefinitionData_embed_rate",
+      "title": "rate",
+      "internalStructures": [
+        {
+          "id": "vfx-emitter-definition-data-rate",
+          "name": "ValueFloat",
+          "schemaId": "value-float__main-entries-characters-brand-skins-skin0-particles-brand-base-dance-complex-emitter-definition-data-1-rate"
+        }
+      ],
+      "slots": [
+        {
+          "id": "VfxEmitterDefinitionData_embed_rate__slot__0",
+          "name": "ValueFloat",
+          "schemaId": "value-float__main-entries-characters-brand-skins-skin0-particles-brand-base-dance-complex-emitter-definition-data-1-rate"
+        }
+      ]
+    },
+    {
+      "id": "VfxEmitterDefinitionData_embed_particleLifetime",
+      "title": "particleLifetime",
+      "internalStructures": [
+        {
+          "id": "vfx-emitter-definition-data-particle-lifetime",
+          "name": "ValueFloat",
+          "schemaId": "value-float__main-entries-characters-brand-skins-skin0-particles-brand-base-dance-complex-emitter-definition-data-1-particle-lifetime"
+        }
+      ],
+      "slots": [
+        {
+          "id": "VfxEmitterDefinitionData_embed_particleLifetime__slot__0",
+          "name": "ValueFloat",
+          "schemaId": "value-float__main-entries-characters-brand-skins-skin0-particles-brand-base-dance-complex-emitter-definition-data-1-particle-lifetime"
+        }
+      ]
+    },
+    {
+      "id": "VfxEmitterDefinitionData_embed_worldAcceleration",
+      "title": "worldAcceleration",
+      "internalStructures": [
+        {
+          "id": "vfx-emitter-definition-data-world-acceleration",
+          "name": "IntegratedValueVector3",
+          "schemaId": "integrated-value-vector3__main-entries-characters-brand-skins-skin0-particles-brand-base-dance-complex-emitter-definition-data-1-world-acceleration"
+        }
+      ],
+      "slots": [
+        {
+          "id": "VfxEmitterDefinitionData_embed_worldAcceleration__slot__0",
+          "name": "IntegratedValueVector3",
+          "schemaId": "integrated-value-vector3__main-entries-characters-brand-skins-skin0-particles-brand-base-dance-complex-emitter-definition-data-1-world-acceleration"
+        }
+      ]
+    },
+    {
+      "id": "VfxEmitterDefinitionData_embed_bindWeight",
+      "title": "bindWeight",
+      "internalStructures": [
+        {
+          "id": "vfx-emitter-definition-data-bind-weight",
+          "name": "ValueFloat",
+          "schemaId": "value-float__main-entries-characters-brand-skins-skin0-particles-brand-base-dance-complex-emitter-definition-data-1-bind-weight"
+        }
+      ],
+      "slots": [
+        {
+          "id": "VfxEmitterDefinitionData_embed_bindWeight__slot__0",
+          "name": "ValueFloat",
+          "schemaId": "value-float__main-entries-characters-brand-skins-skin0-particles-brand-base-dance-complex-emitter-definition-data-1-bind-weight"
+        }
+      ]
+    },
+    {
+      "id": "VfxEmitterDefinitionData_embed_EmitterPosition",
+      "title": "EmitterPosition",
+      "internalStructures": [
+        {
+          "id": "vfx-emitter-definition-data-emitter-position",
+          "name": "ValueVector3",
+          "schemaId": "value-vector3__main-entries-characters-brand-skins-skin0-particles-brand-base-dance-complex-emitter-definition-data-1-emitter-position"
+        }
+      ],
+      "slots": [
+        {
+          "id": "VfxEmitterDefinitionData_embed_EmitterPosition__slot__0",
+          "name": "ValueVector3",
+          "schemaId": "value-vector3__main-entries-characters-brand-skins-skin0-particles-brand-base-dance-complex-emitter-definition-data-1-emitter-position"
+        }
+      ]
+    },
+    {
+      "id": "VfxEmitterDefinitionData_embed_birthColor",
+      "title": "birthColor",
+      "internalStructures": [
+        {
+          "id": "vfx-emitter-definition-data-birth-color",
+          "name": "ValueColor",
+          "schemaId": "value-color__main-entries-characters-brand-skins-skin0-particles-brand-base-dance-complex-emitter-definition-data-1-birth-color"
+        }
+      ],
+      "slots": [
+        {
+          "id": "VfxEmitterDefinitionData_embed_birthColor__slot__0",
+          "name": "ValueColor",
+          "schemaId": "value-color__main-entries-characters-brand-skins-skin0-particles-brand-base-dance-complex-emitter-definition-data-1-birth-color"
+        }
+      ]
+    },
+    {
+      "id": "VfxEmitterDefinitionData_embed_Color",
+      "title": "Color",
+      "internalStructures": [
+        {
+          "id": "vfx-emitter-definition-data-color",
+          "name": "ValueColor",
+          "schemaId": "value-color__main-entries-characters-brand-skins-skin0-particles-brand-base-dance-complex-emitter-definition-data-1-color"
+        }
+      ],
+      "slots": [
+        {
+          "id": "VfxEmitterDefinitionData_embed_Color__slot__0",
+          "name": "ValueColor",
+          "schemaId": "value-color__main-entries-characters-brand-skins-skin0-particles-brand-base-dance-complex-emitter-definition-data-1-color"
+        }
+      ]
+    },
+    {
+      "id": "VfxEmitterDefinitionData_embed_birthScale0",
+      "title": "birthScale0",
+      "internalStructures": [
+        {
+          "id": "vfx-emitter-definition-data-birth-scale0",
+          "name": "ValueVector3",
+          "schemaId": "value-vector3__main-entries-characters-brand-skins-skin0-particles-brand-base-dance-complex-emitter-definition-data-1-birth-scale0"
+        }
+      ],
+      "slots": [
+        {
+          "id": "VfxEmitterDefinitionData_embed_birthScale0__slot__0",
+          "name": "ValueVector3",
+          "schemaId": "value-vector3__main-entries-characters-brand-skins-skin0-particles-brand-base-dance-complex-emitter-definition-data-1-birth-scale0"
+        }
+      ]
+    },
+    {
+      "id": "VfxEmitterDefinitionData_embed_scale0",
+      "title": "scale0",
+      "internalStructures": [
+        {
+          "id": "vfx-emitter-definition-data-scale0",
+          "name": "ValueVector3",
+          "schemaId": "value-vector3__main-entries-characters-brand-skins-skin0-particles-brand-base-dance-complex-emitter-definition-data-1-scale0"
+        }
+      ],
+      "slots": [
+        {
+          "id": "VfxEmitterDefinitionData_embed_scale0__slot__0",
+          "name": "ValueVector3",
+          "schemaId": "value-vector3__main-entries-characters-brand-skins-skin0-particles-brand-base-dance-complex-emitter-definition-data-1-scale0"
+        }
+      ]
+    }
+  ],
+  "pointer": [
+    {
+      "id": "VfxEmitterDefinitionData_pointer_softParticleParams",
+      "title": "softParticleParams",
+      "internalStructures": [
+        {
+          "id": "vfx-emitter-definition-data-soft-particle-params",
+          "name": "VfxSoftParticleDefinitionData",
+          "schemaId": "vfx-soft-particle-definition-data__main-entries-characters-brand-skins-skin0-particles-brand-base-dance-complex-emitter-definition-data-1-soft-particle-params"
+        }
+      ],
+      "slots": [
+        {
+          "id": "VfxEmitterDefinitionData_pointer_softParticleParams__slot__0",
+          "name": "VfxSoftParticleDefinitionData",
+          "schemaId": "vfx-soft-particle-definition-data__main-entries-characters-brand-skins-skin0-particles-brand-base-dance-complex-emitter-definition-data-1-soft-particle-params"
+        }
+      ]
+    },
+    {
+      "id": "VfxEmitterDefinitionData_pointer_textureMult",
+      "title": "textureMult",
+      "internalStructures": [
+        {
+          "id": "vfx-emitter-definition-data-texture-mult",
+          "name": "VfxTextureMultDefinitionData",
+          "schemaId": "vfx-texture-mult-definition-data__main-entries-characters-brand-skins-skin0-particles-brand-base-dance-complex-emitter-definition-data-1-texture-mult"
+        }
+      ],
+      "slots": [
+        {
+          "id": "VfxEmitterDefinitionData_pointer_textureMult__slot__0",
+          "name": "VfxTextureMultDefinitionData",
+          "schemaId": "vfx-texture-mult-definition-data__main-entries-characters-brand-skins-skin0-particles-brand-base-dance-complex-emitter-definition-data-1-texture-mult"
+        }
+      ]
+    }
+  ],
+  "listEmbed": [],
+  "listPointer": [],
+  "list2Embed": [],
+  "list2Pointer": [],
+  "tag": "neeko"
+}

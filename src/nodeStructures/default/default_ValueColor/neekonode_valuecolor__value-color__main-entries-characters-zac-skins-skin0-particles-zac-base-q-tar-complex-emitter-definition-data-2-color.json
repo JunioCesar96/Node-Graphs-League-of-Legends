@@ -1,0 +1,20 @@
+{
+  "id": "value-color__main-entries-characters-zac-skins-skin0-particles-zac-base-q-tar-complex-emitter-definition-data-2-color",
+  "title": "ValueColor",
+  "parameters": [
+    {
+      "id": "value-color__main-entries-characters-zac-skins-skin0-particles-zac-base-q-tar-complex-emitter-definition-data-2-color_parameter_constantValue",
+      "name": "constantValue",
+      "type": "vector4",
+      "defaultValue": "1, 1, 1, 0.9"
+    }
+  ],
+  "internalStructures": [],
+  "embed": [],
+  "pointer": [],
+  "listEmbed": [],
+  "listPointer": [],
+  "list2Embed": [],
+  "list2Pointer": [],
+  "tag": "neeko"
+}

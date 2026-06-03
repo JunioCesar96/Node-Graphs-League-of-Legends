@@ -8,6 +8,21 @@
 @import '@jade/components/ParticleEditorPanel.css';
 
 /* Variáveis Jade só dentro do painel Código */
+.codeDockJadeScope .codeDockRitualGrab,
+.codeDockJadeScope .codeDockRitualGrab * {
+  cursor: grab !important;
+}
+
+.codeDockJadeScope .codeDockRitualLink,
+.codeDockJadeScope .codeDockRitualLink * {
+  cursor: alias !important;
+}
+
+body.ritualLinkDragging,
+body.ritualLinkDragging * {
+  cursor: alias !important;
+}
+
 .codeDockJadeScope {
   --vscode-menu-background: #252526;
   --vscode-menu-foreground: #cccccc;
@@ -20,6 +35,19 @@
 .codeDockJadeScope .menu-bar {
   border-bottom: 1px solid var(--border, #2a2a2a);
   min-height: 28px;
+}
+
+.codeDockJadeScope .menu-option-theme-toggle {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.codeDockJadeScope .menu-bar--interactions-disabled,
+.codeDockJadeScope .menu-bar--interactions-disabled * {
+  pointer-events: none !important;
 }
 
 .codeDockJadeScope .settings-nav-item.disabled {
@@ -41,4 +69,15 @@
   opacity: 0.65;
   padding: 4px 12px 2px;
   text-transform: uppercase;
+}
+
+.codeDockCodeToNodeGraphSectionLabel {
+  display: block;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  opacity: 0.85;
+  padding: 8px 12px 2px;
+  text-transform: uppercase;
+  color: var(--vscode-menu-foreground, #cccccc);
 }

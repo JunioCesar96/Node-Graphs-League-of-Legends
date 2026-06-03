@@ -1,0 +1,139 @@
+.sectionMeta {
+  flex-shrink: 0;
+  font-size: 9px;
+  font-weight: 500;
+  color: var(--vfx-text-faint);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.fieldBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.championList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    max-height 0.18s ease,
+    opacity 0.14s ease;
+}
+
+.championListExpanded {
+  max-height: 140px;
+  overflow-y: auto;
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.instantiateInChampions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.infoSubheading {
+  margin: 0 0 4px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--vfx-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.championBtn {
+  width: 100%;
+  padding: 5px 6px;
+  font-size: 11px;
+  color: var(--vfx-text-dim);
+  text-align: left;
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+}
+
+.championBtn:hover {
+  background: var(--vfx-chrome-bg);
+}
+
+.championBtnConverted {
+  font-weight: 600;
+  color: #7ec8a4;
+}
+
+.championBtnActive {
+  color: var(--vfx-title-color);
+  background: var(--vfx-accent-bg-active);
+  border-color: var(--vfx-preview-border);
+}
+
+.scrub {
+  width: 100%;
+  accent-color: var(--vfx-control-accent);
+}
+
+.animReadout {
+  margin: 0;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  color: var(--vfx-text-muted);
+}
+
+.error {
+  margin: 0;
+  font-size: 10px;
+  line-height: 1.4;
+  color: #ffb27a;
+}
+
+.panelStandalone {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--vfx-panel-bg);
+  border-left: 1px solid var(--color-border-soft);
+}
+
+.poseToggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid var(--vfx-chrome-bg-hover);
+  border-radius: 4px;
+}
+
+.poseToggleBtn {
+  padding: 6px 8px;
+  font-size: 10px;
+  line-height: 1.25;
+  color: var(--vfx-text-dim);
+  text-align: center;
+  cursor: pointer;
+  background: var(--vfx-chrome-bg-soft);
+  border: none;
+  border-radius: 0;
+}
+
+.poseToggleBtn:hover {
+  color: var(--vfx-text-strong);
+  background: var(--vfx-chrome-bg-mid);
+}
+
+.poseToggleBtnActive {
+  color: rgb(220 240 255 / 98%);
+  background: rgb(50 120 210 / 55%);
+}
+
+.poseToggleBtn + .poseToggleBtn {
+  border-left: 1px solid var(--vfx-chrome-border);
+}

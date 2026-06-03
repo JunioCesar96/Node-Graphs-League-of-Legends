@@ -10,8 +10,10 @@ import { formatMapHashLinkRitualLine, parseMapHashLinkString } from '@/core/mapH
 import { formatMapHashPointerString, parseMapHashPointerString } from '@/core/mapHashPointerValue'
 import { formatMapU64PointerString, parseMapU64PointerString } from '@/core/mapU64PointerValue'
 import { parseMtx44String } from '@/core/mtx44Value'
-import type { NodeDataType, NodeParameterDefinition } from '@/core/nodeSchema'
+import { isBlockTokenValue } from '@/core/blockSchema'
+import { isGroupTokenValue } from '@/core/groupSchema'
 import { nodeDataTypeToRitType } from '@/core/nodeDataTypeToRitType'
+import type { NodeDataType, NodeParameterDefinition } from '@/core/nodeSchema'
 import { ritualExportFieldNameFromParameter } from '@/core/ritualFieldNames'
 import {
   formatOptionF32Scalar,
@@ -23,7 +25,7 @@ import {
 } from '@/core/optionValue'
 import { parseRgbaString } from '@/core/rgbaColor'
 import { formatVector2String, parseVector2String } from '@/core/vector2Value'
-import { formatVector3String, parseVector3String } from '@/core/vector3Value'
+import { formatVector3String, parseVector3RitualInput } from '@/core/vector3Value'
 import { formatVector4String, parseVector4String } from '@/core/vector4Value'
 
 function trimFloat(value: number): string {
@@ -50,7 +52,7 @@ function formatVec2RitualBrace(raw: string): string {
 }
 
 function formatVec3RitualBrace(raw: string): string {
-  const parts = formatVector3String(parseVector3String(raw))
+  const parts = formatVector3String(parseVector3RitualInput(raw))
     .split(',')
     .map((part) => part.trim())
   return `{ ${parts.join(', ')} }`
@@ -145,6 +147,43 @@ function formatMapRitualBody(type: NodeDataType, raw: string, innerIndent: strin
   return '{ }'
 }
 
+function formatOptionRitualBody(
+  type: 'optionF32' | 'optionString' | 'optionVector3',
+  raw: string,
+  innerIndent: string,
+): string {
+  const itemIndent = `${innerIndent}    `
+
+  switch (type) {
+    case 'optionF32': {
+      const items = parseOptionF32Items(raw)
+      if (items.length === 0) {
+        return `{ }`
+      }
+      const scalar = formatOptionF32Scalar(items)
+      return `{\n${itemIndent}${scalar}\n${innerIndent}}`
+    }
+    case 'optionString': {
+      const items = parseOptionStringItems(raw)
+      if (items.length === 0) {
+        return `{ }`
+      }
+      const scalar = formatStringListDisplay(items[0] ?? '')
+      return `{\n${itemIndent}${scalar}\n${innerIndent}}`
+    }
+    case 'optionVector3': {
+      const items = parseOptionVector3Items(raw)
+      if (items.length === 0) {
+        return `{ }`
+      }
+      const formatted = formatVec3RitualBrace(formatVector3String(items[0]!))
+      return `{\n${itemIndent}${formatted}\n${innerIndent}}`
+    }
+    default:
+      return `{ }`
+  }
+}
+
 function formatScalarRitualValue(
   type: NodeDataType,
   ritType: string,
@@ -152,6 +191,9 @@ function formatScalarRitualValue(
   valueIndent: string,
 ): string {
   const trimmed = raw.trim()
+  if (isBlockTokenValue(trimmed) || isGroupTokenValue(trimmed)) {
+    return trimmed
+  }
   if (!trimmed && type !== 'string') {
     return trimmed
   }
@@ -178,18 +220,17 @@ function formatScalarRitualValue(
     case 'vector2':
       return formatVec2RitualBrace(trimmed)
     case 'vector3':
-    case 'optionVector3':
       return formatVec3RitualBrace(trimmed)
     case 'vector4':
       return formatVec4RitualBrace(trimmed)
     case 'mtx44':
       return formatMtx44RitualBrace(trimmed, valueIndent)
     case 'optionF32':
-      return formatOptionF32Scalar(parseOptionF32Items(trimmed))
+      return formatOptionRitualBody('optionF32', trimmed, valueIndent)
     case 'optionString':
-      return formatOptionStringScalar(parseOptionStringItems(trimmed))
+      return formatOptionRitualBody('optionString', trimmed, valueIndent)
     case 'optionVector3':
-      return formatOptionVector3Scalar(parseOptionVector3Items(trimmed))
+      return formatOptionRitualBody('optionVector3', trimmed, valueIndent)
     case 'listF32':
     case 'listString':
     case 'listHash':

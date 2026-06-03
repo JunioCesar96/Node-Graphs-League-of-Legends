@@ -20,8 +20,14 @@ import {
   type CanvasToolbarVisibility,
 } from '@/core/canvasToolbarVisibility'
 import type { NodeInstance } from '@/core/nodeSchema'
-import type { SceneNodesSortMode } from '@/core/sceneNodesListSort'
+import {
+  DEFAULT_CANVAS_GRID_OPACITY,
+  DEFAULT_CANVAS_GRID_SIZE,
+  resolveCanvasGridOpacity,
+  resolveCanvasGridSize,
+} from '@/core/canvasGridSettings'
 import { parseSceneNodesStatePresets } from '@/core/sceneNodesStatePresets'
+import type { SceneNodesSortMode } from '@/core/sceneNodesListSort'
 
 export type { SceneChromeState, SceneNodesChrome } from '@/core/canvasScene'
 
@@ -38,6 +44,13 @@ export type CanvasNodePresentationEntry = {
   bodyColor?: string
   bodyColorEnabled?: boolean
   locked?: boolean
+  blockViewActive?: boolean
+  groupViewActive?: boolean
+  addonViewActive?: boolean
+  addonId?: string
+  addonOutputValues?: Record<string, unknown>
+  structureCardParamsExpanded?: boolean
+  structureCardWidth?: number
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -128,13 +141,36 @@ export function parseSceneChrome(raw: unknown): SceneChromeState | undefined {
   }
 
   const toolbarVisibility = parseToolbarVisibility(raw.toolbarVisibility)
-  if (!sceneNodes && !toolbarVisibility) {
+  const toolbarCollapsed =
+    raw.toolbarCollapsed === true ? true : raw.toolbarCollapsed === false ? false : undefined
+  const showCanvasGrid = raw.showCanvasGrid === false ? false : undefined
+  const canvasGridSize =
+    raw.canvasGridSize !== undefined ? resolveCanvasGridSize(raw.canvasGridSize) : undefined
+  const canvasGridOpacity =
+    raw.canvasGridOpacity !== undefined ? resolveCanvasGridOpacity(raw.canvasGridOpacity) : undefined
+
+  const hasGridSize = canvasGridSize !== undefined && canvasGridSize !== DEFAULT_CANVAS_GRID_SIZE
+  const hasGridOpacity =
+    canvasGridOpacity !== undefined && canvasGridOpacity !== DEFAULT_CANVAS_GRID_OPACITY
+
+  if (
+    !sceneNodes &&
+    !toolbarVisibility &&
+    !toolbarCollapsed &&
+    showCanvasGrid === undefined &&
+    !hasGridSize &&
+    !hasGridOpacity
+  ) {
     return undefined
   }
 
   return {
     ...(sceneNodes ? { sceneNodes } : {}),
+    ...(toolbarCollapsed !== undefined ? { toolbarCollapsed } : {}),
     ...(toolbarVisibility ? { toolbarVisibility } : {}),
+    ...(showCanvasGrid === false ? { showCanvasGrid: false } : {}),
+    ...(hasGridSize ? { canvasGridSize } : {}),
+    ...(hasGridOpacity ? { canvasGridOpacity } : {}),
   }
 }
 
@@ -149,7 +185,16 @@ export function applySceneChromeToScene(
   scene: CanvasScene,
   chrome: SceneChromeState | undefined,
 ): CanvasScene {
-  if (!chrome || (Object.keys(chrome).length === 0 && !chrome.sceneNodes && !chrome.toolbarVisibility)) {
+  if (
+    !chrome ||
+    (Object.keys(chrome).length === 0 &&
+      !chrome.sceneNodes &&
+      !chrome.toolbarVisibility &&
+      !chrome.toolbarCollapsed &&
+      chrome.showCanvasGrid === undefined &&
+      chrome.canvasGridSize === undefined &&
+      chrome.canvasGridOpacity === undefined)
+  ) {
     const { sceneChrome: _removed, ...rest } = scene
     return rest
   }
@@ -177,6 +222,18 @@ export function canvasNodePresentationFromNode(canvasNode: CanvasNode): CanvasNo
         ? { bodyColorEnabled: true }
         : {}),
     ...(canvasNode.locked ? { locked: true } : {}),
+    ...(canvasNode.blockViewActive ? { blockViewActive: true } : {}),
+    ...(canvasNode.groupViewActive ? { groupViewActive: true } : {}),
+    ...(canvasNode.addonViewActive ? { addonViewActive: true } : {}),
+    ...(canvasNode.addonInstance?.addonId ? { addonId: canvasNode.addonInstance.addonId } : {}),
+    ...(canvasNode.addonInstance?.outputValues &&
+    Object.keys(canvasNode.addonInstance.outputValues).length > 0
+      ? { addonOutputValues: structuredClone(canvasNode.addonInstance.outputValues) }
+      : {}),
+    ...(canvasNode.structureCardParamsExpanded ? { structureCardParamsExpanded: true } : {}),
+    ...(canvasNode.structureCardWidth !== undefined
+      ? { structureCardWidth: canvasNode.structureCardWidth }
+      : {}),
   }
 }
 
@@ -214,6 +271,21 @@ export function canvasNodeOverlayFromPresentation(
         ? { bodyColorEnabled: true }
         : {}),
     ...(entry.locked ? { locked: true } : {}),
+    ...(entry.blockViewActive ? { blockViewActive: true } : {}),
+    ...(entry.groupViewActive ? { groupViewActive: true } : {}),
+    ...(entry.addonViewActive && entry.addonId
+      ? {
+          addonViewActive: true,
+          addonInstance: {
+            addonId: entry.addonId,
+            outputValues: entry.addonOutputValues
+              ? structuredClone(entry.addonOutputValues)
+              : {},
+          },
+        }
+      : {}),
+    ...(entry.structureCardParamsExpanded ? { structureCardParamsExpanded: true } : {}),
+    ...(entry.structureCardWidth !== undefined ? { structureCardWidth: entry.structureCardWidth } : {}),
   }
 }
 
@@ -256,6 +328,15 @@ export function isValidPresentationEntry(raw: unknown): raw is CanvasNodePresent
   if (raw.locked !== undefined && raw.locked !== true) {
     return false
   }
+  if (raw.blockViewActive !== undefined && raw.blockViewActive !== true) {
+    return false
+  }
+  if (raw.groupViewActive !== undefined && raw.groupViewActive !== true) {
+    return false
+  }
+  if (raw.structureCardWidth !== undefined && typeof raw.structureCardWidth !== 'number') {
+    return false
+  }
   return true
 }
 
@@ -288,6 +369,10 @@ export function presentationEntryFromRawLayout(raw: unknown): CanvasNodePresenta
           ? { bodyColorEnabled: true }
           : {}),
       ...(raw.locked === true ? { locked: true } : {}),
+      ...(raw.blockViewActive === true ? { blockViewActive: true } : {}),
+      ...(raw.groupViewActive === true ? { groupViewActive: true } : {}),
+      ...(raw.structureCardParamsExpanded === true ? { structureCardParamsExpanded: true } : {}),
+      ...(typeof raw.structureCardWidth === 'number' ? { structureCardWidth: raw.structureCardWidth } : {}),
     }
   }
   return {

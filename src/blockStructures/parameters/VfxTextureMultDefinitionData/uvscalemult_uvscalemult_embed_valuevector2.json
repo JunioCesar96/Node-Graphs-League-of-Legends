@@ -1,0 +1,17 @@
+{
+  "id": "uvScaleMult_uvScaleMult_embed_ValueVector2",
+  "block": "VfxTextureMultDefinitionData",
+  "parameterName": "uvScaleMult",
+  "name": "uvScaleMult",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-texture-mult-definition-data__entries-{particlePath}-complex-emitter-definition-data--slot--7-texture-mult-uv-scale-mult"
+  },
+  "type": "embed",
+  "embed": "ValueVector2",
+  "slots": {
+    "out": [
+      "ValueVector2"
+    ]
+  }
+}

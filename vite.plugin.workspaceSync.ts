@@ -62,6 +62,8 @@ async function handleLoadWorkspace(workspaceDir: string, res: ServerResponse): P
     const logicPath = path.join(workspaceDir, 'logic.json')
     const layoutPath = path.join(workspaceDir, 'layout.json')
     const graphPath = path.join(workspaceDir, 'graph.json')
+    const blocksPath = path.join(workspaceDir, 'blocks.json')
+    const groupsPath = path.join(workspaceDir, 'groups.json')
 
     const [hasLogic, hasLayout, hasGraph] = await Promise.all([
       fileExists(logicPath),
@@ -76,19 +78,37 @@ async function handleLoadWorkspace(workspaceDir: string, res: ServerResponse): P
       return
     }
 
-    const [logicRaw, layoutRaw, graphRaw] = await Promise.all([
+    const [logicRaw, layoutRaw, graphRaw, blocksRaw, groupsRaw] = await Promise.all([
       fs.readFile(logicPath, 'utf8'),
       fs.readFile(layoutPath, 'utf8'),
       fs.readFile(graphPath, 'utf8'),
+      fileExists(blocksPath).then((exists) =>
+        exists ? fs.readFile(blocksPath, 'utf8') : Promise.resolve(''),
+      ),
+      fileExists(groupsPath).then((exists) =>
+        exists ? fs.readFile(groupsPath, 'utf8') : Promise.resolve(''),
+      ),
     ])
 
     const logic = JSON.parse(logicRaw) as unknown
     const layout = JSON.parse(layoutRaw) as unknown
     const graph = JSON.parse(graphRaw) as unknown
+    const blocks =
+      blocksRaw.trim().length > 0 ? (JSON.parse(blocksRaw) as unknown) : undefined
+    const groups =
+      groupsRaw.trim().length > 0 ? (JSON.parse(groupsRaw) as unknown) : undefined
 
     res.statusCode = 200
     res.setHeader('Content-Type', 'application/json; charset=utf-8')
-    res.end(JSON.stringify({ logic, layout, graph }))
+    res.end(
+      JSON.stringify({
+        logic,
+        layout,
+        graph,
+        ...(blocks !== undefined ? { blocks } : {}),
+        ...(groups !== undefined ? { groups } : {}),
+      }),
+    )
   } catch (error) {
     res.statusCode = 500
     res.setHeader('Content-Type', 'application/json; charset=utf-8')
@@ -114,7 +134,7 @@ async function handleSaveWorkspace(
       return
     }
 
-    const { logic, layout, graph } = parsed
+    const { logic, layout, graph, blocks, groups } = parsed
     if (!isRecord(logic) || !isRecord(layout) || !isRecord(graph)) {
       res.statusCode = 400
       res.setHeader('Content-Type', 'application/json; charset=utf-8')
@@ -124,7 +144,7 @@ async function handleSaveWorkspace(
 
     await fs.mkdir(workspaceDir, { recursive: true })
 
-    await Promise.all([
+    const writeTasks = [
       fs.writeFile(
         path.join(workspaceDir, 'logic.json'),
         `${JSON.stringify(logic, null, 2)}\n`,
@@ -140,7 +160,41 @@ async function handleSaveWorkspace(
         `${JSON.stringify(graph, null, 2)}\n`,
         'utf8',
       ),
-    ])
+    ]
+
+    if (blocks !== undefined) {
+      if (!isRecord(blocks)) {
+        res.statusCode = 400
+        res.setHeader('Content-Type', 'application/json; charset=utf-8')
+        res.end(JSON.stringify({ error: 'Invalid blocks payload' }))
+        return
+      }
+      writeTasks.push(
+        fs.writeFile(
+          path.join(workspaceDir, 'blocks.json'),
+          `${JSON.stringify(blocks, null, 2)}\n`,
+          'utf8',
+        ),
+      )
+    }
+
+    if (groups !== undefined) {
+      if (!isRecord(groups)) {
+        res.statusCode = 400
+        res.setHeader('Content-Type', 'application/json; charset=utf-8')
+        res.end(JSON.stringify({ error: 'Invalid groups payload' }))
+        return
+      }
+      writeTasks.push(
+        fs.writeFile(
+          path.join(workspaceDir, 'groups.json'),
+          `${JSON.stringify(groups, null, 2)}\n`,
+          'utf8',
+        ),
+      )
+    }
+
+    await Promise.all(writeTasks)
 
     res.statusCode = 200
     res.setHeader('Content-Type', 'text/plain; charset=utf-8')
@@ -158,8 +212,8 @@ async function handleSaveWorkspace(
 
 /**
  * Em `npm run dev`:
- * - GET `/api/load-workspace` — lê logic.json, layout.json, graph.json
- * - POST `/api/save-workspace` — grava o bundle tripartido em `src/data/workspace/`
+ * - GET `/api/load-workspace` — lê logic.json, layout.json, graph.json e blocks.json (opcional)
+ * - POST `/api/save-workspace` — grava o bundle em `src/data/workspace/`
  */
 export function vitePluginWorkspaceSync(projectRoot: string): Plugin {
   return {

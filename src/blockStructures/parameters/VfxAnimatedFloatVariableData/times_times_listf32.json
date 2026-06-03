@@ -1,0 +1,19 @@
+{
+  "id": "times_times_listF32",
+  "block": "VfxAnimatedFloatVariableData",
+  "parameterName": "times",
+  "name": "times",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-animated-float-variable-data__entries-{particlePath}-complex-emitter-definition-data--slot--0-particle-lifetime-dynamics_parameter_times"
+  },
+  "type": "listF32",
+  "items": [
+    "0"
+  ],
+  "slots": {
+    "out": [
+      "f32"
+    ]
+  }
+}

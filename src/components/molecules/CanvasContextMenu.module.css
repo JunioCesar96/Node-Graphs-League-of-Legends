@@ -6,7 +6,7 @@
   min-width: 220px;
   max-width: 300px;
   padding: var(--space-2);
-  background: rgb(37 37 38 / 96%);
+  background: var(--window-bg, rgb(37 37 38 / 96%));
   border: 1px solid var(--color-border-soft);
   border-radius: var(--radius-control);
   box-shadow: 0 18px 50px rgb(0 0 0 / 32%);
@@ -107,6 +107,22 @@
 }
 
 .menu button[data-selected='true'] .itemLabel {
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
+
+.themeToggleButton {
+  gap: var(--space-3);
+}
+
+.themeToggleButton .itemLabel {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 0.8rem;
+  line-height: 1.25;
+}
+
+.themeToggleButton[data-selected='true'] .itemLabel {
   color: var(--color-text-primary);
   font-weight: 600;
 }
@@ -219,11 +235,22 @@
   min-width: 260px;
   max-width: 320px;
   padding: var(--space-2);
-  background: rgb(37 37 38 / 98%);
+  overflow-y: auto;
+  background: var(--window-bg, rgb(37 37 38 / 98%));
   border: 1px solid var(--color-border-soft);
   border-radius: var(--radius-control);
   box-shadow: 0 14px 40px rgb(0 0 0 / 36%);
   backdrop-filter: blur(12px);
+}
+
+.submenuFlyout[data-flip-x='true'] {
+  right: calc(100% + 4px);
+  left: auto;
+}
+
+.submenuFlyout[data-flip-y='true'] {
+  top: auto;
+  bottom: 0;
 }
 
 .exibirFlyout {

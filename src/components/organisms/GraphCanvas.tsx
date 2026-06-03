@@ -1,11 +1,42 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import type { CSSProperties, MouseEvent, PointerEvent, ReactNode } from 'react'
 
 import { CanvasContextMenu } from '@/components/molecules/CanvasContextMenu'
+import {
+  CanvasGridControlPanel,
+  resolveCanvasGridControlState,
+  type CanvasGridControlState,
+} from '@/components/molecules/CanvasGridControlPanel'
+import {
+  DEFAULT_CANVAS_GRID_OPACITY,
+  resolveCanvasGridOpacity,
+  resolveCanvasGridSize,
+} from '@/core/canvasGridSettings'
 import { CollectionTypeLinkMenu } from '@/components/molecules/CollectionTypeLinkMenu'
-import { SceneCameraPanel } from '@/components/molecules/SceneCameraPanel'
+import { DockTabIcon } from '@/components/atoms/DockTabIcon'
+import { ToolbarDockIconButton } from '@/components/atoms/ToolbarDockIconButton'
+import { CanvasCameraDockBody } from '@/components/molecules/CanvasCameraDockBody'
+import { CanvasToolbarToolSlot } from '@/components/molecules/CanvasToolbarToolSlot'
+import { CanvasZoomDockBody } from '@/components/molecules/CanvasZoomDockBody'
+import { InspectorViewportDockShell } from '@/components/molecules/InspectorViewportDockShell'
 import { AddNodePalette } from '@/components/organisms/AddNodePalette'
+import type { BlockDefinitionJsonDocument } from '@/core/blockDefinitionJson'
+import type { BlockDefinitionSpawnLinkContext } from '@/core/blockSlotConnections'
+import {
+  blockDefinitionMatchesLinkDrop,
+  type BlockDropLinkPaletteContext,
+} from '@/core/blockDefinitionLinkPalette'
+import { RitualNeekoStagingPreview } from '@/components/molecules/RitualNeekoStagingPreview'
 import { NodeCard } from '@/components/organisms/NodeCard'
+import { AddonCardHost } from '@/components/molecules/AddonCardHost'
+import { BlockCard } from '@/components/organisms/BlockCard'
+import { GroupCard } from '@/components/organisms/GroupCard'
+import { connectionInvolvesAddon } from '@/core/addonSlotConnections'
+import { useAddonCanvasLinks } from '@/hooks/useAddonCanvasLinks'
+import { resolveAddonDropFromDataTransfer } from '@/ritualDrag/addonDropHandler'
+import { useRitualDragOptional } from '@/ritualDrag/RitualDragContext'
+import { useRitualDragCanvasDrop } from '@/hooks/useRitualDragCanvasDrop'
 import type { CanvasConnection, CanvasNode, CanvasPosition, CanvasScene, SceneCamera } from '@/core/canvasScene'
 import { isCanvasNodeBodyCollapsed } from '@/core/canvasScene'
 import {
@@ -23,6 +54,33 @@ import {
   type WirelessPortPulseTarget,
   type WirelessPeerHoverPayload,
 } from '@/core/connectionDisplay'
+import {
+  buildBlockWirelessDisplayByNode,
+  type BlockSlotWirelessLink,
+} from '@/core/blockConnectionDisplay'
+import {
+  buildGroupWirelessDisplayByNode,
+  type GroupSlotWirelessLink,
+} from '@/core/groupConnectionDisplay'
+import { resolveBlockCardWidth, resolveGroupCardWidth } from '@/core/structureCardLayout'
+import {
+  createBlockDraftConnectionPath,
+  estimateBlockCardHeight,
+  classifyBlockSlotConnection,
+  findBlockSlotEndpoint,
+  findBlockSlotAtPoint,
+  isBlockSlotConnection,
+  resolveBlockConnectionPath,
+  resolveBlockSlotCanvasPoint,
+} from '@/core/blockSlotConnections'
+import {
+  createGroupDraftConnectionPath,
+  estimateGroupCardHeight,
+  findGroupSlotAtPoint,
+  isGroupSlotConnection,
+  resolveGroupConnectionPath,
+  resolveGroupSlotCanvasPoint,
+} from '@/core/groupSlotConnections'
 import {
   findConnectionTargetForSlot,
   getNodesByCollectionType,
@@ -114,10 +172,13 @@ import {
   type NodeCardSectionId,
 } from '@/core/nodeCardSections'
 import { isParameterPickerOpen } from '@/core/parameterPickerModal'
+import { shouldIgnoreCanvasWheelShortcut } from '@/core/canvasKeyboardGuard'
 import {
-  shouldIgnoreCanvasKeyboardShortcut,
-  shouldIgnoreCanvasWheelShortcut,
-} from '@/core/canvasKeyboardGuard'
+  GRAPH_CANVAS_SCOPE_ATTR,
+  GRAPH_CANVAS_SCOPE_ID,
+  useGraphCanvasShortcutHandlers,
+  type GraphCanvasShortcutRefs,
+} from '@/shortcuts/useGraphCanvasShortcutHandlers'
 import { schemaJsonRelativePathBySchemaId } from '@/core/nodeStructureRegistry'
 import { schemaRegistry } from '@/core/nodeStructureRegistry'
 import {
@@ -128,6 +189,17 @@ import {
   ELEMENT_MENU_TRIGGER_ATTR,
 } from '@/core/canvasContextMenuAttributes'
 import { buildContextMenuItems } from '@/core/canvasContextMenuItems'
+import { LangId } from '@/core/language/languageIds'
+import { useLanguage } from '@/language/LanguageProvider'
+import {
+  MESSENGER_CONFIRM_ADDON_CONNECTION_FORCED,
+  MESSENGER_CONFIRM_BLOCK_CONNECTION_FORCED,
+} from '@/messenger_popup/messengerCatalog'
+import {
+  classifyCrossSlotRequest,
+  type CrossSlotConnectRequest,
+} from '@/core/crossSlotConnections'
+import { useMessengerPopup } from '@/messenger_popup/MessengerPopupProvider'
 import {
   DEFAULT_CANVAS_TOOLBAR_VISIBILITY,
   toggleToolbarVisibility,
@@ -137,10 +209,12 @@ import {
 import { resolveContextTarget } from '@/core/canvasContextMenuResolve'
 import {
   collectGraphPortAnchors,
+  collectAddonSlotAnchors,
   emptyPortAnchorMaps,
   graphPointFromElementCenter,
   outputAnchorKey,
   type PortAnchorMaps,
+  type GraphPanPoint,
 } from '@/core/graphPortAnchors'
 import { parseSetConnectionRoutingMenuId } from '@/core/connectionRoutingMenu'
 import {
@@ -164,8 +238,12 @@ import type {
   CanvasContextTarget,
   ContextMenuItemId,
 } from '@/core/canvasContextMenuTypes'
+import type { ViewportToolbarDockId } from '@/core/viewportToolbarDock'
 
+import dockStyles from '@/styles/inspectorViewportDock.module.css'
 import styles from './GraphCanvas.module.css'
+
+type CanvasToolbarDockId = Extract<ViewportToolbarDockId, 'camera' | 'zoom'>
 
 const CARD_WIDTH = NODE_CARD_WIDTH
 const HEADER_HEIGHT = 56
@@ -204,6 +282,7 @@ type GraphCanvasProps = {
   availableSchemas: NodeSchemaDefinition[]
   /** Nome da pasta sob `src/nodeStructures/` por id de schema (filtro 📂 na paleta). */
   schemaPackFolderBySchemaId?: Record<string, string>
+  schemaJsonRelativePathBySchemaId?: Record<string, string>
   /** Subpasta imediata dentro do pack (`''` = raiz); `temp` não aparece como etiqueta. */
   schemaStructureSubfolderBySchemaId?: Record<string, string>
   /** Módulo = JSON na raiz do pack; base = subpasta `pack_Type/Type.json` (exceto temp). */
@@ -233,8 +312,65 @@ type GraphCanvasProps = {
     position?: CanvasPosition,
   ) => void
   onCreateRootNode: (schema: NodeSchemaDefinition, position?: CanvasPosition) => void
+  onCreateBlockFromDefinition?: (
+    definition: BlockDefinitionJsonDocument,
+    position?: CanvasPosition,
+    spawnLink?: BlockDefinitionSpawnLinkContext,
+  ) => { ok: true; nodeId: string } | { ok: false; error: string }
+  onCreateAddonFromCatalog?: (
+    addonId: string,
+    position?: CanvasPosition,
+    spawnLink?: {
+      fromNodeId: string
+      fromAddonSlotId?: string
+      fromBlockSlotId?: string
+      fromBlockParameterId?: string
+      toAddonSlotName?: string
+    },
+  ) => Promise<{ ok: true; nodeId: string } | { ok: false; error: string }>
+  onApplyAddonOutputs?: (nodeId: string, outputs: Record<string, unknown>) => void
+  onConnectAddonSlots?: (
+    request:
+      | {
+          kind: 'addon'
+          fromNodeId: string
+          fromAddonSlotId: string
+          toNodeId: string
+          toAddonSlotId: string
+          allowForced?: boolean
+        }
+      | {
+          kind: 'blockToAddon'
+          fromNodeId: string
+          fromBlockSlotId: string
+          fromBlockParameterId?: string
+          toNodeId: string
+          toAddonSlotId: string
+          allowForced?: boolean
+        }
+      | {
+          kind: 'addonToBlock'
+          fromNodeId: string
+          fromAddonSlotId: string
+          toNodeId: string
+          toBlockSlotId: string
+          toBlockParameterId?: string
+          allowForced?: boolean
+        },
+  ) => void
+  onSyncBlockParameterCatalog?: (
+    definitions: readonly BlockDefinitionJsonDocument[],
+  ) => Promise<{ ok: boolean; error?: string }>
+  onAddBlockParameterFromCatalog?: (
+    nodeId: string,
+    doc: import('@/core/blockParameterJson').BlockParameterJsonDocument,
+  ) => { ok: true } | { ok: false; error: string }
+  onRemoveBlockParameter?: (nodeId: string, paramId: string) => void
+  onEditBlockParameter?: (nodeId: string, param: import('@/core/blockSchema').BlockParameterDef) => void
   onDeleteNodeIds?: (nodeIds: string[]) => void
   onToggleNodeBodyCollapsed?: (nodeId: string) => void
+  onToggleStructureCardParamsExpanded?: (nodeId: string) => void
+  onSetStructureCardWidth?: (nodeId: string, width: number, positionX?: number) => void
   onSetAllNodesBodyCollapsed?: (collapsed: boolean) => void
   onToggleNodeCardSection?: (nodeId: string, sectionId: NodeCardSectionId) => void
   onSetNodeCardSectionOrder?: (nodeId: string, sectionId: NodeCardSectionId, oneBasedIndex: number) => void
@@ -342,8 +478,31 @@ type GraphCanvasProps = {
   selectedNodeId: string
   /** Conteúdo extra dentro da régua aria-label «Canvas viewport controls» (ex.: inspector acoplado). */
   viewportControlsSlot?: ReactNode
+  /** Inspetor de Bloco acoplado à barra da vista. */
+  blockInspectorControlsSlot?: ReactNode
+  /** Inspetor de Grupo acoplado à barra da vista. */
+  groupInspectorControlsSlot?: ReactNode
   /** Painel «Nodes em cena» acoplado à barra (cápsula / chrome). */
   sceneNodesControlsSlot?: ReactNode
+  onUpdateBlockParameter?: (canvasNodeId: string, paramId: string, value: string) => void
+  onConnectBlockSlots?: (
+    fromNodeId: string,
+    fromBlockSlotId: string,
+    fromBlockParameterId: string | undefined,
+    toNodeId: string,
+    toBlockSlotId: string,
+    toBlockParameterId: string | undefined,
+    allowForced?: boolean,
+  ) => void
+  onUpdateGroupParameter?: (canvasNodeId: string, paramId: string, value: string) => void
+  onConnectGroupSlots?: (
+    fromNodeId: string,
+    fromGroupSlotId: string,
+    fromGroupParameterId: string | undefined,
+    toNodeId: string,
+    toGroupSlotId: string,
+    toGroupParameterId: string | undefined,
+  ) => void
   /** Toast quando o utilizador tenta editar um nó travado. */
   onNodeLockedInteraction?: () => void
   /** Overlay de visibilidade/lock (sincronizado com «Nodes em cena»). */
@@ -355,15 +514,63 @@ type GraphCanvasProps = {
   ) => void
   /** Abre/expande o painel «Nodes em cena» (ex.: ao activar no submenu Exibir). */
   onSceneNodesPanelRequest?: () => void
+  /** Drop/colar ritual Class Group num Neeko Node. */
+  onNeekoDropCode?: (canvasNodeId: string, text: string) => void
+  /** Vincular área do editor ao nó (Shift+arrasto). */
+  onBindCodeRangeToNode?: (
+    canvasNodeId: string,
+    payload: {
+      text: string
+      textRange: {
+        startLineNumber: number
+        startColumn: number
+        endLineNumber: number
+        endColumn: number
+      }
+    },
+  ) => void
+  /** Ritual drag: cria Neeko na grade após staging (posição canvas). */
+  onBuildNeekoAtPosition?: (position: CanvasPosition) => string | null
+  onNeekoBuildFailed?: () => void
+  neekoTransformingNodeId?: string | null
+  /** Packs só em memória (localStorage), sem pasta em nodeStructures. */
+  memoryPackFolders?: readonly string[]
   /** Grava preset de estados da cena (atalho no menu do card). */
   onExtractSceneNodesStatePreset?: (nodeId: string) => void
   /** Serializa Main → ritual Class Group e abre no CodeDock. */
   onGraphsToCode?: () => void
+  /** Pré-visualiza subárvore do nó no CodeDock. */
+  onViewNodeCode?: (nodeId: string) => void
+  onViewNodeBlockCode?: (nodeId: string) => void
+  /** Preview de código de bloco a partir do menu de contexto do block card. */
+  onPreviewBlockCardCode?: (nodeId: string) => void
+  onViewNodeGroupCode?: (nodeId: string) => void
+  /** Abre VFX Dock com ritual da subárvore do nó. */
+  onPreviewNodeVfx?: (nodeId: string) => void
+  /** Sincroniza subárvore do nó seleccionado na aba activa do CodeDock. */
+  onSyncNodeValueToCode?: (nodeId: string) => void
+  /** CodeDock aberto com aba ritobin activa. */
+  canSyncNodeToCode?: boolean
   /** Visibilidade dos botões da barra do canvas (persistida em `scene.sceneChrome`). */
   toolbarVisibility?: CanvasToolbarVisibility
   onToolbarVisibilityChange?: (next: CanvasToolbarVisibility) => void
+  /** Barra de ferramentas da grade retraída (só ícone de ferramentas). */
+  toolbarCollapsed?: boolean
+  onToolbarCollapsedChange?: (collapsed: boolean) => void
+  /** Fundo com padrão de grade no canvas (persistido em `scene.sceneChrome`). */
+  showCanvasGrid?: boolean
+  canvasGridSize?: number
+  canvasGridOpacity?: number
+  onCanvasGridChange?: (patch: Partial<CanvasGridControlState>) => void
+  /** @deprecated Use onCanvasGridChange */
+  onShowCanvasGridChange?: (show: boolean) => void
   /** Junta visualmente ao bloco de abas «Cenas de trabalho» (sem borda/cantos no topo). */
   attachedViewport?: boolean
+  /** Quando definido, a barra de ferramentas é renderizada neste contentor (ex.: fila de abas). */
+  toolbarChromeHost?: HTMLElement | null
+  /** Dock expandido na barra da vista (inspetores + câmera/zoom/reset). */
+  activeViewportToolbarDock?: ViewportToolbarDockId | null
+  onViewportToolbarDockToggle?: (dockId: ViewportToolbarDockId) => void
 }
 
 type ConnectionPath = {
@@ -421,9 +628,30 @@ type OutputWireDragSession = {
   pointerId: number
 }
 
+type PendingBlockLink = {
+  fromNodeId: string
+  fromBlockSlotId: string
+  fromBlockParameterId?: string
+  draftAnchor: { sx: number; sy: number }
+}
+
+type PendingGroupLink = {
+  fromNodeId: string
+  fromGroupSlotId: string
+  fromGroupParameterId?: string
+  draftAnchor: { sx: number; sy: number }
+}
+
 type GraphDropLinkContext = {
   entity: InternalStructureDefinition
   fromNodeId: string
+  position: CanvasPosition
+}
+
+type BlockDropLinkContext = BlockDropLinkPaletteContext & {
+  fromNodeId: string
+  fromBlockSlotId: string
+  fromBlockParameterId?: string
   position: CanvasPosition
 }
 
@@ -961,6 +1189,14 @@ function getInternalStructureSectionHeight(_node: CanvasNode) {
 }
 
 function getNodeCardHeight(node: CanvasNode, connections: readonly CanvasConnection[]) {
+  if (node.groupViewActive && node.groupStructure) {
+    return estimateGroupCardHeight(node.groupStructure)
+  }
+
+  if (node.blockViewActive && node.blockStructure) {
+    return estimateBlockCardHeight(node.blockStructure)
+  }
+
   if (isCanvasNodeBodyCollapsed(node)) {
     return HEADER_HEIGHT
   }
@@ -1318,6 +1554,13 @@ function normalizeMarqueeRect(start: CanvasPosition, end: CanvasPosition) {
   }
 }
 
+function getCanvasNodeWidth(node: CanvasNode): number {
+  if (node.groupViewActive && node.groupStructure) {
+    return resolveGroupCardWidth(node)
+  }
+  return node.blockViewActive && node.blockStructure ? resolveBlockCardWidth(node) : CARD_WIDTH
+}
+
 function intersectsCanvasNodeRect(
   marquee: { height: number; width: number; x: number; y: number },
   node: CanvasNode,
@@ -1325,7 +1568,7 @@ function intersectsCanvasNodeRect(
 ): boolean {
   const nodeRect = {
     height: getNodeCardHeight(node, connections),
-    width: CARD_WIDTH,
+    width: getCanvasNodeWidth(node),
     x: node.position.x,
     y: node.position.y,
   }
@@ -1360,6 +1603,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
   {
     availableSchemas,
     schemaPackFolderBySchemaId,
+    schemaJsonRelativePathBySchemaId,
     schemaStructureSubfolderBySchemaId,
     schemaNodeKindBySchemaId,
     schemaBaseParameterCatalogBySchemaId,
@@ -1374,8 +1618,15 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     onSetConnectionRouting,
     onCreateChildNode,
     onCreateRootNode,
+    onCreateBlockFromDefinition,
+    onSyncBlockParameterCatalog,
+    onAddBlockParameterFromCatalog,
+    onRemoveBlockParameter,
+    onEditBlockParameter,
     onDeleteNodeIds,
     onToggleNodeBodyCollapsed,
+    onToggleStructureCardParamsExpanded,
+    onSetStructureCardWidth,
     onSetAllNodesBodyCollapsed,
     onToggleNodeCardSection,
     onSetNodeCardSectionOrder,
@@ -1416,19 +1667,61 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     selectedNodeIds,
     selectedNodeId,
     viewportControlsSlot,
+    blockInspectorControlsSlot,
+    groupInspectorControlsSlot,
     sceneNodesControlsSlot,
+    onUpdateBlockParameter,
+    onConnectBlockSlots,
+    onUpdateGroupParameter,
+    onConnectGroupSlots,
+    onCreateAddonFromCatalog,
+    onApplyAddonOutputs,
+    onConnectAddonSlots,
     onNodeLockedInteraction,
     onPatchNodeSceneOverlay,
     onSceneNodesPanelRequest,
     onExtractSceneNodesStatePreset,
     onGraphsToCode,
+    onViewNodeCode,
+    onViewNodeBlockCode,
+    onPreviewBlockCardCode,
+    onViewNodeGroupCode,
+    onPreviewNodeVfx,
+    onSyncNodeValueToCode,
+    canSyncNodeToCode = false,
+    onNeekoDropCode,
+    onBindCodeRangeToNode,
+    onBuildNeekoAtPosition,
+    onNeekoBuildFailed,
+    neekoTransformingNodeId = null,
+    memoryPackFolders = [],
     toolbarVisibility: toolbarVisibilityProp,
     onToolbarVisibilityChange,
+    toolbarCollapsed = true,
+    onToolbarCollapsedChange,
+    showCanvasGrid = true,
+    canvasGridSize,
+    canvasGridOpacity,
+    onCanvasGridChange,
+    onShowCanvasGridChange,
     attachedViewport = false,
+    toolbarChromeHost = null,
+    activeViewportToolbarDock = null,
+    onViewportToolbarDockToggle,
   },
   ref,
 ) {
+  const { t } = useLanguage()
+  const { showConfirmByCatalogId } = useMessengerPopup()
   const [pendingLink, setPendingLink] = useState<PendingLink | null>(null)
+  const [pendingBlockLink, setPendingBlockLink] = useState<PendingBlockLink | null>(null)
+  const pendingBlockLinkRef = useRef<PendingBlockLink | null>(null)
+  const [blockLinkDraftPoint, setBlockLinkDraftPoint] = useState<PanPoint | null>(null)
+  const [blockWirelessPulse, setBlockWirelessPulse] = useState<{ nodeId: string; slotId: string } | null>(null)
+  const [pendingGroupLink, setPendingGroupLink] = useState<PendingGroupLink | null>(null)
+  const pendingGroupLinkRef = useRef<PendingGroupLink | null>(null)
+  const [groupLinkDraftPoint, setGroupLinkDraftPoint] = useState<PanPoint | null>(null)
+  const [groupWirelessPulse, setGroupWirelessPulse] = useState<{ nodeId: string; slotId: string } | null>(null)
   const [collectionTypeLinkMenu, setCollectionTypeLinkMenu] = useState<CollectionTypeLinkMenuState | null>(
     null,
   )
@@ -1439,25 +1732,71 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
   const outputWireWindowMoveRef = useRef<((event: PointerEvent) => void) | null>(null)
   const pendingLinkRef = useRef<PendingLink | null>(null)
   const [linkDropContext, setLinkDropContext] = useState<GraphDropLinkContext | null>(null)
+  const [blockDropLinkContext, setBlockDropLinkContext] = useState<BlockDropLinkContext | null>(null)
+  const [addonDropLinkContext, setAddonDropLinkContext] = useState<{
+    fromNodeId: string
+    fromAddonSlotId: string
+    position: CanvasPosition
+  } | null>(null)
   const [isPaletteOpen, setIsPaletteOpen] = useState(false)
   const [pan, setPan] = useState<PanPoint>(() => scene.camera?.pan ?? { x: 0, y: 0 })
   const [scale, setScale] = useState(() => scene.camera?.scale ?? 1)
   const nodeDragGesture = useRef<NodeDragGesture | null>(null)
+
+  useEffect(() => {
+    const cancelActiveNodeDrag = () => {
+      nodeDragGesture.current = null
+    }
+    document.addEventListener('addon-context-menu-open', cancelActiveNodeDrag)
+    return () => document.removeEventListener('addon-context-menu-open', cancelActiveNodeDrag)
+  }, [])
+
   const panGesture = useRef<PanGesture | null>(null)
   const middlePanGestureRef = useRef<PanGesture | null>(null)
   const marqueeGestureRef = useRef<{ additive: boolean; pointerId: number; start: CanvasPosition } | null>(null)
   const viewportRef = useRef<HTMLElement | null>(null)
   const viewportBodyRef = useRef<HTMLDivElement | null>(null)
+  const ritualDrag = useRitualDragOptional()
+
+  useRitualDragCanvasDrop({
+    ritualDrag,
+    scale,
+    sceneNodes: scene.nodes,
+    canvasRef,
+    viewportBodyRef,
+    onNeekoDropCode,
+    onBindCodeRangeToNode,
+    onBuildNeekoAtPosition,
+    onNeekoBuildFailed,
+  })
+
+  const ritualDropHoverNeekoId =
+    ritualDrag?.phase === 'dragging' ||
+    ritualDrag?.phase === 'buildingNeeko' ||
+    ritualDrag?.phase === 'readyNeeko'
+      ? ritualDrag.hoveredNeekoCanvasNodeId
+      : null
+
+  const ritualLinkDropHoverNodeId =
+    ritualDrag?.phase === 'linkDragging' ? ritualDrag.hoveredLinkCanvasNodeId : null
+
   const [marqueeOverlay, setMarqueeOverlay] = useState<null | { current: CanvasPosition; start: CanvasPosition }>(
     null,
   )
   const [glueNodeId, setGlueNodeId] = useState<string | null>(null)
+  const [structureCardResizeModifierActive, setStructureCardResizeModifierActive] = useState(false)
   const [wirelessHighlightNodeId, setWirelessHighlightNodeId] = useState<string | null>(null)
   const [contextMenu, setContextMenu] = useState<{
     anchor: CanvasContextMenuAnchor
     target: CanvasContextTarget
   } | null>(null)
   const [viewportNavigateMode, setViewportNavigateMode] = useState(false)
+  const [gridControlAnchor, setGridControlAnchor] = useState<CanvasContextMenuAnchor | null>(null)
+  const resolvedGridSize = resolveCanvasGridSize(canvasGridSize)
+  const resolvedGridOpacity = resolveCanvasGridOpacity(canvasGridOpacity)
+  const gridLineStrength = showCanvasGrid
+    ? Math.min(3, resolvedGridOpacity / DEFAULT_CANVAS_GRID_OPACITY)
+    : 0
   const [localToolbarVisibility, setLocalToolbarVisibility] = useState<CanvasToolbarVisibility>(
     () => DEFAULT_CANVAS_TOOLBAR_VISIBILITY,
   )
@@ -1475,6 +1814,10 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     [onToolbarVisibilityChange, toolbarVisibility],
   )
   const [paletteSpawnPosition, setPaletteSpawnPosition] = useState<CanvasPosition | null>(null)
+  const [paletteScreenAnchor, setPaletteScreenAnchor] = useState<{ left: number; top: number } | null>(
+    null,
+  )
+  const addNodeToolbarAnchorRef = useRef<HTMLDivElement | null>(null)
   const navigatePanOriginRef = useRef<{ x: number; y: number } | null>(null)
   const [wirelessPortPulse, setWirelessPortPulse] = useState<WirelessPortPulseTarget | null>(null)
   const portFocusPulseTimeoutRef = useRef<ReturnType<typeof window.setTimeout> | null>(null)
@@ -1535,6 +1878,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
 
   const canvasBounds = getCanvasBounds(scene)
   const [portAnchors, setPortAnchors] = useState<PortAnchorMaps>(emptyPortAnchorMaps)
+  const [addonSlotAnchors, setAddonSlotAnchors] = useState<Map<string, GraphPanPoint>>(() => new Map())
 
   useLayoutEffect(() => {
     const el = canvasRef.current
@@ -1544,6 +1888,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     }
 
     setPortAnchors(collectGraphPortAnchors(el, scale))
+    setAddonSlotAnchors(collectAddonSlotAnchors(el, scale))
   }, [
     canvasBounds.height,
     canvasBounds.width,
@@ -1556,6 +1901,16 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
 
   const wirelessDisplayByNode = useMemo(
     () => buildWirelessDisplayByNode(scene.connections, scene.nodes),
+    [scene.connections, scene.nodes],
+  )
+
+  const blockWirelessDisplayByNode = useMemo(
+    () => buildBlockWirelessDisplayByNode(scene.connections, scene.nodes),
+    [scene.connections, scene.nodes],
+  )
+
+  const groupWirelessDisplayByNode = useMemo(
+    () => buildGroupWirelessDisplayByNode(scene.connections, scene.nodes),
     [scene.connections, scene.nodes],
   )
 
@@ -1601,6 +1956,72 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     [scene],
   )
 
+  const tryConnectCrossSlots = useCallback(
+    (request: CrossSlotConnectRequest, allowForced = false): boolean => {
+      if (!onConnectAddonSlots) {
+        return false
+      }
+
+      const connectionClass = classifyCrossSlotRequest(scene.nodes, request)
+      if (connectionClass.kind === 'incompatible') {
+        return false
+      }
+
+      if (connectionClass.kind === 'forced' && !allowForced) {
+        showConfirmByCatalogId(MESSENGER_CONFIRM_ADDON_CONNECTION_FORCED, {
+          replacements: {
+            outputType: connectionClass.outputType,
+            inputType: connectionClass.inputType,
+            outputLabel: connectionClass.outputLabel,
+            inputLabel: connectionClass.inputLabel,
+          },
+          onConfirm: () => {
+            tryConnectCrossSlots(request, true)
+          },
+        })
+        return false
+      }
+
+      onConnectAddonSlots({
+        ...request,
+        allowForced: connectionClass.kind === 'forced' || allowForced,
+      })
+      return true
+    },
+    [onConnectAddonSlots, scene.nodes, showConfirmByCatalogId],
+  )
+
+  const addonLinks = useAddonCanvasLinks({
+    scene,
+    scale,
+    canvasRef,
+    addonSlotAnchors,
+    visibleNodeIds: useMemo(
+      () => new Set(scene.nodes.filter((n) => isNodeVisibleOnCanvas(n, compactElementVisibility, scene)).map((n) => n.id)),
+      [compactElementVisibility, scene],
+    ),
+    tryConnectCrossSlots: onConnectAddonSlots ? tryConnectCrossSlots : undefined,
+    onSelectNode,
+    onOpenAddonPalette: onCreateAddonFromCatalog
+      ? (context) => {
+          setAddonDropLinkContext(context)
+          setPaletteSpawnPosition(context.position)
+          setPaletteScreenAnchor(null)
+          setIsPaletteOpen(true)
+        }
+      : undefined,
+    endBlockLinkDraft: () => {
+      pendingBlockLinkRef.current = null
+      setPendingBlockLink(null)
+      setBlockLinkDraftPoint(null)
+    },
+    endGroupLinkDraft: () => {
+      pendingGroupLinkRef.current = null
+      setPendingGroupLink(null)
+      setGroupLinkDraftPoint(null)
+    },
+  })
+
   const visibleNodeIds = useMemo(
     () =>
       new Set(
@@ -1615,6 +2036,8 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     return scene.connections
       .filter(
         (connection) =>
+          !isBlockSlotConnection(connection) &&
+          !isGroupSlotConnection(connection) &&
           connection.routing !== 'wireless' &&
           visibleNodeIds.has(connection.fromNodeId) &&
           visibleNodeIds.has(connection.toNodeId),
@@ -1622,6 +2045,33 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       .map((connection) => resolveConnectionPath(connection, scene.nodes, scene.connections, portAnchors))
       .filter((path): path is ConnectionPath => path !== null)
   }, [portAnchors, scene.connections, scene.nodes, visibleNodeIds])
+
+  const blockConnectionPaths = useMemo(() => {
+    return scene.connections
+      .filter(
+        (connection) =>
+          isBlockSlotConnection(connection) &&
+          !connectionInvolvesAddon(connection) &&
+          connection.routing !== 'wireless' &&
+          visibleNodeIds.has(connection.fromNodeId) &&
+          visibleNodeIds.has(connection.toNodeId),
+      )
+      .map((connection) => resolveBlockConnectionPath(connection, scene.nodes))
+      .filter((path): path is NonNullable<ReturnType<typeof resolveBlockConnectionPath>> => path !== null)
+  }, [scene.connections, scene.nodes, visibleNodeIds])
+
+  const groupConnectionPaths = useMemo(() => {
+    return scene.connections
+      .filter(
+        (connection) =>
+          isGroupSlotConnection(connection) &&
+          connection.routing !== 'wireless' &&
+          visibleNodeIds.has(connection.fromNodeId) &&
+          visibleNodeIds.has(connection.toNodeId),
+      )
+      .map((connection) => resolveGroupConnectionPath(connection, scene.nodes))
+      .filter((path): path is NonNullable<ReturnType<typeof resolveGroupConnectionPath>> => path !== null)
+  }, [scene.connections, scene.nodes, visibleNodeIds])
 
   const paletteSchemas = useMemo(() => {
     if (!linkDropContext) {
@@ -1697,6 +2147,418 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     setLinkDraftPoint(null)
   }, [])
 
+  const endBlockLinkDraft = useCallback(() => {
+    pendingBlockLinkRef.current = null
+    setPendingBlockLink(null)
+    setBlockLinkDraftPoint(null)
+  }, [])
+
+  const endGroupLinkDraft = useCallback(() => {
+    pendingGroupLinkRef.current = null
+    setPendingGroupLink(null)
+    setGroupLinkDraftPoint(null)
+  }, [])
+
+  const beginBlockOutputLink = useCallback(
+    (fromNodeId: string, fromBlockSlotId: string, fromBlockParameterId?: string) => {
+      endLinkDraft()
+      endGroupLinkDraft()
+      const fromNode = scene.nodes.find((node) => node.id === fromNodeId)
+      const fromWidth = fromNode ? resolveBlockCardWidth(fromNode) : undefined
+      const anchor = fromNode
+        ? resolveBlockSlotCanvasPoint(
+            fromNode,
+            fromBlockSlotId,
+            'output',
+            fromWidth,
+          )
+        : null
+      if (!anchor) {
+        return
+      }
+      const next: PendingBlockLink = {
+        fromNodeId,
+        fromBlockSlotId,
+        fromBlockParameterId,
+        draftAnchor: { sx: anchor.x, sy: anchor.y },
+      }
+      pendingBlockLinkRef.current = next
+      setPendingBlockLink(next)
+      setBlockLinkDraftPoint({ x: anchor.x, y: anchor.y })
+    },
+    [endGroupLinkDraft, endLinkDraft, scene.nodes],
+  )
+
+  const beginGroupOutputLink = useCallback(
+    (fromNodeId: string, fromGroupSlotId: string, fromGroupParameterId?: string) => {
+      endLinkDraft()
+      endBlockLinkDraft()
+      const fromNode = scene.nodes.find((node) => node.id === fromNodeId)
+      const fromWidth = fromNode ? resolveGroupCardWidth(fromNode) : undefined
+      const anchor = fromNode
+        ? resolveGroupSlotCanvasPoint(
+            fromNode,
+            fromGroupSlotId,
+            'output',
+            fromWidth,
+          )
+        : null
+      const next: PendingGroupLink = {
+        fromNodeId,
+        fromGroupSlotId,
+        fromGroupParameterId,
+        draftAnchor: { sx: anchor?.x ?? 0, sy: anchor?.y ?? 0 },
+      }
+      pendingGroupLinkRef.current = next
+      setPendingGroupLink(next)
+      setGroupLinkDraftPoint(anchor ? { x: anchor.x, y: anchor.y } : null)
+    },
+    [endBlockLinkDraft, endLinkDraft, scene.nodes],
+  )
+
+  const tryConnectBlockSlots = useCallback(
+    (
+      fromNodeId: string,
+      fromBlockSlotId: string,
+      fromBlockParameterId: string | undefined,
+      toNodeId: string,
+      toBlockSlotId: string,
+      toBlockParameterId: string | undefined,
+    ): boolean => {
+      if (!onConnectBlockSlots) {
+        return false
+      }
+
+      const fromNode = scene.nodes.find((node) => node.id === fromNodeId)
+      const toNode = scene.nodes.find((node) => node.id === toNodeId)
+      if (!fromNode?.blockStructure || !toNode?.blockStructure) {
+        return false
+      }
+
+      const fromEndpoint = findBlockSlotEndpoint(fromNode, fromBlockSlotId)
+      const toEndpoint = findBlockSlotEndpoint(toNode, toBlockSlotId)
+      if (!fromEndpoint || !toEndpoint) {
+        return false
+      }
+
+      const connectionClass = classifyBlockSlotConnection(
+        fromEndpoint,
+        toEndpoint,
+        fromNode.blockStructure,
+        toNode.blockStructure,
+      )
+
+      if (connectionClass.kind === 'incompatible') {
+        return false
+      }
+
+      if (connectionClass.kind === 'forced') {
+        showConfirmByCatalogId(MESSENGER_CONFIRM_BLOCK_CONNECTION_FORCED, {
+          onConfirm: () => {
+            onConnectBlockSlots(
+              fromNodeId,
+              fromBlockSlotId,
+              fromBlockParameterId,
+              toNodeId,
+              toBlockSlotId,
+              toBlockParameterId,
+              true,
+            )
+          },
+        })
+        return false
+      }
+
+      onConnectBlockSlots(
+        fromNodeId,
+        fromBlockSlotId,
+        fromBlockParameterId,
+        toNodeId,
+        toBlockSlotId,
+        toBlockParameterId,
+        false,
+      )
+      return true
+    },
+    [onConnectBlockSlots, scene.nodes, showConfirmByCatalogId],
+  )
+
+  const resolveBlockLinkDrop = useCallback(
+    (clientX: number, clientY: number) => {
+      const pending = pendingBlockLinkRef.current
+      if (!pending) {
+        return
+      }
+      if (!onConnectBlockSlots && !onConnectAddonSlots) {
+        return
+      }
+
+      const el = document.elementFromPoint(clientX, clientY)
+      const addonSlotEl = el instanceof Element ? el.closest('[data-addon-slot-id]') : null
+      if (addonSlotEl instanceof HTMLElement && onConnectAddonSlots) {
+        const direction = addonSlotEl.getAttribute('data-addon-slot-direction')
+        const addonToNodeId = addonSlotEl.getAttribute('data-addon-slot-node-id')
+        const toAddonSlotId = addonSlotEl.getAttribute('data-addon-slot-id')
+        if (
+          direction === 'input' &&
+          addonToNodeId &&
+          toAddonSlotId &&
+          addonToNodeId !== pending.fromNodeId
+        ) {
+          tryConnectCrossSlots({
+            kind: 'blockToAddon',
+            fromNodeId: pending.fromNodeId,
+            fromBlockSlotId: pending.fromBlockSlotId,
+            fromBlockParameterId: pending.fromBlockParameterId,
+            toNodeId: addonToNodeId,
+            toAddonSlotId,
+          })
+          endBlockLinkDraft()
+          onSelectNode(addonToNodeId)
+          return
+        }
+      }
+
+      const canvasEl = canvasRef.current
+      let toNodeId: string | null = null
+      let toBlockSlotId: string | null = null
+
+      if (canvasEl && onConnectAddonSlots) {
+        if (addonLinks.resolveBlockLinkDropOnAddon(pending, clientX, clientY)) {
+          endBlockLinkDraft()
+          return
+        }
+      }
+
+      if (canvasEl && onConnectBlockSlots) {
+        const point = graphClientToPosition(canvasEl, scale, clientX, clientY)
+        const hit = findBlockSlotAtPoint(scene.nodes, point)
+        if (hit && hit.direction === 'input' && hit.nodeId !== pending.fromNodeId) {
+          toNodeId = hit.nodeId
+          toBlockSlotId = hit.slotId
+        }
+      }
+
+      if (!toNodeId || !toBlockSlotId) {
+        const slotEl = el instanceof Element ? el.closest('[data-block-slot-id]') : null
+        if (slotEl instanceof HTMLElement) {
+          const direction = slotEl.getAttribute('data-block-slot-direction')
+          toNodeId = slotEl.getAttribute('data-block-slot-node-id')
+          toBlockSlotId = slotEl.getAttribute('data-block-slot-id')
+          if (direction !== 'input' || !toNodeId || !toBlockSlotId || toNodeId === pending.fromNodeId) {
+            endBlockLinkDraft()
+            return
+          }
+        } else {
+          const canvasElForDrop = canvasRef.current
+          if (canvasElForDrop && onConnectBlockSlots) {
+            const dropPosition = graphClientToPosition(canvasElForDrop, scale, clientX, clientY)
+            const fromNode = scene.nodes.find((node) => node.id === pending.fromNodeId)
+            const endpoint =
+              fromNode ? findBlockSlotEndpoint(fromNode, pending.fromBlockSlotId) : undefined
+            const outTypes = endpoint?.direction === 'output' ? [...endpoint.types] : []
+            const fromParameterName =
+              pending.fromBlockParameterId && fromNode?.blockStructure
+                ? fromNode.blockStructure.parameters.find(
+                    (entry) => entry.idParameter === pending.fromBlockParameterId,
+                  )?.nameParameter
+                : undefined
+
+            setLinkDropContext(null)
+            setBlockDropLinkContext({
+              fromNodeId: pending.fromNodeId,
+              fromBlockSlotId: pending.fromBlockSlotId,
+              fromBlockParameterId: pending.fromBlockParameterId,
+              fromParameterName,
+              outTypes,
+              position: dropPosition,
+            })
+            setPaletteSpawnPosition(dropPosition)
+            setPaletteScreenAnchor(null)
+            setIsPaletteOpen(true)
+          }
+          endBlockLinkDraft()
+          return
+        }
+      }
+
+      if (!onConnectBlockSlots) {
+        endBlockLinkDraft()
+        return
+      }
+
+      const paramMatch = /^block-param:(.+):input$/.exec(toBlockSlotId)
+      tryConnectBlockSlots(
+        pending.fromNodeId,
+        pending.fromBlockSlotId,
+        pending.fromBlockParameterId,
+        toNodeId,
+        toBlockSlotId,
+        paramMatch?.[1],
+      )
+      endBlockLinkDraft()
+      onSelectNode(toNodeId)
+    },
+    [
+      addonLinks,
+      endBlockLinkDraft,
+      onConnectAddonSlots,
+      onSelectNode,
+      scale,
+      scene.nodes,
+      tryConnectBlockSlots,
+      tryConnectCrossSlots,
+    ],
+  )
+
+  const resolveGroupLinkDrop = useCallback(
+    (clientX: number, clientY: number) => {
+      const pending = pendingGroupLinkRef.current
+      if (!pending || !onConnectGroupSlots) {
+        return
+      }
+
+      const canvasEl = canvasRef.current
+      let toNodeId: string | null = null
+      let toGroupSlotId: string | null = null
+
+      if (canvasEl) {
+        const point = graphClientToPosition(canvasEl, scale, clientX, clientY)
+        const hit = findGroupSlotAtPoint(scene.nodes, point)
+        if (hit && hit.direction === 'input' && hit.nodeId !== pending.fromNodeId) {
+          toNodeId = hit.nodeId
+          toGroupSlotId = hit.slotId
+        }
+      }
+
+      if (!toNodeId || !toGroupSlotId) {
+        const el = document.elementFromPoint(clientX, clientY)
+        const slotEl = el instanceof Element ? el.closest('[data-group-slot-id]') : null
+        if (slotEl instanceof HTMLElement) {
+          const direction = slotEl.getAttribute('data-group-slot-direction')
+          toNodeId = slotEl.getAttribute('data-group-slot-node-id')
+          toGroupSlotId = slotEl.getAttribute('data-group-slot-id')
+          if (direction !== 'input' || !toNodeId || !toGroupSlotId || toNodeId === pending.fromNodeId) {
+            endGroupLinkDraft()
+            return
+          }
+        } else {
+          endGroupLinkDraft()
+          return
+        }
+      }
+
+      const paramMatch = /^group-param:(.+):input$/.exec(toGroupSlotId)
+      onConnectGroupSlots(
+        pending.fromNodeId,
+        pending.fromGroupSlotId,
+        pending.fromGroupParameterId,
+        toNodeId,
+        toGroupSlotId,
+        paramMatch?.[1],
+      )
+      endGroupLinkDraft()
+      onSelectNode(toNodeId)
+    },
+    [endGroupLinkDraft, onConnectGroupSlots, onSelectNode, scale, scene.nodes],
+  )
+
+  useEffect(() => {
+    if (!pendingBlockLink) {
+      return
+    }
+
+    const onMove = (event: globalThis.PointerEvent) => {
+      const canvasEl = canvasRef.current
+      if (!canvasEl) {
+        return
+      }
+      setBlockLinkDraftPoint(graphClientToPosition(canvasEl, scale, event.clientX, event.clientY))
+    }
+
+    window.addEventListener('pointermove', onMove)
+    return () => window.removeEventListener('pointermove', onMove)
+  }, [pendingBlockLink, scale])
+
+  useEffect(() => {
+    if (!pendingGroupLink) {
+      return
+    }
+
+    const onMove = (event: globalThis.PointerEvent) => {
+      const canvasEl = canvasRef.current
+      if (!canvasEl) {
+        return
+      }
+      setGroupLinkDraftPoint(graphClientToPosition(canvasEl, scale, event.clientX, event.clientY))
+    }
+
+    window.addEventListener('pointermove', onMove)
+    return () => window.removeEventListener('pointermove', onMove)
+  }, [pendingGroupLink, scale])
+
+  const handleBlockSlotWirelessHoverStart = useCallback(
+    (slotId: string, link: BlockSlotWirelessLink) => {
+      const connection = scene.connections.find((entry) => entry.id === link.connectionId)
+      const peerNodeId =
+        connection && connection.fromBlockSlotId === slotId
+          ? connection.toNodeId
+          : connection && connection.toBlockSlotId === slotId
+            ? connection.fromNodeId
+            : link.peerNodeId
+      const peerSlotId =
+        connection && connection.fromBlockSlotId === slotId
+          ? connection.toBlockSlotId ?? link.peerSlotId
+          : connection && connection.toBlockSlotId === slotId
+            ? connection.fromBlockSlotId ?? link.peerSlotId
+            : link.peerSlotId
+
+      setWirelessHighlightNodeId(peerNodeId)
+      setBlockWirelessPulse({ nodeId: peerNodeId, slotId: peerSlotId })
+    },
+    [scene.connections],
+  )
+
+  const handleBlockSlotWirelessHoverEnd = useCallback(() => {
+    setWirelessHighlightNodeId(null)
+    setBlockWirelessPulse(null)
+  }, [])
+
+  const handleGroupSlotWirelessHoverStart = useCallback(
+    (slotId: string, link: GroupSlotWirelessLink) => {
+      const connection = scene.connections.find((entry) => entry.id === link.connectionId)
+      const peerNodeId =
+        connection && connection.fromGroupSlotId === slotId
+          ? connection.toNodeId
+          : connection && connection.toGroupSlotId === slotId
+            ? connection.fromNodeId
+            : link.peerNodeId
+      const peerSlotId =
+        connection && connection.fromGroupSlotId === slotId
+          ? connection.toGroupSlotId ?? link.peerSlotId
+          : connection && connection.toGroupSlotId === slotId
+            ? connection.fromGroupSlotId ?? link.peerSlotId
+            : link.peerSlotId
+
+      setWirelessHighlightNodeId(peerNodeId)
+      setGroupWirelessPulse({ nodeId: peerNodeId, slotId: peerSlotId })
+    },
+    [scene.connections],
+  )
+
+  const handleGroupSlotWirelessHoverEnd = useCallback(() => {
+    setWirelessHighlightNodeId(null)
+    setGroupWirelessPulse(null)
+  }, [])
+
+  useEffect(() => {
+    pendingBlockLinkRef.current = pendingBlockLink
+  }, [pendingBlockLink])
+
+  useEffect(() => {
+    pendingGroupLinkRef.current = pendingGroupLink
+  }, [pendingGroupLink])
+
   useEffect(() => {
     pendingLinkRef.current = pendingLink
   }, [pendingLink])
@@ -1734,6 +2596,37 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     setScale(nextScale)
     persistSceneCamera({ pan: nextPan, scale: nextScale })
   }
+
+  const toggleToolbarDock = useCallback(
+    (dockId: CanvasToolbarDockId) => {
+      onViewportToolbarDockToggle?.(dockId)
+    },
+    [onViewportToolbarDockToggle],
+  )
+
+  const setToolbarCollapsed = useCallback(
+    (collapsed: boolean) => {
+      if (collapsed && activeViewportToolbarDock) {
+        onViewportToolbarDockToggle?.(activeViewportToolbarDock)
+      }
+      onToolbarCollapsedChange?.(collapsed)
+    },
+    [activeViewportToolbarDock, onToolbarCollapsedChange, onViewportToolbarDockToggle],
+  )
+
+  const renderToolbarDockHeaderActions = useCallback(
+    (dockId: CanvasToolbarDockId) => (
+      <button
+        aria-label="Minimizar painel"
+        className={dockStyles.dockHeaderButton}
+        onClick={() => onViewportToolbarDockToggle?.(dockId)}
+        type="button"
+      >
+        −
+      </button>
+    ),
+    [onViewportToolbarDockToggle],
+  )
 
   const beginPendingLink = useCallback(
     (fromNodeId: string, entity: InternalStructureDefinition, anchorEl: HTMLElement | null) => {
@@ -1934,6 +2827,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
         const position = graphClientToPosition(canvasEl, scale, clientX, clientY)
         endLinkDraft()
         setLinkDropContext({ entity: drag.entity, fromNodeId: drag.fromNodeId, position })
+        setPaletteScreenAnchor(null)
         setIsPaletteOpen(true)
         return
       }
@@ -2242,16 +3136,33 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     onSelectNode(toNode.id)
   }
 
-  const openPalette = useCallback((spawnPosition?: CanvasPosition) => {
-    setLinkDropContext(null)
-    setPaletteSpawnPosition(spawnPosition ?? null)
-    setIsPaletteOpen(true)
+  const resolveAddNodeToolbarAnchor = useCallback((): { left: number; top: number } | null => {
+    const anchor = addNodeToolbarAnchorRef.current
+    if (!anchor) {
+      return null
+    }
+
+    const rect = anchor.getBoundingClientRect()
+    return { left: rect.left, top: rect.bottom }
   }, [])
+
+  const openPalette = useCallback(
+    (spawnPosition?: CanvasPosition) => {
+      setLinkDropContext(null)
+      setBlockDropLinkContext(null)
+      setPaletteSpawnPosition(spawnPosition ?? null)
+      setPaletteScreenAnchor(spawnPosition ? null : resolveAddNodeToolbarAnchor())
+      setIsPaletteOpen(true)
+    },
+    [resolveAddNodeToolbarAnchor],
+  )
 
   const closePalette = useCallback(() => {
     setIsPaletteOpen(false)
     setLinkDropContext(null)
+    setBlockDropLinkContext(null)
     setPaletteSpawnPosition(null)
+    setPaletteScreenAnchor(null)
   }, [])
 
   const closeContextMenu = useCallback(() => {
@@ -2306,43 +3217,89 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     ],
   )
 
-  useEffect(() => {
-    if (!pendingLink) {
-      return
-    }
-
-    const cancelLinkOnEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && !shouldIgnoreCanvasKeyboardShortcut(event)) {
-        event.preventDefault()
-        endLinkDraft()
+  const handlePaletteAddonPick = useCallback(
+    (addonId: string) => {
+      if (!onCreateAddonFromCatalog) {
+        closePalette()
+        return
       }
-    }
 
-    window.addEventListener('keydown', cancelLinkOnEscape)
+      const dropContext = addonDropLinkContext
+      const spawnLink = dropContext
+        ? {
+            fromNodeId: dropContext.fromNodeId,
+            fromAddonSlotId: dropContext.fromAddonSlotId,
+          }
+        : undefined
 
-    return () => {
-      window.removeEventListener('keydown', cancelLinkOnEscape)
-    }
-  }, [endLinkDraft, pendingLink])
+      void onCreateAddonFromCatalog(addonId, paletteSpawnPosition ?? undefined, spawnLink).then(
+        (result) => {
+          if (result.ok) {
+            onSelectNode(result.nodeId)
+          } else {
+            window.alert(result.error)
+          }
+        },
+      )
+      setAddonDropLinkContext(null)
+      closePalette()
+    },
+    [
+      addonDropLinkContext,
+      closePalette,
+      onCreateAddonFromCatalog,
+      onSelectNode,
+      paletteSpawnPosition,
+    ],
+  )
 
-  useEffect(() => {
-    const openPaletteOnShortcut = (event: KeyboardEvent) => {
-      if (
-        (event.ctrlKey || event.metaKey) &&
-        event.key.toLowerCase() === 'k' &&
-        !shouldIgnoreCanvasKeyboardShortcut(event)
-      ) {
-        event.preventDefault()
-        openPalette()
+  const handlePaletteBlockPick = useCallback(
+    (definition: BlockDefinitionJsonDocument) => {
+      if (!onCreateBlockFromDefinition) {
+        closePalette()
+        return
       }
-    }
 
-    window.addEventListener('keydown', openPaletteOnShortcut)
+      const dropContext = blockDropLinkContext
+      const spawnLink: BlockDefinitionSpawnLinkContext | undefined = dropContext
+        ? {
+            fromNodeId: dropContext.fromNodeId,
+            fromBlockSlotId: dropContext.fromBlockSlotId,
+            fromBlockParameterId: dropContext.fromBlockParameterId,
+            fromParameterName: dropContext.fromParameterName,
+            outTypes: dropContext.outTypes,
+          }
+        : undefined
+      const result = onCreateBlockFromDefinition(
+        definition,
+        paletteSpawnPosition ?? undefined,
+        spawnLink,
+      )
+      if (result.ok) {
+        onSelectNode(result.nodeId)
+      } else {
+        window.alert(result.error)
+      }
+      closePalette()
+    },
+    [
+      blockDropLinkContext,
+      closePalette,
+      onCreateBlockFromDefinition,
+      onSelectNode,
+      paletteSpawnPosition,
+    ],
+  )
 
-    return () => {
-      window.removeEventListener('keydown', openPaletteOnShortcut)
-    }
-  }, [openPalette])
+  const blockDefinitionMatchesDropContext = useCallback(
+    (definition: BlockDefinitionJsonDocument): boolean => {
+      if (!blockDropLinkContext) {
+        return true
+      }
+      return blockDefinitionMatchesLinkDrop(definition, blockDropLinkContext)
+    },
+    [blockDropLinkContext],
+  )
 
   const handleViewportPointerDown = (event: PointerEvent<HTMLDivElement>) => {
     if (isParameterPickerOpen()) {
@@ -2550,7 +3507,11 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
   }
 
   const startNodeDrag = (event: PointerEvent<HTMLElement>, canvasNode: CanvasNode) => {
-    if (event.button !== 0 || isNodeLocked(canvasNode)) {
+    if (
+      event.button !== 0 ||
+      isNodeLocked(canvasNode) ||
+      document.body.dataset.addonContextMenuActive === '1'
+    ) {
       return
     }
 
@@ -2574,7 +3535,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
   const moveNodeDrag = (event: PointerEvent<HTMLDivElement>) => {
     const gesture = nodeDragGesture.current
 
-    if (!gesture) {
+    if (!gesture || document.body.dataset.addonContextMenuActive === '1') {
       return
     }
 
@@ -2909,6 +3870,40 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     openPalette,
   }))
 
+  const graphShortcutRefs = useRef<GraphCanvasShortcutRefs>({
+    pendingLink: null,
+    selectedNodeIds: [],
+    selectedNodeId: null,
+    glueTargetId: null,
+    glueNodeId: null,
+    viewportNavigateMode: false,
+    scene,
+  })
+  graphShortcutRefs.current = {
+    pendingLink,
+    selectedNodeIds,
+    selectedNodeId,
+    glueTargetId,
+    glueNodeId,
+    viewportNavigateMode,
+    scene,
+  }
+
+  useGraphCanvasShortcutHandlers({
+    refs: graphShortcutRefs.current,
+    isPaletteOpen,
+    endLinkDraft,
+    openPalette,
+    onClearSelection,
+    onSelectAllNodesShortcut,
+    focusSelectionIntoView,
+    setGlueNodeId,
+    setViewportNavigateMode,
+    onCloseCodePanelShortcut,
+    onNeekoDropCode,
+    setStructureCardResizeModifierActive,
+  })
+
   const contextMenuItems = useMemo(() => {
     if (!contextMenu) {
       return []
@@ -2953,11 +3948,21 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       sceneAllNodesBodyCollapsed,
       sceneAnyNodeBodyCollapsed,
       onGraphsToCode,
+      onViewNodeCode,
+      onViewNodeBlockCode,
+      onPreviewBlockCardCode,
+      onViewNodeGroupCode,
+      onPreviewNodeVfx,
+      onSyncNodeValueToCode,
+      canSyncNodeToCode,
+      primarySelectedNodeId: selectedNodeId,
+      tr: (id, fallback, vars) => t(id, fallback, vars),
     })
   }, [
     canRedo,
     canUndo,
     contextMenu,
+    t,
     glueNodeId,
     compactElementVisibility,
     onCycleConnectionRouting,
@@ -2972,6 +3977,13 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     pendingLink,
     viewportControlsSlot,
     onGraphsToCode,
+    onViewNodeCode,
+    onViewNodeBlockCode,
+    onPreviewBlockCardCode,
+    onViewNodeGroupCode,
+    onPreviewNodeVfx,
+    onSyncNodeValueToCode,
+    canSyncNodeToCode,
   ])
 
   const runContextMenuAction = useCallback(
@@ -3081,11 +4093,25 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
           })
           break
         }
+        case 'canvas.showGrid':
+          onShowCanvasGridChange?.(!showCanvasGrid)
+          onCanvasGridChange?.({ showCanvasGrid: !showCanvasGrid })
+          break
+        case 'canvas.openGridControl':
+          if (contextMenu?.anchor) {
+            setGridControlAnchor(contextMenu.anchor)
+          }
+          break
         case 'canvas.exibir':
           break
         case 'node.toggleBodyCollapse':
           if (target.type === 'node') {
             onToggleNodeBodyCollapsed?.(target.nodeId)
+          }
+          break
+        case 'node.toggleStructureCardParamsExpanded':
+          if (target.type === 'node') {
+            onToggleStructureCardParamsExpanded?.(target.nodeId)
           }
           break
         case 'node.hideLinkedChildNodes':
@@ -3152,6 +4178,51 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
           break
         case 'node.graphsToCode':
           onGraphsToCode?.()
+          break
+        case 'node.viewCode':
+          if (target.type === 'node') {
+            onViewNodeCode?.(target.nodeId)
+          }
+          break
+        case 'node.viewBlockCode':
+          if (target.type === 'node') {
+            onViewNodeBlockCode?.(target.nodeId)
+          }
+          break
+        case 'node.codigoPreviewBlock':
+          if (target.type === 'node') {
+            const active = document.activeElement
+            if (
+              active instanceof HTMLInputElement ||
+              active instanceof HTMLTextAreaElement ||
+              (active instanceof HTMLElement && active.isContentEditable)
+            ) {
+              active.blur()
+            }
+
+            // Garante que commits pendentes do input no card sejam aplicados
+            // antes de abrir o preview de código de bloco.
+            window.requestAnimationFrame(() => {
+              onPreviewBlockCardCode?.(target.nodeId)
+            })
+          }
+          break
+        case 'node.viewGroupCode':
+          if (target.type === 'node') {
+            onViewNodeGroupCode?.(target.nodeId)
+          }
+          break
+        case 'node.previewVfx':
+          if (target.type === 'node') {
+            onPreviewNodeVfx?.(target.nodeId)
+          }
+          break
+        case 'node.syncValueToCode':
+          if (target.type === 'node') {
+            onSyncNodeValueToCode?.(target.nodeId)
+          }
+          break
+        case 'node.codigo':
           break
         case 'connection.cycleRouting':
           if (target.type === 'connection') {
@@ -3333,10 +4404,20 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       onDeleteNodeIds,
       onNodeLockedInteraction,
       onSceneNodesPanelRequest,
+      onShowCanvasGridChange,
+      onCanvasGridChange,
+      contextMenu?.anchor,
       onExtractSceneNodesStatePreset,
       onGraphsToCode,
+      onViewNodeCode,
+      onViewNodeBlockCode,
+      onPreviewBlockCardCode,
+      onViewNodeGroupCode,
+      onPreviewNodeVfx,
+      onSyncNodeValueToCode,
       onSetAllNodesBodyCollapsed,
       onToggleNodeBodyCollapsed,
+      onToggleStructureCardParamsExpanded,
       onToggleNodeCardSection,
       onSetNodeCardBodyLayout,
       onRedo,
@@ -3361,6 +4442,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       scene,
       schemaBaseParameterCatalogBySchemaId,
       selectedNodeIds,
+      showCanvasGrid,
     ],
   )
 
@@ -3482,174 +4564,298 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     }
   }, [glueNodeId, onMoveNode, scale, scene.nodes])
 
-  useEffect(() => {
-    const handleShortcut = (event: KeyboardEvent) => {
-      if (shouldIgnoreCanvasKeyboardShortcut(event)) {
-        return
-      }
-
-      if (event.ctrlKey || event.altKey || event.metaKey) {
-        return
-      }
-
-      const lowered = event.key.toLowerCase()
-
-      if (lowered === 'a') {
-        event.preventDefault()
-
-        if (selectedNodeIds.length > 0) {
-          onClearSelection?.()
-        } else {
-          onSelectAllNodesShortcut?.()
-        }
-
-        return
-      }
-
-      if (event.key === '.') {
-        event.preventDefault()
-        focusSelectionIntoView(selectedNodeIds)
-        return
-      }
-
-      if (lowered === 'g') {
-        event.preventDefault()
-        setGlueNodeId((existingGlue) =>
-          glueTargetId === null ? null : existingGlue === glueTargetId ? null : glueTargetId,
-        )
-        return
-      }
-
-      if (event.key === 'Escape') {
-        if (viewportNavigateMode) {
-          setViewportNavigateMode(false)
-          return
-        }
-
-        onCloseCodePanelShortcut?.()
-        setGlueNodeId(null)
-      }
-    }
-
-    window.addEventListener('keydown', handleShortcut)
-
-    return () => {
-      window.removeEventListener('keydown', handleShortcut)
-    }
-  }, [
-    focusSelectionIntoView,
-    glueTargetId,
-    onClearSelection,
-    onCloseCodePanelShortcut,
-    onSelectAllNodesShortcut,
-    selectedNodeId,
-    selectedNodeIds,
-    viewportNavigateMode,
-  ])
-
   return (
     <section
       aria-label="Static node graph canvas"
-      className={[styles.viewport, attachedViewport ? styles.viewportAttached : '']
+      className={[
+        styles.viewport,
+        attachedViewport ? styles.viewportAttached : '',
+        showCanvasGrid ? '' : styles.viewportNoGrid,
+      ]
         .filter(Boolean)
         .join(' ')}
       ref={viewportRef}
+      style={
+        {
+          '--canvas-grid-step': `${resolvedGridSize}px`,
+          '--canvas-grid-line-strength': String(gridLineStrength),
+        } as CSSProperties
+      }
     >
-      <div className={styles.toolbar} data-canvas-control="true" data-canvas-toolbar="true">
-        {toolbarVisibility.legend ? (
-          <div className={styles.legend} aria-label="Canvas legend">
-            <span className={styles.legendItem}>
-              <span className={styles.inputDot} />
-              parent input
-            </span>
-            <span className={styles.legendItem}>
-              <span className={styles.outputDot} />
-              child output
-            </span>
-            <span className={styles.legendItem}>
-              <span aria-hidden className={styles.legendWireIcon} /> fio curvo · ortogonal · sem fio (corrente nos
-              ports) · clique no fio ou na corrente cicla estilo · Ctrl+clique remove · tecla A: seleccionar todos ou
-              limpar · clique na grade limpa
-            </span>
-          </div>
-        ) : null}
+      {(() => {
+        const chromeStrip = Boolean(toolbarChromeHost)
+        const controlsClassName = [
+          styles.controls,
+          toolbarCollapsed ? styles.controlsCollapsed : '',
+          chromeStrip ? styles.controlsChromeEmbedded : '',
+        ]
+          .filter(Boolean)
+          .join(' ')
 
-        <div className={styles.controls} aria-label="Canvas viewport controls">
-          {toolbarVisibility.linkStatus && pendingLink ? (
+        const viewportControls = (
+          <div
+            aria-label="Canvas viewport controls"
+            className={controlsClassName}
+            data-canvas-control="true"
+            data-canvas-toolbar="true"
+            data-chrome-strip-toolbar={chromeStrip ? '' : undefined}
+          >
+          {toolbarCollapsed ? (
+            <div className={styles.controlsInspectorSlot} data-tool-label={t(LangId.GraphToolbarExpand)}>
+              <ToolbarDockIconButton
+                active={false}
+                ariaLabel={t(LangId.GraphToolbarExpand)}
+                chromeStrip={chromeStrip}
+                kind="tools"
+                onClick={() => setToolbarCollapsed(false)}
+              />
+            </div>
+          ) : (
+            <div className={styles.controlsInspectorSlot} data-tool-label={t(LangId.GraphToolbarCollapse)}>
+              <ToolbarDockIconButton
+                active
+                ariaLabel={t(LangId.GraphToolbarCollapse)}
+                chromeStrip={chromeStrip}
+                kind="tools"
+                onClick={() => setToolbarCollapsed(true)}
+              />
+            </div>
+          )}
+          {!toolbarChromeHost && !toolbarCollapsed && toolbarVisibility.linkStatus && pendingLink ? (
             <span className={styles.linkStatus}>
               ligando até{' '}
               <strong>{pendingLink.targetCollectionType || pendingLink.targetSchemaId}</strong>
               {' · '}arrastar à grade vazia adiciona nó · vazio/Esc cancela
             </span>
           ) : null}
-          {toolbarVisibility.navigateHint && viewportNavigateMode ? (
+          {!toolbarChromeHost && !toolbarCollapsed && toolbarVisibility.navigateHint && viewportNavigateMode ? (
             <span className={styles.linkStatus}>
               modo mover na grade · arrastar para deslocar · clique vazio ou Esc para sair
             </span>
           ) : null}
-          {toolbarVisibility.addNode ? (
-            <button className={styles.primaryControl} type="button" onClick={() => openPalette()}>
-              add node
-            </button>
+          {!toolbarCollapsed && toolbarVisibility.addNode ? (
+            <div className={styles.controlsInspectorSlot} ref={addNodeToolbarAnchorRef}>
+              <CanvasToolbarToolSlot
+                label={t(LangId.GraphToolbarAddNode)}
+                placement={chromeStrip ? 'below' : 'above'}
+              >
+                <ToolbarDockIconButton
+                  ariaLabel={t(LangId.GraphToolbarAddNode)}
+                  chromeStrip={chromeStrip}
+                  kind="addNode"
+                  onClick={() => openPalette()}
+                />
+              </CanvasToolbarToolSlot>
+            </div>
           ) : null}
-          {toolbarVisibility.undo ? (
-            <button disabled={!canUndo} type="button" onClick={onUndo}>
-              undo
-            </button>
+          {!toolbarCollapsed && toolbarVisibility.undo ? (
+            <CanvasToolbarToolSlot
+              className={styles.controlsInspectorSlot}
+              label={t(LangId.GraphToolbarUndo)}
+              placement="above"
+            >
+              <ToolbarDockIconButton
+                ariaLabel={t(LangId.GraphToolbarUndo)}
+                chromeStrip={chromeStrip}
+                disabled={!canUndo}
+                kind="undo"
+                onClick={onUndo}
+              />
+            </CanvasToolbarToolSlot>
           ) : null}
-          {toolbarVisibility.redo ? (
-            <button disabled={!canRedo} type="button" onClick={onRedo}>
-              redo
-            </button>
+          {!toolbarCollapsed && toolbarVisibility.redo ? (
+            <CanvasToolbarToolSlot
+              className={styles.controlsInspectorSlot}
+              label={t(LangId.GraphToolbarRedo)}
+              placement="above"
+            >
+              <ToolbarDockIconButton
+                ariaLabel={t(LangId.GraphToolbarRedo)}
+                chromeStrip={chromeStrip}
+                disabled={!canRedo}
+                kind="redo"
+                onClick={onRedo}
+              />
+            </CanvasToolbarToolSlot>
           ) : null}
-          {toolbarVisibility.camera ? (
-            <SceneCameraPanel
-              onPanChange={(nextPan) => {
-                panRef.current = nextPan
-                setPan(nextPan)
-                persistSceneCamera({ pan: nextPan, scale: scaleRef.current })
-              }}
-              pan={pan}
-            />
+          {!toolbarCollapsed &&
+          (toolbarVisibility.camera ||
+            toolbarVisibility.resetViewport ||
+            toolbarVisibility.resetScene) ? (
+            <CanvasToolbarToolSlot
+              className={styles.controlsInspectorSlot}
+              label={t(LangId.GraphToolbarCamera)}
+              placement="above"
+            >
+              <InspectorViewportDockShell
+                chromeStrip={chromeStrip}
+                body={
+                  <CanvasCameraDockBody
+                    onPanChange={(nextPan) => {
+                      panRef.current = nextPan
+                      setPan(nextPan)
+                      persistSceneCamera({ pan: nextPan, scale: scaleRef.current })
+                    }}
+                    onResetScene={onResetScene}
+                    onResetViewport={resetViewport}
+                    pan={pan}
+                    showResetScene={toolbarVisibility.resetScene}
+                    showResetViewport={toolbarVisibility.resetViewport}
+                  />
+                }
+                bodyClassName="inspectorScrollHost"
+                expandAriaLabel={t(LangId.GraphToolbarCamera)}
+                expandContent={<DockTabIcon kind="camera" />}
+                headerActions={renderToolbarDockHeaderActions('camera')}
+                minimized={activeViewportToolbarDock !== 'camera'}
+                onExpand={() => toggleToolbarDock('camera')}
+                shellSurfaceClassName={dockStyles.dockedShellNode}
+                title={t(LangId.GraphToolbarCamera)}
+              />
+            </CanvasToolbarToolSlot>
           ) : null}
-          {toolbarVisibility.zoom ? (
-            <>
-              <button type="button" onClick={zoomOut}>
-                -
-              </button>
-              <span>{Math.round(scale * 100)}%</span>
-              <button type="button" onClick={zoomIn}>
-                +
-              </button>
-            </>
+          {!toolbarCollapsed && toolbarVisibility.zoom ? (
+            <CanvasToolbarToolSlot
+              className={styles.controlsInspectorSlot}
+              label={t(LangId.GraphToolbarZoom)}
+              placement="above"
+            >
+              <InspectorViewportDockShell
+                chromeStrip={chromeStrip}
+                body={
+                  <CanvasZoomDockBody
+                    maxScale={MAX_SCALE}
+                    minScale={MIN_SCALE}
+                    onZoomIn={zoomIn}
+                    onZoomOut={zoomOut}
+                    scale={scale}
+                  />
+                }
+                bodyClassName="inspectorScrollHost"
+                expandAriaLabel={t(LangId.GraphToolbarZoom)}
+                expandContent={<DockTabIcon kind="zoom" />}
+                headerActions={renderToolbarDockHeaderActions('zoom')}
+                minimized={activeViewportToolbarDock !== 'zoom'}
+                onExpand={() => toggleToolbarDock('zoom')}
+                shellSurfaceClassName={dockStyles.dockedShellNode}
+                title={t(LangId.GraphToolbarZoom)}
+              />
+            </CanvasToolbarToolSlot>
           ) : null}
-          {toolbarVisibility.resetViewport ? (
-            <button type="button" onClick={resetViewport}>
-              reset
-            </button>
+          {!toolbarCollapsed && toolbarVisibility.sceneNodes && sceneNodesControlsSlot ? (
+            <CanvasToolbarToolSlot
+              className={styles.controlsInspectorSlot}
+              label={t(LangId.SceneNodesTitle)}
+              placement="above"
+            >
+              {sceneNodesControlsSlot}
+            </CanvasToolbarToolSlot>
           ) : null}
-          {toolbarVisibility.resetScene ? (
-            <button className={styles.dangerControl} type="button" onClick={onResetScene}>
-              reset scene
-            </button>
+          {!toolbarCollapsed && toolbarVisibility.inspector && viewportControlsSlot ? (
+            <CanvasToolbarToolSlot
+              className={styles.controlsInspectorSlot}
+              label={t(LangId.NodeInspectorEyebrow)}
+              placement="above"
+            >
+              {viewportControlsSlot}
+            </CanvasToolbarToolSlot>
           ) : null}
-          {toolbarVisibility.sceneNodes && sceneNodesControlsSlot ? (
-            <div className={styles.controlsInspectorSlot}>{sceneNodesControlsSlot}</div>
+          {!toolbarCollapsed && blockInspectorControlsSlot ? (
+            <CanvasToolbarToolSlot
+              className={styles.controlsInspectorSlot}
+              label={t(LangId.BlockInspectorTitle)}
+              placement="above"
+            >
+              {blockInspectorControlsSlot}
+            </CanvasToolbarToolSlot>
           ) : null}
-          {toolbarVisibility.inspector && viewportControlsSlot ? (
-            <div className={styles.controlsInspectorSlot}>{viewportControlsSlot}</div>
+          {!toolbarCollapsed && groupInspectorControlsSlot ? (
+            <CanvasToolbarToolSlot
+              className={styles.controlsInspectorSlot}
+              label={t(LangId.GroupInspectorTitle)}
+              placement="above"
+            >
+              {groupInspectorControlsSlot}
+            </CanvasToolbarToolSlot>
           ) : null}
-        </div>
-      </div>
+          </div>
+        )
+
+        const toolbarChromePortal =
+          toolbarChromeHost && typeof document !== 'undefined'
+            ? createPortal(
+                <div className={styles.controlsChromeHost}>
+                  <div className={styles.controlsChromeScroll}>{viewportControls}</div>
+                </div>,
+                toolbarChromeHost,
+              )
+            : null
+
+        const showFloatingToolbarRow = !toolbarChromeHost || toolbarVisibility.legend
+
+        return (
+          <>
+            {toolbarChromePortal}
+            {showFloatingToolbarRow ? (
+            <div
+              className={[
+                styles.toolbar,
+                toolbarChromeHost ? styles.toolbarWithoutControls : '',
+              ]
+                .filter(Boolean)
+                .join(' ')}
+              data-canvas-control="true"
+              data-canvas-toolbar={toolbarChromeHost ? undefined : 'true'}
+            >
+              {toolbarVisibility.legend ? (
+                <div className={styles.legend} aria-label="Canvas legend">
+                  <span className={styles.legendItem}>
+                    <span className={styles.inputDot} />
+                    parent input
+                  </span>
+                  <span className={styles.legendItem}>
+                    <span className={styles.outputDot} />
+                    child output
+                  </span>
+                  <span className={styles.legendItem}>
+                    <span aria-hidden className={styles.legendWireIcon} /> fio curvo · ortogonal · sem fio (corrente
+                    nos ports) · clique no fio ou na corrente cicla estilo · Ctrl+clique remove · tecla A: seleccionar
+                    todos ou limpar · clique na grade limpa
+                  </span>
+                </div>
+              ) : null}
+              {!toolbarChromeHost ? viewportControls : null}
+            </div>
+            ) : null}
+          </>
+        )
+      })()}
 
       {isPaletteOpen ? (
         <AddNodePalette
-          heading={linkDropContext ? 'Ligar novo nó' : undefined}
+          addonsCatalogEnabled={Boolean(addonDropLinkContext) || (!linkDropContext && !blockDropLinkContext)}
+          blocksCatalogEnabled={Boolean(blockDropLinkContext) || !linkDropContext}
+          blockDefinitionFilter={blockDropLinkContext ? blockDefinitionMatchesDropContext : undefined}
+          blockDropLinkContext={blockDropLinkContext ?? undefined}
+          heading={
+            linkDropContext || blockDropLinkContext || addonDropLinkContext
+              ? t(LangId.NodePaletteLinkHeading)
+              : undefined
+          }
+          initialCatalogMode={
+            addonDropLinkContext ? 'addons' : blockDropLinkContext ? 'blocks' : 'nodes'
+          }
           onClose={closePalette}
+          onPickAddon={handlePaletteAddonPick}
+          onPickBlock={handlePaletteBlockPick}
           onPickSchema={handlePalettePick}
+          onSyncBlockParameterCatalog={onSyncBlockParameterCatalog}
           packFolderBySchemaId={schemaPackFolderBySchemaId}
+          jsonRelativePathBySchemaId={schemaJsonRelativePathBySchemaId}
+          memoryPackFolders={memoryPackFolders}
+          screenAnchor={linkDropContext || blockDropLinkContext ? null : paletteScreenAnchor}
           structureSubfolderBySchemaId={schemaStructureSubfolderBySchemaId}
-          schemas={paletteSchemas}
+          schemas={blockDropLinkContext ? [] : paletteSchemas}
         />
       ) : null}
 
@@ -3713,6 +4919,19 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
         />
       ) : null}
 
+      {gridControlAnchor ? (
+        <CanvasGridControlPanel
+          anchor={gridControlAnchor}
+          onChange={(patch) => onCanvasGridChange?.(patch)}
+          onClose={() => setGridControlAnchor(null)}
+          state={resolveCanvasGridControlState({
+            showCanvasGrid,
+            canvasGridSize: resolvedGridSize,
+            canvasGridOpacity: resolvedGridOpacity,
+          })}
+        />
+      ) : null}
+
       <div
         aria-label="Graph viewport navigation area"
         className={styles.viewportBody}
@@ -3721,9 +4940,36 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
         onPointerDown={handleViewportPointerDown}
         onPointerMove={handleViewportPointerMove}
         onPointerUp={handleViewportPointerUp}
+        onDragOver={(event) => {
+          if (resolveAddonDropFromDataTransfer(event.dataTransfer)) {
+            event.preventDefault()
+            event.dataTransfer.dropEffect = 'copy'
+          }
+        }}
+        onDrop={(event) => {
+          const addonId = resolveAddonDropFromDataTransfer(event.dataTransfer)
+          if (!addonId || !onCreateAddonFromCatalog) {
+            return
+          }
+          event.preventDefault()
+          const canvasEl = canvasRef.current
+          if (!canvasEl) {
+            return
+          }
+          const position = graphClientToPosition(canvasEl, scale, event.clientX, event.clientY)
+          void onCreateAddonFromCatalog(addonId, position).then((result) => {
+            if (result.ok) {
+              onSelectNode(result.nodeId)
+            } else {
+              window.alert(result.error)
+            }
+          })
+        }}
         ref={viewportBodyRef}
+        {...{ [GRAPH_CANVAS_SCOPE_ATTR]: GRAPH_CANVAS_SCOPE_ID }}
       >
       <div className={styles.canvas} ref={canvasRef} style={canvasStyle}>
+        <RitualNeekoStagingPreview />
         <svg
           className={styles.connections}
           height={canvasBounds.height}
@@ -3742,6 +4988,17 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
               viewBox="0 0 8 8"
             >
               <path d="M 0 0 L 8 4 L 0 8 z" fill="var(--port-child)" />
+            </marker>
+            <marker
+              id="connection-arrow-block"
+              markerHeight="8"
+              markerWidth="8"
+              orient="auto"
+              refX="6"
+              refY="4"
+              viewBox="0 0 8 8"
+            >
+              <path d="M 0 0 L 8 4 L 0 8 z" fill="var(--block-slot-out)" />
             </marker>
           </defs>
 
@@ -3781,6 +5038,154 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
               />
             </g>
           ))}
+          {blockConnectionPaths.map((connection) => (
+            <g key={connection.id}>
+              {onRemoveConnection || onCycleConnectionRouting ? (
+                <path
+                  aria-label={`Ligação bloco ${connection.id}`}
+                  className={styles.connectionHit}
+                  d={connection.d}
+                  data-canvas-wire="true"
+                  {...{ [CANVAS_CONNECTION_ID_ATTR]: connection.id }}
+                  onContextMenu={handleContextMenu}
+                  onPointerDown={(event) => {
+                    event.preventDefault()
+                    event.stopPropagation()
+
+                    if (event.ctrlKey || event.metaKey) {
+                      onRemoveConnection?.(connection.id)
+                      return
+                    }
+
+                    onCycleConnectionRouting?.(connection.id)
+                  }}
+                />
+              ) : null}
+              <path
+                className={[
+                  styles.connectionBlockHalo,
+                  connection.forced ? styles.connectionBlockHaloForced : '',
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
+                d={connection.d}
+              />
+              <path
+                className={[
+                  styles.connectionBlock,
+                  connection.routing === 'rigid' ? styles.connectionBlockRigid : '',
+                  connection.routing === 'wireless' ? styles.connectionBlockWireless : '',
+                  connection.forced ? styles.connectionBlockForced : '',
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
+                d={connection.d}
+                markerEnd="url(#connection-arrow-block)"
+              />
+            </g>
+          ))}
+          {addonLinks.addonConnectionPaths.map((connection) => (
+            <g key={connection.id}>
+              {onRemoveConnection || onCycleConnectionRouting ? (
+                <path
+                  aria-label={`Ligação add-on ${connection.id}`}
+                  className={styles.connectionHit}
+                  d={connection.d}
+                  data-canvas-wire="true"
+                  {...{ [CANVAS_CONNECTION_ID_ATTR]: connection.id }}
+                  onContextMenu={handleContextMenu}
+                  onPointerDown={(event) => {
+                    event.preventDefault()
+                    event.stopPropagation()
+                    if (event.ctrlKey || event.metaKey) {
+                      onRemoveConnection?.(connection.id)
+                      return
+                    }
+                    onCycleConnectionRouting?.(connection.id)
+                  }}
+                />
+              ) : null}
+              <path
+                className={[
+                  styles.connectionBlockHalo,
+                  connection.forced ? styles.connectionBlockHaloForced : '',
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
+                d={connection.d}
+              />
+              <path
+                className={[
+                  styles.connectionBlock,
+                  connection.forced ? styles.connectionBlockForced : '',
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
+                d={connection.d}
+                markerEnd="url(#connection-arrow-block)"
+              />
+            </g>
+          ))}
+          {addonLinks.pendingAddonLink && addonLinks.addonLinkDraftPoint ? (
+            <path
+              className={styles.connectionBlockDraft}
+              d={addonLinks.createAddonDraftConnectionPath(
+                addonLinks.pendingAddonLink.draftAnchor.sx,
+                addonLinks.pendingAddonLink.draftAnchor.sy,
+                addonLinks.addonLinkDraftPoint.x,
+                addonLinks.addonLinkDraftPoint.y,
+              )}
+            />
+          ) : null}
+          {groupConnectionPaths.map((connection) => (
+            <g key={connection.id}>
+              {onRemoveConnection || onCycleConnectionRouting ? (
+                <path
+                  aria-label={`Ligação grupo ${connection.id}`}
+                  className={styles.connectionHit}
+                  d={connection.d}
+                  data-canvas-wire="true"
+                  {...{ [CANVAS_CONNECTION_ID_ATTR]: connection.id }}
+                  onContextMenu={handleContextMenu}
+                  onPointerDown={(event) => {
+                    event.preventDefault()
+                    event.stopPropagation()
+
+                    if (event.ctrlKey || event.metaKey) {
+                      onRemoveConnection?.(connection.id)
+                      return
+                    }
+
+                    onCycleConnectionRouting?.(connection.id)
+                  }}
+                />
+              ) : null}
+              <path className={styles.connectionBlockHalo} d={connection.d} />
+              <path className={styles.connectionBlock} d={connection.d} markerEnd="url(#connection-arrow-block)" />
+            </g>
+          ))}
+          {pendingBlockLink && blockLinkDraftPoint ? (
+            <path
+              className={styles.connectionBlockDraft}
+              d={createBlockDraftConnectionPath(
+                pendingBlockLink.draftAnchor.sx,
+                pendingBlockLink.draftAnchor.sy,
+                blockLinkDraftPoint.x,
+                blockLinkDraftPoint.y,
+              )}
+            />
+          ) : null}
+          {pendingGroupLink && groupLinkDraftPoint ? (
+            <path
+              className={styles.connectionBlockDraft}
+              d={createGroupDraftConnectionPath(
+                pendingGroupLink.draftAnchor.sx,
+                pendingGroupLink.draftAnchor.sy,
+                groupLinkDraftPoint.x,
+                groupLinkDraftPoint.y,
+              )}
+            />
+          ) : null}
           {pendingLink && linkDraftPoint ? (
             <path
               className={styles.connectionDraft}
@@ -3818,6 +5223,10 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
 
           const nodeLocked = isNodeLocked(canvasNode)
           const isSelected = selectedNodeIds.includes(canvasNode.id)
+          const cardHandlesSelection =
+            (canvasNode.groupViewActive && !!canvasNode.groupStructure) ||
+            (canvasNode.addonViewActive && !!canvasNode.addonInstance) ||
+            (canvasNode.blockViewActive && !!canvasNode.blockStructure)
           const pendingFromNode = pendingLink
             ? scene.nodes.find((node) => node.id === pendingLink.fromNodeId)
             : undefined
@@ -3841,12 +5250,14 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
             pendingLink.fromNodeId !== canvasNode.id &&
             !isCompatibleTarget
           const wirelessHighlighted = wirelessHighlightNodeId === canvasNode.id
+          const linkDropHovered = ritualLinkDropHoverNodeId === canvasNode.id
           const classes = [
             styles.node,
-            isSelected ? styles.nodeSelected : '',
-            wirelessHighlighted ? styles.nodeWirelessLinked : '',
+            isSelected && !cardHandlesSelection ? styles.nodeSelected : '',
+            wirelessHighlighted && !canvasNode.blockViewActive ? styles.nodeWirelessLinked : '',
             isCompatibleTarget ? styles.nodeCompatibleTarget : '',
             isIncompatibleDuringLink ? styles.nodeIncompatibleTarget : '',
+            linkDropHovered ? styles.nodeLinkDropTarget : '',
           ]
             .filter(Boolean)
             .join(' ')
@@ -3866,6 +5277,254 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
                 top: `${canvasNode.position.y}px`,
               }}
             >
+              {canvasNode.addonViewActive && canvasNode.addonInstance ? (
+                <AddonCardHost
+                  canvasNode={canvasNode}
+                  scene={scene}
+                  selected={isSelected}
+                  interactionLocked={nodeLocked}
+                  activeAddonSlotId={addonLinks.pendingAddonLink?.fromAddonSlotId}
+                  onGraphStateMutation={(nodeId, outputs) =>
+                    onApplyAddonOutputs?.(nodeId, outputs)
+                  }
+                  onAddonOutputPointerDown={(slotId, event) => {
+                    if (event.button !== 0) {
+                      return
+                    }
+                    event.stopPropagation()
+                    addonLinks.beginAddonOutputLink(canvasNode.id, slotId)
+                    event.currentTarget.setPointerCapture(event.pointerId)
+                  }}
+                  onAddonOutputPointerUp={(slotId, event) => {
+                    event.stopPropagation()
+                    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+                      event.currentTarget.releasePointerCapture(event.pointerId)
+                    }
+                  }}
+                  onAddonOutputPointerCancel={(_slotId, event) => {
+                    event.stopPropagation()
+                    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+                      event.currentTarget.releasePointerCapture(event.pointerId)
+                    }
+                    addonLinks.endAddonLinkDraft()
+                  }}
+                  onAddonOutputPointerMove={(_slotId, event) => {
+                    addonLinks.setAddonLinkDraftPointFromClient(event.clientX, event.clientY)
+                  }}
+                  onAddonInputPointerUp={(slotId, event) => {
+                    const pendingAddon = addonLinks.getPendingAddonLink()
+                    if (pendingAddon && onConnectAddonSlots) {
+                      tryConnectCrossSlots({
+                        kind: 'addon',
+                        fromNodeId: pendingAddon.fromNodeId,
+                        fromAddonSlotId: pendingAddon.fromAddonSlotId,
+                        toNodeId: canvasNode.id,
+                        toAddonSlotId: slotId,
+                      })
+                      addonLinks.endAddonLinkDraft()
+                      onSelectNode(canvasNode.id)
+                      return
+                    }
+                    const pendingBlock = pendingBlockLinkRef.current
+                    if (pendingBlock && onConnectAddonSlots) {
+                      tryConnectCrossSlots({
+                        kind: 'blockToAddon',
+                        fromNodeId: pendingBlock.fromNodeId,
+                        fromBlockSlotId: pendingBlock.fromBlockSlotId,
+                        fromBlockParameterId: pendingBlock.fromBlockParameterId,
+                        toNodeId: canvasNode.id,
+                        toAddonSlotId: slotId,
+                      })
+                      endBlockLinkDraft()
+                      onSelectNode(canvasNode.id)
+                      return
+                    }
+                    addonLinks.resolveAddonLinkDrop(event.clientX, event.clientY)
+                  }}
+                  onSelect={(event) =>
+                    onSelectNode(canvasNode.id, { additive: Boolean(event?.shiftKey) })
+                  }
+                  onStartDrag={
+                    nodeLocked ? undefined : (event) => startNodeDrag(event, canvasNode)
+                  }
+                />
+              ) : canvasNode.groupViewActive && canvasNode.groupStructure ? (
+              <GroupCard
+                canvasNode={canvasNode}
+                scene={scene}
+                selected={isSelected}
+                interactionLocked={nodeLocked}
+                activeGroupSlotId={pendingGroupLink?.fromGroupSlotId}
+                blockWirelessDisplay={groupWirelessDisplayByNode.get(canvasNode.id)}
+                blockWirelessPulseSlotId={
+                  groupWirelessPulse?.nodeId === canvasNode.id ? groupWirelessPulse.slotId : undefined
+                }
+                onUpdateGroupParameter={(paramId, value) =>
+                  onUpdateGroupParameter?.(canvasNode.id, paramId, value)
+                }
+                onBlockOutputPointerDown={(paramId, slotId, event) => {
+                  event.stopPropagation()
+                  beginGroupOutputLink(canvasNode.id, slotId, paramId)
+                  event.currentTarget.setPointerCapture(event.pointerId)
+                }}
+                onBlockOutputPointerUp={(_paramId, _slotId, event) => {
+                  if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+                    event.currentTarget.releasePointerCapture(event.pointerId)
+                  }
+                  resolveGroupLinkDrop(event.clientX, event.clientY)
+                }}
+                onBlockOutputPointerMove={(_paramId, _slotId, event) => {
+                  const canvasEl = canvasRef.current
+                  if (!canvasEl) {
+                    return
+                  }
+                  setGroupLinkDraftPoint(
+                    graphClientToPosition(canvasEl, scale, event.clientX, event.clientY),
+                  )
+                }}
+                onBlockHeaderOutputPointerDown={(slotId, event) => {
+                  event.stopPropagation()
+                  beginGroupOutputLink(canvasNode.id, slotId)
+                  event.currentTarget.setPointerCapture(event.pointerId)
+                }}
+                onBlockHeaderOutputPointerUp={(_slotId, event) => {
+                  if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+                    event.currentTarget.releasePointerCapture(event.pointerId)
+                  }
+                  resolveGroupLinkDrop(event.clientX, event.clientY)
+                }}
+                onBlockHeaderInputPointerUp={(_slotId, event) => {
+                  resolveGroupLinkDrop(event.clientX, event.clientY)
+                }}
+                onBlockInputPointerUp={(_paramId, _slotId, event) => {
+                  resolveGroupLinkDrop(event.clientX, event.clientY)
+                }}
+                onGroupSlotWirelessHoverStart={handleGroupSlotWirelessHoverStart}
+                onGroupSlotWirelessHoverEnd={handleGroupSlotWirelessHoverEnd}
+                onGroupSlotCycleRouting={onCycleConnectionRouting}
+                canvasScale={scale}
+                structureCardResizeModifierActive={structureCardResizeModifierActive}
+                onStructureCardResize={({ width, positionX }) =>
+                  onSetStructureCardWidth?.(canvasNode.id, width, positionX)
+                }
+                onSelect={(event) => onSelectNode(canvasNode.id, { additive: Boolean(event?.shiftKey) })}
+                onStartDrag={
+                  nodeLocked ? undefined : (event) => startNodeDrag(event, canvasNode)
+                }
+              />
+            ) : canvasNode.blockViewActive && canvasNode.blockStructure ? (
+              <BlockCard
+                canvasNode={canvasNode}
+                scene={scene}
+                selected={isSelected}
+                interactionLocked={nodeLocked}
+                activeBlockSlotId={pendingBlockLink?.fromBlockSlotId}
+                blockWirelessDisplay={blockWirelessDisplayByNode.get(canvasNode.id)}
+                blockWirelessPulseSlotId={
+                  blockWirelessPulse?.nodeId === canvasNode.id ? blockWirelessPulse.slotId : undefined
+                }
+                onUpdateBlockParameter={(paramId, value) =>
+                  onUpdateBlockParameter?.(canvasNode.id, paramId, value)
+                }
+                onBlockOutputPointerDown={(paramId, slotId, event) => {
+                  event.stopPropagation()
+                  beginBlockOutputLink(canvasNode.id, slotId, paramId)
+                  event.currentTarget.setPointerCapture(event.pointerId)
+                }}
+                onBlockOutputPointerUp={(_paramId, _slotId, event) => {
+                  if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+                    event.currentTarget.releasePointerCapture(event.pointerId)
+                  }
+                  resolveBlockLinkDrop(event.clientX, event.clientY)
+                }}
+                onBlockOutputPointerMove={(_paramId, _slotId, event) => {
+                  const canvasEl = canvasRef.current
+                  if (!canvasEl) {
+                    return
+                  }
+                  setBlockLinkDraftPoint(
+                    graphClientToPosition(canvasEl, scale, event.clientX, event.clientY),
+                  )
+                }}
+                onBlockHeaderOutputPointerDown={(slotId, event) => {
+                  event.stopPropagation()
+                  beginBlockOutputLink(canvasNode.id, slotId)
+                  event.currentTarget.setPointerCapture(event.pointerId)
+                }}
+                onBlockHeaderOutputPointerUp={(_slotId, event) => {
+                  if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+                    event.currentTarget.releasePointerCapture(event.pointerId)
+                  }
+                  resolveBlockLinkDrop(event.clientX, event.clientY)
+                }}
+                onBlockHeaderInputPointerUp={(slotId, event) => {
+                  const pendingAddon = addonLinks.getPendingAddonLink()
+                  if (pendingAddon && onConnectAddonSlots) {
+                    tryConnectCrossSlots({
+                      kind: 'addonToBlock',
+                      fromNodeId: pendingAddon.fromNodeId,
+                      fromAddonSlotId: pendingAddon.fromAddonSlotId,
+                      toNodeId: canvasNode.id,
+                      toBlockSlotId: slotId,
+                    })
+                    addonLinks.endAddonLinkDraft()
+                    onSelectNode(canvasNode.id)
+                    return
+                  }
+                  resolveBlockLinkDrop(event.clientX, event.clientY)
+                }}
+                onBlockInputPointerUp={(paramId, slotId, event) => {
+                  const pendingAddon = addonLinks.getPendingAddonLink()
+                  if (pendingAddon && onConnectAddonSlots) {
+                    tryConnectCrossSlots({
+                      kind: 'addonToBlock',
+                      fromNodeId: pendingAddon.fromNodeId,
+                      fromAddonSlotId: pendingAddon.fromAddonSlotId,
+                      toNodeId: canvasNode.id,
+                      toBlockSlotId: slotId,
+                      toBlockParameterId: paramId,
+                    })
+                    addonLinks.endAddonLinkDraft()
+                    onSelectNode(canvasNode.id)
+                    return
+                  }
+                  resolveBlockLinkDrop(event.clientX, event.clientY)
+                }}
+                onBlockSlotWirelessHoverStart={handleBlockSlotWirelessHoverStart}
+                onBlockSlotWirelessHoverEnd={handleBlockSlotWirelessHoverEnd}
+                onBlockSlotCycleRouting={onCycleConnectionRouting}
+                canvasScale={scale}
+                structureCardResizeModifierActive={structureCardResizeModifierActive}
+                onStructureCardResize={({ width, positionX }) =>
+                  onSetStructureCardWidth?.(canvasNode.id, width, positionX)
+                }
+                onSelect={(event) => onSelectNode(canvasNode.id, { additive: Boolean(event?.shiftKey) })}
+                onStartDrag={
+                  nodeLocked ? undefined : (event) => startNodeDrag(event, canvasNode)
+                }
+                onAddParameterFromCatalog={
+                  nodeLocked || !onAddBlockParameterFromCatalog
+                    ? undefined
+                    : (doc) => {
+                        const result = onAddBlockParameterFromCatalog(canvasNode.id, doc)
+                        if (!result.ok) {
+                          window.alert(result.error)
+                        }
+                      }
+                }
+                onRemoveParameter={
+                  nodeLocked || !onRemoveBlockParameter
+                    ? undefined
+                    : (paramId) => onRemoveBlockParameter(canvasNode.id, paramId)
+                }
+                onEditParameter={
+                  nodeLocked || !onEditBlockParameter
+                    ? undefined
+                    : (param) => onEditBlockParameter(canvasNode.id, param)
+                }
+                wirelessHighlighted={wirelessHighlighted}
+              />
+            ) : (
               <NodeCard
                 activeOutputInternalStructureId={
                   pendingLink?.fromNodeId === canvasNode.id ? pendingLink.fromInternalStructureId : undefined
@@ -3967,7 +5626,9 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
                   handleOutputWirePointerUp(canvasNode.id, entity, event)
                 }
                 onSelect={(event) => onSelectNode(canvasNode.id, { additive: Boolean(event?.shiftKey) })}
-                onStartDrag={nodeLocked ? undefined : (event) => startNodeDrag(event, canvasNode)}
+                onStartDrag={
+                  nodeLocked ? undefined : (event) => startNodeDrag(event, canvasNode)
+                }
                 onReorderNodeParameter={
                   onSetNodeParameterOrder
                     ? (parameterId, oneBased) =>
@@ -4027,8 +5688,18 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
                     : undefined
                 }
                 selected={isSelected}
+                neekoTransformPhase={canvasNode.neekoTransformPhase}
+                neekoTransformError={canvasNode.neekoTransformError}
+                isNeekoTransforming={neekoTransformingNodeId === canvasNode.id}
+                ritualDropHover={ritualDropHoverNeekoId === canvasNode.id}
+                onNeekoDropCode={
+                  onNeekoDropCode && !nodeLocked
+                    ? (text) => onNeekoDropCode(canvasNode.id, text)
+                    : undefined
+                }
                 outputSlotPeerActions={buildOutputSlotPeerActions(canvasNode.id)}
               />
+              )}
             </div>
           )
         })}

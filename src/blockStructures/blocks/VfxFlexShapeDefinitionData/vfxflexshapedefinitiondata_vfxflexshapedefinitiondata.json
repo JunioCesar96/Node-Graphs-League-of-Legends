@@ -1,0 +1,20 @@
+{
+  "id": "VfxFlexShapeDefinitionData_VfxFlexShapeDefinitionData",
+  "block": "FlexShapeDefinition",
+  "blockName": "VfxFlexShapeDefinitionData",
+  "type": "pointer",
+  "name": "VfxFlexShapeDefinitionData",
+  "source": {
+    "kind": "block",
+    "nodeId": "vfx-flex-shape-definition-data__entries-{particlePath}-complex-emitter-definition-data--slot--5-flex-shape-definition"
+  },
+  "color": "#40ff56",
+  "headerSlots": [
+    "in[FlexShapeDefinition]",
+    "out[VfxFlexShapeDefinitionDataPreview]"
+  ],
+  "parameters": [
+    "scaleBirthScaleByBoundObjectSize",
+    "scaleEmitOffsetByBoundObjectSize"
+  ]
+}

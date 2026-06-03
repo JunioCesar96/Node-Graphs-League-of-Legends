@@ -1,0 +1,20 @@
+{
+  "id": "radius_radius",
+  "block": "VfxShapeCylinder",
+  "parameterName": "radius",
+  "name": "radius",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-shape-cylinder__entries-{particlePath}-complex-emitter-definition-data--slot--0-spawn-shape_parameter_radius"
+  },
+  "type": "f32",
+  "value": "20",
+  "slots": {
+    "in": [
+      "f32"
+    ],
+    "out": [
+      "f32"
+    ]
+  }
+}

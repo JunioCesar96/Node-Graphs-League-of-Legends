@@ -3,8 +3,19 @@ import { MAIN_SCHEMA_ID } from '@/core/classGroupRitualStackParser'
 import { findEmbedBySlotId } from '@/core/embedSlots'
 import { findList2EmbedByInstanceSlotId } from '@/core/list2EmbedSlots'
 import { findList2PointerByInstanceSlotId } from '@/core/list2PointerSlots'
-import { findListEmbedBySlotId } from '@/core/listEmbedSlots'
-import { findListPointerBySlotId } from '@/core/listPointerSlots'
+import { findListEmbedBySlotId, populatedSlotsForListEmbed } from '@/core/listEmbedSlots'
+import {
+  findListPointerBySlotId,
+  populatedSlotsForListPointer,
+} from '@/core/listPointerSlots'
+import {
+  isPlaceholderProbabilityTableNode,
+  type RitualExportFidelity,
+  resolveExportBlockTitle,
+  resolveExportFieldName,
+  finalizeNodePreviewRitual,
+  VFX_PROBABILITY_TABLE_TITLE,
+} from '@/core/ritualBinFidelity'
 import {
   findMapHashEmbedEntryBySlotId,
   isMapHashEmbedSlotId,
@@ -13,17 +24,50 @@ import {
 import { isMapHashPointerSlotId, parseMapHashPointerSlotId } from '@/core/mapHashPointerSlots'
 import { isMapU64PointerSlotId, parseMapU64PointerSlotId } from '@/core/mapU64PointerSlots'
 import { isMapHashParameterType } from '@/core/nodeDataTypeToRitType'
-import type { NodeInstance, NodeSchemaDefinition } from '@/core/nodeSchema'
+import type {
+  EmbedDefinition,
+  ListEmbedDefinition,
+  ListPointerDefinition,
+  NodeDataType,
+  NodeInstance,
+  NodeSchemaDefinition,
+  PointerDefinition,
+} from '@/core/nodeSchema'
+import type { BlockParameterDef } from '@/core/blockSchema'
 import { parseMapHashEmbedString } from '@/core/mapHashEmbedValue'
 import { findPointerBySlotId } from '@/core/pointerSlots'
 import {
   formatMapEntryKey,
   formatRitualScalarAssignment,
 } from '@/core/ritualValueFormat'
-import { ritualExportBlockTitle, ritualExportFieldName } from '@/core/ritualFieldNames'
+import {
+  ritualExportBlockTitle,
+  ritualExportFieldName,
+  ritualExportFieldNameFromParameter,
+} from '@/core/ritualFieldNames'
 
 const INDENT_STEP = 4
 const PROGRESS_BATCH = 25
+
+function structOnlyChildLine(itemPad: string, childTitle: string): string {
+  return `${itemPad}${childTitle} {}`
+}
+
+function childTitleForListEmbedSlot(block: ListEmbedDefinition, slotIndex: number): string {
+  const slot = populatedSlotsForListEmbed(block)[slotIndex]
+  return slot?.name ?? block.internalStructures[slotIndex]?.name ?? block.title
+}
+
+function childTitleForListPointerSlot(block: ListPointerDefinition, slotIndex: number): string {
+  const slot = populatedSlotsForListPointer(block)[slotIndex]
+  return slot?.name ?? block.internalStructures[slotIndex]?.name ?? block.title
+}
+
+function defaultChildTitleForBlock(
+  block: EmbedDefinition | PointerDefinition,
+): string {
+  return block.internalStructures[0]?.name ?? block.title
+}
 
 export type CanvasToClassGroupRitualResult =
   | { ok: true; text: string; warnings: string[] }
@@ -92,7 +136,7 @@ function collectSubtreeNodeIds(scene: CanvasScene, rootId: string): Set<string> 
   return reached
 }
 
-function classifyOutgoingLink(parent: CanvasNode, connection: CanvasConnection): OutgoingLink | null {
+export function classifyOutgoingLink(parent: CanvasNode, connection: CanvasConnection): OutgoingLink | null {
   const slotId = connection.fromInternalStructureId
   const schema = parent.node.schema
   const values = valuesByParameterId(parent.node)
@@ -227,6 +271,16 @@ function classifyOutgoingLink(parent: CanvasNode, connection: CanvasConnection):
 
 function resolveOutgoingLinks(parent: CanvasNode, scene: CanvasScene): OutgoingLink[] {
   const links: OutgoingLink[] = []
+  const seen = new Set<string>()
+
+  const pushUnique = (link: OutgoingLink) => {
+    const key = `${link.kind}:${'fieldName' in link ? link.fieldName : link.parameterName}:${link.childCanvasId}`
+    if (seen.has(key)) {
+      return
+    }
+    seen.add(key)
+    links.push(link)
+  }
 
   for (const connection of scene.connections) {
     if (connection.fromNodeId !== parent.id) {
@@ -234,7 +288,42 @@ function resolveOutgoingLinks(parent: CanvasNode, scene: CanvasScene): OutgoingL
     }
     const link = classifyOutgoingLink(parent, connection)
     if (link) {
-      links.push(link)
+      pushUnique(link)
+      continue
+    }
+
+    const blockParamId = connection.fromBlockParameterId
+    if (!blockParamId || !parent.blockViewActive || !parent.blockStructure) {
+      continue
+    }
+
+    const sourceParam = parent.blockStructure.parameters.find(
+      (entry) => entry.idParameter === blockParamId,
+    )
+    if (!sourceParam) {
+      continue
+    }
+
+    const fieldName = sourceParam.nameParameter.trim()
+    if (!fieldName) {
+      continue
+    }
+
+    if (sourceParam.sourcePath.kind === 'embedChild') {
+      pushUnique({
+        kind: 'embed',
+        fieldName,
+        childCanvasId: connection.toNodeId,
+      })
+      continue
+    }
+
+    if (sourceParam.sourcePath.kind === 'pointerChild') {
+      pushUnique({
+        kind: 'pointer',
+        fieldName,
+        childCanvasId: connection.toNodeId,
+      })
     }
   }
 
@@ -307,7 +396,164 @@ function partitionLinks(links: readonly OutgoingLink[]) {
   }
 }
 
-class RitualEmitter {
+function groupListStructureBlocks<T extends { title: string }>(
+  blocks: readonly T[] | undefined,
+): T[][] {
+  if (!blocks || blocks.length === 0) {
+    return []
+  }
+
+  const groups: T[][] = []
+  let current: T[] = []
+  let currentTitle: string | null = null
+
+  for (const block of blocks) {
+    const title = block.title.trim()
+    if (currentTitle !== null && title !== currentTitle) {
+      groups.push(current)
+      current = []
+    }
+    currentTitle = title
+    current.push(block)
+  }
+
+  if (current.length > 0) {
+    groups.push(current)
+  }
+
+  return groups
+}
+
+function listPointerLinksByGlobalIndex(
+  parent: CanvasNode,
+  scene: CanvasScene,
+  blocks: ListPointerDefinition[],
+  fieldLinks: OutgoingLink[],
+): Map<number, OutgoingLink & { kind: 'listPointer' }> {
+  const byIndex = new Map<number, OutgoingLink & { kind: 'listPointer' }>()
+
+  if (blocks.length === 1) {
+    for (const link of fieldLinks) {
+      if (link.kind === 'listPointer') {
+        byIndex.set(link.index, link)
+      }
+    }
+    return byIndex
+  }
+
+  for (const link of fieldLinks) {
+    if (link.kind !== 'listPointer') {
+      continue
+    }
+
+    const connection = scene.connections.find(
+      (entry) => entry.fromNodeId === parent.id && entry.toNodeId === link.childCanvasId,
+    )
+    if (!connection) {
+      continue
+    }
+
+    const blockIndex = blocks.findIndex((block) =>
+      populatedSlotsForListPointer(block).some(
+        (slot) => slot.id === connection.fromInternalStructureId,
+      ),
+    )
+    if (blockIndex >= 0) {
+      byIndex.set(blockIndex, link)
+    }
+  }
+
+  return byIndex
+}
+
+function listEmbedLinksByGlobalIndex(
+  parent: CanvasNode,
+  scene: CanvasScene,
+  blocks: ListEmbedDefinition[],
+  fieldLinks: OutgoingLink[],
+): Map<number, OutgoingLink & { kind: 'listEmbed' }> {
+  const byIndex = new Map<number, OutgoingLink & { kind: 'listEmbed' }>()
+
+  if (blocks.length === 1) {
+    for (const link of fieldLinks) {
+      if (link.kind === 'listEmbed') {
+        byIndex.set(link.index, link)
+      }
+    }
+    return byIndex
+  }
+
+  for (const link of fieldLinks) {
+    if (link.kind !== 'listEmbed') {
+      continue
+    }
+
+    const connection = scene.connections.find(
+      (entry) => entry.fromNodeId === parent.id && entry.toNodeId === link.childCanvasId,
+    )
+    if (!connection) {
+      continue
+    }
+
+    const blockIndex = blocks.findIndex((block) =>
+      populatedSlotsForListEmbed(block).some(
+        (slot) => slot.id === connection.fromInternalStructureId,
+      ),
+    )
+    if (blockIndex >= 0) {
+      byIndex.set(blockIndex, link)
+    }
+  }
+
+  return byIndex
+}
+
+function exportSlotCountForListPointerGroup(blocks: ListPointerDefinition[]): number {
+  if (blocks.length === 1) {
+    return populatedSlotsForListPointer(blocks[0]!).length
+  }
+  return blocks.length
+}
+
+function exportSlotCountForListEmbedGroup(blocks: ListEmbedDefinition[]): number {
+  if (blocks.length === 1) {
+    return populatedSlotsForListEmbed(blocks[0]!).length
+  }
+  return blocks.length
+}
+
+function childTitleForListPointerExportSlot(
+  blocks: ListPointerDefinition[],
+  slotIndex: number,
+): string {
+  if (blocks.length === 1) {
+    return childTitleForListPointerSlot(blocks[0]!, slotIndex)
+  }
+
+  const block = blocks[slotIndex]
+  if (!block) {
+    return childTitleForListPointerSlot(blocks[0]!, 0)
+  }
+
+  const slots = populatedSlotsForListPointer(block)
+  return slots[0]?.name ?? block.internalStructures[0]?.name ?? block.title
+}
+
+function childTitleForListEmbedExportSlot(blocks: ListEmbedDefinition[], slotIndex: number): string {
+  if (blocks.length === 1) {
+    return childTitleForListEmbedSlot(blocks[0]!, slotIndex)
+  }
+
+  const block = blocks[slotIndex]
+  if (!block) {
+    return childTitleForListEmbedSlot(blocks[0]!, 0)
+  }
+
+  const slots = populatedSlotsForListEmbed(block)
+  return slots[0]?.name ?? block.internalStructures[0]?.name ?? block.title
+}
+
+export class RitualEmitter {
   readonly scene: CanvasScene
 
   readonly registry: Record<string, NodeSchemaDefinition>
@@ -320,19 +566,117 @@ class RitualEmitter {
 
   private readonly totalNodes: number
 
+  private readonly fidelity: RitualExportFidelity
+
   constructor(
     scene: CanvasScene,
     registry: Record<string, NodeSchemaDefinition>,
     rootId: string,
+    fidelity: RitualExportFidelity = {},
   ) {
     this.scene = scene
     this.registry = registry
+    this.fidelity = fidelity
     this.totalNodes = collectSubtreeNodeIds(scene, rootId).size
+  }
+
+  private exportFieldName(parameter: NodeParameterDefinition): string {
+    return resolveExportFieldName(parameter, this.fidelity, ritualExportFieldNameFromParameter)
+  }
+
+  private exportBlockTitle(title: string): string {
+    return resolveExportBlockTitle(title, this.fidelity, ritualExportBlockTitle)
   }
 
   childTitle(childCanvasId: string): string {
     const node = findCanvasNode(this.scene, childCanvasId)
     return node?.node.schema.title ?? 'Unknown'
+  }
+
+  private blockCardExportFilter(canvasNode: CanvasNode): {
+    parameterIds: Set<string>
+    parameterNames: Set<string>
+    parameterValueByName: Map<string, string>
+    embedIds: Set<string>
+    pointerIds: Set<string>
+    embedTitles: Set<string>
+    pointerTitles: Set<string>
+  } | null {
+    if (!this.fidelity.blockCardSelectedParametersOnly) {
+      return null
+    }
+    if (!canvasNode.blockViewActive || !canvasNode.blockStructure) {
+      return null
+    }
+
+    const looksSynthetic = (id: string) => id.startsWith('catalog-embed-') || id.startsWith('catalog-ptr-')
+    const parameterIds = new Set<string>()
+    const parameterNames = new Set<string>()
+    const parameterValueByName = new Map<string, string>()
+    const embedIds = new Set<string>()
+    const pointerIds = new Set<string>()
+    const embedTitles = new Set<string>()
+    const pointerTitles = new Set<string>()
+
+    for (const parameter of canvasNode.blockStructure.parameters) {
+      this.collectBlockFilterFromParameter(
+        parameter,
+        looksSynthetic,
+        parameterIds,
+        parameterNames,
+        parameterValueByName,
+        embedIds,
+        pointerIds,
+        embedTitles,
+        pointerTitles,
+      )
+    }
+
+    return {
+      parameterIds,
+      parameterNames,
+      parameterValueByName,
+      embedIds,
+      pointerIds,
+      embedTitles,
+      pointerTitles,
+    }
+  }
+
+  private collectBlockFilterFromParameter(
+    parameter: BlockParameterDef,
+    looksSynthetic: (id: string) => boolean,
+    parameterIds: Set<string>,
+    parameterNames: Set<string>,
+    parameterValueByName: Map<string, string>,
+    embedIds: Set<string>,
+    pointerIds: Set<string>,
+    embedTitles: Set<string>,
+    pointerTitles: Set<string>,
+  ): void {
+    const source = parameter.sourcePath
+    if (source.kind === 'parameter') {
+      parameterIds.add(source.parameterId)
+      const normalizedName = parameter.nameParameter.trim().toLowerCase()
+      parameterNames.add(normalizedName)
+      parameterValueByName.set(normalizedName, parameter.defaultValue)
+      return
+    }
+    if (source.kind === 'embedChild') {
+      if (looksSynthetic(source.embedId)) {
+        embedTitles.add(parameter.nameParameter.trim())
+      } else {
+        embedIds.add(source.embedId)
+      }
+      return
+    }
+    if (source.kind === 'pointerChild') {
+      if (looksSynthetic(source.pointerId)) {
+        pointerTitles.add(parameter.nameParameter.trim())
+      } else {
+        pointerIds.add(source.pointerId)
+      }
+    }
   }
 
   emitTypeBody(canvasNode: CanvasNode, depth: number): string[] {
@@ -348,16 +692,76 @@ class RitualEmitter {
     const schema = instance.schema
     const links = resolveOutgoingLinks(canvasNode, this.scene)
     const partitioned = partitionLinks(links)
+    const blockFilter = this.blockCardExportFilter(canvasNode)
 
-    for (const parameter of schema.parameters) {
-      if (isMapHashParameterType(parameter.type)) {
-        continue
+    if (blockFilter && canvasNode.blockViewActive && canvasNode.blockStructure) {
+      const emittedParameterIds = new Set<string>()
+
+      for (const selected of canvasNode.blockStructure.parameters) {
+        if (selected.sourcePath.kind !== 'parameter') {
+          continue
+        }
+
+        const normalizedName = selected.nameParameter.trim().toLowerCase()
+        const parameterFromSchema =
+          schema.parameters.find((entry) => entry.id === selected.sourcePath.parameterId) ??
+          schema.parameters.find((entry) => entry.name.trim().toLowerCase() === normalizedName)
+        const parameter =
+          parameterFromSchema ??
+          ({
+            id: selected.idParameter,
+            name: selected.nameParameter,
+            type: selected.typeParameter as unknown as NodeDataType,
+          } satisfies Pick<NodeParameterDefinition, 'id' | 'name' | 'type'>)
+
+        if (emittedParameterIds.has(parameter.id)) {
+          continue
+        }
+        emittedParameterIds.add(parameter.id)
+
+        if (isMapHashParameterType(parameter.type)) {
+          continue
+        }
+        if (parameter.type === 'comment' || parameter.type === 'property') {
+          continue
+        }
+
+        const raw =
+          parameterFromSchema != null
+            ? parameterValue(instance, parameter.id, parameter.defaultValue)
+            : selected.defaultValue
+        const blockCardOverride =
+          blockFilter.parameterValueByName.get(parameter.name.trim().toLowerCase()) ?? null
+        lines.push(
+          `${pad}${formatRitualScalarAssignment(parameter, blockCardOverride ?? raw, pad, {
+            fieldName: this.exportFieldName(parameter),
+          })}`,
+        )
       }
-      if (parameter.type === 'comment' || parameter.type === 'property') {
-        continue
+    } else {
+      for (const parameter of schema.parameters) {
+        if (
+          blockFilter &&
+          !blockFilter.parameterIds.has(parameter.id) &&
+          !blockFilter.parameterNames.has(parameter.name.trim().toLowerCase())
+        ) {
+          continue
+        }
+        if (isMapHashParameterType(parameter.type)) {
+          continue
+        }
+        if (parameter.type === 'comment' || parameter.type === 'property') {
+          continue
+        }
+        const raw = parameterValue(instance, parameter.id, parameter.defaultValue)
+        const blockCardOverride =
+          blockFilter?.parameterValueByName.get(parameter.name.trim().toLowerCase()) ?? null
+        lines.push(
+          `${pad}${formatRitualScalarAssignment(parameter, blockCardOverride ?? raw, pad, {
+            fieldName: this.exportFieldName(parameter),
+          })}`,
+        )
       }
-      const raw = parameterValue(instance, parameter.id, parameter.defaultValue)
-      lines.push(`${pad}${formatRitualScalarAssignment(parameter, raw, pad)}`)
     }
 
     for (const link of partitioned.internalLinks) {
@@ -366,7 +770,7 @@ class RitualEmitter {
         this.warnings.push(`Filho «${link.childCanvasId}» não encontrado para «${link.fieldName}».`)
         continue
       }
-      const fieldName = ritualExportFieldName(link.fieldName)
+      const fieldName = this.exportBlockTitle(link.fieldName)
       const childTitle = this.childTitle(link.childCanvasId)
       const bodyDepth = depth + INDENT_STEP
       lines.push(`${pad}${fieldName}: link = ${childTitle} {`)
@@ -375,81 +779,146 @@ class RitualEmitter {
     }
 
     for (const block of schema.embed ?? []) {
-      const fieldName = ritualExportBlockTitle(block.title)
+      if (
+        blockFilter &&
+        !blockFilter.embedIds.has(block.id) &&
+        !blockFilter.embedTitles.has(block.title.trim())
+      ) {
+        continue
+      }
+      const fieldName = this.exportBlockTitle(block.title)
       const fieldLinks = partitioned.linksByEmbed.get(block.title) ?? []
       const child = fieldLinks[0] ? findCanvasNode(this.scene, fieldLinks[0].childCanvasId) : null
-      const childTitle = child
-        ? this.childTitle(child.id)
-        : block.internalStructures[0]?.name ?? block.title
+      const childTitle = child ? this.childTitle(child.id) : defaultChildTitleForBlock(block)
+
+      if (!child) {
+        lines.push(`${pad}${fieldName}: embed = ${childTitle} {}`)
+        continue
+      }
+
       const bodyDepth = depth + INDENT_STEP
       lines.push(`${pad}${fieldName}: embed = ${childTitle} {`)
-      if (child) {
-        lines.push(...this.emitTypeBody(child, bodyDepth))
-      }
+      lines.push(...this.emitTypeBody(child, bodyDepth))
       lines.push(`${pad}}`)
     }
 
     for (const block of schema.pointer ?? []) {
-      const fieldName = ritualExportBlockTitle(block.title)
+      if (
+        blockFilter &&
+        !blockFilter.pointerIds.has(block.id) &&
+        !blockFilter.pointerTitles.has(block.title.trim())
+      ) {
+        continue
+      }
+      const fieldName = this.exportBlockTitle(block.title)
       const fieldLinks = partitioned.linksByPointer.get(block.title) ?? []
       const child = fieldLinks[0] ? findCanvasNode(this.scene, fieldLinks[0].childCanvasId) : null
-      const childTitle = child
-        ? this.childTitle(child.id)
-        : block.internalStructures[0]?.name ?? block.title
+      const childTitle = child ? this.childTitle(child.id) : defaultChildTitleForBlock(block)
+
+      if (!child) {
+        lines.push(`${pad}${fieldName}: pointer = ${childTitle} {}`)
+        continue
+      }
+
       const bodyDepth = depth + INDENT_STEP
       lines.push(`${pad}${fieldName}: pointer = ${childTitle} {`)
-      if (child) {
-        lines.push(...this.emitTypeBody(child, bodyDepth))
-      }
+      lines.push(...this.emitTypeBody(child, bodyDepth))
       lines.push(`${pad}}`)
     }
 
-    for (const block of schema.listEmbed ?? []) {
-      const fieldName = ritualExportBlockTitle(block.title)
+    for (const blocks of groupListStructureBlocks(schema.listEmbed)) {
+      if (blockFilter) {
+        continue
+      }
+      const block = blocks[0]!
+      const fieldName = this.exportBlockTitle(block.title)
       const fieldLinks = (partitioned.linksByListEmbed.get(block.title) ?? []).sort(
         (a, b) => a.index - b.index,
       )
+      const linksByIndex = listEmbedLinksByGlobalIndex(canvasNode, this.scene, blocks, fieldLinks)
       const bodyDepth = depth + INDENT_STEP
       const itemPad = indent(bodyDepth)
+      const populatedEmbedCount = exportSlotCountForListEmbedGroup(blocks)
+      const slotCount = populatedEmbedCount > 0 ? populatedEmbedCount : fieldLinks.length
+
       lines.push(`${pad}${fieldName}: list[embed] = {`)
-      for (const link of fieldLinks) {
-        const child = findCanvasNode(this.scene, link.childCanvasId)
+
+      for (let slotIndex = 0; slotIndex < slotCount; slotIndex += 1) {
+        const link = linksByIndex.get(slotIndex)
+        const child = link ? findCanvasNode(this.scene, link.childCanvasId) : undefined
+
         if (!child) {
+          lines.push(
+            structOnlyChildLine(itemPad, childTitleForListEmbedExportSlot(blocks, slotIndex)),
+          )
           continue
         }
-        const childTitle = this.childTitle(link.childCanvasId)
+
+        const childTitle = this.childTitle(link!.childCanvasId)
         const itemBodyDepth = bodyDepth + INDENT_STEP
         lines.push(`${itemPad}${childTitle} {`)
         lines.push(...this.emitTypeBody(child, itemBodyDepth))
         lines.push(`${itemPad}}`)
       }
+
       lines.push(`${pad}}`)
     }
 
-    for (const block of schema.listPointer ?? []) {
-      const fieldName = ritualExportBlockTitle(block.title)
+    for (const blocks of groupListStructureBlocks(schema.listPointer)) {
+      if (blockFilter) {
+        continue
+      }
+      const block = blocks[0]!
+      const fieldName = this.exportBlockTitle(block.title)
       const fieldLinks = (partitioned.linksByListPointer.get(block.title) ?? []).sort(
         (a, b) => a.index - b.index,
       )
+      const linksByIndex = listPointerLinksByGlobalIndex(canvasNode, this.scene, blocks, fieldLinks)
       const bodyDepth = depth + INDENT_STEP
       const itemPad = indent(bodyDepth)
+      const compactProbTables =
+        this.fidelity.compactPlaceholderProbabilityTables !== false &&
+        fieldName.toLowerCase() === 'probabilitytables'
+
       lines.push(`${pad}${fieldName}: list[pointer] = {`)
-      for (const link of fieldLinks) {
-        const child = findCanvasNode(this.scene, link.childCanvasId)
+
+      const populatedPointerCount = exportSlotCountForListPointerGroup(blocks)
+      const slotCount = populatedPointerCount > 0 ? populatedPointerCount : fieldLinks.length
+
+      for (let slotIndex = 0; slotIndex < slotCount; slotIndex += 1) {
+        const link = linksByIndex.get(slotIndex)
+        const child = link ? findCanvasNode(this.scene, link.childCanvasId) : undefined
+        const slotChildTitle = childTitleForListPointerExportSlot(blocks, slotIndex)
+
         if (!child) {
+          lines.push(structOnlyChildLine(itemPad, slotChildTitle))
           continue
         }
-        const childTitle = this.childTitle(link.childCanvasId)
+
+        if (
+          compactProbTables &&
+          child.node.schema.title === VFX_PROBABILITY_TABLE_TITLE &&
+          isPlaceholderProbabilityTableNode(child)
+        ) {
+          lines.push(structOnlyChildLine(itemPad, VFX_PROBABILITY_TABLE_TITLE))
+          continue
+        }
+
+        const childTitle = this.childTitle(link!.childCanvasId)
         const itemBodyDepth = bodyDepth + INDENT_STEP
         lines.push(`${itemPad}${childTitle} {`)
         lines.push(...this.emitTypeBody(child, itemBodyDepth))
         lines.push(`${itemPad}}`)
       }
+
       lines.push(`${pad}}`)
     }
 
     for (const block of schema.list2Embed ?? []) {
-      const fieldName = ritualExportBlockTitle(block.title)
+      if (blockFilter) {
+        continue
+      }
+      const fieldName = this.exportBlockTitle(block.title)
       const fieldLinks = (partitioned.linksByList2Embed.get(block.title) ?? []).sort(
         (a, b) => a.instanceIndex - b.instanceIndex,
       )
@@ -471,7 +940,10 @@ class RitualEmitter {
     }
 
     for (const block of schema.list2Pointer ?? []) {
-      const fieldName = ritualExportBlockTitle(block.title)
+      if (blockFilter) {
+        continue
+      }
+      const fieldName = this.exportBlockTitle(block.title)
       const fieldLinks = (partitioned.linksByList2Pointer.get(block.title) ?? []).sort(
         (a, b) => a.instanceIndex - b.instanceIndex,
       )
@@ -538,7 +1010,7 @@ function buildOrderedEntryLinks(
   return ordered
 }
 
-function emitMainPropFile(
+export function emitMainPropFile(
   mainNode: CanvasNode,
   scene: CanvasScene,
   registry: Record<string, NodeSchemaDefinition>,
@@ -593,6 +1065,39 @@ function emitMainPropFile(
   }
 
   return { text: `${lines.join('\n')}\n`, warnings: emitter.warnings }
+}
+
+export function canvasNodeSubtreeToRitual(
+  scene: CanvasScene,
+  registry: Record<string, NodeSchemaDefinition>,
+  rootNodeId: string,
+  fidelity: RitualExportFidelity = {},
+): CanvasToClassGroupRitualResult {
+  const canvasNode = findCanvasNode(scene, rootNodeId)
+
+  if (!canvasNode) {
+    return { ok: false, error: 'Nó não encontrado na cena.' }
+  }
+
+  if (canvasNode.node.schema.id === MAIN_SCHEMA_ID) {
+    const { text, warnings } = emitMainPropFile(canvasNode, scene, registry)
+    return { ok: true, text, warnings }
+  }
+
+  const exportFidelity: RitualExportFidelity = {
+    compactPlaceholderProbabilityTables: true,
+    useSchemaFieldNames: true,
+    ...fidelity,
+  }
+
+  const emitter = new RitualEmitter(scene, registry, rootNodeId, exportFidelity)
+  const title = canvasNode.node.schema.title
+  const bodyLines = emitter.emitTypeBody(canvasNode, INDENT_STEP)
+  const lines = [`# Preview: ${title}`, `${title} {`, ...bodyLines, '}']
+  const rawPreview = `${lines.join('\n')}\n`
+  const text = finalizeNodePreviewRitual(rawPreview, exportFidelity)
+
+  return { ok: true, text, warnings: emitter.warnings }
 }
 
 export function canvasToClassGroupRitual(

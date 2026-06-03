@@ -1,4 +1,6 @@
 import type { CanvasConnection, CanvasNode, CanvasScene } from '@/core/canvasScene'
+import { canvasNodeHasBlockCode } from '@/core/blockRitualExport'
+import { canvasNodeHasGroupCode } from '@/core/groupRitualExport'
 import { isNodeLocked, isNodeRemovableFromScene } from '@/core/canvasNodePresentation'
 import {
   areAllCardElementsRetracted,
@@ -28,8 +30,8 @@ import {
   outputSlotIdFromElementTarget,
 } from '@/core/slotPeerFocus'
 import {
-  CONNECTION_ROUTING_LABELS,
   effectiveConnectionRouting,
+  getConnectionRoutingLabel,
   setConnectionRoutingMenuId,
 } from '@/core/connectionRoutingMenu'
 import {
@@ -42,8 +44,10 @@ import {
   type CanvasToolbarToolId,
   type CanvasToolbarVisibility,
 } from '@/core/canvasToolbarVisibility'
+import { CANVAS_TOOLBAR_LANG_IDS } from '@/core/language/canvasToolbarLangIds'
 import { listRemovableNodeElements, type NodeElementListItem } from '@/core/listNodeElements'
 import type { NodeParameterDefinition } from '@/core/nodeSchema'
+import { LangId } from '@/core/language/languageIds'
 
 export type CanvasContextMenuBuildContext = {
   canRedo: boolean
@@ -67,6 +71,36 @@ export type CanvasContextMenuBuildContext = {
   sceneAnyNodeBodyCollapsed?: boolean
   /** Exportar cena (Main) para ritual no CodeDock. */
   onGraphsToCode?: () => void
+  /** Pré-visualizar subárvore do nó no CodeDock (League bin). */
+  onViewNodeCode?: (nodeId: string) => void
+  /** Pré-visualizar subárvore com tokens de bloco no CodeDock. */
+  onViewNodeBlockCode?: (nodeId: string) => void
+  /** Pré-visualizar código de bloco a partir do card de bloco seleccionado. */
+  onPreviewBlockCardCode?: (nodeId: string) => void
+  /** Pré-visualizar subárvore com tokens de grupo no CodeDock. */
+  onViewNodeGroupCode?: (nodeId: string) => void
+  onPreviewNodeVfx?: (nodeId: string) => void
+  /** Sincronizar subárvore do nó seleccionado na aba activa do CodeDock. */
+  onSyncNodeValueToCode?: (nodeId: string) => void
+  /** CodeDock aberto com aba ritobin (.bin/.py) activa. */
+  canSyncNodeToCode?: boolean
+  /** Nó primário da selecção (sync só para este em selecção múltipla). */
+  primarySelectedNodeId?: string
+  /** Tradução UI (i18n). */
+  tr?: (
+    id: number,
+    fallback: string,
+    vars?: Readonly<Record<string, string | number>>,
+  ) => string
+}
+
+function trLabel(
+  ctx: CanvasContextMenuBuildContext,
+  id: number,
+  fallback: string,
+  vars?: Readonly<Record<string, string | number>>,
+): string {
+  return ctx.tr?.(id, fallback, vars) ?? fallback
 }
 
 function findCanvasNode(scene: CanvasScene, nodeId: string): CanvasNode | undefined {
@@ -148,9 +182,12 @@ function toolbarVisibilityItem(
   const id = `canvas.toolbar.${toolId}` as ContextMenuItem['id']
   const toolbarToolVisible = ctx.toolbarVisibility[toolId]
 
+  const langId = CANVAS_TOOLBAR_LANG_IDS[toolId]
+  const fallback = CANVAS_TOOLBAR_TOOL_LABELS[toolId]
+
   return {
     id,
-    label: CANVAS_TOOLBAR_TOOL_LABELS[toolId],
+    label: trLabel(ctx, langId, fallback),
     toolbarToolVisible,
     contextLimited: options?.contextLimited,
   }
@@ -168,6 +205,10 @@ function buildExibirSubmenuItems(ctx: CanvasContextMenuBuildContext): ContextMen
     toolbarVisibilityItem('inspector', ctx, { contextLimited: !ctx.hasInspectorSlot }),
     toolbarVisibilityItem('sceneNodes', ctx),
     toolbarVisibilityItem('legend', ctx),
+    {
+      id: 'canvas.openGridControl',
+      label: `${trLabel(ctx, LangId.CtxCanvasGrid, 'Grade')} ›`,
+    },
     toolbarVisibilityItem('linkStatus', ctx, { contextLimited: !ctx.hasPendingLink }),
     toolbarVisibilityItem('navigateHint', ctx, { contextLimited: !ctx.viewportNavigateMode }),
   ]
@@ -175,47 +216,77 @@ function buildExibirSubmenuItems(ctx: CanvasContextMenuBuildContext): ContextMen
 
 function buildCanvasItems(ctx: CanvasContextMenuBuildContext): ContextMenuItem[] {
   const hasSelection = ctx.selectedNodeIds.length > 0
-  const navigateLabel = ctx.viewportNavigateMode ? 'Sair do modo mover na grade' : 'Mover na grade'
+  const navigateLabel = ctx.viewportNavigateMode
+    ? trLabel(ctx, LangId.CtxNavigateExit, 'Sair do modo mover na grade')
+    : trLabel(ctx, LangId.CtxNavigateEnter, 'Mover na grade')
 
-  return [
-    { id: 'canvas.addNode', label: 'Adicionar nó', shortcut: 'Ctrl+K' },
+  const items: ContextMenuItem[] = [
+    {
+      id: 'canvas.addNode',
+      label: trLabel(ctx, LangId.GraphCtxAddNode, 'Adicionar nó'),
+      shortcut: 'Ctrl+K',
+    },
     ...(ctx.onGraphsToCode
       ? [
           {
             id: 'canvas.graphsToCode' as const,
-            label: 'Node Graphs to Code',
+            label: trLabel(ctx, LangId.MenuGraphToCode, 'Node Graphs to Code'),
             separatorBefore: true,
           },
         ]
       : []),
-    { id: 'canvas.undo', label: 'Desfazer', disabled: !ctx.canUndo, shortcut: 'Ctrl+Z', separatorBefore: true },
-    { id: 'canvas.redo', label: 'Refazer', disabled: !ctx.canRedo, shortcut: 'Ctrl+Y' },
+    {
+      id: 'canvas.undo',
+      label: trLabel(ctx, LangId.GraphCtxUndo, 'Desfazer'),
+      disabled: !ctx.canUndo,
+      shortcut: 'Ctrl+Z',
+      separatorBefore: true,
+    },
+    {
+      id: 'canvas.redo',
+      label: trLabel(ctx, LangId.GraphCtxRedo, 'Refazer'),
+      disabled: !ctx.canRedo,
+      shortcut: 'Ctrl+Y',
+    },
     {
       id: 'canvas.focusSelection',
-      label: 'Focar seleção na vista',
+      label: trLabel(ctx, LangId.CtxFocusSelection, 'Focar seleção na vista'),
       disabled: !hasSelection,
       shortcut: '.',
       separatorBefore: true,
     },
     hasSelection
-      ? { id: 'canvas.clearSelection', label: 'Limpar seleção', shortcut: 'A' }
-      : { id: 'canvas.selectAll', label: 'Seleccionar todos os nós', disabled: !ctx.hasSelectAll, shortcut: 'A' },
+      ? {
+          id: 'canvas.clearSelection',
+          label: trLabel(ctx, LangId.CtxClearSelection, 'Limpar seleção'),
+          shortcut: 'A',
+        }
+      : {
+          id: 'canvas.selectAll',
+          label: trLabel(ctx, LangId.CtxSelectAllNodes, 'Seleccionar todos os nós'),
+          disabled: !ctx.hasSelectAll,
+          shortcut: 'A',
+        },
     ...(hasSelection
       ? [
           {
             id: 'canvas.collapseAllNodeBodies',
-            label: 'Retrair corpo de todos os nós',
+            label: trLabel(ctx, LangId.CtxCollapseAllBodies, 'Retrair corpo de todos os nós'),
             disabled: ctx.sceneAllNodesBodyCollapsed === true,
             separatorBefore: true,
           },
           {
             id: 'canvas.expandAllNodeBodies',
-            label: 'Expandir corpo de todos os nós',
+            label: trLabel(ctx, LangId.CtxExpandAllBodies, 'Expandir corpo de todos os nós'),
             disabled: ctx.sceneAnyNodeBodyCollapsed !== true,
           },
           {
             id: 'canvas.extractSceneNodesState',
-            label: 'Extrair estados de índice de listas em Estados',
+            label: trLabel(
+              ctx,
+              LangId.CtxExtractSceneState,
+              'Extrair estados de índice de listas em Estados',
+            ),
             separatorBefore: true,
           },
         ]
@@ -223,11 +294,179 @@ function buildCanvasItems(ctx: CanvasContextMenuBuildContext): ContextMenuItem[]
     { id: 'canvas.toggleNavigateMode', label: navigateLabel, separatorBefore: true },
     {
       id: 'canvas.exibir',
-      label: 'Exibir',
+      label: trLabel(ctx, LangId.CtxExibir, 'Exibir'),
       separatorBefore: true,
       children: buildExibirSubmenuItems(ctx),
     },
   ]
+
+  return items
+}
+
+function isStructureCardView(canvasNode: CanvasNode | undefined): boolean {
+  if (!canvasNode) {
+    return false
+  }
+  return Boolean(
+    (canvasNode.groupViewActive && canvasNode.groupStructure) ||
+      (canvasNode.blockViewActive && canvasNode.blockStructure),
+  )
+}
+
+function buildStructureCardItems(
+  ctx: CanvasContextMenuBuildContext,
+  nodeId: string,
+  canvasNode: CanvasNode,
+): ContextMenuItem[] {
+  const isGlued = ctx.glueNodeId === nodeId
+  const isSelected = ctx.selectedNodeIds.includes(nodeId)
+  const nodeLocked = isNodeLocked(canvasNode)
+  const canDeleteNode = isNodeRemovableFromScene(canvasNode)
+  const isBlockCard = Boolean(canvasNode.blockViewActive && canvasNode.blockStructure)
+  const paramsExpanded = canvasNode.structureCardParamsExpanded === true
+
+  if (isBlockCard) {
+    const items: ContextMenuItem[] = [
+      {
+        id: 'node.focus',
+        label: trLabel(ctx, LangId.CtxFocusNode, 'Focar nó na vista'),
+        shortcut: '.',
+      },
+      {
+        id: 'node.select',
+        label: isSelected
+          ? trLabel(ctx, LangId.CtxAlreadySelected, 'Já seleccionado')
+          : trLabel(ctx, LangId.CtxSelectNode, 'Seleccionar nó'),
+        disabled: isSelected,
+      },
+      {
+        id: 'node.glue',
+        label: isGlued
+          ? trLabel(ctx, LangId.CtxGlueDisable, 'Desactivar modo cola')
+          : trLabel(ctx, LangId.CtxGlueEnable, 'Modo cola (glue)'),
+        shortcut: 'G',
+      },
+      ...(ctx.onPreviewBlockCardCode
+        ? [
+            {
+              id: 'node.codigo' as const,
+              label: trLabel(ctx, LangId.CtxCodeSubmenu, 'Código'),
+              separatorBefore: true,
+              children: [
+                {
+                  id: 'node.codigoPreviewBlock' as const,
+                  label: trLabel(ctx, LangId.GraphCtxBlockCodePreview, 'Código Preview Block'),
+                },
+              ],
+            },
+          ]
+        : []),
+      {
+        id: 'node.delete',
+        label: nodeLocked
+          ? `${trLabel(ctx, LangId.GraphCtxDeleteNode, 'Apagar nó')} (travado)`
+          : trLabel(ctx, LangId.GraphCtxDeleteNode, 'Apagar nó'),
+        danger: true,
+        disabled: !canDeleteNode,
+        separatorBefore: true,
+      },
+    ]
+
+    return items
+  }
+
+  const items: ContextMenuItem[] = [
+    {
+      id: 'node.toggleStructureCardParamsExpanded',
+      label: paramsExpanded
+        ? trLabel(ctx, LangId.CtxCollapseStructureCardParams, 'Reduzir parâmetros (linha única)')
+        : trLabel(ctx, LangId.CtxExpandStructureCardParams, 'Expandir parâmetros (nome completo)'),
+    },
+    {
+      id: 'node.structureCardResizeHint',
+      label: trLabel(
+        ctx,
+        LangId.CtxStructureCardResizeHint,
+        'Alargar card (bordas laterais)',
+      ),
+      shortcut: 'Ctrl+arrastar',
+      disabled: true,
+    },
+  ]
+
+  if (ctx.onViewNodeCode || ctx.onViewNodeBlockCode || ctx.onViewNodeGroupCode || ctx.onSyncNodeValueToCode) {
+    const codeChildren: ContextMenuItem[] = []
+    if (ctx.onViewNodeCode) {
+      codeChildren.push({
+        id: 'node.viewCode',
+        label: trLabel(ctx, LangId.GraphCtxViewCode, 'Ver código League bin'),
+      })
+    }
+    if (ctx.onViewNodeBlockCode && canvasNodeHasBlockCode(ctx.scene, nodeId)) {
+      codeChildren.push({
+        id: 'node.viewBlockCode',
+        label: trLabel(ctx, LangId.GraphCtxViewBlockCode, 'Ver código de bloco'),
+      })
+    }
+    if (ctx.onViewNodeGroupCode && canvasNodeHasGroupCode(ctx.scene, nodeId)) {
+      codeChildren.push({
+        id: 'node.viewGroupCode',
+        label: trLabel(ctx, LangId.GraphCtxViewGroupCode, 'Ver código de grupo'),
+      })
+    }
+    if (ctx.onSyncNodeValueToCode) {
+      const isPrimarySelection =
+        !ctx.primarySelectedNodeId || ctx.primarySelectedNodeId === nodeId
+      codeChildren.push({
+        id: 'node.syncValueToCode',
+        label: trLabel(ctx, LangId.GraphCtxSyncToCode, 'Sincronizar valores para o código'),
+        disabled: !isSelected || !ctx.canSyncNodeToCode || !isPrimarySelection,
+      })
+    }
+    if (codeChildren.length > 0) {
+      items.push({
+        id: 'node.codigo',
+        label: trLabel(ctx, LangId.CtxCodeSubmenu, 'Código'),
+        separatorBefore: true,
+        children: codeChildren,
+      })
+    }
+  }
+
+  items.push(
+    {
+      id: 'node.focus',
+      label: trLabel(ctx, LangId.CtxFocusNode, 'Focar nó na vista'),
+      shortcut: '.',
+      separatorBefore: true,
+    },
+    {
+      id: 'node.select',
+      label: isSelected
+        ? trLabel(ctx, LangId.CtxAlreadySelected, 'Já seleccionado')
+        : trLabel(ctx, LangId.CtxSelectNode, 'Seleccionar nó'),
+      disabled: isSelected,
+    },
+    {
+      id: 'node.glue',
+      label: isGlued
+        ? trLabel(ctx, LangId.CtxGlueDisable, 'Desactivar modo cola')
+        : trLabel(ctx, LangId.CtxGlueEnable, 'Modo cola (glue)'),
+      shortcut: 'G',
+      separatorBefore: true,
+    },
+    {
+      id: 'node.delete',
+      label: nodeLocked
+        ? `${trLabel(ctx, LangId.GraphCtxDeleteNode, 'Apagar nó')} (travado)`
+        : trLabel(ctx, LangId.GraphCtxDeleteNode, 'Apagar nó'),
+      danger: true,
+      disabled: !canDeleteNode,
+      separatorBefore: true,
+    },
+  )
+
+  return items
 }
 
 function buildNodeItems(
@@ -235,6 +474,10 @@ function buildNodeItems(
   nodeId: string,
 ): ContextMenuItem[] {
   const canvasNode = findCanvasNode(ctx.scene, nodeId)
+  if (isStructureCardView(canvasNode)) {
+    return buildStructureCardItems(ctx, nodeId, canvasNode!)
+  }
+
   const isGlued = ctx.glueNodeId === nodeId
   const isSelected = ctx.selectedNodeIds.includes(nodeId)
   const bodyCollapsed = ctx.isNodeBodyCollapsed === true
@@ -249,21 +492,23 @@ function buildNodeItems(
   const items: ContextMenuItem[] = [
     {
       id: 'node.toggleBodyCollapse',
-      label: bodyCollapsed ? 'Expandir corpo do nó' : 'Retrair corpo do nó',
+      label: bodyCollapsed
+        ? trLabel(ctx, LangId.CtxExpandNodeBody, 'Expandir corpo do nó')
+        : trLabel(ctx, LangId.CtxCollapseNodeBody, 'Retrair corpo do nó'),
     },
     {
       id: 'node.organization',
-      label: 'Organização',
+      label: trLabel(ctx, LangId.CtxOrganization, 'Organização'),
       separatorBefore: true,
       children: [
         {
           id: 'node.organization.bySectionType',
-          label: 'Separar por tipos de secções',
+          label: trLabel(ctx, LangId.CtxOrgBySection, 'Separar por tipos de secções'),
           selected: cardBodyLayout === 'bySectionType',
         },
         {
           id: 'node.organization.freeform',
-          label: 'Forma livre',
+          label: trLabel(ctx, LangId.CtxOrgFreeform, 'Forma livre'),
           selected: cardBodyLayout === 'freeform',
         },
       ],
@@ -273,27 +518,73 @@ function buildNodeItems(
   if (hasCardElements && !bodyCollapsed) {
     items.push({
       id: 'node.retractAllElements',
-      label: 'Retrair todos os elementos',
+      label: trLabel(ctx, LangId.CtxRetractAllElements, 'Retrair todos os elementos'),
       disabled: allElementsRetracted,
       separatorBefore: true,
     })
     items.push({
       id: 'node.expandAllElements',
-      label: 'Expandir todos os elementos',
+      label: trLabel(ctx, LangId.CtxExpandAllElements, 'Expandir todos os elementos'),
       disabled: !anyElementRetracted,
     })
   }
 
   items.push({
     id: 'node.extractSceneNodesState',
-    label: 'Extrair estados de índice de listas em Estados',
+    label: trLabel(ctx, LangId.CtxExtractSceneState, 'Extrair estados de índice de listas em Estados'),
     separatorBefore: true,
   })
+
+  if (ctx.onViewNodeCode || ctx.onViewNodeBlockCode || ctx.onViewNodeGroupCode || ctx.onPreviewNodeVfx || ctx.onSyncNodeValueToCode) {
+    const codeChildren: ContextMenuItem[] = []
+    if (ctx.onViewNodeCode) {
+      codeChildren.push({
+        id: 'node.viewCode',
+        label: trLabel(ctx, LangId.GraphCtxViewCode, 'Ver código League bin'),
+      })
+    }
+    if (ctx.onViewNodeBlockCode && canvasNodeHasBlockCode(ctx.scene, nodeId)) {
+      codeChildren.push({
+        id: 'node.viewBlockCode',
+        label: trLabel(ctx, LangId.GraphCtxViewBlockCode, 'Ver código de bloco'),
+      })
+    }
+    if (ctx.onViewNodeGroupCode && canvasNodeHasGroupCode(ctx.scene, nodeId)) {
+      codeChildren.push({
+        id: 'node.viewGroupCode',
+        label: trLabel(ctx, LangId.GraphCtxViewGroupCode, 'Ver código de grupo'),
+      })
+    }
+    if (
+      ctx.onPreviewNodeVfx &&
+      canvasNode?.node.schema.title === 'VfxSystemDefinitionData'
+    ) {
+      codeChildren.push({
+        id: 'node.previewVfx',
+        label: trLabel(ctx, LangId.CtxPreviewVfx, 'Pré-visualizar VFX'),
+      })
+    }
+    if (ctx.onSyncNodeValueToCode) {
+      const isPrimarySelection =
+        !ctx.primarySelectedNodeId || ctx.primarySelectedNodeId === nodeId
+      codeChildren.push({
+        id: 'node.syncValueToCode',
+        label: trLabel(ctx, LangId.GraphCtxSyncToCode, 'Sincronizar valores para o código'),
+        disabled: !isSelected || !ctx.canSyncNodeToCode || !isPrimarySelection,
+      })
+    }
+    items.push({
+      id: 'node.codigo',
+      label: trLabel(ctx, LangId.CtxCodeSubmenu, 'Código'),
+      separatorBefore: true,
+      children: codeChildren,
+    })
+  }
 
   if (ctx.onGraphsToCode && canvasNode?.node.schema.id === 'main') {
     items.push({
       id: 'node.graphsToCode',
-      label: 'Node Graphs to Code',
+      label: trLabel(ctx, LangId.MenuGraphToCode, 'Node Graphs to Code'),
     })
   }
 
@@ -302,20 +593,43 @@ function buildNodeItems(
   if (linkedChildIds.size > 0) {
     items.push({
       id: 'node.hideLinkedChildNodes',
-      label: 'Ocultar todos os nodes filhos',
+      label: trLabel(ctx, LangId.CtxHideLinkedChildren, 'Ocultar todos os nodes filhos'),
       disabled: !isSelected,
       separatorBefore: true,
     })
   }
 
   items.push(
-    { id: 'node.focus', label: 'Focar nó na vista', shortcut: '.' },
-    { id: 'node.select', label: isSelected ? 'Já seleccionado' : 'Seleccionar nó', disabled: isSelected },
-    { id: 'node.glue', label: isGlued ? 'Desactivar modo cola' : 'Modo cola (glue)', shortcut: 'G', separatorBefore: true },
-    { id: 'node.addNode', label: 'Adicionar nó (raiz)', shortcut: 'Ctrl+K' },
+    {
+      id: 'node.focus',
+      label: trLabel(ctx, LangId.CtxFocusNode, 'Focar nó na vista'),
+      shortcut: '.',
+    },
+    {
+      id: 'node.select',
+      label: isSelected
+        ? trLabel(ctx, LangId.CtxAlreadySelected, 'Já seleccionado')
+        : trLabel(ctx, LangId.CtxSelectNode, 'Seleccionar nó'),
+      disabled: isSelected,
+    },
+    {
+      id: 'node.glue',
+      label: isGlued
+        ? trLabel(ctx, LangId.CtxGlueDisable, 'Desactivar modo cola')
+        : trLabel(ctx, LangId.CtxGlueEnable, 'Modo cola (glue)'),
+      shortcut: 'G',
+      separatorBefore: true,
+    },
+    {
+      id: 'node.addNode',
+      label: trLabel(ctx, LangId.CtxAddNodeRoot, 'Adicionar nó (raiz)'),
+      shortcut: 'Ctrl+K',
+    },
     {
       id: 'node.delete',
-      label: nodeLocked ? 'Apagar nó (travado)' : 'Apagar nó',
+      label: nodeLocked
+        ? `${trLabel(ctx, LangId.GraphCtxDeleteNode, 'Apagar nó')} (travado)`
+        : trLabel(ctx, LangId.GraphCtxDeleteNode, 'Apagar nó'),
       danger: true,
       disabled: !canDeleteNode,
       separatorBefore: true,
@@ -338,11 +652,11 @@ function buildConnectionRoutingSubmenu(
 
   return {
     id: 'slot.connectionRoutingMenu',
-    label: 'Forma de ligação',
+    label: trLabel(ctx, LangId.CtxWireForm, 'Forma de ligação'),
     separatorBefore,
     children: (['flex', 'rigid', 'wireless'] as const).map((routing) => ({
       id: setConnectionRoutingMenuId(connection.id, routing) as ContextMenuItemId,
-      label: CONNECTION_ROUTING_LABELS[routing],
+      label: getConnectionRoutingLabel(routing, ctx.tr),
       selected: current === routing,
     })),
   }
@@ -366,7 +680,7 @@ function buildConnectionItems(
   if (ctx.onCycleConnectionRouting) {
     items.push({
       id: 'connection.cycleRouting',
-      label: 'Alternar estilo do fio',
+      label: trLabel(ctx, LangId.CtxCycleWireStyle, 'Alternar estilo do fio'),
       separatorBefore: items.length > 0,
     })
   }
@@ -374,7 +688,7 @@ function buildConnectionItems(
   if (ctx.onRemoveConnection) {
     items.push({
       id: 'connection.remove',
-      label: 'Remover ligação',
+      label: trLabel(ctx, LangId.CtxRemoveConnection, 'Remover ligação'),
       danger: true,
       separatorBefore: items.length > 0,
     })
@@ -399,14 +713,18 @@ function buildElementItems(
   if (viewKey) {
     const viewState = getElementViewState(canvasNode.node, viewKey)
     const compactLabel =
-      viewState.mode === 'compact' ? 'Vista em lista' : 'Vista compacta'
+      viewState.mode === 'compact'
+        ? trLabel(ctx, LangId.CtxElementListView, 'Vista em lista')
+        : trLabel(ctx, LangId.CtxElementCompactView, 'Vista compacta')
 
     items.push({ id: 'element.toggleCompact', label: compactLabel })
 
     const retracted = Boolean(viewState.retracted)
     items.push({
       id: 'element.toggleRetracted',
-      label: retracted ? 'Expandir elemento' : 'Retrair elemento',
+      label: retracted
+        ? trLabel(ctx, LangId.CtxExpandElement, 'Expandir elemento')
+        : trLabel(ctx, LangId.CtxRetractElement, 'Retrair elemento'),
       separatorBefore: true,
     })
   }
@@ -414,12 +732,12 @@ function buildElementItems(
   if (isStructuralSlotContextKind(target.kind)) {
     items.push({
       id: 'element.showOnlyConnectedComponent',
-      label: 'Mostrar apenas nós ligados',
+      label: trLabel(ctx, LangId.CtxShowOnlyConnected, 'Mostrar apenas nós ligados'),
       separatorBefore: items.length > 0,
     })
     items.push({
       id: 'element.showOnlySlotSubtree',
-      label: 'Mostrar apenas nós ligados deste slot',
+      label: trLabel(ctx, LangId.CtxShowOnlySlotSubtree, 'Mostrar apenas nós ligados deste slot'),
     })
 
     const slotId = outputSlotIdFromElementTarget(target)
@@ -434,21 +752,28 @@ function buildElementItems(
 
       items.push({
         id: 'element.focusPeerInputSlot',
-        label: 'Focar no slot de entrada',
+        label: trLabel(ctx, LangId.CtxFocusInputSlot, 'Focar no slot de entrada'),
         separatorBefore: !routingMenu && items.length > 0,
       })
     }
   }
 
   if (target.kind === 'internalStructure') {
-    items.push({ id: 'element.relink', label: 'Religar estrutura…', separatorBefore: true })
-    items.push({ id: 'element.removeConnections', label: 'Remover ligações do slot' })
+    items.push({
+      id: 'element.relink',
+      label: trLabel(ctx, LangId.CtxRelinkStructure, 'Religar estrutura…'),
+      separatorBefore: true,
+    })
+    items.push({
+      id: 'element.removeConnections',
+      label: trLabel(ctx, LangId.CtxRemoveSlotConnections, 'Remover ligações do slot'),
+    })
   }
 
   if (target.kind === 'list2EmbedInstance' || target.kind === 'list2PointerInstance') {
     items.push({
       id: 'element.removeInstance',
-      label: 'Remover instância',
+      label: trLabel(ctx, LangId.CtxRemoveInstance, 'Remover instância'),
       danger: true,
       separatorBefore: items.length > 0,
     })
@@ -463,7 +788,7 @@ function buildElementItems(
     if (removable) {
       items.push({
         id: 'element.remove',
-        label: `Remover «${removable.name}»`,
+        label: trLabel(ctx, LangId.CtxRemoveElement, 'Remover «{name}»', { name: removable.name }),
         danger: true,
         separatorBefore: items.length > 0,
       })
@@ -472,7 +797,7 @@ function buildElementItems(
 
   items.push({
     id: 'element.openElementMenu',
-    label: 'Gerir elementos…',
+    label: trLabel(ctx, LangId.CtxManageElements, 'Gerir elementos…'),
     separatorBefore: items.length > 0,
   })
 
@@ -509,7 +834,7 @@ function buildPeerOutputFocusItems(
     return [
       {
         id: 'nodeInputPort.focusPeerOutputSlot',
-        label: 'Focar no slot de saída',
+        label: trLabel(ctx, LangId.CtxFocusOutputSlot, 'Focar no slot de saída'),
         separatorBefore,
       },
     ]
@@ -518,7 +843,7 @@ function buildPeerOutputFocusItems(
   return [
     {
       id: 'nodeInputPort.focusPeerOutputSlot',
-      label: 'Focar no slot de saída',
+      label: trLabel(ctx, LangId.CtxFocusOutputSlot, 'Focar no slot de saída'),
       separatorBefore,
       children: incoming.map((connection) => ({
         id: focusPeerOutputSlotMenuId(connection.id) as ContextMenuItemId,
@@ -545,8 +870,14 @@ function buildNodeInputPortItems(
   }
 
   const items: ContextMenuItem[] = [
-    { id: 'element.showOnlyConnectedComponent', label: 'Mostrar apenas nós ligados' },
-    { id: 'element.showOnlySlotSubtree', label: 'Mostrar apenas nós ligados deste slot' },
+    {
+      id: 'element.showOnlyConnectedComponent',
+      label: trLabel(ctx, LangId.CtxShowOnlyConnected, 'Mostrar apenas nós ligados'),
+    },
+    {
+      id: 'element.showOnlySlotSubtree',
+      label: trLabel(ctx, LangId.CtxShowOnlySlotSubtree, 'Mostrar apenas nós ligados deste slot'),
+    },
     ...buildPeerOutputFocusItems(ctx, nodeId),
   ]
 

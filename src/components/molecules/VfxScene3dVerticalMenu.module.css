@@ -1,0 +1,164 @@
+.menu {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  align-self: stretch;
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--vfx-panel-bg-soft);
+  border: 1px solid var(--vfx-chrome-bg-mid);
+  border-radius: 8px 0 0 8px;
+  backdrop-filter: blur(8px);
+}
+
+.menuHasPanel {
+  border-right: none;
+  border-radius: 8px 0 0 8px;
+}
+
+.menuCollapsed {
+  flex: 0 0 36px;
+  width: 36px;
+  max-width: 36px;
+}
+
+.menuExpanded {
+  flex: 0 0 132px;
+  width: 132px;
+  max-width: 132px;
+}
+
+.menuToggle {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  padding: 8px 4px;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+}
+
+.menuCollapsed .menuToggle {
+  flex-direction: column;
+  justify-content: center;
+  padding: 10px 4px;
+}
+
+.menuToggle:hover {
+  background: var(--vfx-chrome-bg-soft);
+}
+
+.menuToggleIcon {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  color: var(--vfx-text-strong);
+}
+
+.menuToggleLabel {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--vfx-accent-text);
+  text-overflow: ellipsis;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.separator {
+  flex-shrink: 0;
+  height: 1px;
+  margin: 0 6px;
+  background: var(--vfx-chrome-border);
+}
+
+.toolList {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  min-height: 0;
+  padding: 4px 0 8px;
+  overflow: hidden auto;
+}
+
+.toolBtnWrap {
+  display: flex;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.toolBtn {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  padding: 6px 4px;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  border-right: 2px solid transparent;
+}
+
+.menuCollapsed .toolBtn {
+  flex-direction: column;
+  justify-content: center;
+  padding: 8px 4px;
+}
+
+.toolBtn:hover {
+  background: var(--vfx-chrome-bg-soft);
+}
+
+.toolBtnActive {
+  background: var(--vfx-accent-bg-soft);
+  border-right-color: var(--vfx-accent-text-strong);
+}
+
+.menuCollapsed .toolBtnActive {
+  border-right-color: transparent;
+}
+
+.toolBtnIcon {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  color: var(--vfx-text-strong);
+}
+
+.toolBtnActive .toolBtnIcon {
+  color: var(--vfx-accent-text-strong);
+}
+
+.toolBtnLabel {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--vfx-accent-text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  user-select: none;
+}

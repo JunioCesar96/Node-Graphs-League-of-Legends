@@ -1,0 +1,25 @@
+{
+  "id": "VfxAlphaErosionDefinitionData_VfxAlphaErosionDefinitionData",
+  "block": "alphaErosionDefinition",
+  "blockName": "VfxAlphaErosionDefinitionData",
+  "type": "pointer",
+  "name": "VfxAlphaErosionDefinitionData",
+  "source": {
+    "kind": "block",
+    "nodeId": "vfx-alpha-erosion-definition-data__entries-{particlePath}-complex-emitter-definition-data--slot--0-alpha-erosion-definition"
+  },
+  "color": "#40ff56",
+  "headerSlots": [
+    "in[alphaErosionDefinition]",
+    "out[VfxAlphaErosionDefinitionDataPreview]"
+  ],
+  "parameters": [
+    "erosionMapName",
+    "erosionDriveCurve",
+    "erosionMapChannelMixer",
+    "erosionFeatherIn",
+    "erosionFeatherOut",
+    "erosionMapAddressMode",
+    "erosionSliceWidth"
+  ]
+}

@@ -16,6 +16,18 @@ function trimFloat(value: number): string {
   return String(rounded)
 }
 
+/** Remove chaves ritual `{ x, y, z }` antes de parsear componentes. */
+export function parseVector3RitualInput(raw: string): Vector3 {
+  const trimmed = raw.trim()
+  if (!trimmed) {
+    return { ...DEFAULT_VECTOR3 }
+  }
+
+  const braced = /^\{\s*([^}]*)\s*\}$/.exec(trimmed)
+  const inner = braced?.[1]?.trim() ?? trimmed
+  return parseVector3String(inner)
+}
+
 export function parseVector3String(raw: string): Vector3 {
   const trimmed = raw.trim()
   if (!trimmed) {
@@ -39,7 +51,7 @@ export function formatVector3String(vector: Vector3): string {
 }
 
 export function normalizeVector3String(raw: string): string {
-  return formatVector3String(parseVector3String(raw))
+  return formatVector3String(parseVector3RitualInput(raw))
 }
 
 export function isValidPartialVector3Value(value: string): boolean {

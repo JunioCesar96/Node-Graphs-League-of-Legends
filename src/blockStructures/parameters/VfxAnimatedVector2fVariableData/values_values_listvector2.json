@@ -1,0 +1,19 @@
+{
+  "id": "values_values_listVector2",
+  "block": "VfxAnimatedVector2fVariableData",
+  "parameterName": "values",
+  "name": "values",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-animated-vector2f-variable-data__entries-{particlePath}-complex-emitter-definition-data--slot--5-birth-uv-scroll-rate-dynamics_parameter_values"
+  },
+  "type": "listVector2",
+  "items": [
+    "0, -4"
+  ],
+  "slots": {
+    "out": [
+      "vec2"
+    ]
+  }
+}

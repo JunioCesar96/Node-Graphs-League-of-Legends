@@ -1,0 +1,17 @@
+{
+  "id": "Filtering_Filtering_pointer_VfxEmitterFiltering",
+  "block": "VfxEmitterDefinitionData",
+  "parameterName": "Filtering",
+  "name": "Filtering",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-emitter-definition-data__entries-{particlePath}-complex-emitter-definition-data--slot--0-filtering"
+  },
+  "type": "pointer",
+  "pointer": "VfxEmitterFiltering",
+  "slots": {
+    "out": [
+      "VfxEmitterFiltering"
+    ]
+  }
+}

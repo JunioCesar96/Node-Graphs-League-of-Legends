@@ -1,0 +1,184 @@
+.host {
+
+  position: relative;
+
+  display: flex;
+
+  flex: 1;
+
+  flex-direction: column;
+
+  min-height: 0;
+
+  overflow: hidden;
+
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 0%, var(--vfx-viewport-glow), transparent),
+    var(--vfx-viewport-bg);
+
+  border: 1px solid var(--vfx-viewport-border);
+
+  border-radius: 10px;
+
+}
+
+
+
+.canvas {
+
+  flex: 1;
+
+  width: 100%;
+
+  min-height: 200px;
+
+}
+
+
+
+.overlayItem {
+
+  display: flex;
+
+  gap: 6px;
+
+  align-items: center;
+
+  cursor: pointer;
+
+  user-select: none;
+
+}
+
+
+
+.overlayItem input {
+
+  accent-color: var(--vfx-control-accent);
+
+}
+
+.overlayCheckboxOnly {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.overlayContextLabel {
+  flex: 1;
+  cursor: context-menu;
+  border-radius: 3px;
+}
+
+.overlayContextLabel:hover {
+  color: var(--vfx-accent-text-strong);
+  background: var(--vfx-chrome-bg);
+}
+
+.viewHints {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 0 2px;
+  font-size: 9px;
+  line-height: 1.35;
+  color: var(--vfx-text-muted);
+  border-top: 1px solid var(--vfx-chrome-bg-mid);
+}
+
+.viewHintsTitle {
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--vfx-subtitle-accent);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+
+
+.projectionBadge {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  z-index: 2;
+  padding: 3px 7px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--vfx-viewport-chrome-text);
+  pointer-events: none;
+  background: var(--vfx-viewport-overlay);
+  border: 1px solid var(--vfx-chrome-bg-hover);
+  border-radius: 4px;
+  transform: translateX(-50%);
+}
+
+.particleLabel {
+
+  position: absolute;
+
+  top: 8px;
+
+  right: 10px;
+
+  z-index: 2;
+
+  max-width: 45%;
+
+  padding: 4px 8px;
+
+  overflow: hidden;
+
+  font-size: 10px;
+
+  font-weight: 600;
+
+  color: var(--vfx-accent-text-readout);
+
+  text-overflow: ellipsis;
+
+  white-space: nowrap;
+
+  pointer-events: none;
+
+  background: var(--vfx-viewport-overlay);
+
+  border: 1px solid var(--vfx-viewport-border);
+
+  border-radius: 6px;
+
+}
+
+
+
+.particleList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.particleListItem {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2px 0;
+}
+
+.particleListName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.particleListCount {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+  color: var(--vfx-text-muted);
+}
+
+.particleListEmpty {
+  color: var(--vfx-text-muted);
+}
+
+

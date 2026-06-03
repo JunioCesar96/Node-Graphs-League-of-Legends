@@ -1,0 +1,23 @@
+{
+  "id": "VfxTrailDefinitionData_VfxTrailDefinitionData",
+  "block": "mTrail",
+  "blockName": "VfxTrailDefinitionData",
+  "type": "embed",
+  "name": "VfxTrailDefinitionData",
+  "source": {
+    "kind": "block",
+    "nodeId": "vfx-trail-definition-data__main-characters/brand/skins/skin0/particles/brand-base-basic-attack-mis-complex-emitter-definition-data--slot--8-primitive-m-trail"
+  },
+  "color": "#40ff56",
+  "headerSlots": [
+    "in[mTrail]",
+    "out[VfxTrailDefinitionDataPreview]"
+  ],
+  "parameters": [
+    "mMode",
+    "mCutoff",
+    "mBirthTilingSize",
+    "mSmoothingMode",
+    "mMaxAddedPerFrame"
+  ]
+}

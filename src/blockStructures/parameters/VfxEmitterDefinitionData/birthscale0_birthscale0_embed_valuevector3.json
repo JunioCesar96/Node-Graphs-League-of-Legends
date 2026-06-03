@@ -1,0 +1,17 @@
+{
+  "id": "birthScale0_birthScale0_embed_ValueVector3",
+  "block": "VfxEmitterDefinitionData",
+  "parameterName": "birthScale0",
+  "name": "birthScale0",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-emitter-definition-data__entries-{particlePath}-complex-emitter-definition-data--slot--0-birth-scale0"
+  },
+  "type": "embed",
+  "embed": "ValueVector3",
+  "slots": {
+    "out": [
+      "ValueVector3"
+    ]
+  }
+}

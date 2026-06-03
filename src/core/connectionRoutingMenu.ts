@@ -1,5 +1,7 @@
 import type { ConnectionRouting } from '@/core/canvasScene'
 
+import { LangId } from './language/languageIds'
+
 export const SET_CONNECTION_ROUTING_PREFIX = 'slot.setRouting:'
 
 export const CONNECTION_ROUTING_LABELS: Record<ConnectionRouting, string> = {
@@ -10,6 +12,21 @@ export const CONNECTION_ROUTING_LABELS: Record<ConnectionRouting, string> = {
 
 export function effectiveConnectionRouting(routing?: ConnectionRouting): ConnectionRouting {
   return routing ?? 'flex'
+}
+
+const ROUTING_LANG_IDS: Record<ConnectionRouting, number> = {
+  flex: LangId.CtxWireFlex,
+  rigid: LangId.CtxWireRigid,
+  wireless: LangId.CtxWireWireless,
+}
+
+export function getConnectionRoutingLabel(
+  routing: ConnectionRouting,
+  tr?: (id: number, fallback: string) => string,
+): string {
+  const fallback = CONNECTION_ROUTING_LABELS[routing]
+
+  return tr?.(ROUTING_LANG_IDS[routing], fallback) ?? fallback
 }
 
 export function setConnectionRoutingMenuId(

@@ -1,0 +1,20 @@
+{
+  "id": "scaleBirthScaleByBoundObjectSize_scaleBirthScaleByBoundObjectSize",
+  "block": "VfxFlexShapeDefinitionData",
+  "parameterName": "scaleBirthScaleByBoundObjectSize",
+  "name": "scaleBirthScaleByBoundObjectSize",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-flex-shape-definition-data__entries-{particlePath}-complex-emitter-definition-data--slot--5-flex-shape-definition_parameter_scaleBirthScaleByBoundObjectSize"
+  },
+  "type": "f32",
+  "value": "0.004",
+  "slots": {
+    "in": [
+      "f32"
+    ],
+    "out": [
+      "f32"
+    ]
+  }
+}

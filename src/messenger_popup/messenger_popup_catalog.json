@@ -25,6 +25,12 @@
       "kind": "confirm"
     },
     {
+      "id": "confirm_block_connection_forced",
+      "message": "Embora este slot de entrada aceite a ligação, o seu nó de saída não é compatível com o tipo deste bloco. Deseja forçar a conexão?",
+      "durationMs": null,
+      "kind": "confirm"
+    },
+    {
       "id": "example_toast_saved",
       "message": "Alterações guardadas.",
       "durationMs": 4000,
@@ -40,6 +46,24 @@
       "id": "toast_node_locked",
       "message": "Nó bloqueado.",
       "durationMs": 3500,
+      "kind": "toast"
+    },
+    {
+      "id": "toast_neeko_transform_error",
+      "message": "[Neeko Node] {error}",
+      "durationMs": 8000,
+      "kind": "toast"
+    },
+    {
+      "id": "toast_neeko_transform_warnings",
+      "message": "[Neeko Node] {summary}",
+      "durationMs": 10000,
+      "kind": "toast"
+    },
+    {
+      "id": "toast_neeko_build_failed",
+      "message": "Falha ao construir Neeko node.",
+      "durationMs": 6000,
       "kind": "toast"
     }
   ]

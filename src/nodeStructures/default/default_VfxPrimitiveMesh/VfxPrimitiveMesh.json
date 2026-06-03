@@ -1,0 +1,55 @@
+{
+  "id": "vfx-primitive-mesh__main-entries-0xa2fa6a01-complex-emitter-definition-data-7-primitive",
+  "title": "VfxPrimitiveMesh",
+  "parameters": [],
+  "embed": [
+    {
+      "id": "VfxPrimitiveMesh_embed_mMesh",
+      "title": "mMesh",
+      "internalStructures": [
+        {
+          "id": "vfx-primitive-mesh-m-mesh",
+          "name": "VfxMeshDefinitionData",
+          "schemaId": "vfx-mesh-definition-data__main-entries-0xa2fa6a01-complex-emitter-definition-data-7-primitive-m-mesh"
+        }
+      ],
+      "slots": [
+        {
+          "id": "VfxPrimitiveMesh_embed_mMesh__slot__0",
+          "name": "VfxMeshDefinitionData",
+          "schemaId": "vfx-mesh-definition-data__main-entries-0xa2fa6a01-complex-emitter-definition-data-7-primitive-m-mesh"
+        }
+      ]
+    }
+  ],
+  "pointer": [],
+  "listEmbed": [],
+  "listPointer": [],
+  "list2Embed": [],
+  "list2Pointer": [],
+  "internalStructures": [],
+  "nomenclature": {
+    "group": "#3 Internal Structures",
+    "collection": "#3 Pointer Node",
+    "collectionType": "VfxPrimitiveMesh",
+    "pathHierarchy": "main > entries:0xa2fa6a01 > complexEmitterDefinitionData:7 > primitive",
+    "pathHierarchySteps": [
+      {
+        "id": "main",
+        "type": "#0 Root main"
+      },
+      {
+        "id": "entries:0xa2fa6a01",
+        "type": "#2 Root Entry (VfxSystemDefinitionData)"
+      },
+      {
+        "id": "complexEmitterDefinitionData:7",
+        "type": "#3 Collection Block"
+      },
+      {
+        "id": "primitive",
+        "type": "#3 Pointer Node"
+      }
+    ]
+  }
+}

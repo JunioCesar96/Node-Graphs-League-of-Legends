@@ -1,0 +1,57 @@
+{
+  "id": "vfx-shape-legacy__main-entries-0x0eed7307-complex-emitter-definition-data-4-spawn-shape",
+  "title": "VfxShapeLegacy",
+  "parameters": [
+    {
+      "id": "VfxShapeLegacy_parameter_emitRotationAxes",
+      "name": "emitRotationAxes",
+      "type": "listVector3",
+      "defaultValue": "0, 1, 0"
+    }
+  ],
+  "embed": [
+    {
+      "id": "VfxShapeLegacy_embed_emitOffset",
+      "title": "emitOffset",
+      "internalStructures": [
+        {
+          "id": "vfx-shape-legacy-emit-offset",
+          "name": "ValueVector3",
+          "schemaId": "value-vector3__main-entries-0x0eed7307-complex-emitter-definition-data-4-spawn-shape-emit-offset"
+        }
+      ],
+      "slots": [
+        {
+          "id": "VfxShapeLegacy_embed_emitOffset__slot__0",
+          "name": "ValueVector3",
+          "schemaId": "value-vector3__main-entries-0x0eed7307-complex-emitter-definition-data-4-spawn-shape-emit-offset"
+        }
+      ]
+    }
+  ],
+  "pointer": [],
+  "listEmbed": [
+    {
+      "id": "VfxShapeLegacy_listEmbed_emitRotationAngles",
+      "title": "emitRotationAngles",
+      "internalStructures": [
+        {
+          "id": "vfx-shape-legacy-emit-rotation-angles-0",
+          "name": "ValueFloat",
+          "schemaId": "value-float__emit-rotation-angles-0"
+        }
+      ],
+      "slots": [
+        {
+          "id": "VfxShapeLegacy_listEmbed_emitRotationAngles__slot__0",
+          "name": "ValueFloat",
+          "schemaId": "value-float__emit-rotation-angles-0"
+        }
+      ]
+    }
+  ],
+  "listPointer": [],
+  "list2Embed": [],
+  "list2Pointer": [],
+  "internalStructures": []
+}

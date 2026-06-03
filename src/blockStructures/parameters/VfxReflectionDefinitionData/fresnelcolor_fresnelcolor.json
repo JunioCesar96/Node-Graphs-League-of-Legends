@@ -1,0 +1,20 @@
+{
+  "id": "fresnelColor_fresnelColor",
+  "block": "VfxReflectionDefinitionData",
+  "parameterName": "fresnelColor",
+  "name": "fresnelColor",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-reflection-definition-data__main-characters/brand/skins/skin0/particles/brand-base-p-fire-mark3-complex-emitter-definition-data--slot--3-reflection-definition_parameter_fresnelColor"
+  },
+  "type": "vec4",
+  "value": "0.922, 0.196, 0.008, 1",
+  "slots": {
+    "in": [
+      "vec4"
+    ],
+    "out": [
+      "vec4"
+    ]
+  }
+}

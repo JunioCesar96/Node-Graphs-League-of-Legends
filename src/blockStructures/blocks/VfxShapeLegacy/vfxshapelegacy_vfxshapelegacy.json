@@ -1,0 +1,21 @@
+{
+  "id": "VfxShapeLegacy_VfxShapeLegacy",
+  "block": "SpawnShape",
+  "blockName": "VfxShapeLegacy",
+  "type": "pointer",
+  "name": "VfxShapeLegacy",
+  "source": {
+    "kind": "block",
+    "nodeId": "vfx-shape-legacy__main-characters/brand/skins/skin0/particles/brand-base-p-fire-mark3-complex-emitter-definition-data--slot--2-spawn-shape"
+  },
+  "color": "#40ff56",
+  "headerSlots": [
+    "in[SpawnShape]",
+    "out[VfxShapeLegacyPreview]"
+  ],
+  "parameters": [
+    "emitRotationAxes",
+    "emitOffset",
+    "emitRotationAngles"
+  ]
+}

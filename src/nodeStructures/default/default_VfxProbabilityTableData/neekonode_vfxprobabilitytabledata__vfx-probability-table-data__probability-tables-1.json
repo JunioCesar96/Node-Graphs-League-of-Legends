@@ -1,0 +1,26 @@
+{
+  "id": "vfx-probability-table-data__probability-tables-1",
+  "title": "VfxProbabilityTableData",
+  "parameters": [
+    {
+      "id": "vfx-probability-table-data__probability-tables-1_parameter_keyTimes",
+      "name": "keyTimes",
+      "type": "listF32",
+      "defaultValue": "0\n1"
+    },
+    {
+      "id": "vfx-probability-table-data__probability-tables-1_parameter_keyValues",
+      "name": "keyValues",
+      "type": "listF32",
+      "defaultValue": "0\n360"
+    }
+  ],
+  "internalStructures": [],
+  "embed": [],
+  "pointer": [],
+  "listEmbed": [],
+  "listPointer": [],
+  "list2Embed": [],
+  "list2Pointer": [],
+  "tag": "neeko"
+}

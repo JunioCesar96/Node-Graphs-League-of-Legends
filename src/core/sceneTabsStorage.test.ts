@@ -89,21 +89,17 @@ describe('getInitialSceneTabsPersisted', () => {
     expect(initial.activeTabId).toBe('')
   })
 
-  it('migra cena legacy quando não há tabs', () => {
+  it('não restaura cena legacy ao iniciar', () => {
     localStorage.removeItem(STORAGE_SCENE_TABS_KEY)
-    // Cena mínima no storage legacy (o payload completo de emptyCanvasScene excede quota em jsdom).
     localStorage.setItem(
       SCENE_STORAGE_KEY,
       JSON.stringify({ width: 1120, height: 760, nodes: [], connections: [] }),
     )
 
-    expect(localStorage.getItem(SCENE_STORAGE_KEY)).not.toBeNull()
-
     const initial = getInitialSceneTabsPersisted()
 
-    expect(initial.tabs).toHaveLength(1)
-    expect(initial.tabs[0]?.title).toBe('Cena 1')
-    expect(initial.activeTabId).toBe(initial.tabs[0]?.id)
+    expect(initial.tabs).toHaveLength(0)
+    expect(initial.activeTabId).toBe('')
   })
 
   it('restaura tabs persistidos', () => {

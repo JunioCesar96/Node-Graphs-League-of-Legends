@@ -1,6 +1,0 @@
-{
-  "id": "VfxEmitterDefinitionData_parameter_lifetime",
-  "name": "lifetime",
-  "type": "optionf32",
-  "defaultValue": "0"
-}

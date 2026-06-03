@@ -1,0 +1,43 @@
+{
+  "id": "vfx-emitter-filtering__main-entries-0xa2fa6a01-complex-emitter-definition-data-7-filtering",
+  "title": "VfxEmitterFiltering",
+  "parameters": [
+    {
+      "id": "VfxEmitterFiltering_parameter_spectatorPolicy",
+      "name": "spectatorPolicy",
+      "type": "u8",
+      "defaultValue": "1"
+    }
+  ],
+  "embed": [],
+  "pointer": [],
+  "listEmbed": [],
+  "listPointer": [],
+  "list2Embed": [],
+  "list2Pointer": [],
+  "internalStructures": [],
+  "nomenclature": {
+    "group": "#3 Internal Structures",
+    "collection": "#3 Pointer Node",
+    "collectionType": "VfxEmitterFiltering",
+    "pathHierarchy": "main > entries:0xa2fa6a01 > complexEmitterDefinitionData:7 > Filtering",
+    "pathHierarchySteps": [
+      {
+        "id": "main",
+        "type": "#0 Root main"
+      },
+      {
+        "id": "entries:0xa2fa6a01",
+        "type": "#2 Root Entry (VfxSystemDefinitionData)"
+      },
+      {
+        "id": "complexEmitterDefinitionData:7",
+        "type": "#3 Collection Block"
+      },
+      {
+        "id": "Filtering",
+        "type": "#3 Pointer Node"
+      }
+    ]
+  }
+}

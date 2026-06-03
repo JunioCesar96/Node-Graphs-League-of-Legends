@@ -1,0 +1,44 @@
+{
+  "id": "vfx-animated-float-variable-data__main-entries-0x0eed7307-complex-emitter-definition-data-4-particle-lifetime-dynamics",
+  "title": "VfxAnimatedFloatVariableData",
+  "parameters": [
+    {
+      "id": "VfxAnimatedFloatVariableData_parameter_times",
+      "name": "times",
+      "type": "listF32",
+      "defaultValue": "0"
+    },
+    {
+      "id": "VfxAnimatedFloatVariableData_parameter_values",
+      "name": "values",
+      "type": "listF32",
+      "defaultValue": "1"
+    }
+  ],
+  "embed": [],
+  "pointer": [],
+  "listEmbed": [],
+  "listPointer": [
+    {
+      "id": "VfxAnimatedFloatVariableData_listPointer_probabilityTables",
+      "title": "probabilityTables",
+      "internalStructures": [
+        {
+          "id": "vfx-animated-float-variable-data-probability-tables-0",
+          "name": "VfxProbabilityTableData",
+          "schemaId": "vfx-probability-table-data__probability-tables-0"
+        }
+      ],
+      "slots": [
+        {
+          "id": "VfxAnimatedFloatVariableData_listPointer_probabilityTables__slot__0",
+          "name": "VfxProbabilityTableData",
+          "schemaId": "vfx-probability-table-data__probability-tables-0"
+        }
+      ]
+    }
+  ],
+  "list2Embed": [],
+  "list2Pointer": [],
+  "internalStructures": []
+}

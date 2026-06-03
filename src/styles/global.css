@@ -1,4 +1,10 @@
 @import './tokens.css';
+@import './appFormControls.css';
+@import './syntaxParameterInputColors.css';
+@import './vfxFormControls.css';
+@import '@jade/styles/regionalThemes.css';
+
+@import './inspectorScrollbars.css';
 
 * {
   box-sizing: border-box;

@@ -1,0 +1,49 @@
+{
+  "id": "parametric-pair-data__m-parametric-pair-data-list-1",
+  "title": "ParametricPairData",
+  "parameters": [
+    {
+      "id": "ParametricPairData_parameter_mClipName",
+      "name": "mClipName",
+      "type": "integer",
+      "defaultValue": "Spell1_Min"
+    },
+    {
+      "id": "ParametricPairData_parameter_mValue",
+      "name": "mValue",
+      "type": "f32",
+      "defaultValue": "1.35"
+    }
+  ],
+  "embed": [],
+  "pointer": [],
+  "listEmbed": [],
+  "listPointer": [],
+  "list2Embed": [],
+  "list2Pointer": [],
+  "internalStructures": [],
+  "nomenclature": {
+    "group": "#3 Internal Structures",
+    "collection": "#3 Collection Block",
+    "collectionType": "ParametricPairData",
+    "pathHierarchy": "main > entries:Characters/Zac/Animations/Skin0 > mClipDataMap:Spell1 > mParametricPairDataList:1",
+    "pathHierarchySteps": [
+      {
+        "id": "main",
+        "type": "#0 Root main"
+      },
+      {
+        "id": "entries:Characters/Zac/Animations/Skin0",
+        "type": "#2 Root Entry (AnimationGraphData)"
+      },
+      {
+        "id": "mClipDataMap:Spell1",
+        "type": "#3 Collection Block"
+      },
+      {
+        "id": "mParametricPairDataList:1",
+        "type": "#3 Collection Block"
+      }
+    ]
+  }
+}

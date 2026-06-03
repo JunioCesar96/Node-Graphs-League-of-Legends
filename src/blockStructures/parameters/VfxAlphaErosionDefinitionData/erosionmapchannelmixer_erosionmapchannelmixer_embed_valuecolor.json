@@ -1,0 +1,17 @@
+{
+  "id": "erosionMapChannelMixer_erosionMapChannelMixer_embed_ValueColor",
+  "block": "VfxAlphaErosionDefinitionData",
+  "parameterName": "erosionMapChannelMixer",
+  "name": "erosionMapChannelMixer",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-alpha-erosion-definition-data__entries-{particlePath}-complex-emitter-definition-data--slot--0-alpha-erosion-definition-erosion-map-channel-mixer"
+  },
+  "type": "embed",
+  "embed": "ValueColor",
+  "slots": {
+    "out": [
+      "ValueColor"
+    ]
+  }
+}

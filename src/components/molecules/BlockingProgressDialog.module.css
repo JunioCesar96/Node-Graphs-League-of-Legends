@@ -1,0 +1,129 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgb(0 0 0 / 62%);
+  backdrop-filter: blur(4px);
+}
+
+.panel {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: min(520px, 100%);
+  max-height: min(80vh, 640px);
+  padding: 20px 22px;
+  overflow: auto;
+  background: rgb(18 18 18 / 98%);
+  border: 1px solid var(--color-border-soft);
+  border-radius: 14px;
+  box-shadow: 0 24px 64px rgb(0 0 0 / 45%);
+}
+
+.title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-text-primary, #f2f2f2);
+}
+
+.message {
+  margin: 0;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  color: rgb(255 255 255 / 82%);
+}
+
+.progress {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.progressMeta {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: rgb(255 255 255 / 62%);
+}
+
+.progressBar {
+  height: 6px;
+  overflow: hidden;
+  background: rgb(255 255 255 / 10%);
+  border-radius: 999px;
+}
+
+.progressFill {
+  height: 100%;
+  background: linear-gradient(90deg, #3d8f6e, #5cb88a);
+  border-radius: 999px;
+  transition: width 0.2s ease;
+}
+
+.statusLabel {
+  margin: 0;
+  font-size: 0.9375rem;
+  line-height: 1.45;
+  color: rgb(255 255 255 / 88%);
+}
+
+.summaryBody {
+  margin: 0;
+  max-height: min(40vh, 320px);
+  overflow: auto;
+  padding: 12px;
+  font-family: var(--font-data, ui-monospace, monospace);
+  font-size: 0.78rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  color: rgb(255 255 255 / 82%);
+  background: rgb(255 255 255 / 4%);
+  border: 1px solid rgb(255 255 255 / 8%);
+  border-radius: 10px;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.primaryButton,
+.secondaryButton,
+.dangerButton {
+  min-width: 6rem;
+  padding: 0.55rem 1rem;
+  font-size: 0.8125rem;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.primaryButton {
+  color: #08140f;
+  background: linear-gradient(180deg, #5cb88a, #3d8f6e);
+  border: 1px solid rgb(255 255 255 / 12%);
+}
+
+.secondaryButton {
+  color: var(--color-text-secondary, #ccc);
+  background: rgb(255 255 255 / 6%);
+  border: 1px solid var(--color-border-soft);
+}
+
+.dangerButton {
+  color: #ffecec;
+  background: rgb(160 48 48 / 88%);
+  border: 1px solid rgb(255 120 120 / 35%);
+}
+
+.primaryButton:hover,
+.secondaryButton:hover,
+.dangerButton:hover {
+  filter: brightness(1.06);
+}

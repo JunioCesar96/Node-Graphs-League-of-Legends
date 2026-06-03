@@ -1,0 +1,20 @@
+{
+  "id": "keyTimes_keyTimes_listF32",
+  "block": "VfxProbabilityTableData",
+  "parameterName": "keyTimes",
+  "name": "keyTimes",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-probability-table-data__entries-{particlePath}-complex-emitter-definition-data--slot--0-particle-lifetime-dynamics-probability-tables--slot--0_parameter_keyTimes"
+  },
+  "type": "listF32",
+  "items": [
+    "0",
+    "1"
+  ],
+  "slots": {
+    "out": [
+      "f32"
+    ]
+  }
+}

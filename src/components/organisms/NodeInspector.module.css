@@ -6,7 +6,7 @@
   max-height: min(620px, calc(100vh - 96px));
   overflow: auto;
   padding: var(--space-5);
-  background: rgb(37 37 38 / 90%);
+  background: var(--app-panel-bg);
   border: 1px solid var(--color-border-soft);
   border-radius: 24px;
   box-shadow:
@@ -37,7 +37,7 @@
   max-width: min(280px, 36vw);
   height: 42px;
   padding: 0 var(--space-2) 0 var(--space-3);
-  background: rgb(37 37 38 / 88%);
+  background: var(--app-panel-chrome-bg);
   border: 1px solid var(--color-border-soft);
   border-radius: 999px;
   box-shadow: 0 8px 28px rgb(0 0 0 / 22%);
@@ -186,7 +186,7 @@
 .toggle,
 .minimized {
   color: var(--color-text-primary);
-  background: rgb(255 255 255 / 6%);
+  background: var(--app-subtle-surface-hover);
   border: 1px solid var(--color-border-soft);
 }
 
@@ -204,7 +204,7 @@
   height: 30px;
   padding: 0;
   color: var(--color-text-primary);
-  background: rgb(255 255 255 / 6%);
+  background: var(--app-subtle-surface-hover);
   border: 1px solid var(--color-border-soft);
   border-radius: 999px;
   cursor: pointer;
@@ -251,7 +251,7 @@
 .minimized:hover {
   width: max-content;
   max-width: calc(100vw - 64px);
-  background: rgb(37 37 38 / 94%);
+  background: var(--app-panel-bg-strong);
 }
 
 .minimizedIcon {
@@ -297,7 +297,7 @@
   height: auto;
   min-height: 42px;
   padding-block: var(--space-2);
-  background: rgb(37 37 38 / 94%);
+  background: var(--app-panel-bg-strong);
 }
 
 .minimizedReveal:hover {
@@ -322,20 +322,74 @@
   word-break: break-word;
 }
 
-/* Linha minimizada: cápsula + botão pin (inspector com ou sem nó). */
-.inspectorMinimizedDockRow {
+.minimizedDockRow {
   display: inline-flex;
+  gap: var(--space-1);
+  align-items: center;
+  max-width: min(520px, calc(100vw - 48px));
+  height: 42px;
+  padding: 0 var(--space-1) 0 var(--space-2);
+  background: var(--app-panel-bg-strong);
+  border: 1px solid var(--color-border-soft);
+  border-radius: 999px;
+  box-shadow: 0 8px 28px rgb(0 0 0 / 22%);
+  backdrop-filter: blur(12px);
+}
+
+.minimizedDockRowDraggable .minimizedButton {
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.minimizedDockRowDraggable .minimizedButton:active {
+  cursor: grabbing;
+}
+
+.minimizedButton {
+  display: inline-flex;
+  flex: 1 1 auto;
   gap: var(--space-2);
   align-items: center;
-}
-
-.inspectorMinimizedDockRow .dockToggle {
-  flex-shrink: 0;
-}
-
-/* Minimizado + acoplado à barra da vista: sem arrastar a cápsula. */
-.inspectorMinimizedDockRowDocked .minimized {
+  min-width: 0;
+  padding: 0 var(--space-1);
+  color: var(--color-text-primary);
   cursor: pointer;
+  background: transparent;
+  border: none;
+}
+
+.minimizedLabel {
+  min-width: 0;
+  overflow: hidden;
+  font-family: var(--font-data);
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.minimizedDockActions {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  padding-right: var(--space-1);
+}
+
+.minimizedDockRow .minimizedIcon {
+  display: inline-grid;
+  flex: 0 0 22px;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  opacity: 1;
+}
+
+.minimizedDockRow .dockToggle {
+  width: 28px;
+  height: 28px;
+  background: rgb(0 0 0 / 18%);
 }
 
 .meta {
@@ -349,7 +403,7 @@
   gap: var(--space-1);
   min-width: 0;
   padding: var(--space-3);
-  background: rgb(0 0 0 / 16%);
+  background: var(--app-inset-surface);
   border: 1px solid var(--color-border-soft);
   border-radius: var(--radius-control);
 }
@@ -581,7 +635,7 @@
   color: var(--color-text-primary);
   font-family: var(--font-data);
   font-size: 0.76rem;
-  background: rgb(0 0 0 / 18%);
+  background: var(--app-inset-surface-strong);
   border: 1px solid var(--color-border-soft);
   border-radius: var(--radius-control);
 }
@@ -658,7 +712,7 @@
   color: var(--color-text-primary);
   font-family: var(--font-data);
   font-size: 0.76rem;
-  background: rgb(0 0 0 / 18%);
+  background: var(--app-inset-surface-strong);
   border: 1px solid var(--color-border-soft);
   border-radius: var(--radius-control);
 }

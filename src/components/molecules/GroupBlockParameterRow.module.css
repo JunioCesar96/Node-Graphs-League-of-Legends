@@ -1,0 +1,246 @@
+/**
+ * Linha de parâmetro — 5 colunas: slot | icon | name | value | slot.
+ */
+.row {
+  display: grid;
+  grid-template-columns: subgrid;
+  grid-column: 1 / -1;
+  grid-template-rows: auto;
+  gap: 2px var(--space-2);
+  align-items: center;
+  min-width: min-content;
+  overflow: visible;
+  padding: var(--group-block-row-padding-y) var(--space-2);
+  border-bottom: 1px solid rgb(0 0 0 / 28%);
+  position: relative;
+}
+
+.row:last-child {
+  border-bottom: none;
+}
+
+.slotIn,
+.iconCell,
+.slotOut {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  overflow: visible;
+}
+
+.slotIn {
+  grid-column: 1;
+  grid-row: 1;
+  justify-content: flex-start;
+}
+
+.iconCell {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.label {
+  grid-column: 3;
+  grid-row: 1;
+  min-width: min-content;
+  overflow: visible;
+  color: var(--syntax-property);
+  font-family: var(--font-data);
+  font-size: 0.72rem;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+.field[data-empty='1'] {
+  display: none;
+}
+
+.field {
+  display: flex;
+  grid-column: 4;
+  grid-row: 1;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  align-items: center;
+  justify-content: stretch;
+}
+
+.field > * {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.slotOut {
+  grid-column: 5;
+  grid-row: 1;
+  justify-content: flex-end;
+}
+
+.slotIn > *,
+.iconCell > *,
+.slotOut > * {
+  flex-shrink: 0;
+}
+
+.focusedTitle {
+  display: none;
+  overflow: hidden;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--syntax-keyword);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+input.input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: var(--group-block-field-min-height);
+  padding: 3px 8px;
+  border: 1px solid rgb(0 0 0 / 35%);
+  border-radius: 4px;
+  background: var(--group-block-field-bg);
+  font-family: var(--font-data);
+  font-size: var(--group-block-input-font-size);
+  line-height: 1.35;
+  text-overflow: ellipsis;
+}
+
+div.input {
+  box-sizing: border-box;
+  display: flex;
+  min-height: var(--group-block-field-min-height);
+  align-items: center;
+  gap: 6px;
+  padding: 2px 6px 2px 4px;
+  border: 1px solid rgb(0 0 0 / 35%);
+  border-radius: 4px;
+  background: var(--group-block-field-bg);
+  font-family: var(--font-data);
+  font-size: var(--group-block-input-font-size);
+  line-height: 1.35;
+}
+
+div.input > button:first-of-type {
+  flex-shrink: 0;
+  width: var(--group-block-field-preview-size);
+  height: var(--group-block-field-preview-size);
+}
+
+div.input > button:only-of-type {
+  width: 100%;
+  height: auto;
+  min-height: calc(var(--group-block-field-min-height) - 4px);
+}
+
+div.input[data-parameter-type='bool'],
+div.input[data-parameter-type='flag'] {
+  color: var(--syntax-keyword);
+}
+
+div.input[data-parameter-type='bool'] > button,
+div.input[data-parameter-type='flag'] > button {
+  color: var(--syntax-keyword);
+}
+
+div.input > input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 2px 4px;
+  overflow: hidden;
+  font: inherit;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: transparent;
+  border: none;
+}
+
+input.input:focus,
+div.input:focus-within {
+  outline: 2px solid var(--syntax-keyword);
+  outline-offset: 1px;
+}
+
+.row[data-input-focused='1'] .slotIn,
+.row[data-input-focused='1'] .iconCell,
+.row[data-input-focused='1'] .label,
+.row[data-input-focused='1'] .slotOut {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.row[data-input-focused='1'] .field {
+  z-index: 2;
+  display: grid;
+  grid-column: 1 / -1;
+  grid-row: 1;
+  gap: 3px;
+}
+
+.row[data-no-value='1'] .label {
+  grid-column: 3 / span 2;
+}
+
+.row[data-input-focused='1'] .focusedTitle {
+  display: block;
+}
+
+/* Expandido — name + value em duas linhas (cols 3–4) */
+:global([data-params-layout='expanded']) .row {
+  grid-template-rows: auto auto;
+  gap: 2px var(--space-2);
+  align-items: stretch;
+}
+
+:global([data-params-layout='expanded']) .slotIn {
+  grid-column: 1;
+  grid-row: 1 / span 2;
+  align-self: center;
+}
+
+:global([data-params-layout='expanded']) .iconCell {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+}
+
+:global([data-params-layout='expanded']) .label {
+  grid-column: 3 / span 2;
+  grid-row: 1;
+  text-overflow: unset;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+:global([data-params-layout='expanded']) .field {
+  grid-column: 3 / span 2;
+  grid-row: 2;
+}
+
+:global([data-params-layout='expanded']) .slotOut {
+  grid-column: 5;
+  grid-row: 1 / span 2;
+  align-self: center;
+}
+
+:global([data-params-layout='expanded']) .row[data-no-value='1'] {
+  grid-template-rows: auto;
+}
+
+:global([data-params-layout='expanded']) .row[data-no-value='1'] .label {
+  grid-row: 1;
+}
+
+:global([data-params-layout='expanded']) .row[data-input-focused='1'] .field {
+  grid-column: 1 / -1;
+  grid-row: 1 / -1;
+}

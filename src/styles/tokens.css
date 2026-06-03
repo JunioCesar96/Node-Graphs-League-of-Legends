@@ -1,4 +1,9 @@
-:root {
+/**
+ * Tema `default` — ver `src/appThemes/default.json` e `data-app-theme` no `<html>`.
+ * `:root` mantém os mesmos valores como fallback antes do JS aplicar o tema activo.
+ */
+:root,
+html[data-app-theme='default'] {
   color-scheme: dark;
 
   --color-canvas: #1e1e1e;
@@ -12,14 +17,14 @@
   --color-text-muted: #8d8d91;
   --color-shadow: rgb(0 0 0 / 36%);
 
-  --syntax-keyword: #569cd6;
-  --syntax-string: #ce9178;
-  --syntax-comment: #6a9955;
-  --syntax-property: #9cdcfe;
-  --syntax-symbol: #d4d4d4;
-  --syntax-bracket: #ffd700;
-  --syntax-integer: #b5cea8;
-  --syntax-float: #72d5a3;
+  --syntax-keyword: var(--syntax-keyword-color, #569cd6);
+  --syntax-string: var(--syntax-string-color, #ce9178);
+  --syntax-comment: var(--syntax-comment-color, #6a9955);
+  --syntax-property: var(--syntax-property-color, #9cdcfe);
+  --syntax-symbol: var(--syntax-symbol-color, #d4d4d4);
+  --syntax-bracket: var(--syntax-bracket-color, #ffd700);
+  --syntax-integer: var(--syntax-number-color, #b5cea8);
+  --syntax-float: var(--syntax-number-color, #72d5a3);
   --syntax-double: #d3d977;
   --syntax-vector2: #a390e4;
   --syntax-vector3: #c586c0;
@@ -29,6 +34,20 @@
 
   --port-parent: #4caf50;
   --port-child: #ffc107;
+
+  /** Toggle / range / checkbox — tema default (studio, docks, painéis flutuantes). */
+  --app-control-accent: #4ec8e8;
+  --app-control-toggle-on: var(--port-parent);
+  --app-control-toggle-off: color-mix(in srgb, var(--color-canvas) 65%, rgb(255 255 255 / 10%));
+  --app-control-toggle-off-border: color-mix(in srgb, var(--color-border) 75%, rgb(255 255 255 / 12%));
+  --app-control-toggle-thumb: #fff;
+  --app-control-range-track: color-mix(in srgb, var(--color-canvas) 50%, rgb(0 0 0));
+  --app-control-range-track-border: color-mix(in srgb, var(--color-border-soft) 90%, transparent);
+  --app-control-range-fill: var(--app-control-accent);
+  --app-control-range-thumb: var(--app-control-accent);
+  --app-studio-panel-bg: color-mix(in srgb, var(--color-canvas) 86%, rgb(0 0 0));
+  --app-studio-panel-border: color-mix(in srgb, var(--port-child) 22%, transparent);
+  --app-studio-eyebrow: color-mix(in srgb, var(--port-child) 72%, var(--color-text-muted));
 
   --font-ui: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-data: "Fira Code", "Cascadia Code", "SFMono-Regular", Consolas, monospace;
@@ -74,6 +93,255 @@
   /** Linha compacta na paleta ≈ cabeçalho do node + gap + uma linha de tags (estrutura / tipos). */
   --palette-add-compact-min-height: calc(var(--node-header-min-block-size) + var(--space-2) + 1.375rem);
 
+  /** Linha compacta de bloco na paleta (swatch + uma linha de título). */
+  --palette-block-compact-min-height: calc(0.82rem * 1.2 + var(--space-2) * 2);
+
   /** Uma linha da grelha da paleta «Add node» (tarja compacta + gap entre linhas). */
   --palette-add-row-stride: calc(var(--palette-add-compact-min-height) + var(--space-2));
+
+  /** Distância abaixo do botão «Add node» quando a paleta abre ancorada (`data-shortcut-scope="node-palette"`). */
+  --node-palette-anchor-top-gap: 10px;
+
+  /** Cards Grupo / Bloco — layout de parâmetros no canvas. */
+  --group-block-card-width: 360px;
+  --group-block-card-max-width: 720px;
+  --group-block-row-height: 28px;
+  --group-block-row-padding-y: 3px;
+  --group-block-field-min-height: 1.375rem;
+  --group-block-field-preview-size: 1.125rem;
+  --group-block-input-font-size: 0.74rem;
+  --group-block-field-bg: #282828;
+  --group-block-slot-col-min: 0.875rem;
+  --group-block-icon-col-min: 1.125rem;
+  /** 5 colunas: slot in | icon | name (max-content) | value (≥30%) | slot out */
+  --group-block-body-columns-compact:
+    minmax(var(--group-block-slot-col-min), max-content)
+    minmax(var(--group-block-icon-col-min), max-content)
+    minmax(max-content, 2fr)
+    minmax(30%, 1fr)
+    minmax(var(--group-block-slot-col-min), max-content);
+  --group-block-body-columns-expanded:
+    minmax(var(--group-block-slot-col-min), max-content)
+    minmax(var(--group-block-icon-col-min), max-content)
+    minmax(0, 1fr)
+    minmax(0, 1fr)
+    minmax(var(--group-block-slot-col-min), max-content);
+
+  /** Sistema Bloco (BlockNodes) — design system dedicado. */
+  --block-surface: #363636;
+  --block-surface-dark: var(--group-block-field-bg);
+  --block-text: var(--syntax-symbol);
+  --block-slot: var(--syntax-property);
+  --block-slot-out: var(--port-child);
+  --block-slot-in: var(--port-parent);
+  --block-card-width: var(--group-block-card-width);
+  --block-row-height: var(--group-block-row-height);
+  --block-header-height: 36px;
+
+  /** Sistema Grupo (GroupNodes) — design system dedicado. */
+  --group-surface: #363636;
+  --group-surface-dark: var(--group-block-field-bg);
+  --group-text: var(--syntax-symbol);
+  --group-slot: var(--syntax-property);
+  --group-slot-out: var(--port-child);
+  --group-slot-in: var(--port-parent);
+  --group-card-width: var(--group-block-card-width);
+  --group-row-height: var(--group-block-row-height);
+  --group-header-height: 36px;
+
+  --canvas-grid-line: rgb(255 255 255 / 4%);
+  --canvas-grid-base: rgb(0 0 0 / 16%);
+  --scrollbar-thumb: color-mix(in srgb, var(--color-text-primary) 28%, transparent);
+  --scrollbar-thumb-hover: color-mix(in srgb, var(--color-text-primary) 42%, transparent);
+  --scrollbar-track: color-mix(in srgb, var(--color-canvas) 88%, rgb(0 0 0));
+  --app-menu-bg: rgb(0 0 0 / 28%);
+  --app-menu-panel-bg: rgb(19 19 19 / 94%);
+  --code-dock-header-bg: transparent;
+  --code-dock-shell-bg: rgb(15 15 15 / 96%);
+  --code-dock-resize-grip: linear-gradient(90deg, rgb(255 255 255 / 10%), transparent);
+  --code-dock-resize-handle-bg: rgb(255 255 255 / 5%);
+  --code-dock-resize-handle-hover: rgb(255 255 255 / 12%);
+
+  --app-panel-bg: rgb(37 37 38 / 90%);
+  --app-panel-bg-strong: rgb(37 37 38 / 94%);
+  --app-panel-chrome-bg: rgb(37 37 38 / 88%);
+  --app-overlay-scrim: rgb(0 0 0 / 44%);
+  --app-dialog-gradient: linear-gradient(180deg, rgb(37 37 38 / 96%), rgb(18 18 20 / 98%));
+  --app-popover-gradient: linear-gradient(180deg, rgb(42 42 44 / 98%), rgb(22 22 24 / 99%));
+  --app-subtle-surface: rgb(255 255 255 / 4%);
+  --app-subtle-surface-hover: rgb(255 255 255 / 6%);
+  --app-inset-surface: rgb(0 0 0 / 16%);
+  --app-inset-surface-strong: rgb(0 0 0 / 18%);
+
+  --vfx-accent: rgb(126 212 255);
+  --vfx-shell-bg: rgb(11 13 17 / 98%);
+  --vfx-panel-bg: rgb(12 14 18 / 98%);
+  --vfx-panel-bg-alt: rgb(10 12 16 / 98%);
+  --vfx-header-bg: linear-gradient(180deg, rgb(18 22 28 / 98%), rgb(12 14 18 / 98%));
+  --vfx-title-color: rgb(230 245 255 / 95%);
+  --vfx-subtitle-accent: rgb(126 212 255 / 75%);
+  --vfx-text-strong: rgb(255 255 255 / 88%);
+  --vfx-text-medium: rgb(255 255 255 / 85%);
+  --vfx-text-muted: rgb(255 255 255 / 42%);
+  --vfx-text-faint: rgb(255 255 255 / 38%);
+  --vfx-text-dim: rgb(255 255 255 / 72%);
+  --vfx-chrome-bg: rgb(255 255 255 / 6%);
+  --vfx-chrome-bg-hover: rgb(255 255 255 / 12%);
+  --vfx-chrome-bg-soft: rgb(255 255 255 / 4%);
+  --vfx-chrome-bg-mid: rgb(255 255 255 / 8%);
+  --vfx-chrome-border: rgb(255 255 255 / 10%);
+  --vfx-chrome-border-soft: rgb(255 255 255 / 6%);
+  --vfx-chrome-border-mid: rgb(255 255 255 / 12%);
+  --vfx-inset-dark: rgb(0 0 0 / 30%);
+  --vfx-tab-sidebar-bg: rgb(18 24 32 / 95%);
+  --vfx-tab-sidebar-hover: rgb(36 52 68 / 75%);
+  --vfx-collapse-bg: rgb(28 36 46 / 96%);
+  --vfx-collapse-hover: rgb(48 68 88 / 85%);
+  --vfx-accent-text: rgb(126 212 255 / 88%);
+  --vfx-accent-text-strong: rgb(126 212 255 / 95%);
+  --vfx-accent-text-readout: rgb(126 212 255 / 90%);
+  --vfx-accent-text-sort: rgb(126 212 255 / 82%);
+  --vfx-accent-text-soft: rgb(126 212 255 / 65%);
+  --vfx-accent-border: rgb(126 212 255 / 35%);
+  --vfx-accent-border-soft: rgb(126 212 255 / 45%);
+  --vfx-accent-bg: rgb(126 212 255 / 14%);
+  --vfx-accent-bg-soft: rgb(126 212 255 / 12%);
+  --vfx-accent-bg-active: rgb(60 180 220 / 18%);
+  --vfx-accent-border-active: rgb(80 200 255 / 35%);
+  --vfx-active-bright: #8ef0ff;
+  --vfx-split-hover: rgb(126 212 255 / 18%);
+  --vfx-resize-grip: linear-gradient(90deg, rgb(255 255 255 / 10%), transparent);
+  --vfx-resize-handle-bg: rgb(255 255 255 / 5%);
+  --vfx-split-handle-bg: rgb(255 255 255 / 4%);
+  --vfx-split-handle-hover: rgb(126 212 255 / 12%);
+  --vfx-split-handle-grip: rgb(255 255 255 / 22%);
+  --vfx-viewport-bg: rgb(6 8 12 / 98%);
+  --vfx-viewport-border: rgb(80 160 255 / 12%);
+  --vfx-viewport-chrome-text: rgb(200 220 240 / 85%);
+  --vfx-viewport-overlay: rgb(0 0 0 / 45%);
+  --vfx-preview-border: rgb(80 160 255 / 22%);
+  --vfx-preview-bg: rgb(8 10 14);
+  --vfx-preview-label: rgb(200 220 240 / 82%);
+  --vfx-panel-bg-soft: rgb(12 14 18 / 96%);
+  --vfx-viewport-glow: rgb(40 120 160 / 8%);
+  --vfx-checker-tile: rgb(40 44 52);
+  --vfx-checker-base: rgb(28 32 40);
+  --vfx-control-accent: #4ec8e8;
+  --vfx-range-track: color-mix(in srgb, var(--vfx-text-strong) 12%, transparent);
+}
+
+html[data-jade-surface-theme='on'] {
+  --color-canvas: var(--editor-bg, #1e1e1e);
+  --color-node-surface: var(--tab-bg, #252526);
+  --color-border-soft: var(--border-color, #343536);
+  --color-text-primary: var(--text-color, #f4f4f5);
+  --color-text-secondary: var(--text-muted, #c9c9cb);
+  --color-text-muted: color-mix(in srgb, var(--text-muted, #8d8d91) 88%, var(--editor-bg, #1e1e1e));
+
+  --canvas-grid-line: color-mix(in srgb, var(--text-color, #fff) 7%, transparent);
+  --canvas-grid-base: color-mix(in srgb, var(--editor-bg, #1e1e1e) 84%, rgb(0 0 0));
+  --scrollbar-track: color-mix(in srgb, var(--editor-bg, #1e1e1e) 88%, rgb(0 0 0));
+
+  --app-menu-bg: color-mix(in srgb, var(--window-bg, #1e1e1e) 72%, rgb(0 0 0));
+  --app-menu-panel-bg: color-mix(in srgb, var(--window-bg, #191919) 94%, rgb(0 0 0));
+  --code-dock-header-bg: var(--tab-bg, #252526);
+  --code-dock-shell-bg: color-mix(in srgb, var(--window-bg, #1e1e1e) 96%, rgb(0 0 0));
+  --code-dock-resize-grip: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--jade-accent, var(--selected-tab-bg, #007acc)) 28%, transparent),
+    transparent
+  );
+  --code-dock-resize-handle-bg: color-mix(in srgb, var(--text-color, #fff) 5%, transparent);
+  --code-dock-resize-handle-hover: color-mix(
+    in srgb,
+    var(--jade-accent, var(--selected-tab-bg, #007acc)) 32%,
+    transparent
+  );
+
+  --color-node-header: var(--tab-bg, #3a3a3a);
+  --color-node-hover: color-mix(in srgb, var(--text-color, #fff) 7%, var(--tab-bg, #303031));
+  --color-border: var(--border-color, #464647);
+
+  --app-panel-bg: color-mix(in srgb, var(--window-bg, #252526) 90%, transparent);
+  --app-panel-bg-strong: color-mix(in srgb, var(--window-bg, #252526) 94%, transparent);
+  --app-panel-chrome-bg: color-mix(in srgb, var(--tab-bg, #252526) 88%, transparent);
+  --app-overlay-scrim: color-mix(in srgb, var(--editor-bg, #1e1e1e) 55%, rgb(0 0 0));
+  --app-dialog-gradient: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--window-bg, #252526) 96%, transparent),
+    color-mix(in srgb, var(--editor-bg, #1e1e1e) 98%, transparent)
+  );
+  --app-popover-gradient: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--window-bg, #2a2a2c) 98%, transparent),
+    color-mix(in srgb, var(--editor-bg, #161618) 99%, transparent)
+  );
+  --app-subtle-surface: color-mix(in srgb, var(--text-color, #fff) 4%, transparent);
+  --app-subtle-surface-hover: color-mix(in srgb, var(--text-color, #fff) 6%, transparent);
+  --app-inset-surface: color-mix(in srgb, var(--editor-bg, #000) 16%, transparent);
+  --app-inset-surface-strong: color-mix(in srgb, var(--editor-bg, #000) 18%, transparent);
+
+  --vfx-accent: var(--jade-accent, var(--selected-tab-bg, #007acc));
+  --vfx-shell-bg: color-mix(in srgb, var(--window-bg, #0b0d11) 98%, rgb(0 0 0));
+  --vfx-panel-bg: color-mix(in srgb, var(--editor-bg, #0c0e12) 98%, rgb(0 0 0));
+  --vfx-panel-bg-alt: var(--vfx-panel-bg);
+  --vfx-header-bg: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--tab-bg, #12161c) 98%, transparent),
+    color-mix(in srgb, var(--editor-bg, #0c0e12) 98%, transparent)
+  );
+  --vfx-title-color: var(--text-color, rgb(230 245 255 / 95%));
+  --vfx-subtitle-accent: color-mix(in srgb, var(--vfx-accent) 75%, var(--text-color, #fff));
+  --vfx-text-strong: color-mix(in srgb, var(--text-color, #fff) 88%, transparent);
+  --vfx-text-medium: color-mix(in srgb, var(--text-color, #fff) 85%, transparent);
+  --vfx-text-muted: color-mix(in srgb, var(--text-muted, #fff) 72%, transparent);
+  --vfx-text-faint: color-mix(in srgb, var(--text-muted, #fff) 62%, transparent);
+  --vfx-text-dim: color-mix(in srgb, var(--text-color, #fff) 72%, transparent);
+  --vfx-chrome-bg: color-mix(in srgb, var(--text-color, #fff) 6%, transparent);
+  --vfx-chrome-bg-hover: color-mix(in srgb, var(--text-color, #fff) 12%, transparent);
+  --vfx-chrome-bg-soft: color-mix(in srgb, var(--text-color, #fff) 4%, transparent);
+  --vfx-chrome-bg-mid: color-mix(in srgb, var(--text-color, #fff) 8%, transparent);
+  --vfx-chrome-border: color-mix(in srgb, var(--text-color, #fff) 10%, transparent);
+  --vfx-chrome-border-soft: color-mix(in srgb, var(--text-color, #fff) 6%, transparent);
+  --vfx-chrome-border-mid: color-mix(in srgb, var(--text-color, #fff) 12%, transparent);
+  --vfx-inset-dark: color-mix(in srgb, var(--editor-bg, #000) 30%, transparent);
+  --vfx-tab-sidebar-bg: color-mix(in srgb, var(--tab-bg, #121820) 95%, transparent);
+  --vfx-tab-sidebar-hover: color-mix(in srgb, var(--vfx-accent) 28%, var(--tab-bg, #243444));
+  --vfx-collapse-bg: color-mix(in srgb, var(--tab-bg, #1c242e) 96%, rgb(0 0 0));
+  --vfx-collapse-hover: color-mix(in srgb, var(--vfx-accent) 24%, var(--tab-bg, #304458));
+  --vfx-accent-text: color-mix(in srgb, var(--vfx-accent) 88%, var(--text-color, #fff));
+  --vfx-accent-text-strong: color-mix(in srgb, var(--vfx-accent) 95%, var(--text-color, #fff));
+  --vfx-accent-text-readout: color-mix(in srgb, var(--vfx-accent) 90%, var(--text-color, #fff));
+  --vfx-accent-text-sort: color-mix(in srgb, var(--vfx-accent) 82%, var(--text-color, #fff));
+  --vfx-accent-text-soft: color-mix(in srgb, var(--vfx-accent) 65%, var(--text-muted, #fff));
+  --vfx-accent-border: color-mix(in srgb, var(--vfx-accent) 35%, transparent);
+  --vfx-accent-border-soft: color-mix(in srgb, var(--vfx-accent) 45%, transparent);
+  --vfx-accent-bg: color-mix(in srgb, var(--vfx-accent) 14%, transparent);
+  --vfx-accent-bg-soft: color-mix(in srgb, var(--vfx-accent) 12%, transparent);
+  --vfx-accent-bg-active: color-mix(in srgb, var(--vfx-accent) 18%, transparent);
+  --vfx-accent-border-active: color-mix(in srgb, var(--vfx-accent) 35%, transparent);
+  --vfx-active-bright: color-mix(in srgb, var(--vfx-accent) 78%, white);
+  --vfx-split-hover: color-mix(in srgb, var(--vfx-accent) 18%, transparent);
+  --vfx-resize-grip: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--vfx-accent) 28%, transparent),
+    transparent
+  );
+  --vfx-resize-handle-bg: color-mix(in srgb, var(--text-color, #fff) 5%, transparent);
+  --vfx-split-handle-bg: color-mix(in srgb, var(--text-color, #fff) 4%, transparent);
+  --vfx-split-handle-hover: color-mix(in srgb, var(--vfx-accent) 12%, transparent);
+  --vfx-split-handle-grip: color-mix(in srgb, var(--text-color, #fff) 22%, transparent);
+  --vfx-viewport-bg: color-mix(in srgb, var(--editor-bg, #06080c) 98%, rgb(0 0 0));
+  --vfx-viewport-border: color-mix(in srgb, var(--vfx-accent) 12%, transparent);
+  --vfx-viewport-chrome-text: color-mix(in srgb, var(--text-color, #fff) 85%, var(--vfx-accent));
+  --vfx-viewport-overlay: color-mix(in srgb, var(--editor-bg, #000) 45%, transparent);
+  --vfx-preview-border: color-mix(in srgb, var(--vfx-accent) 22%, transparent);
+  --vfx-preview-bg: color-mix(in srgb, var(--editor-bg, #080a0e) 98%, rgb(0 0 0));
+  --vfx-preview-label: color-mix(in srgb, var(--text-color, #fff) 82%, var(--vfx-accent));
+  --vfx-panel-bg-soft: color-mix(in srgb, var(--editor-bg, #0c0e12) 96%, transparent);
+  --vfx-viewport-glow: color-mix(in srgb, var(--vfx-accent) 8%, transparent);
+  --vfx-checker-tile: color-mix(in srgb, var(--tab-bg, #282c34) 88%, var(--editor-bg));
+  --vfx-checker-base: color-mix(in srgb, var(--editor-bg, #1c2028) 92%, rgb(0 0 0));
+  --vfx-control-accent: var(--jade-accent, var(--selected-tab-bg, #007acc));
+  --vfx-range-track: color-mix(in srgb, var(--text-muted, #fff) 28%, var(--editor-bg, #000));
 }

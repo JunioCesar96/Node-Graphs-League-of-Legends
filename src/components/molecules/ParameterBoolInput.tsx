@@ -87,7 +87,11 @@ export function ParameterBoolInput({
   }, [open])
 
   return (
-    <div className={[styles.wrap, className ?? ''].filter(Boolean).join(' ')} ref={wrapRef}>
+    <div
+      className={[styles.wrap, className ?? ''].filter(Boolean).join(' ')}
+      data-parameter-type={parameterType}
+      ref={wrapRef}
+    >
       <button
         aria-expanded={open}
         aria-haspopup="listbox"

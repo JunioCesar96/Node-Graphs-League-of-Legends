@@ -1,0 +1,20 @@
+{
+  "id": "version_version",
+  "block": "Main",
+  "parameterName": "version",
+  "name": "version",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "main_parameter_version"
+  },
+  "type": "u32",
+  "value": "3",
+  "slots": {
+    "in": [
+      "u32"
+    ],
+    "out": [
+      "u32"
+    ]
+  }
+}

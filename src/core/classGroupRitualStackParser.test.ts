@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
-import { parseClassGroupRitualWithStack, schemasFromClassGroupStackParse } from '@/core/classGroupRitualStackParser'
+import {
+  findParsedSchemaInRegistry,
+  normalizeStandaloneClassGroupRitual,
+  parseClassGroupRitualWithStack,
+  schemasFromClassGroupStackParse,
+} from '@/core/classGroupRitualStackParser'
+import { parseListStringString } from '@/core/listStringValue'
 import { convertRitobinStructureTextToNodeSchemas } from '@/core/convertRitobinTextToNodeStructures'
 import { segmentsToPathHierarchyIdString } from '@/core/pathHierarchy'
 import { filterInternalStructuresByPathHierarchy } from '@/core/pathHierarchyInternalStructures'
@@ -25,7 +31,7 @@ entries: map[hash,embed] = {
 `.trim()
 
     const parsed = parseClassGroupRitualWithStack(text)
-    const deepest = parsed.registry.get('level4')
+    const deepest = findParsedSchemaInRegistry(parsed.registry,'level4')
     const steps = parsed.classGroupPathBySchemaId.get('level4')
 
     expect(deepest).toBeDefined()
@@ -49,7 +55,7 @@ entries: map[hash,embed] = {
 `.trim()
 
     const parsed = parseClassGroupRitualWithStack(text)
-    const mesh = parsed.registry.get('skin-mesh-data-properties')
+    const mesh = findParsedSchemaInRegistry(parsed.registry,'skin-mesh-data-properties')
     expect(mesh).toBeDefined()
     const fresnelColor = mesh!.parameters.find((p) => p.name === 'FresnelColor')
     const reflectionColor = mesh!.parameters.find((p) => p.name === 'ReflectionFresnelColor')
@@ -59,6 +65,59 @@ entries: map[hash,embed] = {
     expect(reflectionColor?.type).toBe('rgba')
     expect(reflectionColor?.defaultValue).toBe('0.6, 0.6, 0.6, 1')
     expect(mesh!.parameters.some((p) => p.name === 'ReflectionFresnel')).toBe(true)
+  })
+
+  it('dois itens list[embed] do mesmo tipo geram schemas parseados distintos', () => {
+    const text = `
+SkinMeshDataProperties {
+  MaterialOverride: list[embed] = {
+    ListItemDup {
+      name: string = "first"
+    }
+    ListItemDup {
+      name: string = "second"
+    }
+  }
+}
+`.trim()
+
+    const parsed = parseClassGroupRitualWithStack(text)
+    const mesh = findParsedSchemaInRegistry(parsed.registry, 'skin-mesh-data-properties')
+    expect(mesh).toBeDefined()
+    const byName = new Map<string, (typeof parsed.registry extends Map<string, infer S> ? S : never)>()
+    for (const schema of parsed.registry.values()) {
+      if (schema.title !== 'ListItemDup') {
+        continue
+      }
+      const name = schema.parameters.find((p) => p.name === 'name')?.defaultValue
+      if (name === 'first' || name === 'second') {
+        byName.set(name, schema)
+      }
+    }
+    expect(byName.size).toBe(2)
+    const instances = [...byName.values()]
+    expect(instances[0]!.id).not.toBe(instances[1]!.id)
+  })
+
+  it('duas entradas map[hash,embed] do mesmo tipo geram schemas parseados distintos', () => {
+    const text = `
+entries: map[hash,embed] = {
+  "key1" = SampleType {
+    name: string = "first"
+  }
+  "key2" = SampleType {
+    name: string = "second"
+  }
+}
+`.trim()
+
+    const parsed = parseClassGroupRitualWithStack(text)
+    const samples = [...parsed.registry.values()].filter((s) => s.title === 'SampleType')
+    expect(samples).toHaveLength(2)
+    expect(samples[0]!.id).not.toBe(samples[1]!.id)
+    const names = samples.map((s) => s.parameters.find((p) => p.name === 'name')?.defaultValue)
+    expect(names).toContain('first')
+    expect(names).toContain('second')
   })
 
   it('link escalar vira parâmetro type link com caminho preservado', () => {
@@ -71,7 +130,7 @@ entries: map[hash,embed] = {
 `.trim()
 
     const parsed = parseClassGroupRitualWithStack(text)
-    const skin = parsed.registry.get('skin-character-data-properties')
+    const skin = findParsedSchemaInRegistry(parsed.registry,'skin-character-data-properties')
     expect(skin).toBeDefined()
     const param = skin!.parameters.find((p) => p.name === 'mContextualActionData')
     expect(param?.type).toBe('link')
@@ -93,7 +152,7 @@ entries: map[hash,embed] = {
 `.trim()
 
     const parsed = parseClassGroupRitualWithStack(text)
-    const vfx = parsed.registry.get('vfx-system-definition-data')
+    const vfx = [...parsed.registry.values()].find((s) => s.title === 'VfxSystemDefinitionData')
     expect(vfx).toBeDefined()
     const transform = vfx!.parameters.find((p) => p.name === 'Transform')
     expect(transform?.type).toBe('mtx44')
@@ -122,12 +181,27 @@ entries: map[hash,embed] = {
 `.trim()
 
     const parsed = parseClassGroupRitualWithStack(text)
-    const bank = parsed.registry.get('bank-unit')
-    expect(bank).toBeDefined()
+    const banksByName = new Map<string, (typeof parsed.registry extends Map<string, infer S> ? S : never)>()
+    for (const schema of parsed.registry.values()) {
+      if (schema.title !== 'BankUnit') {
+        continue
+      }
+      const name = schema.parameters.find((p) => p.name === 'Name')?.defaultValue
+      if (name === 'Zac_Base_VO' || name === 'Zac_Base_SFX') {
+        banksByName.set(name, schema)
+      }
+    }
+    expect(banksByName.size).toBe(2)
+    for (const schema of banksByName.values()) {
+      expect(schema.id).toMatch(/^bank-unit__/)
+    }
+    expect(banksByName.get('Zac_Base_VO')!.id).not.toBe(banksByName.get('Zac_Base_SFX')!.id)
 
-    const voiceOver = bank!.parameters.find((p) => p.name === 'VoiceOver')
-    const enabled = bank!.parameters.find((p) => p.name === 'Enabled')
-    const singleParticle = bank!.parameters.find((p) => p.name === 'IsSingleParticle')
+    const voBank = banksByName.get('Zac_Base_VO')!
+    const sfxBank = banksByName.get('Zac_Base_SFX')!
+    const voiceOver = voBank.parameters.find((p) => p.name === 'VoiceOver')
+    const enabled = sfxBank.parameters.find((p) => p.name === 'Enabled')
+    const singleParticle = sfxBank.parameters.find((p) => p.name === 'IsSingleParticle')
 
     expect(voiceOver?.type).toBe('bool')
     expect(voiceOver?.defaultValue).toBe('true')
@@ -155,7 +229,7 @@ entries: map[hash,embed] = {
 `.trim()
 
     const parsed = parseClassGroupRitualWithStack(text)
-    const skin = parsed.registry.get('skin-character-data-properties')
+    const skin = findParsedSchemaInRegistry(parsed.registry,'skin-character-data-properties')
 
     expect(skin).toBeDefined()
     expect(skin!.parameters.some((p) => p.name === 'armorMaterial')).toBe(true)
@@ -166,7 +240,13 @@ entries: map[hash,embed] = {
 
     const schemas = schemasFromClassGroupStackParse(parsed)
     expect(schemas.some((s) => s.id === 'main')).toBe(true)
-    expect(schemas.some((s) => s.id === 'skin-character-data-properties')).toBe(true)
+    expect(
+      schemas.some(
+        (s) =>
+          s.id === 'skin-character-data-properties' ||
+          s.id.startsWith('skin-character-data-properties__'),
+      ),
+    ).toBe(true)
   })
 
   it('preâmbulo PROP + entries: map → nó Main com type, version, linked e mapHashEmbed entries', () => {
@@ -185,8 +265,8 @@ entries: map[hash,embed] = {
 `.trim()
 
     const parsed = parseClassGroupRitualWithStack(text)
-    const main = parsed.registry.get('main')
-    const skin = parsed.registry.get('skin-character-data-properties')
+    const main = findParsedSchemaInRegistry(parsed.registry,'main')
+    const skin = findParsedSchemaInRegistry(parsed.registry,'skin-character-data-properties')
 
     expect(main).toBeDefined()
     expect(main!.title).toBe('Main')
@@ -202,13 +282,43 @@ entries: map[hash,embed] = {
     expect(parsed.rootSchemaIds.has('skin-character-data-properties')).toBe(false)
     expect(skin).toBeDefined()
 
-    const path = parsed.classGroupPathBySchemaId.get('skin-character-data-properties')
+    const path = skin ? parsed.classGroupPathBySchemaId.get(skin.id) : undefined
     expect(path?.[0]?.id).toBe('main')
     expect(path?.[1]?.id).toBe('entries:Characters/Zac/Skins/Skin0')
 
     const schemas = schemasFromClassGroupStackParse(parsed)
     expect(schemas.some((s) => s.id === 'main')).toBe(true)
-    expect(schemas.some((s) => s.id === 'skin-character-data-properties')).toBe(true)
+    expect(
+      schemas.some(
+        (s) =>
+          s.id === 'skin-character-data-properties' ||
+          s.id.startsWith('skin-character-data-properties__'),
+      ),
+    ).toBe(true)
+  })
+
+  it('linked list[string] com 15 entradas não é truncado a 480 caracteres', () => {
+    const paths = Array.from(
+      { length: 15 },
+      (_, i) => `"DATA/Characters/Zac/Zac${i}/Zac${i}.bin"`,
+    )
+    const text = `
+#PROP_text
+type: string = "PROP"
+version: u32 = 3
+linked: list[string] = {
+    ${paths.join('\n    ')}
+}
+entries: map[hash,embed] = {}
+`.trim()
+
+    const parsed = parseClassGroupRitualWithStack(text)
+    const main = findParsedSchemaInRegistry(parsed.registry, 'main')
+    const linked = main?.parameters.find((p) => p.name === 'linked')
+
+    expect(linked).toBeDefined()
+    expect(linked!.defaultValue.length).toBeGreaterThan(480)
+    expect(parseListStringString(linked!.defaultValue)).toHaveLength(15)
   })
 
   it('list2[embed]: BankUnits → list2Embed[] com instâncias, não listEmbed[]', () => {
@@ -230,7 +340,7 @@ entries: map[hash,embed] = {
 `.trim()
 
     const parsed = parseClassGroupRitualWithStack(text)
-    const audio = parsed.registry.get('skin-audio-properties')
+    const audio = findParsedSchemaInRegistry(parsed.registry,'skin-audio-properties')
     expect(audio).toBeDefined()
     const bankUnits = audio!.list2Embed?.find((block) => block.title === 'BankUnits')
     expect(bankUnits).toBeDefined()
@@ -253,8 +363,8 @@ entries: map[hash,embed] = {
 `.trim()
 
     const parsed = parseClassGroupRitualWithStack(text)
-    const vfx = parsed.registry.get('vfx-system-definition-data')
-    const emitter = parsed.registry.get('vfx-emitter-definition-data')
+    const vfx = findParsedSchemaInRegistry(parsed.registry,'vfx-system-definition-data')
+    const emitter = findParsedSchemaInRegistry(parsed.registry,'vfx-emitter-definition-data')
 
     expect(vfx).toBeDefined()
     expect(emitter).toBeDefined()
@@ -262,6 +372,9 @@ entries: map[hash,embed] = {
     const listPtr = vfx!.listPointer.find((b) => b.title === 'ComplexEmitterDefinitionData')
     expect(listPtr).toBeDefined()
     expect(listPtr!.internalStructures.some((c) => c.schemaId === emitter!.id)).toBe(true)
+    expect(listPtr!.slots).toHaveLength(1)
+    expect(listPtr!.slots![0]!.schemaId).toBe(emitter!.id)
+    expect(listPtr!.slots![0]!.name).toBe('VfxEmitterDefinitionData')
   })
 
   it('mFlags não gera schema órfão; fica em parameters do pai', () => {
@@ -274,7 +387,7 @@ entries: map[hash,embed] = {
 `.trim()
 
     const parsed = parseClassGroupRitualWithStack(text)
-    const anim = parsed.registry.get('animation-graph-data')
+    const anim = findParsedSchemaInRegistry(parsed.registry,'animation-graph-data')
     const schemas = schemasFromClassGroupStackParse(parsed)
 
     expect(anim!.parameters.some((p) => p.name === 'mFlags')).toBe(true)
@@ -300,7 +413,7 @@ entries: map[hash,embed] = {
 `.trim()
 
     const parsed = parseClassGroupRitualWithStack(text)
-    const emitter = parsed.registry.get('vfx-emitter-definition-data')
+    const emitter = findParsedSchemaInRegistry(parsed.registry,'vfx-emitter-definition-data')
     const scales = emitter!.parameters.find((p) => p.name === 'Scales')
     const offsets = emitter!.parameters.find((p) => p.name === 'Offsets')
     expect(scales?.type).toBe('listVector2')
@@ -327,7 +440,7 @@ entries: map[hash,embed] = {
 `.trim()
 
     const parsed = parseClassGroupRitualWithStack(text)
-    const anim = parsed.registry.get('vfx-animated-color-variable-data')
+    const anim = findParsedSchemaInRegistry(parsed.registry,'vfx-animated-color-variable-data')
     const values = anim!.parameters.find((p) => p.name === 'values')
     expect(values?.type).toBe('listVector4')
     expect(values?.defaultValue).toBe('1, 1, 1, 1\n1, 1, 1, 0')
@@ -347,7 +460,7 @@ entries: map[hash,embed] = {
 `.trim()
 
     const parsed = parseClassGroupRitualWithStack(text)
-    const emitter = parsed.registry.get('vfx-emitter-definition-data')
+    const emitter = findParsedSchemaInRegistry(parsed.registry,'vfx-emitter-definition-data')
 
     const param = emitter!.parameters.find((p) => p.name === 'Values')
     expect(param).toBeDefined()
@@ -379,7 +492,7 @@ entries: map[hash,embed] = {
     const parsed = parseClassGroupRitualWithStack(text)
     expect(parsed.rootSchemaIds.has('main')).toBe(true)
     expect(parsed.rootSchemaIds.has('vfx-system-definition-data')).toBe(false)
-    const mesh = parsed.registry.get('vfx-mesh-definition-data')
+    const mesh = findParsedSchemaInRegistry(parsed.registry,'vfx-mesh-definition-data')
     const sub = mesh?.parameters.find((p) => p.name === 'mSubmeshesToDraw')
     expect(sub?.type).toBe('listHash')
     expect(sub?.defaultValue).toBe('Base_mat')
@@ -398,7 +511,7 @@ entries: map[hash,embed] = {
 `.trim()
 
     const parsed = parseClassGroupRitualWithStack(text)
-    const driver = parsed.registry.get('is-animation-playing-dynamic-material-bool-driver')
+    const driver = findParsedSchemaInRegistry(parsed.registry,'is-animation-playing-dynamic-material-bool-driver')
     const names = driver!.parameters.find((p) => p.name === 'mAnimationNames')
     expect(names?.type).toBe('listHash')
     expect(names?.defaultValue).toBe('Spell4\n0x792ee8b0')
@@ -423,7 +536,7 @@ entries: map[hash,embed] = {
 `.trim()
 
     const parsed = parseClassGroupRitualWithStack(text)
-    const emitter = parsed.registry.get('vfx-emitter-definition-data')
+    const emitter = findParsedSchemaInRegistry(parsed.registry,'vfx-emitter-definition-data')
     const times = emitter!.parameters.find((p) => p.name === 'Times')
     const tags = emitter!.parameters.find((p) => p.name === 'TagEventList')
     expect(times?.type).toBe('listF32')
@@ -455,9 +568,9 @@ entries: map[hash,embed] = {
 `.trim()
 
     const parsed = parseClassGroupRitualWithStack(text)
-    const skin = parsed.registry.get('skin-character-data-properties')
-    const mesh = parsed.registry.get('skin-mesh-data-properties')
-    const vfx = parsed.registry.get('vfx-emitter-definition-data')
+    const skin = findParsedSchemaInRegistry(parsed.registry,'skin-character-data-properties')
+    const mesh = findParsedSchemaInRegistry(parsed.registry,'skin-mesh-data-properties')
+    const vfx = findParsedSchemaInRegistry(parsed.registry,'vfx-emitter-definition-data')
 
     const icon = skin!.parameters.find((p) => p.name === 'IconCircle')
     expect(icon?.type).toBe('optionString')
@@ -486,7 +599,7 @@ entries: map[hash,embed] = {
 `.trim()
 
     const parsed = parseClassGroupRitualWithStack(text)
-    const resolver = parsed.registry.get('resource-resolver')
+    const resolver = findParsedSchemaInRegistry(parsed.registry,'resource-resolver')
     const resourceMap = resolver!.parameters.find((p) => p.name === 'ResourceMap')
     expect(resourceMap?.type).toBe('mapHashLink')
     expect(resourceMap?.defaultValue).toContain('Zac_E_Moving\tCharacters/Zac')
@@ -514,7 +627,13 @@ entries: map[hash,embed] = {
     expect(out.rootSchemaIds).toContain('main')
     expect(out.rootSchemaIds).not.toContain('skin-character-data-properties')
     expect(out.schemas.some((s) => s.id === 'main')).toBe(true)
-    expect(out.schemas.some((s) => s.id === 'skin-character-data-properties')).toBe(true)
+    expect(
+      out.schemas.some(
+        (s) =>
+          s.id === 'skin-character-data-properties' ||
+          s.id.startsWith('skin-character-data-properties__'),
+      ),
+    ).toBe(true)
   })
 })
 
@@ -563,7 +682,7 @@ entries: map[hash,embed] = {
 `.trim()
 
     const parsed = parseClassGroupRitualWithStack(text)
-    const skin = parsed.registry.get('skin-character-data-properties')
+    const skin = findParsedSchemaInRegistry(parsed.registry,'skin-character-data-properties')
     expect(skin).toBeDefined()
     expect(skin!.internalStructures.some((x) => x.name === 'Loadscreen')).toBe(false)
     expect(skin!.internalStructures.some((x) => x.name === 'SkinMeshProperties')).toBe(false)
@@ -599,7 +718,7 @@ entries: map[hash,embed] = {
 `.trim()
 
     const parsed = parseClassGroupRitualWithStack(text)
-    const mesh = parsed.registry.get('skin-mesh-data-properties')
+    const mesh = findParsedSchemaInRegistry(parsed.registry,'skin-mesh-data-properties')
     expect(mesh).toBeDefined()
     expect(mesh!.internalStructures.some((x) => x.name === 'MaterialOverride')).toBe(false)
 
@@ -609,7 +728,9 @@ entries: map[hash,embed] = {
     expect(block!.internalStructures.every((x) => x.name === 'SkinMeshDataProperties_MaterialOverride')).toBe(
       true,
     )
-    expect(block!.internalStructures[0]!.schemaId).toBe('skin-mesh-data-properties-material-override')
+    expect(block!.internalStructures[0]!.schemaId).toMatch(
+      /^skin-mesh-data-properties-material-override(__|$)/,
+    )
   })
 
   it('pointer vazio na mesma linha (Tipo {}) cria bloco POINTER, slot e schema filho', () => {
@@ -632,7 +753,7 @@ entries: map[hash,embed] = {
 `.trim()
 
     const parsed = parseClassGroupRitualWithStack(text)
-    const clip = parsed.registry.get('parametric-clip-data')
+    const clip = findParsedSchemaInRegistry(parsed.registry,'parametric-clip-data')
     expect(clip).toBeDefined()
     expect(clip!.internalStructures.some((x) => x.name === 'Updater')).toBe(false)
 
@@ -645,7 +766,7 @@ entries: map[hash,embed] = {
     expect(updater!.slots).toHaveLength(1)
     expect(updater!.slots![0]!.schemaId).toBe('is-moving-parametric-updater')
 
-    const child = parsed.registry.get('is-moving-parametric-updater')
+    const child = findParsedSchemaInRegistry(parsed.registry,'is-moving-parametric-updater')
     expect(child).toBeDefined()
     expect(child!.title).toBe('IsMovingParametricUpdater')
     expect(child!.parameters).toHaveLength(0)
@@ -676,7 +797,7 @@ entries: map[hash,embed] = {
 `.trim()
 
     const parsed = parseClassGroupRitualWithStack(text)
-    const clip = parsed.registry.get('atomic-clip-data')
+    const clip = findParsedSchemaInRegistry(parsed.registry,'atomic-clip-data')
     expect(clip).toBeDefined()
 
     const eventMap = clip!.parameters.find((p) => p.name === 'mEventDataMap')
@@ -686,12 +807,18 @@ entries: map[hash,embed] = {
     expect(entries[0]).toContain('0xb638e658')
     expect(entries[0]).toContain('submesh-visibility-event-data')
 
-    const child = parsed.registry.get('submesh-visibility-event-data')
+    const child = findParsedSchemaInRegistry(parsed.registry,'submesh-visibility-event-data')
     expect(child).toBeDefined()
     expect(child!.parameters.some((p) => p.name === 'mEndFrame')).toBe(true)
 
     const schemas = schemasFromClassGroupStackParse(parsed)
-    expect(schemas.some((s) => s.id === 'submesh-visibility-event-data')).toBe(true)
+    expect(
+      schemas.some(
+        (s) =>
+          s.id === 'submesh-visibility-event-data' ||
+          s.id.startsWith('submesh-visibility-event-data__'),
+      ),
+    ).toBe(true)
   })
 
   it('map[hash,embed] vira mapHashEmbed com entradas hash → schema filho', () => {
@@ -708,7 +835,7 @@ entries: map[hash,embed] = {
 `.trim()
 
     const parsed = parseClassGroupRitualWithStack(text)
-    const anim = parsed.registry.get('animation-graph-data')
+    const anim = findParsedSchemaInRegistry(parsed.registry,'animation-graph-data')
     expect(anim).toBeDefined()
 
     const clipMap = anim!.parameters.find((p) => p.name === 'mClipDataMap')
@@ -718,7 +845,7 @@ entries: map[hash,embed] = {
     expect(entries[0]).toContain('Spell3_BackRun')
     expect(entries[0]).toContain('atomic-clip-data')
 
-    const clip = parsed.registry.get('atomic-clip-data')
+    const clip = findParsedSchemaInRegistry(parsed.registry,'atomic-clip-data')
     expect(clip).toBeDefined()
   })
 
@@ -730,7 +857,7 @@ BlendData {
 `.trim()
 
     const parsed = parseClassGroupRitualWithStack(text)
-    const schema = parsed.registry.get('blend-data')
+    const schema = findParsedSchemaInRegistry(parsed.registry,'blend-data')
     expect(schema).toBeDefined()
     const pass = schema!.parameters.find((p) => p.name === 'Pass')
     expect(pass?.type).toBe('i16')
@@ -749,7 +876,7 @@ BlendData {
 `.trim()
 
     const parsed = parseClassGroupRitualWithStack(text)
-    const schema = parsed.registry.get('blend-data')
+    const schema = findParsedSchemaInRegistry(parsed.registry,'blend-data')
     expect(schema).toBeDefined()
     const mapParam = schema!.parameters.find((p) => p.name === 'mBlendDataTable')
     expect(mapParam?.type).toBe('mapU64Pointer')
@@ -757,7 +884,7 @@ BlendData {
     expect(entries.length).toBeGreaterThanOrEqual(1)
     expect(entries[0]).toContain('574043308619688281')
     expect(entries[0]).toContain('time-blend-data')
-    expect(parsed.registry.get('time-blend-data')).toBeDefined()
+    expect(findParsedSchemaInRegistry(parsed.registry,'time-blend-data')).toBeDefined()
   })
 
   it('tipo ritual não identificado vira parâmetro string', () => {
@@ -769,7 +896,7 @@ TestType {
 `.trim()
 
     const parsed = parseClassGroupRitualWithStack(text)
-    const schema = parsed.registry.get('test-type')
+    const schema = findParsedSchemaInRegistry(parsed.registry,'test-type')
     expect(schema).toBeDefined()
 
     const known = schema!.parameters.find((p) => p.name === 'mKnown')
@@ -778,5 +905,49 @@ TestType {
     const unknown = schema!.parameters.find((p) => p.name === 'mUnknown')
     expect(unknown?.type).toBe('string')
     expect(unknown?.defaultValue).toBe('SomeValue')
+  })
+})
+
+describe('normalizeStandaloneClassGroupRitual', () => {
+  const vfxJadeStandalone = `
+"Characters/Zac/Skins/Skin0/Particles/Zac_Base_Q_tar" = VfxSystemDefinitionData {
+  complexEmitterDefinitionData: list[pointer] = {
+    VfxEmitterDefinitionData {
+      emitterName: string = "Ring"
+    }
+    VfxEmitterDefinitionData {
+      emitterName: string = "Splat"
+    }
+  }
+  particleName: string = "Zac_Base_Q_tar"
+  flags: u16 = 198
+}
+`.trim()
+
+  it('envolve ritual com chave string quando não há entries: map', () => {
+    const wrapped = normalizeStandaloneClassGroupRitual(vfxJadeStandalone)
+    expect(wrapped).toMatch(/entries:\s*map\[hash,embed\]/i)
+    expect(wrapped).toContain('VfxSystemDefinitionData')
+  })
+
+  it('não altera ritual que já tem entries: map', () => {
+    const withEntries = `
+entries: map[hash,embed] = {
+  "K" = VfxEmitterDefinitionData {
+    emitterName: string = "Ring"
+  }
+}
+`.trim()
+    expect(normalizeStandaloneClassGroupRitual(withEntries)).toBe(withEntries)
+  })
+
+  it('parse standalone: emitters aninhados não são rootSchemaIds', () => {
+    const parsed = parseClassGroupRitualWithStack(vfxJadeStandalone)
+    const rootTitles = [...parsed.rootSchemaIds].map(
+      (id) => parsed.registry.get(id)?.title ?? id,
+    )
+
+    expect(rootTitles.some((t) => t === 'VfxSystemDefinitionData')).toBe(true)
+    expect(rootTitles.some((t) => t === 'VfxEmitterDefinitionData')).toBe(false)
   })
 })

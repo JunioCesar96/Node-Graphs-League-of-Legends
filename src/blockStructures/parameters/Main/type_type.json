@@ -1,0 +1,20 @@
+{
+  "id": "type_type",
+  "block": "Main",
+  "parameterName": "type",
+  "name": "type",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "main_parameter_type"
+  },
+  "type": "string",
+  "value": "PROP",
+  "slots": {
+    "in": [
+      "string"
+    ],
+    "out": [
+      "string"
+    ]
+  }
+}

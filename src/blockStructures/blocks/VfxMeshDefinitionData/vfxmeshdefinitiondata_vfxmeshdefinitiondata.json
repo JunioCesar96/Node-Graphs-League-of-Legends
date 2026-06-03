@@ -1,0 +1,20 @@
+{
+  "id": "VfxMeshDefinitionData_VfxMeshDefinitionData",
+  "block": "mMesh",
+  "blockName": "VfxMeshDefinitionData",
+  "type": "embed",
+  "name": "VfxMeshDefinitionData",
+  "source": {
+    "kind": "block",
+    "nodeId": "vfx-mesh-definition-data__entries-{particlePath}-complex-emitter-definition-data--slot--5-primitive-m-mesh"
+  },
+  "color": "#40ff56",
+  "headerSlots": [
+    "in[mMesh]",
+    "out[VfxMeshDefinitionDataPreview]"
+  ],
+  "parameters": [
+    "mSimpleMeshName",
+    "mLockMeshToAttachment"
+  ]
+}

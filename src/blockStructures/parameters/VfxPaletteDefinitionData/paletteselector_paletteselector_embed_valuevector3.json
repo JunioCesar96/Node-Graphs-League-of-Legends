@@ -1,0 +1,17 @@
+{
+  "id": "paletteSelector_paletteSelector_embed_ValueVector3",
+  "block": "VfxPaletteDefinitionData",
+  "parameterName": "paletteSelector",
+  "name": "paletteSelector",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-palette-definition-data__main-characters/brand/skins/skin0/particles/brand-base-joke-complex-emitter-definition-data--slot--1-palette-definition-palette-selector"
+  },
+  "type": "embed",
+  "embed": "ValueVector3",
+  "slots": {
+    "out": [
+      "ValueVector3"
+    ]
+  }
+}

@@ -1,0 +1,155 @@
+.menuRoot {
+  position: relative;
+  z-index: 2;
+}
+
+.floatingLayer {
+  display: grid;
+  gap: var(--space-1);
+  pointer-events: auto;
+}
+
+.menuTrigger {
+  padding: 6px 12px;
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 6px;
+  background: var(--block-surface);
+  color: var(--block-text);
+  font-family: var(--font-data);
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.menuTrigger:hover {
+  border-color: rgb(255 255 255 / 22%);
+}
+
+.submenu {
+  display: grid;
+  gap: 2px;
+  min-width: 160px;
+  padding: var(--space-1);
+  background: var(--block-surface-dark);
+  border: 1px solid rgb(0 0 0 / 40%);
+  border-radius: 8px;
+  box-shadow: 0 12px 32px rgb(0 0 0 / 45%);
+}
+
+.submenuItem {
+  padding: 8px 10px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--block-text);
+  font-size: 0.72rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.submenuItem:hover {
+  background: rgb(255 255 255 / 8%);
+}
+
+.submenuItem:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.listPanel {
+  display: grid;
+  gap: var(--space-1);
+  width: min(240px, 70vw);
+  max-height: 220px;
+  overflow: auto;
+  padding: var(--space-2);
+  background: var(--block-surface-dark);
+  border: 1px solid rgb(0 0 0 / 40%);
+  border-radius: 8px;
+  box-shadow: 0 12px 32px rgb(0 0 0 / 45%);
+}
+
+.listItem {
+  padding: 8px 10px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--block-text);
+  font-family: var(--font-data);
+  font-size: 0.72rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.listItem:hover {
+  background: rgb(255 255 255 / 8%);
+}
+
+.listHint {
+  margin: 0;
+  color: rgb(196 196 196 / 68%);
+  font-size: 0.68rem;
+}
+
+.searchInput {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 6px;
+  background: var(--block-surface);
+  color: var(--block-text);
+  font-family: var(--font-data);
+  font-size: 0.72rem;
+}
+
+.confirmBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: grid;
+  place-items: center;
+  background: rgb(0 0 0 / 45%);
+}
+
+.confirmDialog {
+  display: grid;
+  gap: var(--space-3);
+  width: min(320px, calc(100vw - 32px));
+  padding: var(--space-4);
+  background: var(--block-surface-dark);
+  border: 1px solid rgb(0 0 0 / 40%);
+  border-radius: 12px;
+}
+
+.confirmTitle {
+  margin: 0;
+  color: var(--block-text);
+  font-size: 0.9rem;
+}
+
+.confirmMessage {
+  margin: 0;
+  color: rgb(196 196 196 / 80%);
+  font-size: 0.78rem;
+}
+
+.confirmActions {
+  display: flex;
+  gap: var(--space-2);
+  justify-content: flex-end;
+}
+
+.confirmButton {
+  padding: 6px 12px;
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 6px;
+  background: var(--block-surface);
+  color: var(--block-text);
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+
+.confirmButtonDanger {
+  border-color: color-mix(in srgb, #e55 40%, transparent);
+  color: #f8b4b4;
+}

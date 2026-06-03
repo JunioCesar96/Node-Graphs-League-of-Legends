@@ -1,6 +1,0 @@
-{
-  "id": "CharacterHealthBarDataRecord_parameter_unitHealthBarStyle",
-  "name": "unitHealthBarStyle",
-  "type": "u8",
-  "defaultValue": "0"
-}

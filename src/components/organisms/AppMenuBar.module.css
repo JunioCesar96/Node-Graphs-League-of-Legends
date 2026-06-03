@@ -5,7 +5,7 @@
   align-items: center;
   justify-content: space-between;
   padding: var(--space-3) var(--space-4);
-  background: rgb(0 0 0 / 28%);
+  background: var(--app-menu-bg);
   border: 1px solid var(--color-border-soft);
   border-radius: 16px;
 }
@@ -39,7 +39,7 @@
   color: var(--color-text-secondary);
   font-family: var(--font-data);
   font-size: 0.78rem;
-  background: rgb(255 255 255 / 4%);
+  background: color-mix(in srgb, var(--color-text-primary) 4%, transparent);
   border: 1px solid var(--color-border-soft);
   border-radius: 10px;
 }
@@ -58,7 +58,7 @@
   min-width: 200px;
   padding: var(--space-2);
   pointer-events: none;
-  background: rgb(19 19 19 / 94%);
+  background: var(--app-menu-panel-bg);
   border: 1px solid var(--color-border-soft);
   border-radius: 12px;
   box-shadow: 0 24px 52px rgb(0 0 0 / 52%);
@@ -83,7 +83,7 @@
 }
 
 .menuItem:hover {
-  background: rgb(255 255 255 / 6%);
+  background: color-mix(in srgb, var(--color-text-primary) 6%, transparent);
 }
 
 .menuItemDanger {
@@ -103,6 +103,34 @@
 
 .menuItemConfig:hover {
   background: rgb(255 211 105 / 10%);
+}
+
+.menuItemThemeToggle {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  color: var(--color-text-primary);
+  font-family: var(--font-ui);
+  font-size: 0.78rem;
+  text-align: left;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+}
+
+.menuItemThemeToggle:hover {
+  background: color-mix(in srgb, var(--color-text-primary) 6%, transparent);
+}
+
+.menuItemWithSubNested:hover > .menuSubPanel,
+.menuItemWithSubNested:focus-within > .menuSubPanel {
+  pointer-events: auto;
+  opacity: 1;
+  transform: translateX(0);
 }
 
 .menuCheckbox {
@@ -154,7 +182,7 @@
   padding: var(--space-2);
   overflow-y: auto;
   pointer-events: none;
-  background: rgb(19 19 19 / 96%);
+  background: var(--app-menu-panel-bg);
   border: 1px solid var(--color-border-soft);
   border-radius: 12px;
   box-shadow: 0 16px 40px rgb(0 0 0 / 48%);

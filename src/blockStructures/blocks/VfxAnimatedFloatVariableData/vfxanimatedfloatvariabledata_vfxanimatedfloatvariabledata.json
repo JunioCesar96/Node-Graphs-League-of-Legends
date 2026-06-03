@@ -1,0 +1,21 @@
+{
+  "id": "VfxAnimatedFloatVariableData_VfxAnimatedFloatVariableData",
+  "block": "dynamics",
+  "blockName": "VfxAnimatedFloatVariableData",
+  "type": "pointer",
+  "name": "VfxAnimatedFloatVariableData",
+  "source": {
+    "kind": "block",
+    "nodeId": "vfx-animated-float-variable-data__entries-{particlePath}-complex-emitter-definition-data--slot--0-particle-lifetime-dynamics"
+  },
+  "color": "#40ff56",
+  "headerSlots": [
+    "in[dynamics]",
+    "out[VfxAnimatedFloatVariableDataPreview]"
+  ],
+  "parameters": [
+    "times",
+    "values",
+    "probabilityTables"
+  ]
+}

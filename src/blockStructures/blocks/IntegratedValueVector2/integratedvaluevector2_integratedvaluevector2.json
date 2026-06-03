@@ -1,0 +1,20 @@
+{
+  "id": "IntegratedValueVector2_IntegratedValueVector2",
+  "block": "particleUVScrollRate",
+  "blockName": "IntegratedValueVector2",
+  "type": "embed",
+  "name": "IntegratedValueVector2",
+  "source": {
+    "kind": "block",
+    "nodeId": "integrated-value-vector2__entries-{particlePath}-complex-emitter-definition-data--slot--8-particle-uv-scroll-rate"
+  },
+  "color": "#40ff56",
+  "headerSlots": [
+    "in[particleUVScrollRate,ParticleIntegratedUvScrollMult]",
+    "out[IntegratedValueVector2Preview]"
+  ],
+  "parameters": [
+    "constantValue",
+    "dynamics"
+  ]
+}

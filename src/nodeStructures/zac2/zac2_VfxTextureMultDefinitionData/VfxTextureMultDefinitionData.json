@@ -1,0 +1,19 @@
+{
+  "id": "vfx-texture-mult-definition-data__main-entries-0x0eed7307-complex-emitter-definition-data-5-texture-mult",
+  "title": "VfxTextureMultDefinitionData",
+  "parameters": [
+    {
+      "id": "VfxTextureMultDefinitionData_parameter_textureMult",
+      "name": "textureMult",
+      "type": "string",
+      "defaultValue": "ASSETS/Characters/Vladimir/Skins/Skin14/Particles/Vladimir_Skin14_W_MagicCircle04.tex"
+    }
+  ],
+  "embed": [],
+  "pointer": [],
+  "listEmbed": [],
+  "listPointer": [],
+  "list2Embed": [],
+  "list2Pointer": [],
+  "internalStructures": []
+}

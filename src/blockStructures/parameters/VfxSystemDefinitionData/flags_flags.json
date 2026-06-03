@@ -1,0 +1,20 @@
+{
+  "id": "flags_flags",
+  "block": "VfxSystemDefinitionData",
+  "parameterName": "flags",
+  "name": "flags",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-system-definition-data__entries-{particlePath}_parameter_flags"
+  },
+  "type": "u16",
+  "value": "198",
+  "slots": {
+    "in": [
+      "u16"
+    ],
+    "out": [
+      "u16"
+    ]
+  }
+}

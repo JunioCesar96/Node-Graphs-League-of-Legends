@@ -1,0 +1,22 @@
+{
+  "id": "Main_Main",
+  "block": "Main",
+  "blockName": "Main",
+  "type": "standalone",
+  "name": "Main",
+  "source": {
+    "kind": "block",
+    "nodeId": "main"
+  },
+  "color": "#40ff56",
+  "headerSlots": [
+    "in[Main]",
+    "out[MainPreview]"
+  ],
+  "parameters": [
+    "type",
+    "version",
+    "linked",
+    "entries"
+  ]
+}

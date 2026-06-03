@@ -1,0 +1,25 @@
+{
+  "id": "vfx-probability-table-data__probability-tables-2",
+  "title": "VfxProbabilityTableData",
+  "parameters": [
+    {
+      "id": "VfxProbabilityTableData_parameter_keyTimes",
+      "name": "keyTimes",
+      "type": "listF32",
+      "defaultValue": "0\n1"
+    },
+    {
+      "id": "VfxProbabilityTableData_parameter_keyValues",
+      "name": "keyValues",
+      "type": "listF32",
+      "defaultValue": "0.6\n1.2"
+    }
+  ],
+  "embed": [],
+  "pointer": [],
+  "listEmbed": [],
+  "listPointer": [],
+  "list2Embed": [],
+  "list2Pointer": [],
+  "internalStructures": []
+}

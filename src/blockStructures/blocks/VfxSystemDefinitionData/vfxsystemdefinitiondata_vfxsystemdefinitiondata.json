@@ -1,0 +1,26 @@
+{
+  "id": "VfxSystemDefinitionData_VfxSystemDefinitionData",
+  "block": "VfxSystemDefinitionData",
+  "blockName": "VfxSystemDefinitionData",
+  "type": "standalone",
+  "name": "VfxSystemDefinitionData",
+  "source": {
+    "kind": "block",
+    "nodeId": "vfx-system-definition-data__entries-{particlePath}"
+  },
+  "color": "#40ff56",
+  "headerSlots": [
+    "in[VfxSystemDefinitionData]",
+    "out[VfxSystemDefinitionDataPreview]"
+  ],
+  "parameters": [
+    "flags",
+    "particleName",
+    "particlePath",
+    "soundOnCreateDefault",
+    "complexEmitterDefinitionData",
+    "soundPersistentDefault",
+    "overrideScaleCap",
+    "Transform"
+  ]
+}

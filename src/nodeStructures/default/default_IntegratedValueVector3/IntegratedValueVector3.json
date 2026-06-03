@@ -1,0 +1,62 @@
+{
+  "id": "integrated-value-vector3__main-entries-0xa2fa6a01-complex-emitter-definition-data-8-world-acceleration",
+  "title": "IntegratedValueVector3",
+  "parameters": [
+    {
+      "id": "IntegratedValueVector3_parameter_constantValue",
+      "name": "constantValue",
+      "type": "vector3",
+      "defaultValue": "300, 25, 0"
+    }
+  ],
+  "embed": [],
+  "pointer": [
+    {
+      "id": "IntegratedValueVector3_pointer_dynamics",
+      "title": "dynamics",
+      "internalStructures": [
+        {
+          "id": "integrated-value-vector3-dynamics",
+          "name": "VfxAnimatedVector3fVariableData",
+          "schemaId": "vfx-animated-vector3f-variable-data__main-entries-0xa2fa6a01-complex-emitter-definition-data-8-world-acceleration-dynamics"
+        }
+      ],
+      "slots": [
+        {
+          "id": "IntegratedValueVector3_pointer_dynamics__slot__0",
+          "name": "VfxAnimatedVector3fVariableData",
+          "schemaId": "vfx-animated-vector3f-variable-data__main-entries-0xa2fa6a01-complex-emitter-definition-data-8-world-acceleration-dynamics"
+        }
+      ]
+    }
+  ],
+  "listEmbed": [],
+  "listPointer": [],
+  "list2Embed": [],
+  "list2Pointer": [],
+  "internalStructures": [],
+  "nomenclature": {
+    "group": "#3 Internal Structures",
+    "collection": "#3 Embed Block",
+    "collectionType": "IntegratedValueVector3",
+    "pathHierarchy": "main > entries:0xa2fa6a01 > complexEmitterDefinitionData:8 > worldAcceleration",
+    "pathHierarchySteps": [
+      {
+        "id": "main",
+        "type": "#0 Root main"
+      },
+      {
+        "id": "entries:0xa2fa6a01",
+        "type": "#2 Root Entry (VfxSystemDefinitionData)"
+      },
+      {
+        "id": "complexEmitterDefinitionData:8",
+        "type": "#3 Collection Block"
+      },
+      {
+        "id": "worldAcceleration",
+        "type": "#3 Embed Block"
+      }
+    ]
+  }
+}

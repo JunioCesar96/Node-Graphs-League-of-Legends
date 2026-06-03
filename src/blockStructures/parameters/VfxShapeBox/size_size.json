@@ -1,0 +1,20 @@
+{
+  "id": "Size_Size",
+  "block": "VfxShapeBox",
+  "parameterName": "Size",
+  "name": "Size",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-shape-box__main-characters/brand/skins/skin0/particles/brand-base-joke-complex-emitter-definition-data--slot--0-spawn-shape_parameter_Size"
+  },
+  "type": "vec3",
+  "value": "4, 25, 4",
+  "slots": {
+    "in": [
+      "vec3"
+    ],
+    "out": [
+      "vec3"
+    ]
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "id": "VfxFieldCollectionDefinitionData_VfxFieldCollectionDefinitionData",
+  "block": "fieldCollectionDefinition",
+  "blockName": "VfxFieldCollectionDefinitionData",
+  "type": "pointer",
+  "name": "VfxFieldCollectionDefinitionData",
+  "source": {
+    "kind": "block",
+    "nodeId": "vfx-field-collection-definition-data__main-characters/brand/skins/skin0/particles/brand-base-joke-complex-emitter-definition-data--slot--0-field-collection-definition"
+  },
+  "color": "#40ff56",
+  "headerSlots": [
+    "in[fieldCollectionDefinition]",
+    "out[VfxFieldCollectionDefinitionDataPreview]"
+  ],
+  "parameters": [
+    "fieldNoiseDefinitions"
+  ]
+}

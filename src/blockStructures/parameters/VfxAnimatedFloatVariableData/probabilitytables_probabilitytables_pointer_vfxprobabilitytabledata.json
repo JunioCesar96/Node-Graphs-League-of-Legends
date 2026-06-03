@@ -1,0 +1,17 @@
+{
+  "id": "probabilityTables_probabilityTables_pointer_VfxProbabilityTableData",
+  "block": "VfxAnimatedFloatVariableData",
+  "parameterName": "probabilityTables",
+  "name": "probabilityTables",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-animated-float-variable-data__entries-{particlePath}-complex-emitter-definition-data--slot--0-particle-lifetime-dynamics-probability-tables"
+  },
+  "type": "pointer",
+  "pointer": "VfxProbabilityTableData",
+  "slots": {
+    "out": [
+      "VfxProbabilityTableData"
+    ]
+  }
+}

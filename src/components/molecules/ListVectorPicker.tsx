@@ -3,6 +3,9 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { ElementRemovalPicker } from '@/components/molecules/ElementRemovalPicker'
 import type { NodeElementListItem } from '@/core/listNodeElements'
 
+import { LangId } from '@/core/language/languageIds'
+import { useLanguage } from '@/language/LanguageProvider'
+
 import styles from '@/components/molecules/ListVectorPicker.module.css'
 
 export type ListVectorPickerVariant = 'vec2' | 'vec3' | 'vec4'
@@ -40,6 +43,7 @@ export function ListVectorPicker<T>({
   removalTitleDomId,
   maxItems,
 }: ListVectorPickerProps<T>) {
+  const { t } = useLanguage()
   const items = useMemo(() => parseList(value), [parseList, value])
   const [selectedIndex, setSelectedIndex] = useState(-1)
   const [vecMenuOpen, setVecMenuOpen] = useState(false)
@@ -239,7 +243,7 @@ export function ListVectorPicker<T>({
               role="menuitem"
               type="button"
             >
-              + {itemLabel}
+              {t(LangId.CtxListAddItem, '+ {label}', { label: itemLabel })}
             </button>
             <button
               className={styles.vecSubmenuItem}
@@ -248,7 +252,7 @@ export function ListVectorPicker<T>({
               role="menuitem"
               type="button"
             >
-              − {itemLabel}
+              {t(LangId.CtxListRemoveItem, '− {label}', { label: itemLabel })}
             </button>
           </div>
         ) : null}

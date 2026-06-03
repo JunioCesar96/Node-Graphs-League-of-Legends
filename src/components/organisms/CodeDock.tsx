@@ -3,6 +3,7 @@ import {
   type PointerEvent as ReactPointerEvent,
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from 'react'
@@ -11,6 +12,16 @@ import Editor from '@monaco-editor/react'
 import MenuBar from '@jade/components/MenuBar'
 import { getMonacoLanguageForFileName } from '@/core/codeDockFileTypes'
 import { useCodeDockJadeEditor } from '@/hooks/useCodeDockJadeEditor'
+import {
+  SHORTCUT_SCOPE_ATTR,
+  SHORTCUT_SCOPE_CODE_DOCK,
+} from '@/core/shortcuts/shortcutScopes'
+import { useRitualDragOptional } from '@/ritualDrag/RitualDragContext'
+
+import { LangId } from '@/core/language/languageIds'
+import { buildJadeMenuBarLabels } from '@/core/language/jadeMenuLabels'
+import { sanitizeStructurePackFolderName } from '@/core/nodeStructurePackStorage'
+import { useLanguage } from '@/language/LanguageProvider'
 
 import { clampFloatingDockRect, type CodeDockFloatingRect } from './codeDockFloatingRect'
 import { CodeDockTabBar } from '@/components/molecules/CodeDockTabBar'
@@ -21,6 +32,8 @@ import { CodeDockJadeDialogs } from './CodeDockJadeDialogs'
 
 import '@/monaco/jade-syntax-globals.css'
 import './codeDockJade.css'
+
+import { JadeMenuBarOptionsMenu } from '@/components/molecules/JadeThemeOptionsMenu'
 
 import styles from './CodeDock.module.css'
 
@@ -35,12 +48,27 @@ export type CodeDockNodeActions = {
   onConvertJadeFxEditor: () => void | Promise<void>
   /** Preenche group/collection nos JSON do pack a partir do texto ritual (VFX Jade). */
   onApplyBinNomenclatura: (folder: string) => boolean | Promise<boolean>
+  /** PROP com hashes FNV → nomes legíveis no editor (emitterName, VfxSystemDefinitionData, …). */
+  onHumanizePropRitual?: () => void
   /** Pastas em `src/nodeStructures/` (exceto `default`) — eliminar pack */
   listDeletableFolders: () => Promise<string[]>
   /** Igual à lista de packs; usado por «Extrair Node Base». */
   listStructurePackFolders: () => Promise<string[]>
   onExtractNodeBase: (folder: string) => boolean | Promise<boolean>
   deleteFolder: (folder: string) => Promise<{ ok: boolean; error?: string; notice?: string }>
+  /** Ritual Class Group → cena gráfica (pack de schemas). */
+  onCodeToNodeGraph: (folder: string) => boolean | Promise<boolean>
+  /** Ritual Class Group → cena incremental com revisão por passo. */
+  onCodeToNodeGraphStepByStep?: (folder: string) => boolean | Promise<boolean>
+  getDefaultStructurePackFolder?: () => string
+  /** Ritual → novo pack + instâncias na cena (sem pack existente). */
+  onCodeToNewNodeGraph?: (folder: string) => boolean | Promise<boolean>
+  onCodeToNewNodeGraphStepByStep?: (folder: string) => boolean | Promise<boolean>
+  getDefaultNewNodeGraphPackFolder?: () => string
+  /** Ritual Class Group → cena com block cards (hierarquia de blocos). */
+  onCodeToNodeBlock?: () => boolean | Promise<boolean>
+  /** Ritual Class Group → grava JSON em `blockStructures/` (auto build). */
+  onCodeBuildBlock?: () => boolean | Promise<boolean>
 }
 
 type FloatingDragPhase =
@@ -61,9 +89,20 @@ export type CodeDockFileBridge = {
   openFileDisabled?: boolean
 }
 
+export type CodeToNewNodeGraphProgress = {
+  label: string
+  ratio: number
+}
+
+export type CodeDockJadeEditorBanner = {
+  message: string
+  tone: 'fnv' | 'jade' | 'mock'
+}
+
 type CodeDockProps = {
   dockedWidth: number
   floatingActive: boolean
+  jadeEditorBanner?: CodeDockJadeEditorBanner | null
   floatingRect: CodeDockFloatingRect
   onFloatingRectChange: (next: CodeDockFloatingRect) => void
   onChange: (value: string) => void
@@ -73,6 +112,8 @@ type CodeDockProps = {
   onDockedWidthChange: (nextWidth: number) => void
   /** Ritual → tipos na paleta; eliminar pastas pack (exceto `default`) */
   nodeActions?: CodeDockNodeActions
+  /** Barra de progresso do fluxo «Code to new node graph» (gerar). */
+  codeToNewGraphProgress?: CodeToNewNodeGraphProgress | null
   fileBridge?: CodeDockFileBridge
   tabs: CodeDockTabBarItem[]
   activeTabId: string
@@ -82,6 +123,12 @@ type CodeDockProps = {
   onNewTab?: () => void
   onTabAction?: (tabId: string, action: TabContextMenuAction) => void
   value: string
+  /** Neeko Node seleccionado no canvas — activa «To Neeko node» no menu do editor. */
+  neekoSendTarget?: { canvasNodeId: string } | null
+  onSendCodeToNeeko?: (canvasNodeId: string, text: string) => void
+  /** Nó primário no canvas — activa «Replace Value to Graph» no menu do editor. */
+  primarySelectedNodeId?: string | null
+  onReplaceValueToGraph?: (snippet: string) => void
 }
 
 export const CODE_DOCK_DEFAULT_WIDTH = 588
@@ -93,6 +140,7 @@ const MAX_DOCK_WIDTH = CODE_DOCK_MAX_WIDTH
 export function CodeDock({
   dockedWidth,
   floatingActive,
+  jadeEditorBanner = null,
   floatingRect,
   onFloatingRectChange,
   onChange,
@@ -101,6 +149,7 @@ export function CodeDock({
   onResetFloatingDimensions,
   onDockedWidthChange,
   nodeActions,
+  codeToNewGraphProgress = null,
   fileBridge,
   tabs,
   activeTabId,
@@ -110,10 +159,18 @@ export function CodeDock({
   onNewTab,
   onTabAction,
   value,
+  neekoSendTarget = null,
+  onSendCodeToNeeko,
+  primarySelectedNodeId = null,
+  onReplaceValueToGraph,
 }: CodeDockProps) {
+  const { t } = useLanguage()
+  const menuBarLabels = useMemo(() => buildJadeMenuBarLabels(t), [t])
   const monacoModelPath = `/workspace/code-dock/${activeTabId}/${activeFileName}`
   const editorLanguage = getMonacoLanguageForFileName(activeFileName)
   const jade = useCodeDockJadeEditor(value, onChange, editorLanguage)
+  const ritualDrag = useRitualDragOptional()
+  const ritualDragPhase = ritualDrag?.phase ?? 'idle'
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [deleteChoices, setDeleteChoices] = useState<string[]>([])
   const [deleteSelected, setDeleteSelected] = useState('')
@@ -129,6 +186,15 @@ export function CodeDock({
   const [nomeSelected, setNomeSelected] = useState('')
   const [nomeBusy, setNomeBusy] = useState(false)
   const [nomeListError, setNomeListError] = useState<string | null>(null)
+  const [codeToGraphDialogOpen, setCodeToGraphDialogOpen] = useState(false)
+  const [codeToGraphChoices, setCodeToGraphChoices] = useState<string[]>([])
+  const [codeToGraphSelected, setCodeToGraphSelected] = useState('')
+  const [codeToGraphBusy, setCodeToGraphBusy] = useState(false)
+  const [codeToGraphListError, setCodeToGraphListError] = useState<string | null>(null)
+  const [codeToNewGraphDialogOpen, setCodeToNewGraphDialogOpen] = useState(false)
+  const [codeToNewGraphFolder, setCodeToNewGraphFolder] = useState('')
+  const [codeToNewGraphBusy, setCodeToNewGraphBusy] = useState(false)
+  const [codeToNewGraphError, setCodeToNewGraphError] = useState<string | null>(null)
 
   const dragPhaseRef = useRef<FloatingDragPhase>(null)
   const floatMovePendingRef = useRef<{
@@ -164,6 +230,15 @@ export function CodeDock({
 
       const pending = floatMovePendingRef.current
       if (pending && !dragPhaseRef.current) {
+        if (
+          ritualDragPhase === 'dragging' ||
+          ritualDragPhase === 'linkDragging' ||
+          ritualDragPhase === 'buildingNeeko' ||
+          ritualDragPhase === 'readyNeeko'
+        ) {
+          floatMovePendingRef.current = null
+          return
+        }
         const dx = event.clientX - pending.sx
         const dy = event.clientY - pending.sy
         if (Math.hypot(dx, dy) >= FLOAT_DRAG_THRESHOLD_PX) {
@@ -232,7 +307,7 @@ export function CodeDock({
       window.removeEventListener('pointercancel', stopFloatingDrag)
       window.removeEventListener('pointerup', stopFloatingDrag)
     }
-  }, [applyFloatingRect, floatingActive])
+  }, [applyFloatingRect, floatingActive, ritualDragPhase])
 
   useEffect(() => {
     if (!floatingActive) {
@@ -376,6 +451,145 @@ export function CodeDock({
     setNomeBusy(false)
   }, [])
 
+  const pickDefaultPackFolder = useCallback(
+    (folders: string[]) => {
+      const preferred = nodeActions?.getDefaultStructurePackFolder?.()
+      if (preferred && folders.includes(preferred)) {
+        return preferred
+      }
+      if (folders.includes('default')) {
+        return 'default'
+      }
+      return folders[0] ?? ''
+    },
+    [nodeActions],
+  )
+
+  const openCodeToGraphDialog = useCallback(async () => {
+    if (!nodeActions) {
+      return
+    }
+    setCodeToGraphListError(null)
+    setCodeToGraphBusy(false)
+    setCodeToGraphDialogOpen(true)
+    try {
+      const folders = await nodeActions.listStructurePackFolders()
+      setCodeToGraphChoices(folders)
+      setCodeToGraphSelected(pickDefaultPackFolder(folders))
+    } catch {
+      setCodeToGraphChoices([])
+      setCodeToGraphSelected('')
+      setCodeToGraphListError('Não foi possível obter a lista de pastas.')
+    }
+  }, [nodeActions, pickDefaultPackFolder])
+
+  const closeCodeToGraphDialog = useCallback(() => {
+    setCodeToGraphDialogOpen(false)
+    setCodeToGraphListError(null)
+    setCodeToGraphBusy(false)
+  }, [])
+
+  const confirmCodeToNodeGraph = useCallback(async () => {
+    if (!nodeActions || !codeToGraphSelected) {
+      return
+    }
+    setCodeToGraphBusy(true)
+    try {
+      const okOutcome = await nodeActions.onCodeToNodeGraph(codeToGraphSelected)
+      if (okOutcome) {
+        closeCodeToGraphDialog()
+      }
+    } finally {
+      setCodeToGraphBusy(false)
+    }
+  }, [closeCodeToGraphDialog, codeToGraphSelected, nodeActions])
+
+  const confirmCodeToNodeGraphStepByStep = useCallback(async () => {
+    if (!nodeActions?.onCodeToNodeGraphStepByStep || !codeToGraphSelected) {
+      return
+    }
+    setCodeToGraphBusy(true)
+    try {
+      const okOutcome = await nodeActions.onCodeToNodeGraphStepByStep(codeToGraphSelected)
+      if (okOutcome) {
+        closeCodeToGraphDialog()
+      }
+    } finally {
+      setCodeToGraphBusy(false)
+    }
+  }, [closeCodeToGraphDialog, codeToGraphSelected, nodeActions])
+
+  const openCodeToNewGraphDialog = useCallback(() => {
+    if (!nodeActions?.onCodeToNewNodeGraph) {
+      return
+    }
+    setCodeToNewGraphError(null)
+    setCodeToNewGraphBusy(false)
+    const defaultFolder = nodeActions.getDefaultNewNodeGraphPackFolder?.() ?? 'importado'
+    setCodeToNewGraphFolder(defaultFolder)
+    setCodeToNewGraphDialogOpen(true)
+  }, [nodeActions])
+
+  const closeCodeToNewGraphDialog = useCallback(() => {
+    setCodeToNewGraphDialogOpen(false)
+    setCodeToNewGraphError(null)
+    setCodeToNewGraphBusy(false)
+  }, [])
+
+  const resolveNewGraphFolder = useCallback((): string | null => {
+    const folder = sanitizeStructurePackFolderName(codeToNewGraphFolder)
+    if (!folder) {
+      setCodeToNewGraphError(
+        'Nome inválido. Usa letras minúsculas, números, hífen (-) e sublinhado (_), até 48 caracteres.',
+      )
+      return null
+    }
+    if (folder === 'default') {
+      setCodeToNewGraphError('«default» é reservada; escolhe outro nome de pasta.')
+      return null
+    }
+    setCodeToNewGraphError(null)
+    return folder
+  }, [codeToNewGraphFolder])
+
+  const confirmCodeToNewNodeGraph = useCallback(async () => {
+    if (!nodeActions?.onCodeToNewNodeGraph) {
+      return
+    }
+    const folder = resolveNewGraphFolder()
+    if (!folder) {
+      return
+    }
+    setCodeToNewGraphBusy(true)
+    try {
+      const okOutcome = await nodeActions.onCodeToNewNodeGraph(folder)
+      if (okOutcome) {
+        closeCodeToNewGraphDialog()
+      }
+    } finally {
+      setCodeToNewGraphBusy(false)
+    }
+  }, [closeCodeToNewGraphDialog, nodeActions, resolveNewGraphFolder])
+
+  const confirmCodeToNewNodeGraphStepByStep = useCallback(async () => {
+    if (!nodeActions?.onCodeToNewNodeGraphStepByStep) {
+      return
+    }
+    const folder = resolveNewGraphFolder()
+    if (!folder) {
+      return
+    }
+    setCodeToNewGraphBusy(true)
+    try {
+      const okOutcome = await nodeActions.onCodeToNewNodeGraphStepByStep(folder)
+      if (okOutcome) {
+        closeCodeToNewGraphDialog()
+      }
+    } finally {
+      setCodeToNewGraphBusy(false)
+    }
+  }, [closeCodeToNewGraphDialog, nodeActions, resolveNewGraphFolder])
+
   const confirmApplyNome = useCallback(async () => {
     if (!nodeActions || !nomeSelected) {
       return
@@ -392,13 +606,28 @@ export function CodeDock({
   }, [closeNomeDialog, nomeSelected, nodeActions])
 
   const beginDockWidthResize = useCallback((event: ReactPointerEvent) => {
+    if (
+      ritualDragPhase === 'dragging' ||
+      ritualDragPhase === 'linkDragging' ||
+      ritualDragPhase === 'buildingNeeko' ||
+      ritualDragPhase === 'readyNeeko'
+    ) {
+      return
+    }
     event.preventDefault()
     dockedResizePhaseRef.current = true
-  }, [])
+  }, [ritualDragPhase])
 
   const beginFloatMovePending = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {
-      if (!floatingActive || event.button !== 0) {
+      if (
+        !floatingActive ||
+        event.button !== 0 ||
+        ritualDragPhase === 'dragging' ||
+        ritualDragPhase === 'linkDragging' ||
+        ritualDragPhase === 'buildingNeeko' ||
+        ritualDragPhase === 'readyNeeko'
+      ) {
         return
       }
       const r = floatingRectRef.current
@@ -409,12 +638,16 @@ export function CodeDock({
         sy: event.clientY,
       }
     },
-    [floatingActive],
+    [floatingActive, ritualDragPhase],
   )
 
   const startFloatResize = useCallback(
     (corner: CodeDockFloatingResizeCorner, event: ReactPointerEvent<HTMLButtonElement>) => {
-      if (!floatingActive) {
+      if (
+        !floatingActive ||
+        ritualDragPhase === 'dragging' ||
+        ritualDragPhase === 'linkDragging'
+      ) {
         return
       }
       event.preventDefault()
@@ -438,7 +671,7 @@ export function CodeDock({
 
       event.currentTarget.setPointerCapture(event.pointerId)
     },
-    [floatingActive],
+    [floatingActive, ritualDragPhase],
   )
 
   useEffect(() => {
@@ -449,29 +682,64 @@ export function CodeDock({
 
   const nodeGraphTools = nodeActions ? (
     <>
-      <span className="codeDockNodeGraphLabel">Node Graph</span>
+      <span className="codeDockNodeGraphLabel">{t(LangId.CodeToolsNodeGraph)}</span>
       <button
         className="menu-option"
         type="button"
         onClick={() => void nodeActions.onConvertJadeFxEditor()}
       >
-        <span>Converter [Jade fx_editor]</span>
+        <span>{t(LangId.CodeToolsConvertJadeFx)}</span>
       </button>
       <button
         className="menu-option"
         type="button"
         onClick={() => void nodeActions.onConvertClassGroup()}
       >
-        <span>Converter [Class Group]</span>
+        <span>{t(LangId.CodeToolsConvertClassGroup)}</span>
       </button>
       <button className="menu-option" type="button" onClick={() => void openExtractDialog()}>
-        <span>Extrair Node Base</span>
+        <span>{t(LangId.CodeToolsExtractNodeBase)}</span>
       </button>
       <button className="menu-option" type="button" onClick={() => void openNomeDialog()}>
-        <span>Aplicar nomeclatura (.bin)</span>
+        <span>{t(LangId.CodeToolsApplyNomenclature)}</span>
       </button>
+      {nodeActions.onHumanizePropRitual ? (
+        <button
+          className="menu-option"
+          type="button"
+          onClick={() => nodeActions.onHumanizePropRitual?.()}
+        >
+          <span>{t(LangId.CodeToolsResolvePropHashes)}</span>
+        </button>
+      ) : null}
       <button className="menu-option" type="button" onClick={() => void openDeleteDialog()}>
-        <span>Deletar pack</span>
+        <span>{t(LangId.CodeToolsDeletePack)}</span>
+      </button>
+      <div className="menu-separator" role="separator" />
+      <span className="codeDockCodeToNodeGraphSectionLabel">{t(LangId.CodeToolsSectionCodeToGraph)}</span>
+      <button className="menu-option" type="button" onClick={() => void openCodeToGraphDialog()}>
+        <span>{t(LangId.CodeToolsCodeToGraph)}</span>
+      </button>
+      <div className="menu-separator" role="separator" />
+      <span className="codeDockCodeToNodeGraphSectionLabel">{t(LangId.CodeToolsSectionCodeToNewGraph)}</span>
+      <button className="menu-option" type="button" onClick={() => openCodeToNewGraphDialog()}>
+        <span>{t(LangId.CodeToolsCodeToNewGraph)}</span>
+      </button>
+      <div className="menu-separator" role="separator" />
+      <span className="codeDockCodeToNodeGraphSectionLabel">{t(LangId.CodeToolsSectionCodeToBlock)}</span>
+      <button
+        className="menu-option"
+        type="button"
+        onClick={() => void nodeActions.onCodeToNodeBlock?.()}
+      >
+        <span>{t(LangId.CodeToolsCodeToBlock)}</span>
+      </button>
+      <button
+        className="menu-option"
+        type="button"
+        onClick={() => void nodeActions.onCodeBuildBlock?.()}
+      >
+        <span>{t(LangId.CodeToolsCodeBuildBlock)}</span>
       </button>
     </>
   ) : null
@@ -492,10 +760,17 @@ export function CodeDock({
   const shellClassNames = floatingActive ? `${styles.shell} ${styles.shellFloating}` : styles.shell
 
   const aside = (
-    <aside aria-label="Editor ritual (Monaco Jade)" className={shellClassNames} ref={shellRef} style={shellSizing}>
+    <aside
+      aria-label={t(LangId.CodeAriaEditor)}
+      className={shellClassNames}
+      data-code-dock-editor-root=""
+      {...{ [SHORTCUT_SCOPE_ATTR]: SHORTCUT_SCOPE_CODE_DOCK }}
+      ref={shellRef}
+      style={shellSizing}
+    >
       {!floatingActive ? (
         <button
-          aria-label="Redimensionar largura do painel"
+          aria-label={t(LangId.CodeAriaResizeDockWidth)}
           className={styles.resizeDockWidth}
           onPointerDown={beginDockWidthResize}
           type="button"
@@ -503,19 +778,19 @@ export function CodeDock({
       ) : (
         <>
           <button
-            aria-label="Redimensionar largura"
+            aria-label={t(LangId.CodeAriaResizeWidth)}
             className={styles.resizeE}
             onPointerDown={(e) => startFloatResize('e', e)}
             type="button"
           />
           <button
-            aria-label="Redimensionar altura"
+            aria-label={t(LangId.CodeAriaResizeHeight)}
             className={styles.resizeS}
             onPointerDown={(e) => startFloatResize('s', e)}
             type="button"
           />
           <button
-            aria-label="Redimensionar largura e altura"
+            aria-label={t(LangId.CodeAriaResizeBoth)}
             className={styles.resizeSE}
             onPointerDown={(e) => startFloatResize('se', e)}
             type="button"
@@ -533,9 +808,10 @@ export function CodeDock({
           .filter(Boolean)
           .join(' ')}
         onPointerDownCapture={floatingActive ? beginFloatMovePending : undefined}
-        title={floatingActive ? 'Arrastar janela (barra File / Edit / Tools)' : undefined}
+        title={floatingActive ? t(LangId.CodeTitleDragWindow) : undefined}
       >
         <MenuBar
+          labels={menuBarLabels}
           findActive={jade.findActive}
           interactionsDisabled={floatingActive && floatDragging}
           generalEditActive={jade.generalEditActive}
@@ -545,6 +821,10 @@ export function CodeDock({
           recentFiles={fileBridge?.recentFiles}
           replaceActive={jade.replaceActive}
           toolsExtraContent={nodeGraphTools}
+          hideThemesInTools
+          optionsMenuContent={
+            <JadeMenuBarOptionsMenu onOpenThemes={() => jade.setShowThemes(true)} />
+          }
           onAbout={() => jade.setShowAbout(true)}
           onCompareFiles={jade.handleCompareFiles}
           onCopy={jade.handleCopy}
@@ -587,9 +867,9 @@ export function CodeDock({
               onToggleFloating()
             }}
             type="button"
-            title={floatingActive ? 'Fixar na barra lateral' : 'Defixar — painel livre sobre tudo'}
+            title={floatingActive ? t(LangId.CodeTitleDock) : t(LangId.CodeTitleUndock)}
           >
-            {floatingActive ? 'Fixar' : 'Defixar'}
+            {floatingActive ? t(LangId.CodeBtnDock) : t(LangId.CodeBtnUndock)}
           </button>
           {floatingActive ? (
             <button
@@ -599,9 +879,9 @@ export function CodeDock({
                 onResetFloatingDimensions()
               }}
               type="button"
-              title="Repor dimensões e posição padrão"
+              title={t(LangId.CodeTitleResetDimensions)}
             >
-              Repor dimensões
+              {t(LangId.CodeBtnResetDimensions)}
             </button>
           ) : null}
           <button
@@ -612,22 +892,46 @@ export function CodeDock({
             }}
             type="button"
           >
-            fechar
+            {t(LangId.CodeBtnClose)}
           </button>
         </div>
       </header>
+      {jadeEditorBanner ? (
+        <div
+          className={[
+            styles.jadeEditorBanner,
+            jadeEditorBanner.tone === 'jade'
+              ? styles.jadeEditorBannerJade
+              : jadeEditorBanner.tone === 'mock'
+                ? styles.jadeEditorBannerMock
+                : styles.jadeEditorBannerFnv,
+          ].join(' ')}
+          role="status"
+        >
+          <span>{jadeEditorBanner.message}</span>
+          {nodeActions?.onHumanizePropRitual ? (
+            <button
+              className={styles.jadeEditorBannerAction}
+              onClick={() => nodeActions.onHumanizePropRitual?.()}
+              type="button"
+            >
+              {t(LangId.CodeBannerResolveHashes)}
+            </button>
+          ) : null}
+        </div>
+      ) : null}
       {deleteDialogOpen ? (
         <div aria-modal className={styles.dialogBackdrop} role="dialog">
           <div className={styles.dialogPanel}>
-            <p className={styles.dialogTitle}>Eliminar pasta pack</p>
+            <p className={styles.dialogTitle}>{t(LangId.CodeDeleteDialogTitle)}</p>
             {deleteListError ? (
               <p className={styles.dialogHint}>{deleteListError}</p>
             ) : deleteChoices.length === 0 ? (
-              <p className={styles.dialogHint}>Nenhuma pasta para eliminar (além da default).</p>
+              <p className={styles.dialogHint}>{t(LangId.CodeDeleteDialogEmpty)}</p>
             ) : (
               <>
                 <label className={styles.dialogField}>
-                  Pasta
+                  {t(LangId.CodeFieldFolder)}
                   <select
                     className={styles.dialogSelect}
                     onChange={(e) => setDeleteSelected(e.target.value)}
@@ -645,7 +949,7 @@ export function CodeDock({
             )}
             <div className={styles.dialogActions}>
               <button className={styles.headerGhostButton} onClick={closeDeleteDialog} type="button">
-                Cancelar
+                {t(LangId.CodeBtnCancel)}
               </button>
               <button
                 className={styles.dialogDanger}
@@ -653,7 +957,7 @@ export function CodeDock({
                 onClick={() => void confirmDeleteFolder()}
                 type="button"
               >
-                {deleteBusy ? 'A eliminar…' : 'Eliminar pasta'}
+                {deleteBusy ? t(LangId.CodeDeleteBusy) : t(LangId.CodeDeleteConfirm)}
               </button>
             </div>
           </div>
@@ -662,7 +966,7 @@ export function CodeDock({
       {nomeDialogOpen ? (
         <div aria-modal className={styles.dialogBackdrop} role="dialog">
           <div className={styles.dialogPanel}>
-            <p className={styles.dialogTitle}>Aplicar nomeclatura</p>
+            <p className={styles.dialogTitle}>{t(LangId.CodeNomenclatureDialogTitle)}</p>
             {nomeListError ? (
               <p className={styles.dialogHint}>{nomeListError}</p>
             ) : nomeChoices.length === 0 ? (
@@ -670,7 +974,7 @@ export function CodeDock({
             ) : (
               <>
                 <label className={styles.dialogField}>
-                  Pasta do pack
+                  {t(LangId.CodeFieldPackFolder)}
                   <select
                     className={styles.dialogSelect}
                     onChange={(e) => setNomeSelected(e.target.value)}
@@ -691,7 +995,7 @@ export function CodeDock({
             )}
             <div className={styles.dialogActions}>
               <button className={styles.headerGhostButton} onClick={closeNomeDialog} type="button">
-                Cancelar
+                {t(LangId.CodeBtnCancel)}
               </button>
               <button
                 className={styles.headerGhostButton}
@@ -699,7 +1003,134 @@ export function CodeDock({
                 onClick={() => void confirmApplyNome()}
                 type="button"
               >
-                {nomeBusy ? 'A aplicar…' : 'Aplicar'}
+                {nomeBusy ? t(LangId.CodeNomenclatureBusy) : t(LangId.CodeNomenclatureApply)}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+      {codeToGraphDialogOpen ? (
+        <div aria-modal className={styles.dialogBackdrop} role="dialog">
+          <div className={styles.dialogPanel}>
+            <p className={styles.dialogTitle}>{t(LangId.CodeCodeToGraphDialogTitle)}</p>
+            {codeToGraphListError ? (
+              <p className={styles.dialogHint}>{codeToGraphListError}</p>
+            ) : codeToGraphChoices.length === 0 ? (
+              <p className={styles.dialogHint}>
+                Nenhum pack disponível. Converte ritual para um pack ou activa Nodes → Configurar para
+                incluir «default».
+              </p>
+            ) : (
+              <>
+                <label className={styles.dialogField}>
+                  {t(LangId.CodeFieldPackFolder)}
+                  <select
+                    className={styles.dialogSelect}
+                    onChange={(e) => setCodeToGraphSelected(e.target.value)}
+                    value={codeToGraphSelected || codeToGraphChoices[0]}
+                  >
+                    {codeToGraphChoices.map((f) => (
+                      <option key={f} value={f}>
+                        {f}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <p className={styles.dialogHint}>
+                  Gera a cena a partir do ritual Class Group (raiz main), com ligações sem fio e um nó
+                  por estrutura. Só entram parâmetros definidos no código — sem defaults do pack JSON. A
+                  aba de cena usa o nome do ficheiro de código.
+                </p>
+              </>
+            )}
+            <div className={styles.dialogActions}>
+              <button className={styles.headerGhostButton} onClick={closeCodeToGraphDialog} type="button">
+                {t(LangId.CodeBtnCancel)}
+              </button>
+              {nodeActions?.onCodeToNodeGraphStepByStep ? (
+                <button
+                  className={styles.headerGhostButton}
+                  disabled={codeToGraphBusy || codeToGraphChoices.length === 0 || !codeToGraphSelected}
+                  onClick={() => void confirmCodeToNodeGraphStepByStep()}
+                  type="button"
+                >
+                  {codeToGraphBusy ? t(LangId.CodeNomenclatureBusy) : t(LangId.CodeCodeToGraphStep)}
+                </button>
+              ) : null}
+              <button
+                className={styles.headerGhostButton}
+                disabled={codeToGraphBusy || codeToGraphChoices.length === 0 || !codeToGraphSelected}
+                onClick={() => void confirmCodeToNodeGraph()}
+                type="button"
+              >
+                {codeToGraphBusy ? t(LangId.CodeNomenclatureBusy) : t(LangId.CodeCodeToGraphGenerate)}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+      {codeToNewGraphDialogOpen ? (
+        <div aria-modal className={styles.dialogBackdrop} role="dialog">
+          <div className={styles.dialogPanel}>
+            <p className={styles.dialogTitle}>{t(LangId.CodeCodeToNewGraphDialogTitle)}</p>
+            {codeToNewGraphError ? <p className={styles.dialogHint}>{codeToNewGraphError}</p> : null}
+            <label className={styles.dialogField}>
+              Nome da pasta (novo pack)
+              <input
+                className={styles.dialogSelect}
+                onChange={(e) => setCodeToNewGraphFolder(e.target.value)}
+                placeholder="ex.: meu-pack"
+                type="text"
+                value={codeToNewGraphFolder}
+              />
+            </label>
+            <p className={styles.dialogHint}>
+              Cria schemas em <code>nodeStructures/&lt;nome&gt;/</code> a partir do ritual e gera a cena
+              com instâncias (elementos → valores → estruturas internas). Não usa um pack existente.
+            </p>
+            {codeToNewGraphProgress ? (
+              <div className={styles.dialogProgress}>
+                <p className={styles.dialogProgressMeta}>{codeToNewGraphProgress.label}</p>
+                <div
+                  aria-valuemax={100}
+                  aria-valuemin={0}
+                  aria-valuenow={Math.round(codeToNewGraphProgress.ratio * 100)}
+                  className={styles.dialogProgressBar}
+                  role="progressbar"
+                >
+                  <div
+                    className={styles.dialogProgressFill}
+                    style={{ width: `${String(Math.round(codeToNewGraphProgress.ratio * 100))}%` }}
+                  />
+                </div>
+              </div>
+            ) : null}
+            <div className={styles.dialogActions}>
+              <button className={styles.headerGhostButton} onClick={closeCodeToNewGraphDialog} type="button">
+                {t(LangId.CodeBtnCancel)}
+              </button>
+              {nodeActions?.onCodeToNewNodeGraphStepByStep ? (
+                <button
+                  className={styles.headerGhostButton}
+                disabled={
+                  codeToNewGraphBusy || codeToNewGraphProgress !== null || !codeToNewGraphFolder.trim()
+                }
+                onClick={() => void confirmCodeToNewNodeGraphStepByStep()}
+                type="button"
+              >
+                {codeToNewGraphBusy ? t(LangId.CodeNomenclatureBusy) : t(LangId.CodeCodeToGraphStep)}
+              </button>
+              ) : null}
+              <button
+                className={styles.headerGhostButton}
+                disabled={
+                  codeToNewGraphBusy || codeToNewGraphProgress !== null || !codeToNewGraphFolder.trim()
+                }
+                onClick={() => void confirmCodeToNewNodeGraph()}
+                type="button"
+              >
+                {codeToNewGraphProgress?.label ??
+                  (codeToNewGraphBusy ? t(LangId.CodeNomenclatureBusy) : t(LangId.CodeCodeToNewGraphGenerate))}
               </button>
             </div>
           </div>
@@ -708,7 +1139,7 @@ export function CodeDock({
       {extractDialogOpen ? (
         <div aria-modal className={styles.dialogBackdrop} role="dialog">
           <div className={styles.dialogPanel}>
-            <p className={styles.dialogTitle}>Extrair Node Base</p>
+            <p className={styles.dialogTitle}>{t(LangId.CodeExtractDialogTitle)}</p>
             {extractListError ? (
               <p className={styles.dialogHint}>{extractListError}</p>
             ) : extractChoices.length === 0 ? (
@@ -719,7 +1150,7 @@ export function CodeDock({
             ) : (
               <>
                 <label className={styles.dialogField}>
-                  Pasta do pack
+                  {t(LangId.CodeFieldPackFolder)}
                   <select
                     className={styles.dialogSelect}
                     onChange={(e) => setExtractSelected(e.target.value)}
@@ -741,7 +1172,7 @@ export function CodeDock({
             )}
             <div className={styles.dialogActions}>
               <button className={styles.headerGhostButton} onClick={closeExtractDialog} type="button">
-                Cancelar
+                {t(LangId.CodeBtnCancel)}
               </button>
               <button
                 className={styles.headerGhostButton}
@@ -749,7 +1180,7 @@ export function CodeDock({
                 onClick={() => void confirmExtractNodeBase()}
                 type="button"
               >
-                {extractBusy ? 'A processar…' : 'Extrair'}
+                {extractBusy ? t(LangId.CodeNomenclatureBusy) : t(LangId.CodeExtractConfirm)}
               </button>
             </div>
           </div>
@@ -758,7 +1189,7 @@ export function CodeDock({
       <div className={`${styles.editorHost} codeDockJadeScope`}>
         {tabs.length === 0 ? (
           <p className={styles.emptyEditor}>
-            Nenhum ficheiro de código aberto. Abra um ficheiro ou crie um novo.
+            {t(LangId.CodeEmptyEditor)}
           </p>
         ) : (
           <Editor
@@ -766,7 +1197,7 @@ export function CodeDock({
             beforeMount={jade.handleBeforeMount}
             defaultLanguage={editorLanguage}
             height="100%"
-            loading={<span className={styles.loading}>A carregar editor…</span>}
+            loading={<span className={styles.loading}>{t(LangId.CodeEditorLoading)}</span>}
             onChange={(next) => onChange(next ?? '')}
             onMount={jade.handleMount}
             options={jade.monacoOptions}
@@ -777,7 +1208,14 @@ export function CodeDock({
         )}
       </div>
 
-      <CodeDockJadeDialogs editor={jade} value={value} />
+      <CodeDockJadeDialogs
+        editor={jade}
+        neekoSendTarget={neekoSendTarget}
+        onSendCodeToNeeko={onSendCodeToNeeko}
+        onReplaceValueToGraph={onReplaceValueToGraph}
+        primarySelectedNodeId={primarySelectedNodeId}
+        value={value}
+      />
     </aside>
   )
 

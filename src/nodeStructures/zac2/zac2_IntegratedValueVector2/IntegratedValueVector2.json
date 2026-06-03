@@ -1,0 +1,38 @@
+{
+  "id": "integrated-value-vector2__main-entries-0x0eed7307-complex-emitter-definition-data-3-particle-uvscroll-rate",
+  "title": "IntegratedValueVector2",
+  "parameters": [
+    {
+      "id": "IntegratedValueVector2_parameter_constantValue",
+      "name": "constantValue",
+      "type": "vector2",
+      "defaultValue": "-1.5, 0"
+    }
+  ],
+  "embed": [],
+  "pointer": [
+    {
+      "id": "IntegratedValueVector2_pointer_dynamics",
+      "title": "dynamics",
+      "internalStructures": [
+        {
+          "id": "integrated-value-vector2-dynamics",
+          "name": "VfxAnimatedVector2fVariableData",
+          "schemaId": "vfx-animated-vector2f-variable-data__main-entries-0x0eed7307-complex-emitter-definition-data-3-particle-uvscroll-rate-dynamics"
+        }
+      ],
+      "slots": [
+        {
+          "id": "IntegratedValueVector2_pointer_dynamics__slot__0",
+          "name": "VfxAnimatedVector2fVariableData",
+          "schemaId": "vfx-animated-vector2f-variable-data__main-entries-0x0eed7307-complex-emitter-definition-data-3-particle-uvscroll-rate-dynamics"
+        }
+      ]
+    }
+  ],
+  "listEmbed": [],
+  "listPointer": [],
+  "list2Embed": [],
+  "list2Pointer": [],
+  "internalStructures": []
+}

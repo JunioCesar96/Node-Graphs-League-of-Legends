@@ -1,14 +1,45 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent, PointerEvent } from 'react'
 
 import { ExpandActionCapsule, type ExpandActionCapsuleKind } from '@/components/molecules/ExpandActionCapsule'
+import { PaletteAddAddonOption } from '@/components/molecules/PaletteAddAddonOption'
+import { PaletteAddonInstallZone } from '@/components/molecules/PaletteAddonInstallZone'
+import { PaletteAddBlockOption } from '@/components/molecules/PaletteAddBlockOption'
 import { PaletteAddNodeOption } from '@/components/molecules/PaletteAddNodeOption'
 import {
+  fetchAddonsFromDisk,
+  listAddonManifests,
+  matchesAddonQuery,
+} from '@/blockStructures/addonRegistry'
+import {
+  blockDefinitionsList,
+  matchesBlockDefinitionQuery,
+} from '@/core/blockDefinitionRegistry'
+import {
+  blockDefinitionMatchesExactOutputType,
+  sortBlockDefinitionsForLinkDrop,
+  type BlockDropLinkPaletteContext,
+} from '@/core/blockDefinitionLinkPalette'
+import { fetchBlockDefinitionsFromDisk } from '@/core/blockDefinitionDiskLoader'
+import type { BlockDefinitionJsonDocument } from '@/core/blockDefinitionJson'
+import {
+  fetchNodeStructurePackFoldersFromDisk,
+  schemaBelongsToPalettePack,
+} from '@/core/nodeStructurePackFolders'
+import {
+  listPalettePackFolders,
   matchesSchemaQuery,
   type PaletteOrganizationMode,
   sortSchemasByOrganization,
 } from '@/core/paletteSchemaUtils'
+import { LangId } from '@/core/language/languageIds'
 import type { NodeSchemaDefinition } from '@/core/nodeSchema'
+import { useLanguage } from '@/language/LanguageProvider'
+import {
+  SHORTCUT_SCOPE_ATTR,
+  SHORTCUT_SCOPE_NODE_PALETTE,
+} from '@/core/shortcuts/shortcutScopes'
+import { useAddNodePaletteShortcutHandlers } from '@/shortcuts/useAddNodePaletteShortcutHandlers'
 
 import styles from './AddNodePalette.module.css'
 
@@ -17,6 +48,7 @@ const MAX_SCROLL_SPEED = 28
 const EXPAND_CAPSULE_LIFETIME_SECONDS = 5
 
 type PaletteScrollDirection = 'down' | 'idle' | 'up'
+type PaletteCatalogMode = 'nodes' | 'blocks' | 'addons'
 
 /** Teste: m/n controlam expandir/retrair (m = expandir, n = retrair), com hover na linha ou atalho global quando o foco não está no campo de pesquisa. */
 type PaletteExpandOverride = 'compact' | 'default' | 'expanded'
@@ -29,25 +61,90 @@ function structureSubfolderTagLabel(subPath: string) {
   return subPath === '' ? '🗂️ Raiz' : `🗂️ ${subPath}`
 }
 
+function readAnchorTopGap(): number {
+  return (
+    Number.parseFloat(
+      getComputedStyle(document.documentElement).getPropertyValue('--node-palette-anchor-top-gap'),
+    ) || 10
+  )
+}
+
+function clampPaletteViewportPosition(
+  left: number,
+  top: number,
+  width: number,
+  height: number,
+  margin = 8,
+): { left: number; top: number } {
+  let x = left
+  let y = top
+
+  if (x < margin) {
+    x = margin
+  }
+  if (y < margin) {
+    y = margin
+  }
+  if (x + width > window.innerWidth - margin) {
+    x = Math.max(margin, window.innerWidth - width - margin)
+  }
+  if (y + height > window.innerHeight - margin) {
+    y = Math.max(margin, window.innerHeight - height - margin)
+  }
+
+  return { left: x, top: y }
+}
+
 type AddNodePaletteProps = {
+  /** Quando false, esconde o catálogo Blocks (ex.: paleta de ligação). */
+  blocksCatalogEnabled?: boolean
   heading?: string
   onClose: () => void
+  onPickAddon?: (addonId: string) => void
+  onPickBlock?: (definition: BlockDefinitionJsonDocument) => void
   onPickSchema: (schema: NodeSchemaDefinition) => void
+  addonsCatalogEnabled?: boolean
+  onSyncBlockParameterCatalog?: (
+    definitions: readonly BlockDefinitionJsonDocument[],
+  ) => Promise<{ ok: boolean; error?: string }>
+  blockDefinitionFilter?: (definition: BlockDefinitionJsonDocument) => boolean
+  /** Ordena e realça o primeiro item quando a paleta abre por ligação de slot de bloco. */
+  blockDropLinkContext?: BlockDropLinkPaletteContext
+  initialCatalogMode?: PaletteCatalogMode
   /** Por schema id: nome da pasta imediata sob `src/nodeStructures/`. Ativa filtros 📂 [...]. */
   packFolderBySchemaId?: Record<string, string>
+  /** Caminho relativo do JSON no pack (`default/neeko.json`). Fallback do filtro por pasta. */
+  jsonRelativePathBySchemaId?: Record<string, string>
   /** Por schema id: primeira subpasta sob o pack (`''` = raiz). `temp` não gera etiqueta. */
   structureSubfolderBySchemaId?: Record<string, string>
+  /** Packs convertidos só em memória/localStorage (não existem como pasta no disco). */
+  memoryPackFolders?: readonly string[]
   schemas: NodeSchemaDefinition[]
+  /** Abre o painel junto ao botão da toolbar (coordenadas de viewport). */
+  screenAnchor?: { left: number; top: number } | null
 }
 
 export function AddNodePalette({
+  addonsCatalogEnabled = true,
+  blocksCatalogEnabled = true,
+  blockDefinitionFilter,
+  blockDropLinkContext,
   heading,
+  initialCatalogMode = 'nodes',
   onClose,
+  onPickAddon,
+  onPickBlock,
   onPickSchema,
+  onSyncBlockParameterCatalog,
   packFolderBySchemaId,
+  jsonRelativePathBySchemaId,
   structureSubfolderBySchemaId,
+  memoryPackFolders = [],
   schemas,
+  screenAnchor = null,
 }: AddNodePaletteProps) {
+  const { t } = useLanguage()
+  const [paletteCatalogMode, setPaletteCatalogMode] = useState<PaletteCatalogMode>(initialCatalogMode)
   const [palettePackFolder, setPalettePackFolder] = useState<string | null>(null)
   const [paletteStructureSubfolder, setPaletteStructureSubfolder] = useState<string | null>(null)
   const [paletteQuery, setPaletteQuery] = useState('')
@@ -58,6 +155,17 @@ export function AddNodePalette({
   const [paletteScrollDirection, setPaletteScrollDirection] = useState<PaletteScrollDirection>('idle')
   const [paletteScrollIntensity, setPaletteScrollIntensity] = useState(0)
   const [isPaletteScrollActive, setIsPaletteScrollActive] = useState(false)
+  const [diskPackFolders, setDiskPackFolders] = useState<string[]>([])
+  const [diskPackFoldersLoading, setDiskPackFoldersLoading] = useState(true)
+  const [diskPackFoldersError, setDiskPackFoldersError] = useState<string | null>(null)
+  const [diskBlockDefinitions, setDiskBlockDefinitions] = useState<BlockDefinitionJsonDocument[]>(() =>
+    blockDefinitionsList(),
+  )
+  const [diskBlockDefinitionsLoading, setDiskBlockDefinitionsLoading] = useState(false)
+  const [diskBlockDefinitionsError, setDiskBlockDefinitionsError] = useState<string | null>(null)
+  const [diskAddonManifests, setDiskAddonManifests] = useState(() => [...listAddonManifests()])
+  const [diskAddonsLoading, setDiskAddonsLoading] = useState(false)
+  const [diskAddonsError, setDiskAddonsError] = useState<string | null>(null)
 
   const [structureSubfolderMenuOpen, setStructureSubfolderMenuOpen] = useState(false)
   const [structureSubfolderMenuQuery, setStructureSubfolderMenuQuery] = useState('')
@@ -65,6 +173,7 @@ export function AddNodePalette({
   const [subfolderScrollIntensity, setSubfolderScrollIntensity] = useState(0)
   const [isSubfolderScrollActive, setIsSubfolderScrollActive] = useState(false)
 
+  const paletteRootRef = useRef<HTMLDivElement | null>(null)
   const paletteInputRef = useRef<HTMLInputElement | null>(null)
   const structureSubfolderMenuRef = useRef<HTMLDivElement | null>(null)
   const structureSubfolderInputRef = useRef<HTMLInputElement | null>(null)
@@ -81,19 +190,124 @@ export function AddNodePalette({
     kind: ExpandActionCapsuleKind
     stamp: number
   } | null>(null)
+  const [palettePosition, setPalettePosition] = useState<{ left: number; top: number } | null>(null)
+  const [isHeaderDragging, setIsHeaderDragging] = useState(false)
+  const paletteDragRef = useRef<{
+    pointerId: number
+    startX: number
+    startY: number
+    originLeft: number
+    originTop: number
+  } | null>(null)
 
-  const palettePackFolders = packFolderBySchemaId
-    ? [...new Set(schemas.map((s) => packFolderBySchemaId[s.id]).filter((f): f is string => Boolean(f)))].sort(
-        (a, b) => a.localeCompare(b),
-      )
-    : []
+  useEffect(() => {
+    setPalettePosition(null)
+  }, [screenAnchor])
 
-  const schemasInSelectedPack = useMemo(() => {
-    if (palettePackFolder === null) {
-      return schemas
+  useEffect(() => {
+    let cancelled = false
+    setDiskPackFoldersLoading(true)
+    setDiskPackFoldersError(null)
+
+    void fetchNodeStructurePackFoldersFromDisk().then((result) => {
+      if (cancelled) {
+        return
+      }
+
+      setDiskPackFoldersLoading(false)
+
+      if (result.ok) {
+        setDiskPackFolders(result.folders)
+        return
+      }
+
+      setDiskPackFolders([])
+      setDiskPackFoldersError(result.error)
+    })
+
+    return () => {
+      cancelled = true
     }
-    return schemas.filter((s) => (packFolderBySchemaId?.[s.id] ?? '') === palettePackFolder)
-  }, [schemas, packFolderBySchemaId, palettePackFolder])
+  }, [])
+
+  const refreshAddonsCatalog = useCallback(() => {
+    setDiskAddonsLoading(true)
+    setDiskAddonsError(null)
+
+    void fetchAddonsFromDisk().then((result) => {
+      setDiskAddonsLoading(false)
+      if (result.ok) {
+        setDiskAddonManifests([...result.manifests])
+        return
+      }
+      setDiskAddonsError(result.error)
+    })
+  }, [])
+
+  const refreshBlocksCatalog = useCallback(() => {
+    setDiskBlockDefinitionsLoading(true)
+    setDiskBlockDefinitionsError(null)
+
+    void fetchBlockDefinitionsFromDisk().then((result) => {
+      setDiskBlockDefinitionsLoading(false)
+
+      if (result.ok) {
+        setDiskBlockDefinitions(result.definitions)
+        if (onSyncBlockParameterCatalog) {
+          void onSyncBlockParameterCatalog(result.definitions).then((syncResult) => {
+            if (!syncResult.ok && syncResult.error) {
+              console.warn('[AddNodePalette] Sincronização de parâmetros de bloco:', syncResult.error)
+            }
+          })
+        }
+        return
+      }
+
+      setDiskBlockDefinitionsError(result.error)
+    })
+  }, [onSyncBlockParameterCatalog])
+
+  const palettePackFolders = useMemo(
+    () =>
+      listPalettePackFolders(diskPackFolders, {
+        memoryPackFolders,
+        packFolderBySchemaId,
+        schemas,
+      }),
+    [diskPackFolders, memoryPackFolders, packFolderBySchemaId, schemas],
+  )
+
+  const packFilterOptions = useMemo(
+    () => ({
+      packFolderBySchemaId,
+      jsonRelativePathBySchemaId,
+      diskPackFolders,
+      memoryPackFolders,
+    }),
+    [diskPackFolders, jsonRelativePathBySchemaId, memoryPackFolders, packFolderBySchemaId],
+  )
+
+  const schemaMatchesPackFilter = useCallback(
+    (schemaId: string) => schemaBelongsToPalettePack(schemaId, palettePackFolder, packFilterOptions),
+    [packFilterOptions, palettePackFolder],
+  )
+
+  useEffect(() => {
+    if (
+      palettePackFolder !== null &&
+      palettePackFolders.length > 0 &&
+      !palettePackFolders.includes(palettePackFolder)
+    ) {
+      setPalettePackFolder(null)
+      setHighlightedSchemaIndex(0)
+      setPaletteHoveredOptionIndex(null)
+    }
+  }, [palettePackFolder, palettePackFolders])
+
+  const schemasInSelectedPack = useMemo(
+    () => schemas.filter((s) => schemaMatchesPackFilter(s.id)),
+    [schemaMatchesPackFilter, schemas],
+  )
 
   const paletteStructureSubfolderTags = useMemo(() => {
     if (!structureSubfolderBySchemaId) {
@@ -200,11 +414,7 @@ export function AddNodePalette({
 
   const filteredSchemas = sortSchemasByOrganization(
     schemas
-      .filter(
-        (schema) =>
-          palettePackFolder === null ||
-          (packFolderBySchemaId?.[schema.id] ?? '') === palettePackFolder,
-      )
+      .filter((schema) => schemaMatchesPackFilter(schema.id))
       .filter((schema) => {
         if (!structureSubfolderBySchemaId || paletteStructureSubfolder === null) {
           return true
@@ -215,7 +425,196 @@ export function AddNodePalette({
       .filter((schema) => matchesSchemaQuery(schema, paletteQuery)),
     paletteOrganization,
   )
-  const activeSchemaIndex = Math.max(0, Math.min(highlightedSchemaIndex, filteredSchemas.length - 1))
+
+  const blockDefinitions = diskBlockDefinitions
+  const filteredAddons = useMemo(() => {
+    const q = paletteQuery.trim()
+    return diskAddonManifests.filter((manifest) => matchesAddonQuery(manifest, q))
+  }, [diskAddonManifests, paletteQuery])
+
+  const filteredBlocks = useMemo(() => {
+    const matched = blockDefinitions
+      .filter((definition) => (blockDefinitionFilter ? blockDefinitionFilter(definition) : true))
+      .filter((definition) => matchesBlockDefinitionQuery(definition, paletteQuery))
+
+    if (!blockDropLinkContext) {
+      return matched
+    }
+
+    return sortBlockDefinitionsForLinkDrop(matched, blockDropLinkContext)
+  }, [blockDefinitionFilter, blockDefinitions, blockDropLinkContext, paletteQuery])
+
+  const isAddonsMode = addonsCatalogEnabled && paletteCatalogMode === 'addons'
+  const isBlocksMode = blocksCatalogEnabled && paletteCatalogMode === 'blocks'
+  const paletteResultCount = isAddonsMode
+    ? filteredAddons.length
+    : isBlocksMode
+      ? filteredBlocks.length
+      : filteredSchemas.length
+
+  useEffect(() => {
+    if (!blocksCatalogEnabled && paletteCatalogMode === 'blocks') {
+      setPaletteCatalogMode('nodes')
+      setHighlightedSchemaIndex(0)
+      setPaletteHoveredOptionIndex(null)
+    }
+  }, [blocksCatalogEnabled, paletteCatalogMode])
+
+  useEffect(() => {
+    setPaletteCatalogMode(initialCatalogMode)
+    setHighlightedSchemaIndex(0)
+    setPaletteHoveredOptionIndex(null)
+    setPaletteExpandOverride('default')
+  }, [initialCatalogMode])
+
+  useEffect(() => {
+    if (!blockDropLinkContext) {
+      return
+    }
+    setHighlightedSchemaIndex(0)
+    setPaletteHoveredOptionIndex(null)
+    setPaletteExpandOverride('default')
+  }, [blockDropLinkContext, filteredBlocks.length, paletteQuery])
+
+  const activeSchemaIndex = Math.max(0, Math.min(highlightedSchemaIndex, Math.max(paletteResultCount - 1, 0)))
+  const isPaletteFloating = palettePosition !== null || screenAnchor !== null
+
+  const applyPalettePosition = useCallback(() => {
+    const root = paletteRootRef.current
+    if (!root || !isPaletteFloating) {
+      return
+    }
+
+    const width = root.offsetWidth
+    const height = root.offsetHeight
+
+    if (palettePosition) {
+      const clamped = clampPaletteViewportPosition(
+        palettePosition.left,
+        palettePosition.top,
+        width,
+        height,
+      )
+      root.style.left = `${clamped.left}px`
+      root.style.top = `${clamped.top}px`
+      return
+    }
+
+    if (!screenAnchor) {
+      return
+    }
+
+    const gap = readAnchorTopGap()
+    const clamped = clampPaletteViewportPosition(
+      screenAnchor.left,
+      screenAnchor.top + gap,
+      width,
+      height,
+    )
+    root.style.left = `${clamped.left}px`
+    root.style.top = `${clamped.top}px`
+  }, [isPaletteFloating, palettePosition, screenAnchor])
+
+  useLayoutEffect(() => {
+    applyPalettePosition()
+  }, [applyPalettePosition, filteredSchemas.length, filteredBlocks.length, isBlocksMode, paletteQuery, paletteOrganization])
+
+  useEffect(() => {
+    if (!isPaletteFloating) {
+      return
+    }
+
+    const handleResize = () => applyPalettePosition()
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [applyPalettePosition, isPaletteFloating])
+
+  const endHeaderDrag = useCallback(() => {
+    paletteDragRef.current = null
+    setIsHeaderDragging(false)
+  }, [])
+
+  const beginHeaderDrag = useCallback(
+    (event: PointerEvent<HTMLDivElement>) => {
+      if (event.button !== 0) {
+        return
+      }
+
+      const root = paletteRootRef.current
+      if (!root) {
+        return
+      }
+
+      event.preventDefault()
+      event.stopPropagation()
+
+      const rect = root.getBoundingClientRect()
+      const originLeft = palettePosition?.left ?? rect.left
+      const originTop = palettePosition?.top ?? rect.top
+
+      if (!palettePosition) {
+        setPalettePosition({ left: originLeft, top: originTop })
+      }
+
+      paletteDragRef.current = {
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        originLeft,
+        originTop,
+      }
+      setIsHeaderDragging(true)
+      event.currentTarget.setPointerCapture(event.pointerId)
+    },
+    [palettePosition],
+  )
+
+  const handleHeaderDragMove = useCallback(
+    (event: PointerEvent<HTMLDivElement>) => {
+      const drag = paletteDragRef.current
+      if (!drag || drag.pointerId !== event.pointerId) {
+        return
+      }
+
+      const root = paletteRootRef.current
+      if (!root) {
+        return
+      }
+
+      event.preventDefault()
+      const width = root.offsetWidth
+      const height = root.offsetHeight
+      const next = clampPaletteViewportPosition(
+        drag.originLeft + (event.clientX - drag.startX),
+        drag.originTop + (event.clientY - drag.startY),
+        width,
+        height,
+      )
+      setPalettePosition(next)
+    },
+    [],
+  )
+
+  const handleHeaderDragEnd = useCallback(
+    (event: PointerEvent<HTMLDivElement>) => {
+      const drag = paletteDragRef.current
+      if (!drag || drag.pointerId !== event.pointerId) {
+        return
+      }
+
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.releasePointerCapture(event.pointerId)
+      }
+      endHeaderDrag()
+    },
+    [endHeaderDrag],
+  )
+
+  useEffect(() => {
+    return () => {
+      paletteDragRef.current = null
+    }
+  }, [])
 
   const filteredSchemasRef = useRef(filteredSchemas)
   const activeSchemaIndexRef = useRef(activeSchemaIndex)
@@ -232,62 +631,14 @@ export function AddNodePalette({
     paletteHoveredOptionIndexRef.current = paletteHoveredOptionIndex
   }, [paletteHoveredOptionIndex])
 
-  useEffect(() => {
-    const onGlobalKeyDown = (event: KeyboardEvent) => {
-      const key = event.key.toLowerCase()
-
-      if (key !== 'm' && key !== 'n') {
-        return
-      }
-
-      const target = event.target
-      const hoveringRow = paletteHoveredOptionIndexRef.current !== null
-      const focusOnSearch = target === paletteInputRef.current
-      const useCtrlWhileSearching = focusOnSearch && event.ctrlKey
-
-      if (focusOnSearch && !hoveringRow && !useCtrlWhileSearching) {
-        return
-      }
-
-      event.preventDefault()
-      event.stopPropagation()
-
-      const list = filteredSchemasRef.current
-      const targetIdx =
-        paletteHoveredOptionIndexRef.current !== null
-          ? paletteHoveredOptionIndexRef.current
-          : activeSchemaIndexRef.current
-      const targetSchema = list[targetIdx]
-
-      if (key === 'm') {
-        setPaletteExpandOverride('expanded')
-
-        if (targetSchema) {
-          setExpandCapsule({
-            id: targetSchema.id,
-            kind: 'expanded',
-            stamp: Date.now(),
-          })
-        }
-      } else {
-        setPaletteExpandOverride('compact')
-
-        if (targetSchema) {
-          setExpandCapsule({
-            id: targetSchema.id,
-            kind: 'collapsed',
-            stamp: Date.now(),
-          })
-        }
-      }
-    }
-
-    window.addEventListener('keydown', onGlobalKeyDown, true)
-
-    return () => {
-      window.removeEventListener('keydown', onGlobalKeyDown, true)
-    }
-  }, [])
+  useAddNodePaletteShortcutHandlers({
+    paletteInputRef,
+    filteredSchemasRef,
+    activeSchemaIndexRef,
+    paletteHoveredOptionIndexRef,
+    setPaletteExpandOverride,
+    setExpandCapsule,
+  })
 
   const dismissExpandCapsule = useCallback(() => {
     setExpandCapsule(null)
@@ -319,6 +670,12 @@ export function AddNodePalette({
   }, [])
 
   const handlePaletteKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
+    const activeListLength = isAddonsMode
+      ? filteredAddons.length
+      : isBlocksMode
+        ? filteredBlocks.length
+        : filteredSchemas.length
+
     if (event.key === 'Escape') {
       if (structureSubfolderMenuOpen) {
         event.preventDefault()
@@ -336,7 +693,7 @@ export function AddNodePalette({
       setPaletteHoveredOptionIndex(null)
       setPaletteExpandOverride('default')
       setHighlightedSchemaIndex((currentIndex) =>
-        filteredSchemas.length === 0 ? 0 : (currentIndex + 1) % filteredSchemas.length,
+        activeListLength === 0 ? 0 : (currentIndex + 1) % activeListLength,
       )
       return
     }
@@ -346,14 +703,30 @@ export function AddNodePalette({
       setPaletteHoveredOptionIndex(null)
       setPaletteExpandOverride('default')
       setHighlightedSchemaIndex((currentIndex) =>
-        filteredSchemas.length === 0
-          ? 0
-          : (currentIndex - 1 + filteredSchemas.length) % filteredSchemas.length,
+        activeListLength === 0 ? 0 : (currentIndex - 1 + activeListLength) % activeListLength,
       )
       return
     }
 
     if (event.key === 'Enter') {
+      if (isAddonsMode) {
+        const activeAddon = filteredAddons[activeSchemaIndex]
+        if (activeAddon && onPickAddon) {
+          event.preventDefault()
+          onPickAddon(activeAddon.id)
+        }
+        return
+      }
+
+      if (isBlocksMode) {
+        const activeBlock = filteredBlocks[activeSchemaIndex]
+        if (activeBlock && onPickBlock) {
+          event.preventDefault()
+          onPickBlock(activeBlock)
+        }
+        return
+      }
+
       const activeSchema = filteredSchemas[activeSchemaIndex]
 
       if (activeSchema) {
@@ -497,8 +870,23 @@ export function AddNodePalette({
     return false
   }
 
+  const paletteBlockOptionExpanded = (
+    index: number,
+    definition: BlockDefinitionJsonDocument,
+  ): boolean => {
+    if (blockDropLinkContext) {
+      return blockDefinitionMatchesExactOutputType(definition, blockDropLinkContext)
+    }
+
+    return paletteOptionExpanded(index)
+  }
+
   return (
-    <div className={styles.overlay} onPointerDown={onClose} role="presentation">
+    <div
+      className={[styles.overlay, isPaletteFloating ? styles.overlayAnchored : ''].filter(Boolean).join(' ')}
+      onPointerDown={onClose}
+      role="presentation"
+    >
       {expandCapsule ? (
         <ExpandActionCapsule
           key={expandCapsule.stamp}
@@ -508,16 +896,86 @@ export function AddNodePalette({
           schemaId={expandCapsule.id}
         />
       ) : null}
-      <div className={styles.root} onPointerDown={(event) => event.stopPropagation()}>
+      <div
+        className={[styles.root, isPaletteFloating ? styles.rootAnchored : ''].filter(Boolean).join(' ')}
+        onPointerDown={(event) => event.stopPropagation()}
+        ref={paletteRootRef}
+        {...{ [SHORTCUT_SCOPE_ATTR]: SHORTCUT_SCOPE_NODE_PALETTE }}
+      >
         <section aria-label="Add node search palette" className={styles.panel}>
-          <div className={styles.header}>
-            <span>{heading ?? 'add node'}</span>
+          <div
+            className={styles.header}
+            data-dragging={isHeaderDragging ? 'true' : undefined}
+            onPointerDown={beginHeaderDrag}
+            onPointerMove={handleHeaderDragMove}
+            onPointerUp={handleHeaderDragEnd}
+            onPointerCancel={handleHeaderDragEnd}
+            role="toolbar"
+            aria-label={t(LangId.NodePaletteHeading)}
+          >
+            <span>{heading ?? t(LangId.NodePaletteHeading)}</span>
             <kbd>Ctrl K</kbd>
           </div>
+          {blocksCatalogEnabled || addonsCatalogEnabled ? (
+            <div
+              aria-label={t(LangId.NodePaletteCatalogNodes)}
+              className={styles.catalogToggle}
+              role="group"
+            >
+              <button
+                aria-pressed={paletteCatalogMode === 'nodes'}
+                type="button"
+                onClick={() => {
+                  setPaletteCatalogMode('nodes')
+                  setHighlightedSchemaIndex(0)
+                  setPaletteHoveredOptionIndex(null)
+                  setPaletteExpandOverride('default')
+                }}
+              >
+                {t(LangId.NodePaletteCatalogNodes)}
+              </button>
+              {blocksCatalogEnabled ? (
+                <button
+                  aria-pressed={paletteCatalogMode === 'blocks'}
+                  type="button"
+                  onClick={() => {
+                    setPaletteCatalogMode('blocks')
+                    setHighlightedSchemaIndex(0)
+                    setPaletteHoveredOptionIndex(null)
+                    setPaletteExpandOverride('default')
+                    refreshBlocksCatalog()
+                  }}
+                >
+                  {t(LangId.NodePaletteCatalogBlocks)}
+                </button>
+              ) : null}
+              {addonsCatalogEnabled ? (
+                <button
+                  aria-pressed={paletteCatalogMode === 'addons'}
+                  type="button"
+                  onClick={() => {
+                    setPaletteCatalogMode('addons')
+                    setHighlightedSchemaIndex(0)
+                    setPaletteHoveredOptionIndex(null)
+                    setPaletteExpandOverride('default')
+                    refreshAddonsCatalog()
+                  }}
+                >
+                  {t(LangId.NodePaletteCatalogAddons)}
+                </button>
+              ) : null}
+            </div>
+          ) : null}
           <input
-            aria-activedescendant={filteredSchemas[activeSchemaIndex]?.id}
+            aria-activedescendant={
+              isAddonsMode
+                ? filteredAddons[activeSchemaIndex]?.id
+                : isBlocksMode
+                  ? filteredBlocks[activeSchemaIndex]?.id
+                  : filteredSchemas[activeSchemaIndex]?.id
+            }
             aria-controls="node-schema-results"
-            aria-label="Search node schemas"
+            aria-label={t(LangId.NodePaletteSearchAria)}
             autoComplete="off"
             className={styles.input}
             onChange={(event) => {
@@ -527,12 +985,27 @@ export function AddNodePalette({
               setPaletteExpandOverride('default')
             }}
             onKeyDown={handlePaletteKeyDown}
-            placeholder="Search schema by title or id..."
+            placeholder={
+              isAddonsMode
+                ? t(LangId.NodePaletteSearchAddonsPlaceholder)
+                : isBlocksMode
+                  ? t(LangId.NodePaletteSearchBlocksPlaceholder)
+                  : t(LangId.NodePaletteSearchPlaceholder)
+            }
             ref={paletteInputRef}
             role="combobox"
             type="search"
             value={paletteQuery}
           />
+          {isBlocksMode && diskBlockDefinitionsLoading ? (
+            <p className={styles.packFoldersStatus}>A ler blocos em blockStructures/blocks…</p>
+          ) : null}
+          {isBlocksMode && !diskBlockDefinitionsLoading && diskBlockDefinitionsError ? (
+            <p className={styles.packFoldersStatus} role="status">
+              Blocos pelo registo estático ({diskBlockDefinitionsError})
+            </p>
+          ) : null}
+          {!isBlocksMode && !isAddonsMode ? (
           <div className={styles.filterRows}>
             <div className={styles.tags} aria-label="Organization modes">
               <button
@@ -544,7 +1017,7 @@ export function AddNodePalette({
                   setPaletteExpandOverride('default')
                 }}
               >
-                A-Z
+                {t(LangId.NodePaletteOrgAz)}
               </button>
               <button
                 aria-pressed={paletteOrganization === 'structure'}
@@ -555,7 +1028,7 @@ export function AddNodePalette({
                   setPaletteExpandOverride('default')
                 }}
               >
-                Tipo
+                {t(LangId.NodePaletteOrgStructure)}
               </button>
               <button
                 aria-pressed={paletteOrganization === 'value-type'}
@@ -566,9 +1039,17 @@ export function AddNodePalette({
                   setPaletteExpandOverride('default')
                 }}
               >
-                Tipo de valor
+                {t(LangId.NodePaletteOrgValueType)}
               </button>
             </div>
+            {diskPackFoldersLoading ? (
+              <p className={styles.packFoldersStatus}>A ler pastas em nodeStructures…</p>
+            ) : null}
+            {!diskPackFoldersLoading && diskPackFoldersError ? (
+              <p className={styles.packFoldersStatus} role="status">
+                Pastas pelo registo ({diskPackFoldersError})
+              </p>
+            ) : null}
             {palettePackFolders.length > 0 ? (
               <div className={styles.tags} aria-label="Filtrar por pasta de estruturas">
                 <button
@@ -581,7 +1062,7 @@ export function AddNodePalette({
                     setPaletteExpandOverride('default')
                   }}
                 >
-                  Todos
+                  {t(LangId.NodePalettePackAll)}
                 </button>
                 {palettePackFolders.map((folder) => (
                   <button
@@ -744,6 +1225,8 @@ export function AddNodePalette({
               </div>
             ) : null}
           </div>
+          ) : null}
+          {isAddonsMode ? <PaletteAddonInstallZone onInstalled={refreshAddonsCatalog} /> : null}
           <div
             className={styles.results}
             id="node-schema-results"
@@ -751,13 +1234,81 @@ export function AddNodePalette({
             role="listbox"
             style={{
               '--palette-expand-slots': String(
-                Math.min(Math.max(filteredSchemas.length - 4, 0), 10),
+                Math.min(
+                  Math.max(
+                    (isAddonsMode
+                      ? filteredAddons.length
+                      : isBlocksMode
+                        ? filteredBlocks.length
+                        : filteredSchemas.length) - 4,
+                    0,
+                  ),
+                  10,
+                ),
               ),
-              '--palette-rows': String(Math.min(Math.max(filteredSchemas.length, 1), 14)),
+              '--palette-rows': String(
+                Math.min(
+                  Math.max(
+                    isAddonsMode
+                      ? filteredAddons.length
+                      : isBlocksMode
+                        ? filteredBlocks.length
+                        : filteredSchemas.length,
+                    1,
+                  ),
+                  14,
+                ),
+              ),
             } as CSSProperties & Record<'--palette-rows' | '--palette-expand-slots', string>}
             onPointerLeave={handlePaletteResultsPointerLeave}
           >
-            {filteredSchemas.length > 0 ? (
+            {isAddonsMode ? (
+              diskAddonsLoading ? (
+                <div className={styles.empty}>{t(LangId.NodePaletteAddonsLoading)}</div>
+              ) : diskAddonsError ? (
+                <div className={styles.empty}>{diskAddonsError}</div>
+              ) : filteredAddons.length > 0 ? (
+                filteredAddons.map((manifest, index) => (
+                  <PaletteAddAddonOption
+                    key={manifest.id}
+                    manifest={manifest}
+                    expanded={paletteOptionExpanded(index)}
+                    highlighted={index === activeSchemaIndex}
+                    onPick={(id) => onPickAddon?.(id)}
+                    onPointerEnter={() => {
+                      setHighlightedSchemaIndex(index)
+                      setPaletteHoveredOptionIndex(index)
+                    }}
+                    onPointerLeave={() => {
+                      setPaletteHoveredOptionIndex(null)
+                    }}
+                  />
+                ))
+              ) : (
+                <div className={styles.empty}>{t(LangId.NodePaletteAddonsEmpty)}</div>
+              )
+            ) : isBlocksMode ? (
+              filteredBlocks.length > 0 ? (
+                filteredBlocks.map((definition, index) => (
+                  <PaletteAddBlockOption
+                    definition={definition}
+                    expanded={paletteBlockOptionExpanded(index, definition)}
+                    highlighted={index === activeSchemaIndex}
+                    key={definition.id}
+                    onClick={() => onPickBlock?.(definition)}
+                    onPointerEnter={() => {
+                      setHighlightedSchemaIndex(index)
+                      setPaletteHoveredOptionIndex(index)
+                    }}
+                    onPointerLeave={() => {
+                      setPaletteHoveredOptionIndex(null)
+                    }}
+                  />
+                ))
+              ) : (
+                <div className={styles.empty}>{t(LangId.NodePaletteBlocksEmpty)}</div>
+              )
+            ) : filteredSchemas.length > 0 ? (
               filteredSchemas.map((schema, index) => (
                 <PaletteAddNodeOption
                   expanded={paletteOptionExpanded(index)}
@@ -773,7 +1324,7 @@ export function AddNodePalette({
                 />
               ))
             ) : (
-              <div className={styles.empty}>No schema found</div>
+              <div className={styles.empty}>{t(LangId.NodePaletteEmpty)}</div>
             )}
           </div>
         </section>

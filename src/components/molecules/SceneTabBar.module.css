@@ -1,58 +1,65 @@
+/* Alinhado com CodeDockTabBar — abas do editor de código */
 .bar {
   box-sizing: border-box;
   display: flex;
-  gap: var(--space-2);
+  flex: 1 1 auto;
+  gap: 2px;
   align-items: stretch;
-  width: 100%;
   min-width: 0;
-  min-height: 36px;
-  padding: var(--space-1) var(--space-2);
+  min-height: 28px;
+  padding: 2px 4px;
   overflow-x: auto;
-  background: rgb(0 0 0 / 22%);
-  border: 1px solid var(--color-border-soft);
-  border-radius: 12px;
   scrollbar-width: thin;
 }
 
 .barAttached {
-  background: rgb(0 0 0 / 22%);
+  padding: 2px 4px 0;
+  background: transparent;
   border: none;
-  border-bottom: none;
   border-radius: 0;
-  box-shadow: none;
 }
 
 .tab {
   display: inline-flex;
   flex-shrink: 0;
-  gap: var(--space-2);
+  gap: 4px;
   align-items: center;
-  max-width: 200px;
-  padding: var(--space-1) var(--space-2) var(--space-1) var(--space-3);
-  color: var(--color-text-secondary);
+  max-width: 180px;
+  padding: 4px 6px 4px 10px;
+  color: var(--color-text-muted);
   font-family: var(--font-data);
-  font-size: 0.74rem;
-  background: rgb(255 255 255 / 4%);
+  font-size: 0.68rem;
+  background: color-mix(in srgb, var(--color-text-primary) 4%, transparent);
   border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: 6px 6px 0 0;
   cursor: pointer;
 }
 
 .tab:hover {
-  color: var(--color-text-primary);
-  background: rgb(255 255 255 / 8%);
+  color: var(--color-text-secondary);
+  background: color-mix(in srgb, var(--color-text-primary) 8%, transparent);
 }
 
 .tabActive {
   color: var(--color-text-primary);
-  background: rgb(255 255 255 / 12%);
-  border-color: var(--color-border-soft);
+  background: var(--selected-tab-bg, color-mix(in srgb, var(--color-text-primary) 10%, transparent));
+  border-color: color-mix(in srgb, var(--color-text-primary) 12%, transparent);
+  border-bottom-color: transparent;
 }
 
 .tabLabel {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  background: transparent;
+  border: none;
+  cursor: pointer;
 }
 
 .tabClose {
@@ -60,19 +67,43 @@
   flex-shrink: 0;
   align-items: center;
   justify-content: center;
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   padding: 0;
-  color: var(--color-text-secondary);
-  font-size: 0.85rem;
+  color: inherit;
+  font-size: 0.8rem;
   line-height: 1;
   background: transparent;
   border: none;
   border-radius: 4px;
   cursor: pointer;
+  opacity: 0.7;
 }
 
 .tabClose:hover {
+  opacity: 1;
+  background: color-mix(in srgb, var(--color-text-primary) 12%, transparent);
+}
+
+.newTab {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  min-height: 24px;
+  padding: 0;
+  color: var(--color-text-muted);
+  font-size: 1rem;
+  line-height: 1;
+  background: transparent;
+  border: 1px dashed color-mix(in srgb, var(--color-text-primary) 15%, transparent);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.newTab:hover {
   color: var(--color-text-primary);
-  background: rgb(255 255 255 / 12%);
+  background: color-mix(in srgb, var(--color-text-primary) 8%, transparent);
+  border-color: color-mix(in srgb, var(--color-text-primary) 25%, transparent);
 }

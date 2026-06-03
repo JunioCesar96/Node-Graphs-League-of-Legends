@@ -1,0 +1,20 @@
+{
+  "id": "mCutoff_mCutoff",
+  "block": "VfxTrailDefinitionData",
+  "parameterName": "mCutoff",
+  "name": "mCutoff",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-trail-definition-data__main-characters/brand/skins/skin0/particles/brand-base-basic-attack-mis-complex-emitter-definition-data--slot--8-primitive-m-trail_parameter_mCutoff"
+  },
+  "type": "f32",
+  "value": "800",
+  "slots": {
+    "in": [
+      "f32"
+    ],
+    "out": [
+      "f32"
+    ]
+  }
+}

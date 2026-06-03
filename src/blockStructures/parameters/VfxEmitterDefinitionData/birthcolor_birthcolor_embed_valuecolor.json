@@ -1,0 +1,17 @@
+{
+  "id": "birthColor_birthColor_embed_ValueColor",
+  "block": "VfxEmitterDefinitionData",
+  "parameterName": "birthColor",
+  "name": "birthColor",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-emitter-definition-data__entries-{particlePath}-complex-emitter-definition-data--slot--1-birth-color"
+  },
+  "type": "embed",
+  "embed": "ValueColor",
+  "slots": {
+    "out": [
+      "ValueColor"
+    ]
+  }
+}

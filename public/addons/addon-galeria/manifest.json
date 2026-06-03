@@ -1,0 +1,80 @@
+{
+  "id": "addon-galeria",
+  "name": "[{0}]",
+  "category": "Media",
+  "drive": [
+    "always",
+    "inputChange{character-input}",
+    "inputChange{load-source-select}",
+    "inputChange{index-input}"
+  ],
+  "info": {
+    "link":"https://github.com/JunioCesar96/Node-Graphs-League-of-Legends",
+    "author":"Junio Cesar (Takeda)",
+    "version":"1.0.0",
+    "description":"[{23}]",
+    "license":"MIT",
+    "tags":["[{20}]", "[{21}]", "[{22}]"],
+    "docs":"https://github.com/JunioCesar96/Node-Graphs-League-of-Legends/blob/main/README.md"
+  },
+  "headerColor": "",
+  "backgroundColor": "transparent",
+  "backgroundImage": "",
+  "borderColor": "",
+  "borderRadius": "",
+  "borderWidth": "",
+  "borderStyle": "",
+  "headerFontSize": "",
+  "headerFontWeight": "",
+  "headerFontColor": "",
+  "headerBackgroundColor": "",
+  "headerBackgroundImage": "",
+  "icon": "public/addons/addon-galeria/assets/CustomUVChecker_byValle_2K.png",
+  "get": true,
+  "set": true,
+  "data": [
+    {
+      "name": "path",
+      "type": "string",
+      "direction": "input",
+      "slot": "true",
+      "slotColor": "default",
+      "slotTip": { "pt": "{16}", "en": "{16}" }
+    },
+    {
+      "name": "index",
+      "type": "number",
+      "direction": "input",
+      "slot": "true",
+      "slotColor": "default",
+      "slotTip": { "pt": "{7}", "en": "{7}" }
+    },
+    {
+      "name": "currentImage",
+      "type": "string",
+      "direction": "output",
+      "slot": "true",
+      "slotColor": "#D8EBF2",
+      "slotTip": { "pt": "{8}", "en": "{8}" }
+    }
+  ],
+  "cotexMenu": [
+    {
+      "name": "img",
+      "options": [
+        {
+          "name": "[{10}]",
+          "action": "saveImage"
+        },
+        {
+          "name": "[{11}]",
+          "action": "copyPath"
+        },
+        {
+          "name": "[{12}]",
+          "action": "copyName"
+        }
+      ]
+    }
+  ]
+}

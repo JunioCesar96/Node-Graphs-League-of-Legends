@@ -3,8 +3,8 @@ import type { Monaco } from '@monaco-editor/react'
 import type * as MonacoType from 'monaco-editor'
 
 import { getPreference } from '@jade/lib/preferenceStore'
-import { registerRitobinTheme, RITOBIN_THEME_ID } from '@jade/lib/ritobinLanguage'
-import { applyTheme } from '@jade/lib/themeApplicator'
+import { RITOBIN_LANGUAGE_ID } from '@jade/lib/ritobinLanguage'
+import { refreshJadeSurfaceTheme, JADE_DYNAMIC_MONACO_THEME, JADE_SURFACE_THEME_CHANGED } from '@/core/jadeSurfaceTheme'
 
 import {
   setupRitobinMonacoBeforeMount,
@@ -19,9 +19,22 @@ import {
   type PerfPrefs,
 } from './buildMonacoOptions'
 
-export type CodeDockCtxMenu = { x: number; y: number } | null
+import { useCodeDockRitualDrag } from './useCodeDockRitualDrag'
+import { useCodeDockShortcutHandlers } from '@/shortcuts/useCodeDockShortcutHandlers'
 
-export function useCodeDockJadeEditor(value: string, onContentChange: (next: string) => void) {
+export type CodeDockCtxMenu = {
+  x: number
+  y: number
+  /** Texto ritual da selecção activa (só se o clique foi dentro da selecção). */
+  selectedText: string
+} | null
+
+export function useCodeDockJadeEditor(
+  value: string,
+  onContentChange: (next: string) => void,
+  editorLanguage: string = RITOBIN_LANGUAGE_ID,
+) {
+  const isRitobinEditor = editorLanguage === RITOBIN_LANGUAGE_ID
   const editorRef = useRef<MonacoType.editor.IStandaloneCodeEditor | null>(null)
   const monacoRef = useRef<Monaco | null>(null)
   const decorationIdsRef = useRef<string[]>([])
@@ -36,7 +49,7 @@ export function useCodeDockJadeEditor(value: string, onContentChange: (next: str
   const [perfPrefs, setPerfPrefs] = useState<PerfPrefs>(PERF_DEFAULTS)
   const [lineCount, setLineCount] = useState(0)
   const [editorFontFamily, setEditorFontFamily] = useState('')
-  const [editorTheme, setEditorTheme] = useState(RITOBIN_THEME_ID)
+  const [editorTheme, setEditorTheme] = useState(JADE_DYNAMIC_MONACO_THEME)
 
   const [findActive, setFindActive] = useState(false)
   const [replaceActive, setReplaceActive] = useState(false)
@@ -49,9 +62,11 @@ export function useCodeDockJadeEditor(value: string, onContentChange: (next: str
   const [showThemes, setShowThemes] = useState(false)
   const [showAbout, setShowAbout] = useState(false)
 
-  const [focused, setFocused] = useState(false)
+  const [editorMounted, setEditorMounted] = useState(false)
 
   const monacoOptions = buildMonacoOptions(perfPrefs, lineCount, editorFontFamily || undefined)
+
+  useCodeDockRitualDrag(editorRef, editorMounted)
 
   const loadPerfPrefs = useCallback(async () => {
     const next: PerfPrefs = { ...PERF_DEFAULTS }
@@ -158,18 +173,22 @@ export function useCodeDockJadeEditor(value: string, onContentChange: (next: str
     const editor = editorRef.current
     if (!monaco || !editor) return
 
-    if (!syntaxCheckingEnabledRef.current) {
-      const model = editor.getModel()
-      if (model && !model.isDisposed()) {
-        monaco.editor.setModelMarkers(model, 'syntax-checker', [])
-        decorationIdsRef.current = model.deltaDecorations(decorationIdsRef.current, [])
-      }
+    const model = editor.getModel()
+
+    if (!model || model.isDisposed()) {
+      return
+    }
+
+    if (!isRitobinEditor || !syntaxCheckingEnabledRef.current) {
+      monaco.editor.setModelMarkers(model, 'syntax-checker', [])
+      decorationIdsRef.current = model.deltaDecorations(decorationIdsRef.current, [])
+      emitterDecorationIdsRef.current = model.deltaDecorations(emitterDecorationIdsRef.current, [])
       return
     }
 
     updateRitobinSyntaxMarkers(monaco, editor, decorationIdsRef)
     updateEmitterNameDecorations(editor)
-  }, [updateEmitterNameDecorations])
+  }, [isRitobinEditor, updateEmitterNameDecorations])
 
   const scheduleSyntaxPass = useCallback(() => {
     if (debounceTimerRef.current !== null) clearTimeout(debounceTimerRef.current)
@@ -329,26 +348,9 @@ export function useCodeDockJadeEditor(value: string, onContentChange: (next: str
 
   const applyCodeDockTheme = useCallback(async () => {
     try {
-      const theme = await getPreference('Theme', 'Default')
-      const useCustom = await getPreference('UseCustomTheme', 'false')
-      if (useCustom === 'true') {
-        applyTheme('Custom', {
-          windowBg: await getPreference('Custom_Bg', '#0F1928'),
-          editorBg: await getPreference('Custom_EditorBg', '#141E2D'),
-          titleBar: await getPreference('Custom_TitleBar', '#0F1928'),
-          statusBar: await getPreference('Custom_StatusBar', '#005A9E'),
-          text: await getPreference('Custom_Text', '#D4D4D4'),
-          tabBg: await getPreference('Custom_TabBg', '#1E1E1E'),
-          selectedTab: await getPreference('Custom_SelectedTab', '#007ACC'),
-        })
-      } else {
-        applyTheme(theme)
-      }
-      const monaco = monacoRef.current
-      if (monaco) {
-        registerRitobinTheme(monaco)
-        monaco.editor.setTheme(RITOBIN_THEME_ID)
-        setEditorTheme(RITOBIN_THEME_ID)
+      const themeName = await refreshJadeSurfaceTheme(monacoRef.current)
+      if (themeName) {
+        setEditorTheme(themeName)
       }
     } catch (e) {
       console.warn('CodeDock theme apply failed', e)
@@ -391,14 +393,30 @@ export function useCodeDockJadeEditor(value: string, onContentChange: (next: str
       const ctxDisposable = editor.onContextMenu((e) => {
         e.event.preventDefault()
         e.event.stopPropagation()
-        setCtxMenu({ x: e.event.posx, y: e.event.posy })
+
+        const selection = editor.getSelection()
+        const model = editor.getModel()
+        let selectedText = ''
+
+        if (selection && model && !selection.isEmpty()) {
+          const clickPosition = e.target.position
+          const clickOnSelection =
+            clickPosition !== undefined && selection.containsPosition(clickPosition)
+
+          if (clickOnSelection) {
+            selectedText = model.getValueInRange(selection).trim()
+          }
+        }
+
+        setCtxMenu({
+          x: e.event.posx,
+          y: e.event.posy,
+          selectedText,
+        })
       })
       editorDisposablesRef.current.push(ctxDisposable)
 
-      const focusIn = editor.onDidFocusEditorText(() => setFocused(true))
-      const focusOut = editor.onDidBlurEditorText(() => setFocused(false))
-      editorDisposablesRef.current.push(focusIn, focusOut)
-
+      setEditorMounted(true)
       runSyntaxPass()
     },
     [runSyntaxPass, scheduleSyntaxPass, syncLineCount],
@@ -407,7 +425,11 @@ export function useCodeDockJadeEditor(value: string, onContentChange: (next: str
   useEffect(() => {
     scheduleSyntaxPass()
     syncLineCount()
-  }, [scheduleSyntaxPass, syncLineCount, value])
+  }, [isRitobinEditor, scheduleSyntaxPass, syncLineCount, value])
+
+  useEffect(() => {
+    runSyntaxPass()
+  }, [editorLanguage, isRitobinEditor, runSyntaxPass])
 
   useEffect(() => {
     return () => {
@@ -422,47 +444,26 @@ export function useCodeDockJadeEditor(value: string, onContentChange: (next: str
       })
       editorRef.current = null
       monacoRef.current = null
+      setEditorMounted(false)
     }
   }, [])
 
   useEffect(() => {
-    if (!focused) return
-
-    const onKey = (e: KeyboardEvent) => {
-      if (!(e.ctrlKey || e.metaKey)) return
-      const key = e.key.toLowerCase()
-      if (key === 'f') {
-        e.preventDefault()
-        handleFind()
-      } else if (key === 'h') {
-        e.preventDefault()
-        handleReplace()
-      } else if (key === 'z' && !e.shiftKey) {
-        e.preventDefault()
-        handleUndo()
-      } else if (key === 'y' || (key === 'z' && e.shiftKey)) {
-        e.preventDefault()
-        handleRedo()
-      } else if (key === 'o') {
-        e.preventDefault()
-        handleGeneralEdit()
-      } else if (key === 'p') {
-        e.preventDefault()
-        handleParticlePanel()
-      }
+    const onThemePrefChanged = () => {
+      void applyCodeDockTheme()
     }
+    window.addEventListener(JADE_SURFACE_THEME_CHANGED, onThemePrefChanged)
+    return () => window.removeEventListener(JADE_SURFACE_THEME_CHANGED, onThemePrefChanged)
+  }, [applyCodeDockTheme])
 
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [
-    focused,
-    handleFind,
-    handleReplace,
-    handleUndo,
-    handleRedo,
-    handleGeneralEdit,
-    handleParticlePanel,
-  ])
+  useCodeDockShortcutHandlers({
+    onFind: handleFind,
+    onReplace: handleReplace,
+    onUndo: handleUndo,
+    onRedo: handleRedo,
+    onGeneralEdit: handleGeneralEdit,
+    onParticlePanel: handleParticlePanel,
+  })
 
   const onEmitterHintsChange = useCallback(
     (enabled: boolean) => {
@@ -527,6 +528,7 @@ export function useCodeDockJadeEditor(value: string, onContentChange: (next: str
     handleParticlePanel,
     handlePanelContentChange,
     scrollToLine,
+    isRitobinEditor,
     handleMaterialLibrary,
     handleCompareFiles,
     showTauriToast,

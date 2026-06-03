@@ -1,0 +1,87 @@
+{
+  "id": "parametric-clip-data__m-clip-data-map-spell3-back",
+  "title": "ParametricClipData",
+  "parameters": [
+    {
+      "id": "ParametricClipData_parameter_mTrackDataName",
+      "name": "mTrackDataName",
+      "type": "integer",
+      "defaultValue": "Default"
+    }
+  ],
+  "embed": [],
+  "pointer": [
+    {
+      "id": "ParametricClipData_pointer_Updater",
+      "title": "Updater",
+      "internalStructures": [
+        {
+          "id": "parametric-clip-data-updater",
+          "name": "IsMovingParametricUpdater",
+          "schemaId": "is-moving-parametric-updater__main-entries-characters-zac-animations-skin0-m-clip-data-map-spell3-back-updater"
+        }
+      ],
+      "slots": [
+        {
+          "id": "ParametricClipData_pointer_Updater__slot__0",
+          "name": "IsMovingParametricUpdater",
+          "schemaId": "is-moving-parametric-updater__main-entries-characters-zac-animations-skin0-m-clip-data-map-spell3-back-updater"
+        }
+      ]
+    }
+  ],
+  "listEmbed": [
+    {
+      "id": "ParametricClipData_listEmbed_mParametricPairDataList",
+      "title": "mParametricPairDataList",
+      "internalStructures": [
+        {
+          "id": "parametric-clip-data-m-parametric-pair-data-list-0",
+          "name": "ParametricPairData",
+          "schemaId": "parametric-pair-data__m-parametric-pair-data-list-0"
+        },
+        {
+          "id": "parametric-clip-data-m-parametric-pair-data-list-1",
+          "name": "ParametricPairData",
+          "schemaId": "parametric-pair-data__m-parametric-pair-data-list-1"
+        }
+      ],
+      "slots": [
+        {
+          "id": "ParametricClipData_listEmbed_mParametricPairDataList__slot__0",
+          "name": "ParametricPairData",
+          "schemaId": "parametric-pair-data__m-parametric-pair-data-list-0"
+        },
+        {
+          "id": "ParametricClipData_listEmbed_mParametricPairDataList__slot__1",
+          "name": "ParametricPairData",
+          "schemaId": "parametric-pair-data__m-parametric-pair-data-list-1"
+        }
+      ]
+    }
+  ],
+  "listPointer": [],
+  "list2Embed": [],
+  "list2Pointer": [],
+  "internalStructures": [],
+  "nomenclature": {
+    "group": "#3 Internal Structures",
+    "collection": "#3 Collection Block",
+    "collectionType": "ParametricClipData",
+    "pathHierarchy": "main > entries:Characters/Zac/Animations/Skin0 > mClipDataMap:Spell3_Back",
+    "pathHierarchySteps": [
+      {
+        "id": "main",
+        "type": "#0 Root main"
+      },
+      {
+        "id": "entries:Characters/Zac/Animations/Skin0",
+        "type": "#2 Root Entry (AnimationGraphData)"
+      },
+      {
+        "id": "mClipDataMap:Spell3_Back",
+        "type": "#3 Collection Block"
+      }
+    ]
+  }
+}

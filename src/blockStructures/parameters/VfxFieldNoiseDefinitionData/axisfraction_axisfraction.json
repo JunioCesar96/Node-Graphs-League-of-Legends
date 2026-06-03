@@ -1,0 +1,20 @@
+{
+  "id": "axisFraction_axisFraction",
+  "block": "VfxFieldNoiseDefinitionData",
+  "parameterName": "axisFraction",
+  "name": "axisFraction",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-field-noise-definition-data__main-characters/brand/skins/skin0/particles/brand-base-joke-complex-emitter-definition-data--slot--0-field-collection-definition-field-noise-definitions--slot--0_parameter_axisFraction"
+  },
+  "type": "vec3",
+  "value": "0.5, 1, 0.5",
+  "slots": {
+    "in": [
+      "vec3"
+    ],
+    "out": [
+      "vec3"
+    ]
+  }
+}

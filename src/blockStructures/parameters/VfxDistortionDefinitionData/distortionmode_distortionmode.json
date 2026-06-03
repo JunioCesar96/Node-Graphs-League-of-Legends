@@ -1,0 +1,20 @@
+{
+  "id": "distortionMode_distortionMode",
+  "block": "VfxDistortionDefinitionData",
+  "parameterName": "distortionMode",
+  "name": "distortionMode",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-distortion-definition-data__main-characters/brand/skins/skin0/particles/brand-base-q-blaze-mis-complex-emitter-definition-data--slot--13-distortion-definition_parameter_distortionMode"
+  },
+  "type": "u8",
+  "value": "2",
+  "slots": {
+    "in": [
+      "u8"
+    ],
+    "out": [
+      "u8"
+    ]
+  }
+}

@@ -4,6 +4,7 @@ import {
   deriveSliderRange,
   formatVector3String,
   normalizeVector3String,
+  parseVector3RitualInput,
   parseVector3String,
   plotFractionFromVector3,
   scalarFromSliderFraction,
@@ -16,6 +17,11 @@ describe('vector3Value', () => {
   it('parse e formata x,y,z', () => {
     expect(parseVector3String('1, 2, 3')).toEqual({ x: 1, y: 2, z: 3 })
     expect(formatVector3String({ x: 1, y: 2, z: 3 })).toBe('1, 2, 3')
+  })
+
+  it('parseVector3RitualInput remove chaves ritual', () => {
+    expect(parseVector3RitualInput('{ 20, 80, 45 }')).toEqual({ x: 20, y: 80, z: 45 })
+    expect(normalizeVector3String('{ 20, 80, 45 }')).toBe('20, 80, 45')
   })
 
   it('normaliza entradas inválidas', () => {

@@ -6,6 +6,9 @@ import type {
   NodeCardSectionExpandedMap,
   NodeCardSectionId,
 } from './nodeCardSections'
+import type { NewNodeMaterializePhase } from './codeToNewNodeGraph'
+import type { BlockStructurePayload } from './blockSchema'
+import type { GroupStructurePayload } from './groupSchema'
 import type {
   InternalStructureDefinition,
   NodeInstance,
@@ -67,6 +70,11 @@ export type CanvasPosition = {
   y: number
 }
 
+export type AddonInstancePayload = {
+  addonId: string
+  outputValues: Record<string, unknown>
+}
+
 /** Deslocamento (pan) e zoom da vista do canvas — persistido no layout do workspace. */
 export type SceneCamera = {
   pan: CanvasPosition
@@ -96,6 +104,26 @@ export type CanvasNode = {
   bodyColorEnabled?: boolean
   /** Trava movimento, edição de valores e ligações de saída. */
   locked?: boolean
+  /** Fase de materialização durante transformação Neeko (não persistir). */
+  neekoTransformPhase?: NewNodeMaterializePhase
+  /** Erro de parse/drop Neeko (não persistir). */
+  neekoTransformError?: string
+  /** Metadados do sistema Bloco (BlockNodes). */
+  blockStructure?: BlockStructurePayload
+  /** Quando true, renderiza BlockCard em vez de NodeCard. */
+  blockViewActive?: boolean
+  /** Metadados do sistema Grupo (GroupNodes). */
+  groupStructure?: GroupStructurePayload
+  /** Quando true, renderiza GroupCard em vez de NodeCard. */
+  groupViewActive?: boolean
+  /** Metadados do sistema Add-on (pacotes em public/addons). */
+  addonInstance?: AddonInstancePayload
+  /** Quando true, renderiza AddonCard. */
+  addonViewActive?: boolean
+  /** Card grupo/bloco: parâmetros em duas linhas (nome completo + valor). Omitido = linha única compacta. */
+  structureCardParamsExpanded?: boolean
+  /** Largura manual do card grupo/bloco (px). Omitido = largura padrão (360). */
+  structureCardWidth?: number
 }
 
 export function isCanvasNodeBodyCollapsed(canvasNode: CanvasNode): boolean {
@@ -121,6 +149,24 @@ export type CanvasConnection = {
   fromInternalStructureId: string
   toNodeId: string
   routing?: ConnectionRouting
+  /** Origem slot de bloco (saída). */
+  fromBlockSlotId?: string
+  fromBlockParameterId?: string
+  /** Destino slot de bloco (entrada). */
+  toBlockSlotId?: string
+  toBlockParameterId?: string
+  /** Origem slot de grupo (saída). */
+  fromGroupSlotId?: string
+  fromGroupParameterId?: string
+  /** Destino slot de grupo (entrada). */
+  toGroupSlotId?: string
+  toGroupParameterId?: string
+  /** Origem slot de add-on (saída). */
+  fromAddonSlotId?: string
+  /** Destino slot de add-on (entrada). */
+  toAddonSlotId?: string
+  /** Ligação bloco com tipo de saída incompatível mas campo IN aceite (confirmada pelo utilizador). */
+  forced?: boolean
 }
 
 function coerceEmbeddedSchema(schema: NodeSchemaDefinition): NodeSchemaDefinition {
@@ -158,6 +204,17 @@ function migrateConnection(connection: CanvasConnection): CanvasConnection {
     fromInternalStructureId,
     toNodeId: connection.toNodeId,
     ...(connection.routing ? { routing: connection.routing } : {}),
+    ...(connection.fromBlockSlotId ? { fromBlockSlotId: connection.fromBlockSlotId } : {}),
+    ...(connection.fromBlockParameterId ? { fromBlockParameterId: connection.fromBlockParameterId } : {}),
+    ...(connection.toBlockSlotId ? { toBlockSlotId: connection.toBlockSlotId } : {}),
+    ...(connection.toBlockParameterId ? { toBlockParameterId: connection.toBlockParameterId } : {}),
+    ...(connection.fromGroupSlotId ? { fromGroupSlotId: connection.fromGroupSlotId } : {}),
+    ...(connection.fromGroupParameterId ? { fromGroupParameterId: connection.fromGroupParameterId } : {}),
+    ...(connection.toGroupSlotId ? { toGroupSlotId: connection.toGroupSlotId } : {}),
+    ...(connection.toGroupParameterId ? { toGroupParameterId: connection.toGroupParameterId } : {}),
+    ...(connection.fromAddonSlotId ? { fromAddonSlotId: connection.fromAddonSlotId } : {}),
+    ...(connection.toAddonSlotId ? { toAddonSlotId: connection.toAddonSlotId } : {}),
+    ...(connection.forced ? { forced: true } : {}),
   }
 }
 
@@ -171,7 +228,15 @@ export type SceneNodesChrome = {
 
 export type SceneChromeState = {
   sceneNodes?: SceneNodesChrome
+  /** Barra de ferramentas da grade retraída (só ícone de ferramentas). */
+  toolbarCollapsed?: boolean
   toolbarVisibility?: CanvasToolbarVisibility
+  /** Fundo da grade do canvas (linhas). Predefinido: visível. */
+  showCanvasGrid?: boolean
+  /** Passo da grelha em px (predefinido: 32). */
+  canvasGridSize?: number
+  /** Opacidade das linhas 0–40 (predefinido: 7). */
+  canvasGridOpacity?: number
 }
 
 /** Filtro activo «Mostrar apenas nós ligados» (reavaliado ao mudar índice / modo compacto). */

@@ -1,0 +1,17 @@
+{
+  "id": "mTrail_mTrail_embed_VfxTrailDefinitionData",
+  "block": "VfxPrimitiveCameraTrail",
+  "parameterName": "mTrail",
+  "name": "mTrail",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-primitive-camera-trail__main-characters/brand/skins/skin0/particles/brand-base-basic-attack-mis-complex-emitter-definition-data--slot--8-primitive-m-trail"
+  },
+  "type": "embed",
+  "embed": "VfxTrailDefinitionData",
+  "slots": {
+    "out": [
+      "VfxTrailDefinitionData"
+    ]
+  }
+}

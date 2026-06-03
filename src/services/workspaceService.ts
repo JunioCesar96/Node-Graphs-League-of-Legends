@@ -1,8 +1,8 @@
 import type { CanvasScene } from '@/core/canvasScene'
 import {
   isWorkspaceBundleEmpty,
-  isWorkspaceBundleValid,
   mergeWorkspaceToScene,
+  normalizeWorkspaceBundle,
   splitSceneToWorkspace,
   type WorkspaceBundle,
 } from '@/core/workspacePersistence'
@@ -69,11 +69,12 @@ class WorkspaceService {
       }
 
       const data: unknown = await response.json()
-      if (!isWorkspaceBundleValid(data)) {
+      const bundle = normalizeWorkspaceBundle(data)
+      if (!bundle) {
         return null
       }
 
-      return data
+      return bundle
     } catch (error) {
       if (this.isDev()) {
         console.error('[Workspace] Falha na rede ao carregar:', error)

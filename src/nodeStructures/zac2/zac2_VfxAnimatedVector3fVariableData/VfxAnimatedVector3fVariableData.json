@@ -1,0 +1,64 @@
+{
+  "id": "vfx-animated-vector3f-variable-data__main-entries-0x04ff5c13-complex-emitter-definition-data-4-scale0-dynamics",
+  "title": "VfxAnimatedVector3fVariableData",
+  "parameters": [
+    {
+      "id": "VfxAnimatedVector3fVariableData_parameter_times",
+      "name": "times",
+      "type": "listF32",
+      "defaultValue": "0\n0.1\n0.2\n0.3\n0.7\n0.85\n1"
+    },
+    {
+      "id": "VfxAnimatedVector3fVariableData_parameter_values",
+      "name": "values",
+      "type": "listVector3",
+      "defaultValue": "0.5, 0.5, 0.5\n1, 1, 1\n1.8, 1.8, 1.8\n1.9, 1.9, 1.9\n2.1, 2.1, 2.1\n2.2, 2.2, 2.2\n0.2, 0.2, 0.2"
+    }
+  ],
+  "embed": [],
+  "pointer": [],
+  "listEmbed": [],
+  "listPointer": [
+    {
+      "id": "VfxAnimatedVector3fVariableData_listPointer_probabilityTables",
+      "title": "probabilityTables",
+      "internalStructures": [
+        {
+          "id": "vfx-animated-vector3f-variable-data-probability-tables-0",
+          "name": "VfxProbabilityTableData",
+          "schemaId": "vfx-probability-table-data__probability-tables-0"
+        },
+        {
+          "id": "vfx-animated-vector3f-variable-data-probability-tables-1",
+          "name": "VfxProbabilityTableData",
+          "schemaId": "vfx-probability-table-data__probability-tables-1"
+        },
+        {
+          "id": "vfx-animated-vector3f-variable-data-probability-tables-2",
+          "name": "VfxProbabilityTableData",
+          "schemaId": "vfx-probability-table-data__probability-tables-2"
+        }
+      ],
+      "slots": [
+        {
+          "id": "VfxAnimatedVector3fVariableData_listPointer_probabilityTables__slot__0",
+          "name": "VfxProbabilityTableData",
+          "schemaId": "vfx-probability-table-data__probability-tables-0"
+        },
+        {
+          "id": "VfxAnimatedVector3fVariableData_listPointer_probabilityTables__slot__1",
+          "name": "VfxProbabilityTableData",
+          "schemaId": "vfx-probability-table-data__probability-tables-1"
+        },
+        {
+          "id": "VfxAnimatedVector3fVariableData_listPointer_probabilityTables__slot__2",
+          "name": "VfxProbabilityTableData",
+          "schemaId": "vfx-probability-table-data__probability-tables-2"
+        }
+      ]
+    }
+  ],
+  "list2Embed": [],
+  "list2Pointer": [],
+  "internalStructures": []
+}

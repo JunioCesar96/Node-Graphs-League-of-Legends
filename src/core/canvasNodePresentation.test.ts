@@ -5,15 +5,21 @@ import {
   canvasNodeBodyStyle,
   canvasNodeCardStyle,
   canvasNodeInputPortStyle,
+  createMapHashEmbedCanvasVisibility,
   getNodeDisplayTitle,
   filterRemovableNodeIds,
   filterSelectableNodeIds,
+  isNodeBodyEffectivelyCollapsed,
   isNodeLocked,
   isNodeRemovableFromScene,
   isNodeSelectableOnCanvas,
   isNodeVisibleOnCanvas,
   resolveCanvasNodeBodyCssColor,
 } from '@/core/canvasNodePresentation'
+import type { CanvasScene } from '@/core/canvasScene'
+import { formatMapHashEmbedString, parseMapHashEmbedString } from '@/core/mapHashEmbedValue'
+import { elementViewKeyForParameter, patchElementViewMode } from '@/core/elementViewState'
+import { mapHashEmbedSlotId } from '@/core/mapHashEmbedSlots'
 
 function stubCanvasNode(overrides: Partial<CanvasNode> = {}): CanvasNode {
   return {
@@ -63,6 +69,109 @@ describe('canvasNodePresentation', () => {
     expect(isNodeVisibleOnCanvas(stubCanvasNode({ sceneHidden: true }))).toBe(false)
     expect(isNodeLocked(stubCanvasNode())).toBe(false)
     expect(isNodeLocked(stubCanvasNode({ locked: true }))).toBe(true)
+  })
+
+  it('isNodeVisibleOnCanvas respeita ramos mapHashEmbed compactos', () => {
+    const paramId = 'param-entries'
+    const key = elementViewKeyForParameter(paramId)
+    const mainNode = {
+      id: 'main',
+      schema: {
+        id: 'main',
+        title: 'Main',
+        parameters: [{ id: paramId, name: 'entries', type: 'mapHashEmbed' as const, defaultValue: '' }],
+        internalStructures: [],
+      },
+      values: [
+        {
+          parameterId: paramId,
+          value: formatMapHashEmbedString([
+            { key: '0xaaa', typeName: 'A', schemaId: 'a' },
+            { key: '0xbbb', typeName: 'B', schemaId: 'b' },
+          ]),
+        },
+      ],
+    }
+    const mapValue = mainNode.values[0]!.value
+    const entries = parseMapHashEmbedString(mapValue)
+    const scene: CanvasScene = {
+      width: 100,
+      height: 100,
+      nodes: [
+        stubCanvasNode({
+          id: 'main',
+          node: patchElementViewMode(mainNode, key, 'compact', 0),
+        }),
+        stubCanvasNode({ id: 'visible-child' }),
+        stubCanvasNode({ id: 'hidden-child' }),
+      ],
+      connections: [
+        {
+          id: 'c1',
+          fromNodeId: 'main',
+          fromInternalStructureId: mapHashEmbedSlotId(paramId, entries[0]!.key),
+          toNodeId: 'visible-child',
+        },
+        {
+          id: 'c2',
+          fromNodeId: 'main',
+          fromInternalStructureId: mapHashEmbedSlotId(paramId, entries[1]!.key),
+          toNodeId: 'hidden-child',
+        },
+      ],
+    }
+    const visibility = createMapHashEmbedCanvasVisibility(scene)
+    expect(isNodeVisibleOnCanvas(scene.nodes[1]!, visibility)).toBe(true)
+    expect(isNodeVisibleOnCanvas(scene.nodes[2]!, visibility)).toBe(false)
+    expect(
+      isNodeVisibleOnCanvas({ ...scene.nodes[2]!, branchForceVisible: true }, visibility),
+    ).toBe(true)
+  })
+
+  it('isNodeBodyEffectivelyCollapsed em modo lista mapHashEmbed', () => {
+    const paramId = 'param-entries'
+    const key = elementViewKeyForParameter(paramId)
+    const mapValue = formatMapHashEmbedString([{ key: '0xaaa', typeName: 'A', schemaId: 'a' }])
+    const entryKey = parseMapHashEmbedString(mapValue)[0]!.key
+    const scene: CanvasScene = {
+      width: 100,
+      height: 100,
+      nodes: [
+        stubCanvasNode({
+          id: 'main',
+          node: {
+            id: 'main',
+            schema: {
+              id: 'main',
+              title: 'Main',
+              parameters: [{ id: paramId, name: 'entries', type: 'mapHashEmbed', defaultValue: '' }],
+              internalStructures: [],
+            },
+            values: [
+              {
+                parameterId: paramId,
+                value: mapValue,
+              },
+            ],
+            elementView: { [key]: { mode: 'list' } },
+          },
+        }),
+        stubCanvasNode({ id: 'child' }),
+      ],
+      connections: [
+        {
+          id: 'c1',
+          fromNodeId: 'main',
+          fromInternalStructureId: mapHashEmbedSlotId(paramId, entryKey),
+          toNodeId: 'child',
+        },
+      ],
+    }
+    const visibility = createMapHashEmbedCanvasVisibility(scene)
+    expect(isNodeBodyEffectivelyCollapsed(scene.nodes[1]!, visibility)).toBe(true)
+    expect(
+      isNodeBodyEffectivelyCollapsed({ ...scene.nodes[1]!, bodyCollapsed: false }, visibility),
+    ).toBe(false)
   })
 
   it('isNodeSelectableOnCanvas e filterSelectableNodeIds excluem ocultos', () => {

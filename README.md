@@ -1,16 +1,214 @@
-```All rights will be credited in the usual version.```
+# Documentação de Implementação — Catálogo de Add-ons (Ctrl+K), metadados `info` e instalação por arrastar
 
-# League BIN Node Editor
+Arquivo salvo em: `feature_md/feature/feature-addon-palette-install.md`
 
-**Version:** 1.5.0 · **Status:** Work in progress
+## 1. Cabeçalho
 
-![Tool Screenshot](./src/assets/preview2.png)
+| Campo | Valor |
+| --- | --- |
+| Nome da Branch | `feature/addon-palette-install` |
+| Nome das Features | Catálogo Add-ons no Ctrl+K; cartões expandidos com `manifest.info`; instalação por drag-and-drop; add-ons de referência `addon-galeria` e `addon-string-prefix`; APIs dev de listagem/instalação e pasta nativa da galeria |
+| Versão atual | `1.5.0` |
+| Hash do Commit | `d037948` |
 
-## About the project
+Documentação relacionada: `feature_md/prompet/prompet_addon.md`.
 
-An interactive web editor for League of Legends `.bin` / **Class Group** ritual files. You can turn structured text (ritual) into a **visual node graph**, edit properties and links on a canvas, and export back to ritual text—similar in spirit to [Jade-League-Bin-Editor](https://github.com/RitoShark/Jade-League-Bin-Editor), which powers parsing and Jade integration in this app.
+---
 
-Built with **Vite** + **React** + **Monaco** (CodeDock).
+## 2. Definição e Resumo de Tags
+
+| Tag | Definição |
+| --- | --- |
+| `[NOVO]` | Módulo, componente, API dev, add-on sandbox ou fluxo criado nesta entrega. |
+| `[ATUALIZADO]` | Componente ou serviço existente alterado para suportar add-ons ou o catálogo Ctrl+K. |
+| `[REMOVIDO]` | Comportamento ou API removida. |
+
+Tags presentes nesta implementação:
+
+- `[NOVO]`
+- `[ATUALIZADO]`
+
+Não houve itens classificados como `[REMOVIDO]`.
+
+---
+
+## 3. Fluxograma de Funcionamento
+
+```mermaid
+graph TD
+  subgraph boot [Arranque da app]
+    A[App.tsx mount] --> B[fetchAddonsFromDisk]
+    B --> C{GET /api/addons-list}
+    C -->|ok dev| D[manifests em public/addons]
+    C -->|fallback| E[GET /addons/index.json + loadManifestOnly]
+    D --> F[registerAddonManifest no addonRegistry]
+    E --> F
+  end
+
+  subgraph palette [Ctrl+K Addons]
+    G[Utilizador abre Ctrl+K] --> H[Separador Addons]
+    H --> I[PaletteAddonInstallZone]
+    H --> J[Lista PaletteAddAddonOption]
+    J --> K[resolveAddonManifestInfo i18n]
+    K --> L[Hover/seleção expande info tags links]
+  end
+
+  subgraph install [Instalação drag-and-drop]
+    M[Arrastar pasta para zona] --> N[readDroppedAddonFolder]
+    N --> O[Validar manifest.json na raiz]
+    O --> P[installDroppedAddonFiles]
+    P --> Q[POST /api/addons-install]
+    Q --> R[Gravar public/addons/id + index.json]
+    R --> S[refreshAddonsCatalog]
+  end
+
+  subgraph canvas [Canvas]
+    T[Escolher add-on na paleta] --> U[preloadAddonPackage]
+    U --> V[AddonCardHost + logic.js execute]
+    V --> W[crossSlotConnections grafo + DOM]
+  end
+
+  I --> M
+  J --> T
+  F --> J
+  S --> B
+```
+
+---
+
+## 4. Fluxograma de Acionamento de Funções
+
+```mermaid
+sequenceDiagram
+  actor U as Utilizador
+  participant Pal as AddNodePalette
+  participant Zone as PaletteAddonInstallZone
+  participant Drop as addonInstallFromDrop
+  participant API as vite.addonsInstallHandler
+  participant Reg as addonRegistry
+  participant GC as GraphCanvas
+  participant Loader as AddonLoaderService
+
+  U->>Pal: Ctrl+K → Addons
+  Pal->>Reg: fetchAddonsFromDisk / refreshAddonsCatalog
+  Reg-->>Pal: manifests[]
+
+  U->>Zone: drop pasta add-on
+  Zone->>Drop: installAddonFromDataTransfer
+  Drop->>Drop: readDroppedAddonFolder + validateAddonManifest
+  Drop->>API: POST /api/addons-install { files }
+  API->>API: isAddonManifest + fs.writeFile + updateAddonsIndex
+  API-->>Drop: { ok, manifest }
+  Drop-->>Zone: progress 100% + nome
+  Zone->>Pal: onInstalled → refreshAddonsCatalog
+
+  U->>Pal: Clica add-on na lista
+  Pal->>GC: onPickAddon addonId
+  GC->>Loader: preloadAddonPackage
+  Loader->>Loader: loadFromSandbox ui.html logic.js language
+  Loader-->>GC: AddonPackage
+  GC->>GC: createAddonNode + render AddonCard
+```
+
+---
+
+## 5. Tabela de Funções e Componentes
+
+| Status | Nome | Feature | Descrição Técnica | Parâmetros / Retorno |
+| --- | --- | --- | --- | --- |
+| `[NOVO]` | `addonLoader.service.ts` | Runtime add-on | Valida/normaliza manifest; carrega `ui.html`, `logic.js`, i18n e menus de contexto. | `loadFromSandbox(id, locale)` → `AddonPackage`. |
+| `[NOVO]` | `addonRegistry.ts` | Catálogo | Cache de manifests/packages; `fetchAddonsFromDisk`; pesquisa inclui `info`. | `registerAddonManifest`, `matchesAddonQuery`. |
+| `[NOVO]` | `addonManifestInfo.ts` | Metadados Ctrl+K | Resolve `description`/`tags` i18n; texto de pesquisa. | `resolveAddonManifestInfo`, `addonManifestInfoSearchText`. |
+| `[NOVO]` | `PaletteAddAddonOption.tsx` | UI catálogo | Cartão estilo blocos; expande com autor, versão, licença, tags, Repo/Docs. | `manifest`, `expanded`, `onPick`. |
+| `[NOVO]` | `PaletteAddonInstallZone.tsx` | Instalação | Zona drag-and-drop; barra de progresso; nome e estado sucesso/erro. | `onInstalled` callback. |
+| `[NOVO]` | `addonInstallFromDrop.ts` | Client install | Lê pasta via `webkitGetAsEntry`; envia ficheiros JSON ao servidor dev. | `installAddonFromDataTransfer` → `AddonInstallResult`. |
+| `[NOVO]` | `vite.addonsInstallHandler.ts` | API dev | `POST /api/addons-install`; valida manifest; grava disco; actualiza `index.json`. | `handleAddonsInstallRequest`. |
+| `[NOVO]` | `vite.addonsListHandler.ts` | API dev | `GET /api/addons-list`; enumera `public/addons/*/manifest.json`. | `handleAddonsListRequest`, `isAddonManifest`. |
+| `[NOVO]` | `vite.plugin.addonsList.ts` | Plugin Vite | Middleware dev para list + install + available. | `apply: serve`. |
+| `[NOVO]` | `AddonCardHost.tsx` / `AddonCardView.tsx` | Canvas | Renderiza UI sandbox; slots IN/OUT; drive reactivo. | Props de cena + `AddonPackage`. |
+| `[NOVO]` | `addonSlotConnections.ts` / `crossSlotConnections.ts` | Ligações | Conexões entre slots de add-on e nós/blocos. | `applyAddonSlotConnectionToScene`, etc. |
+| `[NOVO]` | `useAddonCanvasLinks.ts` | Interacção | Drag de slots add-on; abre paleta Addons filtrada. | Hook no `GraphCanvas`. |
+| `[NOVO]` | `addon-galeria` | Add-on Media | Galeria LoL: Root Folder, personagem, origem Particles/Base/Path; `.tex`/`.dds`; menu contexto. | `public/addons/addon-galeria/`. |
+| `[NOVO]` | `vite.galleryFolderHandler.ts` | API galeria dev | Pick folder, scan directory, read file (Windows dev). | Endpoints `/api/gallery-*`. |
+| `[ATUALIZADO]` | `AddNodePalette.tsx` | Ctrl+K | Separador Addons; zona instalação; pesquisa; oculta filtros A-Z/pastas em modo Addons. | `onPickAddon`, `refreshAddonsCatalog`. |
+| `[ATUALIZADO]` | `GraphCanvas.tsx` | Paleta add-on | `addonDropLinkContext`; spawn ao escolher na paleta. | `handlePaletteAddonPick`. |
+| `[ATUALIZADO]` | `App.tsx` | Boot | `fetchAddonsFromDisk()` no mount. | — |
+| `[ATUALIZADO]` | `addon-string-prefix` | Metadados | Bloco `info` + chaves i18n 20–23 alinhadas à galeria. | `manifest.json`, `language/*.json`. |
+| `[ATUALIZADO]` | `languageIds.ts` + `language/*.json` | i18n | Strings catálogo Addons e zona de instalação (556–564). | `LangId.NodePaletteCatalogAddons`, etc. |
+
+---
+
+## 6. Descrição Detalhada de Funcionamento
+
+### Catálogo Add-ons (Ctrl+K)
+
+[NOVO] O `AddNodePalette` ganhou o modo **Addons**, activo quando `addonsCatalogEnabled` (por defeito quando não há contexto de ligação de nó/bloco exclusivo). A lista vem de `fetchAddonsFromDisk`, que preferencialmente usa `GET /api/addons-list` em dev e, em fallback, lê `public/addons/index.json` e carrega cada manifest.
+
+[ATUALIZADO] Em modo Addons, filtros de pasta e organização A-Z ficam ocultos — apenas pesquisa por título, id, categoria e campos de `manifest.info`.
+
+[NOVO] `PaletteAddAddonOption` replica o layout compacto/expandido dos blocos: ao hover ou seleção por teclado, expande e mostra descrição (i18n), autor · versão · licença, tags traduzidas e links **Repo** / **Docs** quando presentes em `manifest.info`.
+
+[NOVO] `addonManifestInfo.ts` interpreta chaves `[{n}]` / `{n}` usando o pack `language/{locale}.json` de cada add-on.
+
+### Instalação por arrastar pasta
+
+[NOVO] `PaletteAddonInstallZone` aparece acima da lista no modo Addons. O utilizador arrasta **uma pasta** contendo `manifest.json` na raiz.
+
+[NOVO] O cliente (`addonInstallFromDrop.ts`) percorre a árvore via `DataTransferItem.webkitGetAsEntry`, valida o manifest com `validateAddonManifest`, resolve o nome para exibição (i18n local) e envia todos os ficheiros em JSON para `POST /api/addons-install`.
+
+[NOVO] O servidor (`vite.addonsInstallHandler.ts`) revalida com `isAddonManifest`, impede path traversal, grava em `public/addons/{id}/`, actualiza `public/addons/index.json` e responde com o manifest instalado.
+
+[ATUALIZADO] Após sucesso, `refreshAddonsCatalog` repovoa a lista sem reiniciar a app.
+
+**Limitação:** instalação disponível apenas com `npm run dev` (`GET /api/addons-install-available`). Em build estático, a zona mostra mensagem de indisponibilidade.
+
+### Add-on Galeria (referência)
+
+[NOVO] Fluxo `{Raiz}` → personagem (`characters.json`) → origem Particles / Base / Path; barra de progresso `#D8EBF2` durante scan; suporte `.tex`/`.dds`; menu contexto (guardar imagem, copiar caminho absoluto em dev, copiar nome).
+
+[NOVO] APIs dev em `vite.galleryFolderHandler.ts` para pick de pasta Windows, scan recursivo e leitura de ficheiro.
+
+### Runtime no canvas
+
+[NOVO] `AddonLoaderService.loadFromSandbox` importa `logic.js` como módulo ESM, injecta `ui.html` no cartão, aplica drive (`inputChange`, `always`, etc.) e propaga outputs via `addonOutputPropagation`.
+
+[NOVO] Ligações cruzadas add-on ↔ nó/bloco via `crossSlotConnections` e hook `useAddonCanvasLinks` (arrastar slot OUT abre paleta Addons).
+
+### Tratamento de erros
+
+- Pasta sem `manifest.json` na raiz → mensagem na zona de instalação (sem Messenger; fluxo inline).
+- Manifest inválido → erro antes do upload ou resposta 400 da API.
+- Múltiplas pastas no drop → rejeição no cliente.
+- API indisponível (produção) → zona desactivada com hint i18n.
+- Add-ons ignorados em listagem dev aparecem em `skipped` no JSON de `/api/addons-list` (log servidor).
+
+**Confirmações de UI:** esta feature **não** introduz diálogos de confirmação; feedback é inline na zona de instalação e na barra de progresso. Não usa `window.confirm` / `window.alert`.
+
+---
+
+## 7. Como utilizar (didático)
+
+### Português
+
+1. Execute **`npm run dev`** (instalação de add-ons requer o servidor Vite).
+2. Abra **Ctrl+K** e seleccione o separador **Addons**.
+3. Para **instalar**: arraste a pasta do add-on (com `manifest.json` na raiz) para a caixa **Instalar Addon**.
+4. Aguarde a barra de progresso, o nome do add-on e a mensagem **Instalado com sucesso.**
+5. O add-on passa a aparecer na lista abaixo; use a pesquisa por nome ou id.
+6. Passe o rato sobre um add-on para ver descrição, autor, tags e links Repo/Docs.
+7. Clique num add-on para o colocar no canvas; ligue slots como nos blocos.
+8. **Galeria:** defina **Root Folder**, escolha personagem e origem (Particles / Base / Path); use o menu de contexto nas imagens.
+
+### English
+
+1. Run **`npm run dev`** (add-on install requires the Vite dev server).
+2. Open **Ctrl+K** and select the **Addons** tab.
+3. To **install**: drag the add-on folder (with root `manifest.json`) onto **Install Addon**.
+4. Wait for the progress bar, add-on name, and **Installed successfully.**
+5. The add-on appears in the list below; search by name or id.
+6. Hover an entry to see description, author, tags, and Repo/Docs links.
+7. Click an add-on to spawn it on the canvas; wire slots like blocks.
+8. **Gallery:** set **Root Folder**, pick character and source (Particles / Base / Path); use the image context menu.
 
 ---
 
@@ -27,279 +225,3 @@ Key contributions include:
 * General-purpose editing tools
 
 Their work and support were essential to the development and functionality of this project.
-
-
-## Quick start
-
-### Prerequisites
-
-- [Node.js](https://nodejs.org/) 18+
-- [pnpm](https://pnpm.io/) (recommended; see `packageManager` in `package.json`)
-
-### Install and run
-
-```bash
-git clone https://github.com/JunioCesar96/Node-Graphs-League-of-Legends.git
-cd Node-Graphs-League-of-Legends
-pnpm install
-pnpm dev
-```
-
-Open the URL shown in the terminal (usually `http://localhost:5173`).
-
-### Optional (development)
-
-| Script | Purpose |
-| --- | --- |
-| `pnpm jade-bridge:dev` | Mock Jade bridge for opening `.bin` in dev |
-| `pnpm jade:http-bridge` | HTTP bridge from Jade-League-Bin-Editor (Rust) |
-| `pnpm test` | Run Vitest unit tests |
-
----
-
-## Step-by-step guide
-
-### 1. First look at the workspace
-
-- **Center:** graph canvas (nodes, connections, pan/zoom).
-- **Right:** CodeDock (Monaco editor) — toggle with the **Code** menu button.
-- **Left / panels:** scene tabs, nodes list, inspector, scene states (depending on layout).
-
-### 2. Scenes (work files)
-
-Use the **Graph** menu:
-
-| Action | What it does |
-| --- | --- |
-| **New work scene** | Empty tab with a fresh canvas |
-| **Load recent scenes** | Re-open a recently used scene JSON (up to 10) |
-| **Save work scene** | Export the full scene to a `.json` file on disk |
-
-**Note:** Continuous auto-save of large scenes to `localStorage` was removed to avoid quota errors. Save explicitly when you need a backup. Tab snapshots are kept lightly on lifecycle events (small scenes only).
-
-### 3. Import ritual text → node graph
-
-Typical flow (Code → graph):
-
-1. Open **Code** panel and paste or load ritual text (e.g. from a `.bin` PROP file).
-2. In CodeDock **Tools**, run **Converter [Class Group]** (choose a pack folder, e.g. `default` under `src/nodeStructures/`).
-3. Run **Code To Node Graph** (bulk or step-by-step wizard) to build the canvas from the ritual.
-4. You should see a **Main** node and child nodes connected from `entries` and internal structures.
-
-Enable **Nodes → Configure** if you want a fixed Class Group folder and catalog-driven extraction (see step 6).
-
-### 4. Edit the graph
-
-| Task | How |
-| --- | --- |
-| Add a node | **Nodes → Add…** or drag from palette when linking |
-| Start a link | **Drag** from an **output** slot (right side of a structure row) |
-| Finish a link | Drop on another node’s **input** port (top of card) or pick a type from the palette on empty canvas |
-| Change link style | **Short click** on a connected output slot: cycles **flex → rigid → wireless** (chain icon when linked) |
-| Relink / pick existing node | Short click on a **free** output slot → collection-type menu |
-| Context actions | Right-click canvas, node header, slots, or wires (hide children, routing, focus peer, etc.) |
-| Delete | Select nodes → **Nodes → Remove selected** |
-
-**Wireless** links hide the SVG wire and show a chain icon; hover highlights the peer node.
-
-### 5. Export node graph → ritual text
-
-1. Ensure the scene has **exactly one** Main node (`schema id: main`) with the subtree you want exported.
-2. **Graph → Node Graphs to Code**.
-3. Enter the tab name (e.g. `Zac.bin`).
-4. Wait for the progress dialog; ritual text opens in CodeDock (full file, no 500k preview cut).
-
-Export uses PascalCase field names and Main `entries` order from the catalog, aligned with production `.bin` style.
-
-### 6. Nodes → Configure (schemas & packs)
-
-1. **Nodes → Configure** (confirm if prompted).
-2. **Pasta Converter Class Group…** — set the default folder for Class Group conversion (can be `default`).
-3. In CodeDock: **Extrair Node Base** to pull base schemas from the catalog into the pack.
-4. **Converter [Class Group]** uses that folder when Configure is on.
-
-New scenes in Configure mode start **empty** (no forced placeholder root).
-
-### 7. Scene states (presets)
-
-In the **States** area of the nodes panel:
-
-- **Save** a named preset (node visibility, locks, labels, card layout, link filter, **camera** pan/zoom).
-- **Load** a preset to restore that view.
-- Import/export presets as JSON from the context menu when needed.
-
-### 8. Nodes in scene
-
-The **Nodes in scene** list helps you:
-
-- Select and focus nodes without hunting on the canvas
-- Hide or show nodes (scene overlay)
-- Lock nodes (blocks dragging and new output links)
-- Use **peer toolbar** on output slots (focus/lock/hide the connected child)
-
-### 9. Jade integration
-
-In CodeDock **Tools**:
-
-- Jade path / engine settings
-- Open `.bin` via bridge (dev workflow with `pnpm jade-bridge:dev` or Rust HTTP bridge)
-
----
-
-## What’s new since the previous `main` (plain language)
-
-Features landed after the old English-only README on `main`, grouped newest first:
-
-- **Node Graphs to Code** — export Main + subtree to `#PROP_text` ritual; menu + context menu; progress UI; full CodeDock load.
-- **Export & port fixes** — PascalCase fields, correct `entries` order, `bool`/`flag` from schema; output slots drag + route cycling with chain icon on all link types; `graphPointFromElementCenter` for wire draft.
-- **Scene states, routing, light tab save** — named presets with camera; flex/rigid/wireless links; submenu “link shape”; hide all linked children; no heavy auto-save.
-- **Nodes Configure + `default` pack** — configuration mode, Class Group folder, empty new scenes, Extract Node Base.
-- **Jade bridge (dev) + CodeDock Jade menu** — open `.bin` from the editor in development.
-- **Scene tabs + Graph menu** — multiple scenes, recent JSON, save work scene, unified tab bar + canvas chrome.
-- **Scene persistence & notifications** — save/load UX (auto-save to disk later simplified).
-- **Retract element in card** — collapse embed/list rows; wireless pulse on retracted slots.
-- **Nodes in scene panel** — overlay list, lock/hide/focus, selection rules.
-- **Main / inspector / map hash UX** — Main Class Group entry, canvas legend, inspector, `mapHashEmbed` entry linking.
-- **Compact structure view** — dense internal structure rows; auto wireless in compact mode.
-- **Wireless connection** — third routing mode; chain icon; peer hover highlight.
-- **Class Group building blocks** — map hash/embed/u64, LIST2 embed/pointer, POINTER, list embed, primitive list pickers, element menus + search, dynamic collection-type linking, parameter suffixes, canvas context menu, hash/string inspector, workspace disk hooks, and related schema/UI work.
-
----
-
-## Technical documentation
-
-Implementation notes (Mermaid diagrams, commit hashes, API tables) live under [`feature_md/feature/`](feature_md/feature/):
-
-| Topic | Document |
-| --- | --- |
-| Node Graphs to Code | [feature-node-graphs-to-code.md](feature_md/feature/feature-node-graphs-to-code.md) |
-| Code To Node Graph | [feature-code-to-node-graph.md](feature_md/feature/feature-code-to-node-graph.md) |
-| Scene tabs & Graph menu | [feature-abas-cena-json-menu-grafo.md](feature_md/feature/feature-abas-cena-json-menu-grafo.md) |
-| Scene save / Graph menu (earlier) | [feature-cena-persistencia-menu-grafo.md](feature_md/feature/feature-cena-persistencia-menu-grafo.md) |
-| States, routing, tab persistence | [feature-cena-estados-routing-persistencia.md](feature_md/feature/feature-cena-estados-routing-persistencia.md) |
-| Nodes Configure & default pack | [feature-nodes-configurar-pack-default.md](feature_md/feature/feature-nodes-configurar-pack-default.md) |
-| Nodes in scene | [feature-nodes-em-cena.md](feature_md/feature/feature-nodes-em-cena.md) |
-| Jade CodeDock menu | [feature-menu-jade-codedock.md](feature_md/feature/feature-menu-jade-codedock.md) |
-| Jade auto bridge (dev) | [feature-jade-bridge-auto-dev.md](feature_md/feature/feature-jade-bridge-auto-dev.md) |
-| Wireless links | [feature-wireless-connection.md](feature_md/feature/feature-wireless-connection.md) |
-| Compact structures | [feature-compact-structure-view.md](feature_md/feature/feature-compact-structure-view.md) |
-| Retract element | [feature-retrair-elemento-card.md](feature_md/feature/feature-retrair-elemento-card.md) |
-| Main / inspector UX | [feature-canvas-inspector-main-ux.md](feature_md/feature/feature-canvas-inspector-main-ux.md) |
-| Canvas context menu | [feature-canvas-context-menu.md](feature_md/feature/feature-canvas-context-menu.md) |
-| Dynamic collection linking | [feature-dynamic-collection-type-linking.md](feature_md/feature/feature-dynamic-collection-type-linking.md) |
-| Map hash / u64 primitives | [feature-class-group-map-hash-u64-primitives.md](feature_md/feature/feature-class-group-map-hash-u64-primitives.md) |
-| LIST2 embed / pointer | [feature-list2-embed-pointer-class-group.md](feature_md/feature/feature-list2-embed-pointer-class-group.md) |
-| LIST embed | [feature-list-embed-class-group.md](feature_md/feature/feature-list-embed-class-group.md) |
-| POINTER | [feature-pointer-class-group.md](feature_md/feature/feature-pointer-class-group.md) |
-| EMBED | [feature-embed-class-group.md](feature_md/feature/feature-embed-class-group.md) |
-| Parameter pickers | [feature-parameter-pickers-class-group.md](feature_md/feature/feature-parameter-pickers-class-group.md) |
-| Element menu | [feature-element-menu.md](feature_md/feature/feature-element-menu.md) |
-| Element menu search | [feature-element-menu-search.md](feature_md/feature/feature-element-menu-search.md) |
-| Workspace disk | [feature-workspace-disk-persistence.md](feature_md/feature/feature-workspace-disk-persistence.md) |
-| Node instance | [feature-node-instance-feature.md](feature_md/feature/feature-node-instance-feature.md) |
-| Main Class Group | [feature-main-class-group.md](feature_md/feature/feature-main-class-group.md) |
-
----
-
----
-
-# Português — Guia do utilizador
-
-## O que é esta aplicação?
-
-É um **editor visual de grafos de nós** para ficheiros de dados do League of Legends (ritual Class Group / `.bin`). Em vez de editar só texto enorme, vês **cartões ligados por fios**: cada nó é um tipo de dados (VFX, skin, animação, etc.) e cada **slot de saída** liga ao nó filho correcto.
-
-Serve para **ir e voltar** entre código ritual e grafo: importar texto → editar na cena → exportar de novo.
-
-## Como executar
-
-```bash
-pnpm install
-pnpm dev
-```
-
-Requisitos: Node 18+ e pnpm. Abre o endereço que o terminal mostrar.
-
-## Passo a passo (uso diário)
-
-### 1. Primeira abertura
-
-- **Meio:** cena gráfica (nós e ligações).
-- **Code:** painel de código à direita (botão **Código** no menu).
-- **Abas** no topo da zona do grafo: cada aba é uma cena de trabalho.
-
-### 2. Cenas de trabalho
-
-Menu **Grafo**:
-
-- **Nova Cena de trabalho** — começar do zero.
-- **Carregar cenas recentes** — reabrir um JSON guardado antes.
-- **Salvar Cena de trabalho** — gravar a cena completa num ficheiro `.json`.
-
-Grava explicitamente quando quiseres backup; o auto-save pesado em `localStorage` foi removido para não encher a quota do browser.
-
-### 3. Do código para o grafo (importar)
-
-1. Cola ou abre o ritual no **CodeDock**.
-2. **Converter [Class Group]** — escolhe a pasta do pack (ex.: `default`).
-3. **Code To Node Graph** — gera os nós na cena (inclui o nó **Main** e os filhos ligados).
-4. Explora o grafo: zoom com a roda, arrasta o fundo para mover a vista.
-
-### 4. Editar ligações e nós
-
-- **Adicionar nó:** menu **Nodes → Adicionar…**
-- **Ligar:** arrasta do **slot de saída** (bolinha/ícone à direita da estrutura) até ao nó filho ou solta no canvas vazio para escolher o tipo na paleta.
-- **Completar ligação:** com um fio a meio, clica na **entrada** do nó destino (topo do cartão).
-- **Forma da ligação:** clique **curto** num slot já ligado (ícone de corrente) alterna **flexível → rígida → sem fio**.
-- **Religar:** clique curto num slot **livre** abre o menu de tipos compatíveis.
-- **Menu de contexto:** botão direito no canvas, nó, slot ou fio.
-
-### 5. Do grafo para o código (exportar) — funcionalidade mais recente
-
-1. A cena deve ter **um único** nó **Main** com a subárvore que queres exportar.
-2. **Grafo → Node Graphs to Code**.
-3. Indica o nome da aba (ex.: `Zac.bin`).
-4. O ritual completo aparece no CodeDock (sem cortar ficheiros grandes).
-
-O texto gerado segue o estilo do `.bin` de referência (campos em PascalCase, ordem das `entries` do catálogo Main).
-
-### 6. Modo Configurar (schemas)
-
-1. **Nodes → Configurar** (activar).
-2. **Pasta Converter Class Group…** — pasta predefinida do pack.
-3. No CodeDock: **Extrair Node Base** e **Converter [Class Group]** usam essa pasta.
-
-### 7. Estados de cena
-
-Guarda **presets** com nome: quais nós estão ocultos, travados, cores, secções do cartão, filtro de ligações e **posição da câmera** (zoom/pan). Útil para comparar layouts ou voltar a uma vista de trabalho.
-
-### 8. Nodes em cena
-
-Lista lateral para seleccionar, focar, ocultar ou travar nós. Nos slots ligados, a barra de **peer** foca/oculta/trava o filho ligado.
-
-### 9. Jade
-
-Ferramentas no CodeDock para caminhos do Jade e abrir `.bin` em desenvolvimento (`pnpm jade-bridge:dev`).
-
----
-
-## Funcionalidades desde a última `main` (resumo simples)
-
-Tudo o que a branch `main` antiga ainda **não** tinha, explicado por tema:
-
-| Tema | O que ganhaste |
-| --- | --- |
-| **Código ↔ Grafo** | **Code To Node Graph** (texto → cena) e **Node Graphs to Code** (cena → texto), inversos um do outro. |
-| **Cena** | Várias abas; menu Grafo; guardar/abrir JSON; estados nomeados com câmera; persistência leve de abas. |
-| **Nós** | Painel “em cena”; modo Configurar + pack `default`; elementos retraídos no cartão. |
-| **Ligações** | Tipos flex/rigid/wireless; ícone de corrente; ocultar filhos ligados; foco no par; arrasto e clique nos slots corrigidos. |
-| **Class Group** | Map hash/embed, listas, pointers, pickers, menus de elemento, ligação por collection type, inspector. |
-| **Jade** | Menu e ponte em dev para abrir `.bin`. |
-
-A **última** grande entrega é **Node Graphs to Code**: exportar a árvore do Main para ritual `#PROP_text` como no `estrutura_bin.py`, com correcções de formato e portos de saída a funcionar de novo.
-
-Documentação técnica detalhada (diagramas, commits): pasta [`feature_md/feature/`](feature_md/feature/).
-
----
-
-*League BIN Node Editor — community tool, not affiliated with Riot Games.*

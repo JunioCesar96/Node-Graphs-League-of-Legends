@@ -1,0 +1,21 @@
+{
+  "id": "times_times_listF32",
+  "block": "VfxAnimatedVector3fVariableData",
+  "parameterName": "times",
+  "name": "times",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-animated-vector3f-variable-data__entries-{particlePath}-complex-emitter-definition-data--slot--0-birth-velocity-dynamics_parameter_times"
+  },
+  "type": "listF32",
+  "items": [
+    "0",
+    "0.3",
+    "1"
+  ],
+  "slots": {
+    "out": [
+      "f32"
+    ]
+  }
+}

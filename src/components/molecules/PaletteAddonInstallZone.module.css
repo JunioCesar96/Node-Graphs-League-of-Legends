@@ -1,0 +1,97 @@
+.zone {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: rgb(255 255 255 / 2%);
+  border: 1px dashed rgb(216 235 242 / 42%);
+  border-radius: 14px;
+  transition:
+    border-color 160ms ease,
+    background 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.zoneDragging {
+  background: rgb(216 235 242 / 8%);
+  border-color: #d8ebf2;
+  box-shadow: inset 0 0 0 1px rgb(216 235 242 / 18%);
+}
+
+.zoneInstalling {
+  border-style: solid;
+  border-color: rgb(216 235 242 / 55%);
+}
+
+.zoneSuccess {
+  border-style: solid;
+  border-color: rgb(76 175 80 / 72%);
+  background: rgb(76 175 80 / 8%);
+}
+
+.zoneError {
+  border-style: solid;
+  border-color: rgb(255 99 99 / 72%);
+  background: rgb(255 99 99 / 8%);
+}
+
+.zoneDisabled {
+  opacity: 0.62;
+  cursor: not-allowed;
+}
+
+.title {
+  color: var(--color-text-primary);
+  font-family: var(--font-data);
+  font-size: 0.92rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.hint {
+  color: var(--color-text-muted);
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+.progressBlock {
+  display: grid;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+}
+
+.addonName {
+  color: var(--color-text-secondary);
+  font-family: var(--font-data);
+  font-size: 0.84rem;
+  font-weight: 600;
+}
+
+.progressTrack {
+  overflow: hidden;
+  width: 100%;
+  height: 6px;
+  background: rgb(255 255 255 / 8%);
+  border-radius: 999px;
+}
+
+.progressFill {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #9fd8ea 0%, #d8ebf2 100%);
+  border-radius: inherit;
+  transition: width 180ms ease;
+}
+
+.zoneSuccess .progressFill {
+  background: linear-gradient(90deg, #66bb6a 0%, #a5d6a7 100%);
+}
+
+.zoneError .progressFill {
+  background: linear-gradient(90deg, #ef5350 0%, #ff8a80 100%);
+}
+
+.statusMessage {
+  color: var(--color-text-secondary);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}

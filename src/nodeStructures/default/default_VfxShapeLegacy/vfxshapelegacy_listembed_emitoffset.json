@@ -1,0 +1,11 @@
+{
+  "id": "VfxShapeLegacy_listEmbed_emitOffset",
+  "title": "emitOffset",
+  "internalStructures": [
+    {
+      "id": "VfxShapeLegacy_listEmbed_emitOffset-catalog-0",
+      "name": "ValueVector3",
+      "schemaId": "value-vector3__main-entries-0xa2fa6a01-complex-emitter-definition-data-8-spawn-shape-emit-offset"
+    }
+  ]
+}

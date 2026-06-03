@@ -1,0 +1,17 @@
+{
+  "id": "uvRotation_uvRotation_embed_ValueFloat",
+  "block": "VfxEmitterDefinitionData",
+  "parameterName": "uvRotation",
+  "name": "uvRotation",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-emitter-definition-data__main-characters/brand/skins/skin0/particles/brand-base-basic-attack-mis-complex-emitter-definition-data--slot--0-uv-rotation"
+  },
+  "type": "embed",
+  "embed": "ValueFloat",
+  "slots": {
+    "out": [
+      "ValueFloat"
+    ]
+  }
+}

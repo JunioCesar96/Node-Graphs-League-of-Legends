@@ -1,0 +1,22 @@
+.placeholder {
+  min-width: 200px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1px dashed var(--border-subtle, #444);
+  background: var(--color-node-surface, #1e1e1e);
+  color: var(--text-secondary, #999);
+  font-size: 12px;
+}
+
+.errorTitle {
+  display: block;
+  font-weight: 600;
+  color: #e8a87c;
+  margin-bottom: 4px;
+}
+
+.errorDetail {
+  display: block;
+  font-size: 11px;
+  word-break: break-word;
+}

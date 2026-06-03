@@ -1,0 +1,21 @@
+{
+  "id": "VfxAnimatedColorVariableData_VfxAnimatedColorVariableData",
+  "block": "dynamics",
+  "blockName": "VfxAnimatedColorVariableData",
+  "type": "pointer",
+  "name": "VfxAnimatedColorVariableData",
+  "source": {
+    "kind": "block",
+    "nodeId": "vfx-animated-color-variable-data__entries-{particlePath}-complex-emitter-definition-data--slot--0-color-dynamics"
+  },
+  "color": "#40ff56",
+  "headerSlots": [
+    "in[dynamics]",
+    "out[VfxAnimatedColorVariableDataPreview]"
+  ],
+  "parameters": [
+    "times",
+    "values",
+    "probabilityTables"
+  ]
+}

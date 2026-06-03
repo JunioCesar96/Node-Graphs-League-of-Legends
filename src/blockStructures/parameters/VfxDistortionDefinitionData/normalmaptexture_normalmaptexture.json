@@ -1,0 +1,20 @@
+{
+  "id": "normalMapTexture_normalMapTexture",
+  "block": "VfxDistortionDefinitionData",
+  "parameterName": "normalMapTexture",
+  "name": "normalMapTexture",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-distortion-definition-data__main-characters/brand/skins/skin0/particles/brand-base-q-blaze-mis-complex-emitter-definition-data--slot--13-distortion-definition_parameter_normalMapTexture"
+  },
+  "type": "string",
+  "value": "ASSETS/Characters/Vladimir/Skins/Base/Particles/common_distort-twirl.tex",
+  "slots": {
+    "in": [
+      "string"
+    ],
+    "out": [
+      "string"
+    ]
+  }
+}

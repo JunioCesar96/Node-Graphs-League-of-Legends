@@ -1,6 +1,0 @@
-{
-  "id": "VfxShapeCylinder_parameter_flags",
-  "name": "flags",
-  "type": "u8",
-  "defaultValue": "0"
-}

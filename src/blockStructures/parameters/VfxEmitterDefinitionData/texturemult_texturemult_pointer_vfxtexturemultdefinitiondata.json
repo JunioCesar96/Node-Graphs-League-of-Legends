@@ -1,0 +1,17 @@
+{
+  "id": "textureMult_textureMult_pointer_VfxTextureMultDefinitionData",
+  "block": "VfxEmitterDefinitionData",
+  "parameterName": "textureMult",
+  "name": "textureMult",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-emitter-definition-data__entries-{particlePath}-complex-emitter-definition-data--slot--7-texture-mult"
+  },
+  "type": "pointer",
+  "pointer": "VfxTextureMultDefinitionData",
+  "slots": {
+    "out": [
+      "VfxTextureMultDefinitionData"
+    ]
+  }
+}

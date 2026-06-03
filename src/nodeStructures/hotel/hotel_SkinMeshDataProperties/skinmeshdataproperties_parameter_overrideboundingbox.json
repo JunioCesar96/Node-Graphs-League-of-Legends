@@ -1,6 +1,0 @@
-{
-  "id": "SkinMeshDataProperties_parameter_overrideBoundingBox",
-  "name": "overrideBoundingBox",
-  "type": "optionvector3",
-  "defaultValue": "0, 0, 0"
-}

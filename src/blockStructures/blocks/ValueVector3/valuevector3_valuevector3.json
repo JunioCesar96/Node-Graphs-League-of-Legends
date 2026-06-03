@@ -1,0 +1,20 @@
+{
+  "id": "ValueVector3_ValueVector3",
+  "block": "birthVelocity",
+  "blockName": "ValueVector3",
+  "type": "embed",
+  "name": "ValueVector3",
+  "source": {
+    "kind": "block",
+    "nodeId": "value-vector3__entries-{particlePath}-complex-emitter-definition-data--slot--0-birth-velocity"
+  },
+  "color": "#40ff56",
+  "headerSlots": [
+    "in[birthVelocity,birthDrag,EmitterPosition,birthRotation0,birthScale0,scale0,birthRotationalVelocity0]",
+    "out[ValueVector3Preview]"
+  ],
+  "parameters": [
+    "constantValue",
+    "dynamics"
+  ]
+}

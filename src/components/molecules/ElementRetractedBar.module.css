@@ -127,6 +127,27 @@
   animation: element-retracted-wireless-pulse 0.85s ease-in-out infinite;
 }
 
+.barFocusPulse {
+  animation: element-retracted-focus-pulse 0.85s ease-in-out infinite;
+}
+
+@keyframes element-retracted-focus-pulse {
+  0%,
+  100% {
+    border-color: var(--color-border-soft);
+    box-shadow:
+      0 0 0 1px rgb(250 204 21 / 32%),
+      0 0 12px rgb(250 204 21 / 24%);
+  }
+
+  50% {
+    border-color: rgb(250 204 21 / 78%);
+    box-shadow:
+      0 0 0 2px rgb(250 204 21 / 78%),
+      0 0 14px rgb(250 204 21 / 48%);
+  }
+}
+
 @keyframes element-retracted-wireless-pulse {
   0%,
   100% {

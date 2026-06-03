@@ -1,0 +1,43 @@
+{
+  "id": "animation-resource-data__main-entries-characters-zac-animations-skin0-m-clip-data-map-spell4-m-animation-resource-data",
+  "title": "AnimationResourceData",
+  "parameters": [
+    {
+      "id": "AnimationResourceData_parameter_mAnimationFilePath",
+      "name": "mAnimationFilePath",
+      "type": "string",
+      "defaultValue": "ASSETS/Characters/Zac/Skins/Base/Animations/Zac_Revert_spell4.anm"
+    }
+  ],
+  "embed": [],
+  "pointer": [],
+  "listEmbed": [],
+  "listPointer": [],
+  "list2Embed": [],
+  "list2Pointer": [],
+  "internalStructures": [],
+  "nomenclature": {
+    "group": "#3 Internal Structures",
+    "collection": "#3 Embed Block",
+    "collectionType": "AnimationResourceData",
+    "pathHierarchy": "main > entries:Characters/Zac/Animations/Skin0 > mClipDataMap:Spell4 > mAnimationResourceData",
+    "pathHierarchySteps": [
+      {
+        "id": "main",
+        "type": "#0 Root main"
+      },
+      {
+        "id": "entries:Characters/Zac/Animations/Skin0",
+        "type": "#2 Root Entry (AnimationGraphData)"
+      },
+      {
+        "id": "mClipDataMap:Spell4",
+        "type": "#3 Collection Block"
+      },
+      {
+        "id": "mAnimationResourceData",
+        "type": "#3 Embed Block"
+      }
+    ]
+  }
+}

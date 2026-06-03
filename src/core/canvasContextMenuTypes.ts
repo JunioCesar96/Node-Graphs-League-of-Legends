@@ -53,12 +53,16 @@ export type ContextMenuItemId =
   | 'canvas.toolbar.linkStatus'
   | 'canvas.toolbar.navigateHint'
   | 'canvas.toolbar.sceneNodes'
+  | 'canvas.showGrid'
+  | 'canvas.openGridControl'
   | 'node.focus'
   | 'node.select'
   | 'node.glue'
   | 'node.delete'
   | 'node.addNode'
   | 'node.toggleBodyCollapse'
+  | 'node.toggleStructureCardParamsExpanded'
+  | 'node.structureCardResizeHint'
   | 'node.organization'
   | 'node.organization.bySectionType'
   | 'node.organization.freeform'
@@ -66,6 +70,15 @@ export type ContextMenuItemId =
   | 'node.expandAllElements'
   | 'node.extractSceneNodesState'
   | 'node.graphsToCode'
+  | 'node.codigo'
+  | 'node.viewCode'
+  | 'node.viewBlockCode'
+  | 'node.codigoPreviewBlock'
+  | 'node.viewGroupCode'
+  | 'node.previewVfx'
+  | 'node.syncValueToCode'
+  | 'surface.toggleJadeTheme'
+  | 'surface.toggleJadeSyntax'
   | 'node.hideLinkedChildNodes'
   | 'connection.cycleRouting'
   | 'connection.remove'
@@ -97,4 +110,6 @@ export type ContextMenuItem = {
   children?: ContextMenuItem[]
   /** Opção activa (ex.: modo de organização do card). */
   selected?: boolean
+  /** Interruptor visual (`AppToggleCheckbox`) em vez de marca ✓. */
+  toggleCheckbox?: boolean
 }

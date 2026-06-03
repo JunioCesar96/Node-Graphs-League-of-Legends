@@ -1,0 +1,20 @@
+{
+  "id": "constantValue_constantValue",
+  "block": "ValueFloat",
+  "parameterName": "constantValue",
+  "name": "constantValue",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "value-float__entries-{particlePath}-complex-emitter-definition-data--slot--0-rate_parameter_constantValue"
+  },
+  "type": "f32",
+  "value": "5",
+  "slots": {
+    "in": [
+      "f32"
+    ],
+    "out": [
+      "f32"
+    ]
+  }
+}

@@ -1,0 +1,24 @@
+.slot {
+  position: relative;
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+.tooltip {
+  position: fixed;
+  z-index: 10100;
+  padding: 3px 8px;
+  color: var(--color-text-primary);
+  font-family: var(--font-data);
+  font-size: 0.68rem;
+  line-height: 1.2;
+  white-space: nowrap;
+  pointer-events: none;
+  background: color-mix(in srgb, var(--window-bg, rgb(37 37 38 / 96%)) 94%, transparent);
+  border: 1px solid color-mix(in srgb, var(--selected-tab-bg, var(--jade-accent, #007acc)) 45%, transparent);
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 42%);
+}

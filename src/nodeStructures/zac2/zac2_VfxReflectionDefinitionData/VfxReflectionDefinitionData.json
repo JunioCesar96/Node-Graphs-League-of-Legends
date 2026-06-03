@@ -1,0 +1,55 @@
+{
+  "id": "vfx-reflection-definition-data__main-entries-0x750697cc-complex-emitter-definition-data-0-reflection-definition",
+  "title": "VfxReflectionDefinitionData",
+  "parameters": [
+    {
+      "id": "VfxReflectionDefinitionData_parameter_Fresnel",
+      "name": "Fresnel",
+      "type": "f32",
+      "defaultValue": "0.22"
+    },
+    {
+      "id": "VfxReflectionDefinitionData_parameter_fresnelColor",
+      "name": "fresnelColor",
+      "type": "vector4",
+      "defaultValue": "0.102, 0.302, 0.078, 1"
+    },
+    {
+      "id": "VfxReflectionDefinitionData_parameter_reflectionFresnel",
+      "name": "reflectionFresnel",
+      "type": "f32",
+      "defaultValue": "0.6"
+    },
+    {
+      "id": "VfxReflectionDefinitionData_parameter_reflectionFresnelColor",
+      "name": "reflectionFresnelColor",
+      "type": "vector4",
+      "defaultValue": "0.6, 0.6, 0.6, 1"
+    },
+    {
+      "id": "VfxReflectionDefinitionData_parameter_reflectionMapTexture",
+      "name": "reflectionMapTexture",
+      "type": "string",
+      "defaultValue": "ASSETS/Shared/Particles/Swain_Skin03_CubeMap.dds"
+    },
+    {
+      "id": "VfxReflectionDefinitionData_parameter_reflectionOpacityDirect",
+      "name": "reflectionOpacityDirect",
+      "type": "f32",
+      "defaultValue": "0.5"
+    },
+    {
+      "id": "VfxReflectionDefinitionData_parameter_reflectionOpacityGlancing",
+      "name": "reflectionOpacityGlancing",
+      "type": "f32",
+      "defaultValue": "0.4"
+    }
+  ],
+  "embed": [],
+  "pointer": [],
+  "listEmbed": [],
+  "listPointer": [],
+  "list2Embed": [],
+  "list2Pointer": [],
+  "internalStructures": []
+}

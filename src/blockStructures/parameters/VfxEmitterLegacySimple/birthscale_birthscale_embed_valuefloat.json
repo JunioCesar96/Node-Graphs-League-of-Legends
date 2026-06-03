@@ -1,0 +1,17 @@
+{
+  "id": "birthScale_birthScale_embed_ValueFloat",
+  "block": "VfxEmitterLegacySimple",
+  "parameterName": "birthScale",
+  "name": "birthScale",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-emitter-legacy-simple__main-characters/brand/skins/skin0/particles/brand-base-q-blaze-mis-complex-emitter-definition-data--slot--13-legacy-simple_parameter_birthScale"
+  },
+  "type": "embed",
+  "embed": "ValueFloat",
+  "slots": {
+    "out": [
+      "ValueFloat"
+    ]
+  }
+}

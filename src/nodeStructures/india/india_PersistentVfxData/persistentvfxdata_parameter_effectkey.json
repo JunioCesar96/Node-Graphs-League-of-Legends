@@ -1,6 +1,0 @@
-{
-  "id": "PersistentVfxData_parameter_effectKey",
-  "name": "effectKey",
-  "type": "integer",
-  "defaultValue": "0"
-}

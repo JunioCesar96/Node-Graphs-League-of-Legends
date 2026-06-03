@@ -1,0 +1,20 @@
+{
+  "id": "useNavmeshMask_useNavmeshMask",
+  "block": "VfxEmitterDefinitionData",
+  "parameterName": "useNavmeshMask",
+  "name": "useNavmeshMask",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-emitter-definition-data__entries-{particlePath}-complex-emitter-definition-data--slot--1_parameter_useNavmeshMask"
+  },
+  "type": "flag",
+  "value": "true",
+  "slots": {
+    "in": [
+      "flag"
+    ],
+    "out": [
+      "flag"
+    ]
+  }
+}

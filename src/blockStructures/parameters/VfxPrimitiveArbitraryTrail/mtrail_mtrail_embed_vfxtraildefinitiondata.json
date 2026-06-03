@@ -1,0 +1,17 @@
+{
+  "id": "mTrail_mTrail_embed_VfxTrailDefinitionData",
+  "block": "VfxPrimitiveArbitraryTrail",
+  "parameterName": "mTrail",
+  "name": "mTrail",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-primitive-arbitrary-trail__main-characters/brand/skins/skin0/particles/brand-base-q-blaze-mis-complex-emitter-definition-data--slot--1-primitive-m-trail"
+  },
+  "type": "embed",
+  "embed": "VfxTrailDefinitionData",
+  "slots": {
+    "out": [
+      "VfxTrailDefinitionData"
+    ]
+  }
+}

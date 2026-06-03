@@ -1,0 +1,20 @@
+{
+  "id": "meshRenderFlags_meshRenderFlags",
+  "block": "VfxEmitterDefinitionData",
+  "parameterName": "meshRenderFlags",
+  "name": "meshRenderFlags",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-emitter-definition-data__entries-{particlePath}-complex-emitter-definition-data--slot--1_parameter_meshRenderFlags"
+  },
+  "type": "u8",
+  "value": "0",
+  "slots": {
+    "in": [
+      "u8"
+    ],
+    "out": [
+      "u8"
+    ]
+  }
+}

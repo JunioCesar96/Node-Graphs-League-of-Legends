@@ -1,0 +1,20 @@
+{
+  "id": "particleIsLocalOrientation_particleIsLocalOrientation",
+  "block": "VfxEmitterDefinitionData",
+  "parameterName": "particleIsLocalOrientation",
+  "name": "particleIsLocalOrientation",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-emitter-definition-data__entries-{particlePath}-complex-emitter-definition-data--slot--3_parameter_particleIsLocalOrientation"
+  },
+  "type": "flag",
+  "value": "true",
+  "slots": {
+    "in": [
+      "flag"
+    ],
+    "out": [
+      "flag"
+    ]
+  }
+}

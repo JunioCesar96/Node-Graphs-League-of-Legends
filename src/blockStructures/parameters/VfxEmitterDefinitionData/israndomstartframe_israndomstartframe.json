@@ -1,0 +1,20 @@
+{
+  "id": "isRandomStartFrame_isRandomStartFrame",
+  "block": "VfxEmitterDefinitionData",
+  "parameterName": "isRandomStartFrame",
+  "name": "isRandomStartFrame",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-emitter-definition-data__entries-{particlePath}-complex-emitter-definition-data--slot--0_parameter_isRandomStartFrame"
+  },
+  "type": "flag",
+  "value": "true",
+  "slots": {
+    "in": [
+      "flag"
+    ],
+    "out": [
+      "flag"
+    ]
+  }
+}

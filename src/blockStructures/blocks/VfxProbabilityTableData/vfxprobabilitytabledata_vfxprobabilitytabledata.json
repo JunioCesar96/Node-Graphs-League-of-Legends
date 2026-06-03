@@ -1,0 +1,20 @@
+{
+  "id": "VfxProbabilityTableData_VfxProbabilityTableData",
+  "block": "probabilityTables",
+  "blockName": "VfxProbabilityTableData",
+  "type": "pointer",
+  "name": "VfxProbabilityTableData",
+  "source": {
+    "kind": "block",
+    "nodeId": "vfx-probability-table-data__entries-{particlePath}-complex-emitter-definition-data--slot--0-particle-lifetime-dynamics-probability-tables--slot--0"
+  },
+  "color": "#40ff56",
+  "headerSlots": [
+    "in[probabilityTables]",
+    "out[VfxProbabilityTableDataPreview]"
+  ],
+  "parameters": [
+    "keyTimes",
+    "keyValues"
+  ]
+}

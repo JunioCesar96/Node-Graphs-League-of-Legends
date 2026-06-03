@@ -1,0 +1,7 @@
+{
+  "id": "VfxEmitterDefinitionData",
+  "title": "Vfx Emitter Definition Data",
+  "color": "#80ffe6",
+  "icon": "VfxEmitter.png",
+  "headerSlots": ["output[VfxEmitterDefinitionDataPreview]"]
+}

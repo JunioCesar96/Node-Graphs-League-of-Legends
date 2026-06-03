@@ -1,0 +1,17 @@
+{
+  "id": "birthUvScrollRateMult_birthUvScrollRateMult_embed_ValueVector2",
+  "block": "VfxTextureMultDefinitionData",
+  "parameterName": "birthUvScrollRateMult",
+  "name": "birthUvScrollRateMult",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-texture-mult-definition-data__main-characters/brand/skins/skin0/particles/brand-base-joke-complex-emitter-definition-data--slot--2-texture-mult-birth-uv-scroll-rate-mult"
+  },
+  "type": "embed",
+  "embed": "ValueVector2",
+  "slots": {
+    "out": [
+      "ValueVector2"
+    ]
+  }
+}

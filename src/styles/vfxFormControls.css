@@ -1,0 +1,60 @@
+/**
+ * Checkbox / range theming for Editor VFX.
+ * Scoped to dock root and floating VFX context menus.
+ */
+[data-vfx-editor-root] input[type='checkbox'],
+[data-vfx-editor-root] input[type='range'],
+[data-vfx-context-menu] input[type='checkbox'],
+[data-vfx-context-menu] input[type='range'] {
+  accent-color: var(--app-control-accent, var(--vfx-control-accent));
+  cursor: pointer;
+}
+
+[data-vfx-editor-root] input[type='range'],
+[data-vfx-context-menu] input[type='range'] {
+  height: 14px;
+  background: transparent;
+}
+
+[data-vfx-editor-root] input[type='range']::-webkit-slider-runnable-track,
+[data-vfx-context-menu] input[type='range']::-webkit-slider-runnable-track {
+  height: 4px;
+  border: 1px solid var(--app-control-range-track-border, transparent);
+  border-radius: 999px;
+  background: var(--app-control-range-track, var(--vfx-range-track));
+}
+
+[data-vfx-editor-root] input[type='range']::-moz-range-track,
+[data-vfx-context-menu] input[type='range']::-moz-range-track {
+  height: 4px;
+  border-radius: 999px;
+  background: var(--vfx-range-track);
+}
+
+[data-vfx-editor-root] input[type='range']::-webkit-slider-thumb,
+[data-vfx-context-menu] input[type='range']::-webkit-slider-thumb {
+  width: 12px;
+  height: 12px;
+  margin-top: -5px;
+  appearance: none;
+  background: var(--app-control-range-thumb, var(--vfx-control-accent));
+  border: none;
+  border-radius: 50%;
+}
+
+[data-vfx-editor-root] input[type='range']::-moz-range-progress,
+[data-vfx-context-menu] input[type='range']::-moz-range-progress {
+  height: 4px;
+  border-radius: 999px;
+  background: var(--app-control-range-fill, var(--vfx-control-accent));
+}
+
+[data-vfx-editor-root] input[type='range']::-moz-range-thumb,
+[data-vfx-context-menu] input[type='range']::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  appearance: none;
+  background: var(--app-control-range-thumb, var(--vfx-control-accent));
+  border: none;
+  border-radius: 50%;
+}

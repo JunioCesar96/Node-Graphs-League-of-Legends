@@ -1,0 +1,20 @@
+{
+  "id": "miscRenderFlags_miscRenderFlags",
+  "block": "VfxEmitterDefinitionData",
+  "parameterName": "miscRenderFlags",
+  "name": "miscRenderFlags",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-emitter-definition-data__entries-{particlePath}-complex-emitter-definition-data--slot--0_parameter_miscRenderFlags"
+  },
+  "type": "u8",
+  "value": "1",
+  "slots": {
+    "in": [
+      "u8"
+    ],
+    "out": [
+      "u8"
+    ]
+  }
+}

@@ -6,6 +6,7 @@ import type {
   WirelessPortLink,
   WirelessPortPulseTarget,
 } from '@/core/connectionDisplay'
+import type { OutputSlotPeerActions } from '@/core/outputSlotPeerActions'
 import type { ElementViewMode, InternalStructureDefinition } from '@/core/nodeSchema'
 import { normalizeMapU64PointerString } from '@/core/mapU64PointerValue'
 
@@ -46,6 +47,7 @@ type ParameterMapU64PointerInputProps = {
   interactionLocked?: boolean
   onBlockedInteraction?: () => void
   onRetractFromTitle?: () => void
+  outputSlotPeerActions?: OutputSlotPeerActions
 }
 
 export function ParameterMapU64PointerInput({
@@ -72,6 +74,8 @@ export function ParameterMapU64PointerInput({
   onSelectedIndexChange,
   interactionLocked,
   onBlockedInteraction,
+  onRetractFromTitle,
+  outputSlotPeerActions,
 }: ParameterMapU64PointerInputProps) {
   return (
     <div className={className} data-parameter-type="mapU64Pointer">
@@ -92,6 +96,7 @@ export function ParameterMapU64PointerInput({
         wirelessOutputLinks={wirelessOutputLinks}
         wirelessPortHandlers={wirelessPortHandlers}
         wirelessPortPulse={wirelessPortPulse}
+        outputSlotPeerActions={outputSlotPeerActions}
         onSelectedIndexChange={onSelectedIndexChange}
         onViewModeChange={onViewModeChange}
         parameterId={parameterId}

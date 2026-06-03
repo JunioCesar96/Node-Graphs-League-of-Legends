@@ -1,0 +1,17 @@
+{
+  "id": "emitRotationAngles_emitRotationAngles_embed_ValueFloat",
+  "block": "VfxShapeLegacy",
+  "parameterName": "emitRotationAngles",
+  "name": "emitRotationAngles",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-shape-legacy__main-characters/brand/skins/skin0/particles/brand-base-p-fire-mark3-complex-emitter-definition-data--slot--2-spawn-shape-emit-rotation-angles"
+  },
+  "type": "embed",
+  "embed": "ValueFloat",
+  "slots": {
+    "out": [
+      "ValueFloat"
+    ]
+  }
+}

@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Vfx Emitter">
+  <rect width="32" height="32" rx="6" fill="#80ffe6"/>
+  <path fill="#111" d="M8 20l4-8 4 5 3-4 5 7H8z"/>
+  <circle cx="22" cy="11" r="2.5" fill="#111"/>
+</svg>

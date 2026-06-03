@@ -1,0 +1,19 @@
+{
+  "id": "VfxChildParticleSetDefinitionData_VfxChildParticleSetDefinitionData",
+  "block": "childParticleSetDefinition",
+  "blockName": "VfxChildParticleSetDefinitionData",
+  "type": "pointer",
+  "name": "VfxChildParticleSetDefinitionData",
+  "source": {
+    "kind": "block",
+    "nodeId": "vfx-child-particle-set-definition-data__main-characters/brand/skins/skin0/particles/brand-base-p-redring-complex-emitter-definition-data--slot--5-child-particle-set-definition"
+  },
+  "color": "#40ff56",
+  "headerSlots": [
+    "in[childParticleSetDefinition]",
+    "out[VfxChildParticleSetDefinitionDataPreview]"
+  ],
+  "parameters": [
+    "childrenIdentifiers"
+  ]
+}

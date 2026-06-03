@@ -1,0 +1,323 @@
+{
+  "id": "vfx-emitter-definition-data__complex-emitter-definition-data-10",
+  "title": "VfxEmitterDefinitionData",
+  "parameters": [
+    {
+      "id": "VfxEmitterDefinitionData_parameter_blendMode",
+      "name": "blendMode",
+      "type": "u8",
+      "defaultValue": "4"
+    },
+    {
+      "id": "VfxEmitterDefinitionData_parameter_disableBackfaceCull",
+      "name": "disableBackfaceCull",
+      "type": "bool",
+      "defaultValue": "true"
+    },
+    {
+      "id": "VfxEmitterDefinitionData_parameter_emitterName",
+      "name": "emitterName",
+      "type": "string",
+      "defaultValue": "Energy Cracks"
+    },
+    {
+      "id": "VfxEmitterDefinitionData_parameter_isGroundLayer",
+      "name": "isGroundLayer",
+      "type": "flag",
+      "defaultValue": "true"
+    },
+    {
+      "id": "VfxEmitterDefinitionData_parameter_isSingleParticle",
+      "name": "isSingleParticle",
+      "type": "flag",
+      "defaultValue": "true"
+    },
+    {
+      "id": "VfxEmitterDefinitionData_parameter_isUniformScale",
+      "name": "isUniformScale",
+      "type": "flag",
+      "defaultValue": "true"
+    },
+    {
+      "id": "VfxEmitterDefinitionData_parameter_lifetime",
+      "name": "lifetime",
+      "type": "optionF32",
+      "defaultValue": "5"
+    },
+    {
+      "id": "VfxEmitterDefinitionData_parameter_miscRenderFlags",
+      "name": "miscRenderFlags",
+      "type": "u8",
+      "defaultValue": "1"
+    },
+    {
+      "id": "VfxEmitterDefinitionData_parameter_particleIsLocalOrientation",
+      "name": "particleIsLocalOrientation",
+      "type": "flag",
+      "defaultValue": "true"
+    },
+    {
+      "id": "VfxEmitterDefinitionData_parameter_pass",
+      "name": "pass",
+      "type": "i16",
+      "defaultValue": "-1900"
+    },
+    {
+      "id": "VfxEmitterDefinitionData_parameter_texture",
+      "name": "texture",
+      "type": "string",
+      "defaultValue": "ASSETS/Characters/zac/Skins/Base/Particles/Morgana_Base_Q_Mis_Energy.tex"
+    },
+    {
+      "id": "VfxEmitterDefinitionData_parameter_useNavmeshMask",
+      "name": "useNavmeshMask",
+      "type": "flag",
+      "defaultValue": "true"
+    }
+  ],
+  "embed": [
+    {
+      "id": "VfxEmitterDefinitionData_embed_rate",
+      "title": "rate",
+      "internalStructures": [
+        {
+          "id": "vfx-emitter-definition-data-rate",
+          "name": "ValueFloat",
+          "schemaId": "value-float__main-entries-0xa2fa6a01-complex-emitter-definition-data-10-rate"
+        }
+      ],
+      "slots": [
+        {
+          "id": "VfxEmitterDefinitionData_embed_rate__slot__0",
+          "name": "ValueFloat",
+          "schemaId": "value-float__main-entries-0xa2fa6a01-complex-emitter-definition-data-10-rate"
+        }
+      ]
+    },
+    {
+      "id": "VfxEmitterDefinitionData_embed_particleLifetime",
+      "title": "particleLifetime",
+      "internalStructures": [
+        {
+          "id": "vfx-emitter-definition-data-particle-lifetime",
+          "name": "ValueFloat",
+          "schemaId": "value-float__main-entries-0xa2fa6a01-complex-emitter-definition-data-10-particle-lifetime"
+        }
+      ],
+      "slots": [
+        {
+          "id": "VfxEmitterDefinitionData_embed_particleLifetime__slot__0",
+          "name": "ValueFloat",
+          "schemaId": "value-float__main-entries-0xa2fa6a01-complex-emitter-definition-data-10-particle-lifetime"
+        }
+      ]
+    },
+    {
+      "id": "VfxEmitterDefinitionData_embed_birthColor",
+      "title": "birthColor",
+      "internalStructures": [
+        {
+          "id": "vfx-emitter-definition-data-birth-color",
+          "name": "ValueColor",
+          "schemaId": "value-color__main-entries-0xa2fa6a01-complex-emitter-definition-data-10-birth-color"
+        }
+      ],
+      "slots": [
+        {
+          "id": "VfxEmitterDefinitionData_embed_birthColor__slot__0",
+          "name": "ValueColor",
+          "schemaId": "value-color__main-entries-0xa2fa6a01-complex-emitter-definition-data-10-birth-color"
+        }
+      ]
+    },
+    {
+      "id": "VfxEmitterDefinitionData_embed_Color",
+      "title": "Color",
+      "internalStructures": [
+        {
+          "id": "vfx-emitter-definition-data-color",
+          "name": "ValueColor",
+          "schemaId": "value-color__main-entries-0xa2fa6a01-complex-emitter-definition-data-10-color"
+        }
+      ],
+      "slots": [
+        {
+          "id": "VfxEmitterDefinitionData_embed_Color__slot__0",
+          "name": "ValueColor",
+          "schemaId": "value-color__main-entries-0xa2fa6a01-complex-emitter-definition-data-10-color"
+        }
+      ]
+    },
+    {
+      "id": "VfxEmitterDefinitionData_embed_bindWeight",
+      "title": "bindWeight",
+      "internalStructures": [
+        {
+          "id": "vfx-emitter-definition-data-bind-weight",
+          "name": "ValueFloat",
+          "schemaId": "value-float__main-entries-0xa2fa6a01-complex-emitter-definition-data-10-bind-weight"
+        }
+      ],
+      "slots": [
+        {
+          "id": "VfxEmitterDefinitionData_embed_bindWeight__slot__0",
+          "name": "ValueFloat",
+          "schemaId": "value-float__main-entries-0xa2fa6a01-complex-emitter-definition-data-10-bind-weight"
+        }
+      ]
+    },
+    {
+      "id": "VfxEmitterDefinitionData_embed_birthRotation0",
+      "title": "birthRotation0",
+      "internalStructures": [
+        {
+          "id": "vfx-emitter-definition-data-birth-rotation0",
+          "name": "ValueVector3",
+          "schemaId": "value-vector3__main-entries-0xa2fa6a01-complex-emitter-definition-data-10-birth-rotation0"
+        }
+      ],
+      "slots": [
+        {
+          "id": "VfxEmitterDefinitionData_embed_birthRotation0__slot__0",
+          "name": "ValueVector3",
+          "schemaId": "value-vector3__main-entries-0xa2fa6a01-complex-emitter-definition-data-10-birth-rotation0"
+        }
+      ]
+    },
+    {
+      "id": "VfxEmitterDefinitionData_embed_birthScale0",
+      "title": "birthScale0",
+      "internalStructures": [
+        {
+          "id": "vfx-emitter-definition-data-birth-scale0",
+          "name": "ValueVector3",
+          "schemaId": "value-vector3__main-entries-0xa2fa6a01-complex-emitter-definition-data-10-birth-scale0"
+        }
+      ],
+      "slots": [
+        {
+          "id": "VfxEmitterDefinitionData_embed_birthScale0__slot__0",
+          "name": "ValueVector3",
+          "schemaId": "value-vector3__main-entries-0xa2fa6a01-complex-emitter-definition-data-10-birth-scale0"
+        }
+      ]
+    },
+    {
+      "id": "VfxEmitterDefinitionData_embed_birthUvScrollRate",
+      "title": "birthUvScrollRate",
+      "internalStructures": [
+        {
+          "id": "vfx-emitter-definition-data-birth-uv-scroll-rate",
+          "name": "ValueVector2",
+          "schemaId": "value-vector2__main-entries-0xa2fa6a01-complex-emitter-definition-data-10-birth-uv-scroll-rate"
+        }
+      ],
+      "slots": [
+        {
+          "id": "VfxEmitterDefinitionData_embed_birthUvScrollRate__slot__0",
+          "name": "ValueVector2",
+          "schemaId": "value-vector2__main-entries-0xa2fa6a01-complex-emitter-definition-data-10-birth-uv-scroll-rate"
+        }
+      ]
+    },
+    {
+      "id": "VfxEmitterDefinitionData_embed_uvScale",
+      "title": "uvScale",
+      "internalStructures": [
+        {
+          "id": "vfx-emitter-definition-data-uv-scale",
+          "name": "ValueVector2",
+          "schemaId": "value-vector2__main-entries-0xa2fa6a01-complex-emitter-definition-data-10-uv-scale"
+        }
+      ],
+      "slots": [
+        {
+          "id": "VfxEmitterDefinitionData_embed_uvScale__slot__0",
+          "name": "ValueVector2",
+          "schemaId": "value-vector2__main-entries-0xa2fa6a01-complex-emitter-definition-data-10-uv-scale"
+        }
+      ]
+    }
+  ],
+  "pointer": [
+    {
+      "id": "VfxEmitterDefinitionData_pointer_primitive",
+      "title": "primitive",
+      "internalStructures": [
+        {
+          "id": "vfx-emitter-definition-data-primitive",
+          "name": "VfxPrimitiveArbitraryQuad",
+          "schemaId": "vfx-primitive-arbitrary-quad__main-entries-0xa2fa6a01-complex-emitter-definition-data-10-primitive"
+        }
+      ],
+      "slots": [
+        {
+          "id": "VfxEmitterDefinitionData_pointer_primitive__slot__0",
+          "name": "VfxPrimitiveArbitraryQuad",
+          "schemaId": "vfx-primitive-arbitrary-quad__main-entries-0xa2fa6a01-complex-emitter-definition-data-10-primitive"
+        }
+      ]
+    },
+    {
+      "id": "VfxEmitterDefinitionData_pointer_alphaErosionDefinition",
+      "title": "alphaErosionDefinition",
+      "internalStructures": [
+        {
+          "id": "vfx-emitter-definition-data-alpha-erosion-definition",
+          "name": "VfxAlphaErosionDefinitionData",
+          "schemaId": "vfx-alpha-erosion-definition-data__main-entries-0xa2fa6a01-complex-emitter-definition-data-10-alpha-erosion-definition"
+        }
+      ],
+      "slots": [
+        {
+          "id": "VfxEmitterDefinitionData_pointer_alphaErosionDefinition__slot__0",
+          "name": "VfxAlphaErosionDefinitionData",
+          "schemaId": "vfx-alpha-erosion-definition-data__main-entries-0xa2fa6a01-complex-emitter-definition-data-10-alpha-erosion-definition"
+        }
+      ]
+    },
+    {
+      "id": "VfxEmitterDefinitionData_pointer_textureMult",
+      "title": "textureMult",
+      "internalStructures": [
+        {
+          "id": "vfx-emitter-definition-data-texture-mult",
+          "name": "VfxTextureMultDefinitionData",
+          "schemaId": "vfx-texture-mult-definition-data__main-entries-0xa2fa6a01-complex-emitter-definition-data-10-texture-mult"
+        }
+      ],
+      "slots": [
+        {
+          "id": "VfxEmitterDefinitionData_pointer_textureMult__slot__0",
+          "name": "VfxTextureMultDefinitionData",
+          "schemaId": "vfx-texture-mult-definition-data__main-entries-0xa2fa6a01-complex-emitter-definition-data-10-texture-mult"
+        }
+      ]
+    }
+  ],
+  "listEmbed": [],
+  "listPointer": [],
+  "list2Embed": [],
+  "list2Pointer": [],
+  "internalStructures": [],
+  "nomenclature": {
+    "group": "#3 Internal Structures",
+    "collection": "#3 Collection Block",
+    "collectionType": "VfxEmitterDefinitionData",
+    "pathHierarchy": "main > entries:0xa2fa6a01 > complexEmitterDefinitionData:10",
+    "pathHierarchySteps": [
+      {
+        "id": "main",
+        "type": "#0 Root main"
+      },
+      {
+        "id": "entries:0xa2fa6a01",
+        "type": "#2 Root Entry (VfxSystemDefinitionData)"
+      },
+      {
+        "id": "complexEmitterDefinitionData:10",
+        "type": "#3 Collection Block"
+      }
+    ]
+  }
+}

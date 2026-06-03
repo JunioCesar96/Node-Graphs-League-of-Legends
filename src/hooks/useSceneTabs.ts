@@ -19,7 +19,9 @@ import {
 import type { CanvasScene } from '@/core/canvasScene'
 import type { NodeSchemaDefinition } from '@/core/nodeSchema'
 import { saveSceneJsonManual } from '@/core/sceneJsonFileSave'
+import { LangId } from '@/core/language/languageIds'
 import { useSceneHistory } from '@/hooks/useSceneHistory'
+import { useLanguage } from '@/language/LanguageProvider'
 
 export type UseSceneTabsOptions = {
   extendSchemaLookup?: Record<string, NodeSchemaDefinition>
@@ -27,6 +29,7 @@ export type UseSceneTabsOptions = {
 }
 
 export function useSceneTabs(options?: UseSceneTabsOptions) {
+  const { t } = useLanguage()
   const initialPersisted = useMemo(() => getInitialSceneTabsPersisted(), [])
   const activeInitial = initialPersisted.tabs.find((tab) => tab.id === initialPersisted.activeTabId)
 
@@ -372,7 +375,7 @@ export function useSceneTabs(options?: UseSceneTabsOptions) {
   )
 
   const promptNewWorkScene = useCallback(() => {
-    const raw = window.prompt('Nome da cena de trabalho:', 'Nova cena')
+    const raw = window.prompt('Nome da cena de trabalho:', t(LangId.SceneTabNew))
 
     if (raw === null) {
       return
@@ -386,7 +389,7 @@ export function useSceneTabs(options?: UseSceneTabsOptions) {
     }
 
     createWorkScene(trimmed)
-  }, [createWorkScene])
+  }, [createWorkScene, t])
 
   return {
     ...sceneHistoryApi,

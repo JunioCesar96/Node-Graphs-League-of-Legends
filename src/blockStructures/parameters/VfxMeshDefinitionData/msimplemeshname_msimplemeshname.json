@@ -1,0 +1,20 @@
+{
+  "id": "mSimpleMeshName_mSimpleMeshName",
+  "block": "VfxMeshDefinitionData",
+  "parameterName": "mSimpleMeshName",
+  "name": "mSimpleMeshName",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-mesh-definition-data__entries-{particlePath}-complex-emitter-definition-data--slot--5-primitive-m-mesh_parameter_mSimpleMeshName"
+  },
+  "type": "string",
+  "value": "ASSETS/Characters/Brand/Skins/Base/Particles/ESwirl.scb",
+  "slots": {
+    "in": [
+      "string"
+    ],
+    "out": [
+      "string"
+    ]
+  }
+}

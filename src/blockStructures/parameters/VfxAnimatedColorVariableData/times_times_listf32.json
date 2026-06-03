@@ -1,0 +1,23 @@
+{
+  "id": "times_times_listF32",
+  "block": "VfxAnimatedColorVariableData",
+  "parameterName": "times",
+  "name": "times",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-animated-color-variable-data__entries-{particlePath}-complex-emitter-definition-data--slot--0-color-dynamics_parameter_times"
+  },
+  "type": "listF32",
+  "items": [
+    "0",
+    "0.255799",
+    "0.572896",
+    "0.8",
+    "1"
+  ],
+  "slots": {
+    "out": [
+      "f32"
+    ]
+  }
+}

@@ -1,0 +1,63 @@
+{
+  "id": "persistent-effect-condition-data__persistent-effect-conditions-3",
+  "title": "PersistentEffectConditionData",
+  "parameters": [],
+  "embed": [],
+  "pointer": [
+    {
+      "id": "PersistentEffectConditionData_pointer_OwnerCondition",
+      "title": "OwnerCondition",
+      "internalStructures": [
+        {
+          "id": "persistent-effect-condition-data-owner-condition",
+          "name": "IsAnimationPlayingDynamicMaterialBoolDriver",
+          "schemaId": "is-animation-playing-dynamic-material-bool-driver__main-entries-characters-zac-skins-skin0-persistent-effect-conditions-3-owner-condition"
+        }
+      ],
+      "slots": [
+        {
+          "id": "PersistentEffectConditionData_pointer_OwnerCondition__slot__0",
+          "name": "IsAnimationPlayingDynamicMaterialBoolDriver",
+          "schemaId": "is-animation-playing-dynamic-material-bool-driver__main-entries-characters-zac-skins-skin0-persistent-effect-conditions-3-owner-condition"
+        }
+      ]
+    }
+  ],
+  "listEmbed": [],
+  "listPointer": [],
+  "list2Embed": [
+    {
+      "id": "PersistentEffectConditionData_list2Embed_PersistentVfxs",
+      "title": "PersistentVfxs",
+      "internalStructures": [
+        {
+          "id": "persistent-effect-condition-data-persistent-vfxs-0",
+          "name": "PersistentVfxData",
+          "schemaId": "persistent-vfx-data__persistent-vfxs-0"
+        }
+      ],
+      "instances": [
+        {
+          "id": "PersistentEffectConditionData_list2Embed_PersistentVfxs-inst-0",
+          "title": "PersistentVfxData",
+          "internalStructures": [
+            {
+              "id": "persistent-effect-condition-data-persistent-vfxs-0",
+              "name": "PersistentVfxData",
+              "schemaId": "persistent-vfx-data__persistent-vfxs-0"
+            }
+          ],
+          "slots": [
+            {
+              "id": "PersistentEffectConditionData_list2Embed_PersistentVfxs-inst-0__slot__0",
+              "name": "PersistentVfxData",
+              "schemaId": "persistent-vfx-data__persistent-vfxs-0"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "list2Pointer": [],
+  "internalStructures": []
+}

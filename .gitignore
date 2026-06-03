@@ -19,6 +19,9 @@ dist
 dist-ssr
 *.local
 
+character-gltf/
+character-gltf-textures/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

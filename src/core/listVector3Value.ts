@@ -5,14 +5,14 @@ import {
   parseBracedBlocksFromRitualBody,
   parseNewlineList,
 } from '@/core/listVectorBracedValue'
-import { formatVector3String, parseVector3String, type Vector3 } from '@/core/vector3Value'
+import { formatVector3String, parseVector3RitualInput, type Vector3 } from '@/core/vector3Value'
 
 export function isListVec3RitType(ritType: string): boolean {
   return /^list2?\[[^\]]*\bvec3\b[^\]]*\]/i.test(ritType.trim())
 }
 
 export function parseListVec3BlocksFromRitualBody(inner: string): Vector3[] {
-  return parseBracedBlocksFromRitualBody(inner, (block) => parseVector3String(block))
+  return parseBracedBlocksFromRitualBody(inner, (block) => parseVector3RitualInput(block))
 }
 
 export function formatListVector3String(items: readonly Vector3[]): string {
@@ -20,7 +20,7 @@ export function formatListVector3String(items: readonly Vector3[]): string {
 }
 
 export function parseListVector3String(raw: string): Vector3[] {
-  return parseNewlineList(raw, parseVector3String, parseListVec3BlocksFromRitualBody)
+  return parseNewlineList(raw, parseVector3RitualInput, parseListVec3BlocksFromRitualBody)
 }
 
 export function normalizeListVector3String(raw: string): string {

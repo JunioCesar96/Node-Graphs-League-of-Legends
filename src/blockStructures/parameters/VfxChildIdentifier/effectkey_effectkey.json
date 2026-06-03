@@ -1,0 +1,20 @@
+{
+  "id": "effectKey_effectKey",
+  "block": "VfxChildIdentifier",
+  "parameterName": "effectKey",
+  "name": "effectKey",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-child-identifier__main-characters/brand/skins/skin0/particles/brand-base-p-redring-complex-emitter-definition-data--slot--5-child-particle-set-definition-children-identifiers--slot--0_parameter_effectKey"
+  },
+  "type": "integer",
+  "value": "Brand_P_redring_Ignition_Child",
+  "slots": {
+    "in": [
+      "integer"
+    ],
+    "out": [
+      "integer"
+    ]
+  }
+}

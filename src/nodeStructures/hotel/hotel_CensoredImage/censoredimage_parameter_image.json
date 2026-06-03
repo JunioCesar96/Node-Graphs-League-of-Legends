@@ -1,6 +1,0 @@
-{
-  "id": "CensoredImage_parameter_image",
-  "name": "image",
-  "type": "string",
-  "defaultValue": ""
-}

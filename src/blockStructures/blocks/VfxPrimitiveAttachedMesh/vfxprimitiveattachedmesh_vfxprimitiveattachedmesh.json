@@ -1,0 +1,19 @@
+{
+  "id": "VfxPrimitiveAttachedMesh_VfxPrimitiveAttachedMesh",
+  "block": "primitive",
+  "blockName": "VfxPrimitiveAttachedMesh",
+  "type": "pointer",
+  "name": "VfxPrimitiveAttachedMesh",
+  "source": {
+    "kind": "block",
+    "nodeId": "vfx-primitive-attached-mesh__main-characters/brand/skins/skin0/particles/brand-base-p-fire-mark3-complex-emitter-definition-data--slot--0-primitive"
+  },
+  "color": "#40ff56",
+  "headerSlots": [
+    "in[primitive]",
+    "out[VfxPrimitiveAttachedMeshPreview]"
+  ],
+  "parameters": [
+    "mMesh"
+  ]
+}

@@ -1,5 +1,6 @@
 import { useCallback, useId, useMemo, useRef, useState } from 'react'
 import type {
+  DragEvent as ReactDragEvent,
   MouseEvent as ReactMouseEvent,
   PointerEvent as ReactPointerEvent,
   PointerEventHandler,
@@ -21,8 +22,10 @@ import { ParameterItem } from '@/components/molecules/ParameterItem'
 import type { CSSProperties } from 'react'
 import type { CanvasConnection } from '@/core/canvasScene'
 import { isNodeCardBlockedInteractionTarget } from '@/core/canvasNodePresentation'
+import type { OutputSlotPeerActions } from '@/core/outputSlotPeerActions'
 import {
   isWirelessPortPulsing,
+  portPulseVariantForTarget,
   toWirelessPortLinkProps,
   type WirelessNodeDisplay,
   type WirelessPortHandlers,
@@ -73,6 +76,8 @@ import {
   structureForPointerAdd,
 } from '@/core/pointerElementMenu'
 import type { PointerAddBlockChoice } from '@/core/pointerElementMenu'
+import type { NewNodeMaterializePhase } from '@/core/codeToNewNodeGraph'
+import { isNeekoSchemaId } from '@/core/neekoNodeTransform'
 import type {
   ElementViewKey,
   ElementViewMode,
@@ -197,6 +202,7 @@ type NodeCardProps = {
   onWirelessPeerHoverEnd?: () => void
   wirelessDisplay?: WirelessNodeDisplay
   wirelessPortPulse?: WirelessPortPulseTarget
+  outputSlotPeerActions?: OutputSlotPeerActions
   /** Reordena parâmetros no card durante o arrasto pelo nome (índice 1-based). */
   onReorderNodeParameter?: (parameterId: string, oneBasedIndex: number) => void
   parameterHints?: Record<string, string>
@@ -217,6 +223,12 @@ type NodeCardProps = {
   inputPortStyle?: CSSProperties
   locked?: boolean
   onLockedInteraction?: () => void
+  neekoTransformPhase?: NewNodeMaterializePhase
+  neekoTransformError?: string
+  isNeekoTransforming?: boolean
+  onNeekoDropCode?: (text: string) => void
+  /** Ritual drag do CodeDock está sobre este Neeko. */
+  ritualDropHover?: boolean
 }
 
 function getNodeTooltip(node: NodeInstance) {
@@ -265,6 +277,7 @@ export function NodeCard({
   onWirelessPeerHoverEnd,
   wirelessDisplay,
   wirelessPortPulse,
+  outputSlotPeerActions,
   onReorderNodeParameter,
   parameterHints,
   parameterStubCatalog,
@@ -281,7 +294,13 @@ export function NodeCard({
   inputPortStyle,
   locked = false,
   onLockedInteraction,
+  neekoTransformPhase,
+  neekoTransformError,
+  isNeekoTransforming = false,
+  onNeekoDropCode,
+  ritualDropHover = false,
 }: NodeCardProps) {
+  const [neekoDragOver, setNeekoDragOver] = useState(false)
   const [removalPickerOpen, setRemovalPickerOpen] = useState(false)
   const [removalSelectedKey, setRemovalSelectedKey] = useState<string | null>(null)
   const [embedAddPickerOpen, setEmbedAddPickerOpen] = useState(false)
@@ -385,6 +404,50 @@ export function NodeCard({
   const getParameterValue = (parameterId: string, fallback: string) => {
     return node.values.find((value) => value.parameterId === parameterId)?.value ?? fallback
   }
+
+  const isNeekoNode = isNeekoSchemaId(node.schema.id) || neekoTransformPhase !== undefined
+
+  const showNeekoDropZone =
+    isNeekoNode &&
+    (isNeekoSchemaId(node.schema.id) || neekoTransformPhase === 'shell') &&
+    !locked
+
+  const handleNeekoDragOver = useCallback(
+    (event: ReactDragEvent<HTMLDivElement>) => {
+      if (!showNeekoDropZone || !onNeekoDropCode) {
+        return
+      }
+      if (!event.dataTransfer.types.includes('text/plain')) {
+        return
+      }
+      event.preventDefault()
+      event.stopPropagation()
+      event.dataTransfer.dropEffect = 'copy'
+      setNeekoDragOver(true)
+    },
+    [onNeekoDropCode, showNeekoDropZone],
+  )
+
+  const handleNeekoDragLeave = useCallback((event: ReactDragEvent<HTMLDivElement>) => {
+    event.stopPropagation()
+    setNeekoDragOver(false)
+  }, [])
+
+  const handleNeekoDrop = useCallback(
+    (event: ReactDragEvent<HTMLDivElement>) => {
+      if (!showNeekoDropZone || !onNeekoDropCode) {
+        return
+      }
+      event.preventDefault()
+      event.stopPropagation()
+      setNeekoDragOver(false)
+      const text = event.dataTransfer.getData('text/plain').trim()
+      if (text.length > 0) {
+        onNeekoDropCode(text)
+      }
+    },
+    [onNeekoDropCode, showNeekoDropZone],
+  )
 
   const hasCatalogParameters = Boolean(catalogParameters?.length && onAppendCatalogParameter)
   const embedAddChoices = useMemo(() => buildEmbedAddChoices(node, templateSchema), [node, templateSchema])
@@ -657,6 +720,7 @@ export function NodeCard({
     onWirelessPeerHoverEnd,
   ])
 
+  const inputPortPulseVariant = portPulseVariantForTarget(wirelessPortPulse, canvasNodeId, 'input')
   const wirelessInputLink = toWirelessPortLinkProps(
     wirelessDisplay?.input,
     wirelessPortHandlers,
@@ -933,6 +997,7 @@ export function NodeCard({
                   wirelessOutputLinks={wirelessOutputLinks}
                   wirelessPortHandlers={wirelessPortHandlers}
                   wirelessPortPulse={wirelessPortPulse}
+                  outputSlotPeerActions={outputSlotPeerActions}
                   parameter={parameter}
                   parameterNameReorderHandlers={nameReorderHandlers}
                   registerParameterRowRef={(rowElement) => registerParameterRowRef(parameter.id, rowElement)}
@@ -973,6 +1038,7 @@ export function NodeCard({
                 wirelessOutputLinks={wirelessOutputLinks}
                 wirelessPortHandlers={wirelessPortHandlers}
                 wirelessPortPulse={wirelessPortPulse}
+                outputSlotPeerActions={outputSlotPeerActions}
                 slots={populatedSlotsForEmbed(embed)}
               />
             ))}
@@ -1008,6 +1074,7 @@ export function NodeCard({
                 wirelessOutputLinks={wirelessOutputLinks}
                 wirelessPortHandlers={wirelessPortHandlers}
                 wirelessPortPulse={wirelessPortPulse}
+                outputSlotPeerActions={outputSlotPeerActions}
                 pointer={pointer}
                 slots={populatedSlotsForPointer(pointer)}
               />
@@ -1045,6 +1112,7 @@ export function NodeCard({
                 wirelessOutputLinks={wirelessOutputLinks}
                 wirelessPortHandlers={wirelessPortHandlers}
                 wirelessPortPulse={wirelessPortPulse}
+                outputSlotPeerActions={outputSlotPeerActions}
                 slots={populatedSlotsForListEmbed(listEmbed)}
               />
             ))}
@@ -1081,6 +1149,7 @@ export function NodeCard({
                 wirelessOutputLinks={wirelessOutputLinks}
                 wirelessPortHandlers={wirelessPortHandlers}
                 wirelessPortPulse={wirelessPortPulse}
+                outputSlotPeerActions={outputSlotPeerActions}
                 slots={populatedSlotsForListPointer(listPointer)}
               />
             ))}
@@ -1130,6 +1199,7 @@ export function NodeCard({
                 wirelessOutputLinks={wirelessOutputLinks}
                 wirelessPortHandlers={wirelessPortHandlers}
                 wirelessPortPulse={wirelessPortPulse}
+                outputSlotPeerActions={outputSlotPeerActions}
               />
             ))}
           </ul>
@@ -1178,6 +1248,7 @@ export function NodeCard({
                 wirelessOutputLinks={wirelessOutputLinks}
                 wirelessPortHandlers={wirelessPortHandlers}
                 wirelessPortPulse={wirelessPortPulse}
+                outputSlotPeerActions={outputSlotPeerActions}
               />
             ))}
           </ul>
@@ -1219,7 +1290,11 @@ export function NodeCard({
   )
 
   return (
-    <article className={styles.card} aria-label={`${headerTitle} node`} style={cardStyle}>
+    <article
+      className={styles.card}
+      aria-label={`${headerTitle} node`}
+      style={cardStyle}
+    >
       <NodeHeader
         canvasNodeId={canvasNodeId}
         canAcceptLink={canAcceptLink}
@@ -1231,6 +1306,7 @@ export function NodeCard({
         onStartDrag={onStartDrag}
         selected={selected}
         title={headerTitle}
+        inputPortPulseVariant={inputPortPulseVariant}
         wirelessLink={wirelessInputLink}
       />
       <div
@@ -1241,9 +1317,43 @@ export function NodeCard({
         ]
           .filter(Boolean)
           .join(' ')}
+        onDragLeave={showNeekoDropZone ? handleNeekoDragLeave : undefined}
+        onDragOver={showNeekoDropZone ? handleNeekoDragOver : undefined}
+        onDrop={showNeekoDropZone ? handleNeekoDrop : undefined}
         onPointerDownCapture={handleLockedBodyPointerDown}
         style={bodyStyle}
       >
+        {showNeekoDropZone ? (
+          <div
+            className={[
+              styles.neekoDropZone,
+              neekoDragOver || ritualDropHover ? styles.neekoDropZoneActive : '',
+              isNeekoTransforming ? styles.neekoDropZoneTransforming : '',
+            ]
+              .filter(Boolean)
+              .join(' ')}
+            data-canvas-node-id={canvasNodeId}
+            data-neeko-drop-zone=""
+          >
+            {isNeekoTransforming || neekoTransformPhase ? (
+              <p className={styles.neekoDropHint}>
+                A transformar…
+                {neekoTransformPhase ? ` (${neekoTransformPhase})` : ''}
+              </p>
+            ) : (
+              <p className={styles.neekoDropHint}>
+                Arrasta ritual Class Group aqui ou Ctrl+V com o nó seleccionado
+              </p>
+            )}
+            {neekoTransformError ? (
+              <p className={styles.neekoDropError} role="alert">
+                {neekoTransformError}
+              </p>
+            ) : null}
+            <span aria-hidden className={styles.neekoIcon} />
+          </div>
+        ) : null}
+
         {sectionPanels}
 
         <div className={styles.bodyFooter}>

@@ -1,6 +1,0 @@
-{
-  "id": "VfxReflectionDefinitionData_parameter_fresnelColor",
-  "name": "fresnelColor",
-  "type": "vector4",
-  "defaultValue": "0,0,0,0"
-}

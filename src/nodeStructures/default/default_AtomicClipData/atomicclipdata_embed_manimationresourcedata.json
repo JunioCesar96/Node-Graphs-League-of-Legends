@@ -1,0 +1,11 @@
+{
+  "id": "AtomicClipData_embed_mAnimationResourceData",
+  "title": "mAnimationResourceData",
+  "internalStructures": [
+    {
+      "id": "AtomicClipData_embed_mAnimationResourceData-catalog-0",
+      "name": "AnimationResourceData",
+      "schemaId": "animation-resource-data__main-entries-characters-zac-animations-skin0-m-clip-data-map-spell4-to-idle-m-animation-resource-data"
+    }
+  ]
+}

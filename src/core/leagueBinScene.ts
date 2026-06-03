@@ -8,6 +8,20 @@ import {
   presentationEntryFromRawLayout,
   type CanvasNodePresentationEntry,
 } from '@/core/scenePresentation'
+import {
+  applySceneBlocksToCanvas,
+  extractSceneBlocksFromCanvas,
+  parseSceneBlocks,
+  type StoredSceneBlockEntry,
+} from '@/core/blockScenePersistence'
+import {
+  applySceneGroupsToCanvas,
+  extractSceneGroupsFromCanvas,
+  parseSceneGroups,
+  type StoredSceneGroupEntry,
+} from '@/core/groupScenePersistence'
+import { hydrateSceneBlockViews } from '@/core/codeToBlockStructure'
+import { hydrateSceneGroupViews } from '@/core/codeToGroupStructure'
 import type {
   ElementViewKey,
   ElementViewState,
@@ -43,6 +57,8 @@ export type LeagueBinGraphDocumentV2 = {
   camera?: SceneCamera
   compactRoutingBackups?: Record<string, ConnectionRouting | undefined>
   sceneChrome?: SceneChromeState
+  blocks?: StoredSceneBlockEntry[]
+  groups?: StoredSceneGroupEntry[]
 }
 
 export type StoredNodeBodyPayload = {
@@ -245,6 +261,23 @@ function parseConnection(c: unknown): CanvasConnection | null {
     fromInternalStructureId: fromInternalStructureIdRaw,
     toNodeId: c.toNodeId,
     ...(routing ? { routing } : {}),
+    ...(typeof c.fromBlockSlotId === 'string' ? { fromBlockSlotId: c.fromBlockSlotId } : {}),
+    ...(typeof c.fromBlockParameterId === 'string'
+      ? { fromBlockParameterId: c.fromBlockParameterId }
+      : {}),
+    ...(typeof c.toBlockSlotId === 'string' ? { toBlockSlotId: c.toBlockSlotId } : {}),
+    ...(typeof c.toBlockParameterId === 'string'
+      ? { toBlockParameterId: c.toBlockParameterId }
+      : {}),
+    ...(typeof c.fromGroupSlotId === 'string' ? { fromGroupSlotId: c.fromGroupSlotId } : {}),
+    ...(typeof c.fromGroupParameterId === 'string'
+      ? { fromGroupParameterId: c.fromGroupParameterId }
+      : {}),
+    ...(typeof c.toGroupSlotId === 'string' ? { toGroupSlotId: c.toGroupSlotId } : {}),
+    ...(typeof c.toGroupParameterId === 'string'
+      ? { toGroupParameterId: c.toGroupParameterId }
+      : {}),
+    ...(c.forced === true ? { forced: true } : {}),
   }
 }
 
@@ -270,6 +303,9 @@ function parseCompactRoutingBackups(
 }
 
 export function serializeScene(scene: CanvasScene): LeagueBinGraphDocumentV2 {
+  const blocks = extractSceneBlocksFromCanvas(scene)
+  const groups = extractSceneGroupsFromCanvas(scene)
+
   return {
     format: 'node-graphs-lol',
     version: 2,
@@ -284,6 +320,8 @@ export function serializeScene(scene: CanvasScene): LeagueBinGraphDocumentV2 {
       ? { compactRoutingBackups: structuredClone(scene.compactRoutingBackups) }
       : {}),
     ...(scene.sceneChrome ? { sceneChrome: structuredClone(scene.sceneChrome) } : {}),
+    ...(blocks.length > 0 ? { blocks: structuredClone(blocks) } : {}),
+    ...(groups.length > 0 ? { groups: structuredClone(groups) } : {}),
     nodes: scene.nodes.map((n) => ({
       id: n.id,
       presentation: canvasNodePresentationFromNode(n),
@@ -420,7 +458,17 @@ function parseV2Document(data: Record<string, unknown>): CanvasScene | null {
     return null
   }
 
-  return {
+  const blocks = parseSceneBlocks(data.blocks)
+  if (data.blocks !== undefined && blocks === null) {
+    return null
+  }
+
+  const groups = parseSceneGroups(data.groups)
+  if (data.groups !== undefined && groups === null) {
+    return null
+  }
+
+  const baseScene: CanvasScene = {
     width: data.width,
     height: data.height,
     connections,
@@ -429,6 +477,20 @@ function parseV2Document(data: Record<string, unknown>): CanvasScene | null {
     ...(sceneChrome ? { sceneChrome } : {}),
     ...(compactRoutingBackups ? { compactRoutingBackups } : {}),
   }
+
+  const withBlocks =
+    blocks && blocks.length > 0 ? applySceneBlocksToCanvas(baseScene, blocks) : baseScene
+  if (!withBlocks) {
+    return null
+  }
+
+  const withGroups =
+    groups && groups.length > 0 ? applySceneGroupsToCanvas(withBlocks, groups) : withBlocks
+  if (!withGroups) {
+    return null
+  }
+
+  return hydrateSceneGroupViews(hydrateSceneBlockViews(withGroups))
 }
 
 export function parseSceneDocument(data: unknown): CanvasScene | null {

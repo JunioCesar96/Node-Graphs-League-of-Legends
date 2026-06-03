@@ -63,7 +63,9 @@ export function NodeHeader({
         portPulseVariant={inputPortPulseVariant}
         wirelessLink={wirelessLink}
       />
-      <h2 className={styles.title}>{title}</h2>
+      <h2 className={styles.title}>
+        {title}
+      </h2>
       <span className={styles.actions}>
         {infoTooltip ? (
           <button

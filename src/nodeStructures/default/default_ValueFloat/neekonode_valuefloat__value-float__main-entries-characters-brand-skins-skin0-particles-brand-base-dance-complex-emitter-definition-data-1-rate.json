@@ -1,0 +1,20 @@
+{
+  "id": "value-float__main-entries-characters-brand-skins-skin0-particles-brand-base-dance-complex-emitter-definition-data-1-rate",
+  "title": "ValueFloat",
+  "parameters": [
+    {
+      "id": "value-float__main-entries-characters-brand-skins-skin0-particles-brand-base-dance-complex-emitter-definition-data-1-rate_parameter_constantValue",
+      "name": "constantValue",
+      "type": "f32",
+      "defaultValue": "5"
+    }
+  ],
+  "internalStructures": [],
+  "embed": [],
+  "pointer": [],
+  "listEmbed": [],
+  "listPointer": [],
+  "list2Embed": [],
+  "list2Pointer": [],
+  "tag": "neeko"
+}

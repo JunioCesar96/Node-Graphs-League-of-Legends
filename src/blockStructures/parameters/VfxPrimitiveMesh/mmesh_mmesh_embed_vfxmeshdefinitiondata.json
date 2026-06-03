@@ -1,0 +1,17 @@
+{
+  "id": "mMesh_mMesh_embed_VfxMeshDefinitionData",
+  "block": "VfxPrimitiveMesh",
+  "parameterName": "mMesh",
+  "name": "mMesh",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-primitive-mesh__entries-{particlePath}-complex-emitter-definition-data--slot--5-primitive-m-mesh"
+  },
+  "type": "embed",
+  "embed": "VfxMeshDefinitionData",
+  "slots": {
+    "out": [
+      "VfxMeshDefinitionData"
+    ]
+  }
+}

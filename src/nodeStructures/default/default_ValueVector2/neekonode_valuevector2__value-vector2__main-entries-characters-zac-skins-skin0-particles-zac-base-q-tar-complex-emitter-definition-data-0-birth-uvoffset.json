@@ -1,0 +1,20 @@
+{
+  "id": "value-vector2__main-entries-characters-zac-skins-skin0-particles-zac-base-q-tar-complex-emitter-definition-data-0-birth-uvoffset",
+  "title": "ValueVector2",
+  "parameters": [
+    {
+      "id": "value-vector2__main-entries-characters-zac-skins-skin0-particles-zac-base-q-tar-complex-emitter-definition-data-0-birth-uvoffset_parameter_constantValue",
+      "name": "constantValue",
+      "type": "vector2",
+      "defaultValue": "0, 0.4"
+    }
+  ],
+  "internalStructures": [],
+  "embed": [],
+  "pointer": [],
+  "listEmbed": [],
+  "listPointer": [],
+  "list2Embed": [],
+  "list2Pointer": [],
+  "tag": "neeko"
+}

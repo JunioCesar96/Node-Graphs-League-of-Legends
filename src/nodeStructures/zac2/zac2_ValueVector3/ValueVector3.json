@@ -1,0 +1,19 @@
+{
+  "id": "value-vector3__main-entries-0x0eed7307-complex-emitter-definition-data-4-spawn-shape-emit-offset",
+  "title": "ValueVector3",
+  "parameters": [
+    {
+      "id": "ValueVector3_parameter_constantValue",
+      "name": "constantValue",
+      "type": "vector3",
+      "defaultValue": "1, 0, 0"
+    }
+  ],
+  "embed": [],
+  "pointer": [],
+  "listEmbed": [],
+  "listPointer": [],
+  "list2Embed": [],
+  "list2Pointer": [],
+  "internalStructures": []
+}

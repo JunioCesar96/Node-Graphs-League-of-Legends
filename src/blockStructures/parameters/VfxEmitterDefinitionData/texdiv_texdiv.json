@@ -1,0 +1,20 @@
+{
+  "id": "texDiv_texDiv",
+  "block": "VfxEmitterDefinitionData",
+  "parameterName": "texDiv",
+  "name": "texDiv",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-emitter-definition-data__entries-{particlePath}-complex-emitter-definition-data--slot--0_parameter_texDiv"
+  },
+  "type": "vec2",
+  "value": "2, 1",
+  "slots": {
+    "in": [
+      "vec2"
+    ],
+    "out": [
+      "vec2"
+    ]
+  }
+}

@@ -1,0 +1,151 @@
+.sceneDock {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 10;
+  display: flex;
+  flex-direction: row;
+  max-height: calc(100% - 16px);
+}
+
+.scenePanel {
+  display: flex;
+  flex: 0 0 220px;
+  flex-direction: column;
+  width: 220px;
+  min-width: 200px;
+  max-width: 260px;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--vfx-panel-bg-soft);
+  border: 1px solid var(--vfx-chrome-bg-mid);
+  border-left: none;
+  border-radius: 0 8px 8px 0;
+  backdrop-filter: blur(8px);
+}
+
+.scenePanelHead {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--vfx-chrome-bg-mid);
+}
+
+.scenePanelHeadIcon {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  color: var(--vfx-accent-text);
+}
+
+.scenePanelTitle {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--vfx-accent-text-readout);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.scenePanelScroll {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  padding: 0 8px 8px;
+  overflow: hidden auto;
+  font-size: 10px;
+  color: var(--vfx-text-dim);
+}
+
+.overlayItem {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  padding: 2px 0;
+  cursor: pointer;
+  user-select: none;
+}
+
+.overlayItem input {
+  accent-color: var(--vfx-control-accent);
+}
+
+.overlayCheckboxOnly {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.overlayContextLabel {
+  flex: 1;
+  cursor: context-menu;
+  border-radius: 3px;
+}
+
+.overlayContextLabel:hover {
+  color: var(--vfx-accent-text-strong);
+  background: var(--vfx-chrome-bg);
+}
+
+.viewHints {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 9px;
+  line-height: 1.35;
+  color: var(--vfx-text-muted);
+}
+
+.section {
+  margin-top: 6px;
+  border-top: 1px solid var(--vfx-chrome-bg-mid);
+}
+
+.sectionHead {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  width: 100%;
+  padding: 7px 2px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--vfx-text-muted);
+  text-align: left;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+}
+
+.sectionHead:hover {
+  background: var(--vfx-chrome-bg-soft);
+}
+
+.sectionChevron {
+  display: inline-block;
+  width: 0;
+  height: 0;
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  border-left: 5px solid var(--vfx-text-muted);
+  transition: transform 0.15s ease;
+}
+
+.sectionChevron[data-open='1'] {
+  transform: rotate(90deg);
+}
+
+.sectionTitle {
+  flex: 1;
+}
+
+.sectionBody {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 0 2px 8px;
+}

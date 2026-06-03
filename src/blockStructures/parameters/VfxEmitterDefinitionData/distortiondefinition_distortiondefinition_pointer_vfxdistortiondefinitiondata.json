@@ -1,0 +1,17 @@
+{
+  "id": "distortionDefinition_distortionDefinition_pointer_VfxDistortionDefinitionData",
+  "block": "VfxEmitterDefinitionData",
+  "parameterName": "distortionDefinition",
+  "name": "distortionDefinition",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-emitter-definition-data__entries-{particlePath}-complex-emitter-definition-data--slot--0-distortion-definition"
+  },
+  "type": "pointer",
+  "pointer": "VfxDistortionDefinitionData",
+  "slots": {
+    "out": [
+      "VfxDistortionDefinitionData"
+    ]
+  }
+}

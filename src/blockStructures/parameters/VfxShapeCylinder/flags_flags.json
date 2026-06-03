@@ -1,0 +1,20 @@
+{
+  "id": "flags_flags",
+  "block": "VfxShapeCylinder",
+  "parameterName": "flags",
+  "name": "flags",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-shape-cylinder__entries-{particlePath}-complex-emitter-definition-data--slot--14-spawn-shape_parameter_flags"
+  },
+  "type": "u8",
+  "value": "1",
+  "slots": {
+    "in": [
+      "u8"
+    ],
+    "out": [
+      "u8"
+    ]
+  }
+}

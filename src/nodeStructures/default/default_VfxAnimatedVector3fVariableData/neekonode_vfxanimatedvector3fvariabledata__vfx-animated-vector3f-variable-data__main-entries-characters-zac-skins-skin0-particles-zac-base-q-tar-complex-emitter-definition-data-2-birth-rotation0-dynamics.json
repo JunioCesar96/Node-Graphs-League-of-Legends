@@ -1,0 +1,66 @@
+{
+  "id": "vfx-animated-vector3f-variable-data__main-entries-characters-zac-skins-skin0-particles-zac-base-q-tar-complex-emitter-definition-data-2-birth-rotation0-dynamics",
+  "title": "VfxAnimatedVector3fVariableData",
+  "parameters": [
+    {
+      "id": "vfx-animated-vector3f-variable-data__main-entries-characters-zac-skins-skin0-particles-zac-base-q-tar-complex-emitter-definition-data-2-birth-rotation0-dynamics_parameter_times",
+      "name": "times",
+      "type": "listF32",
+      "defaultValue": "0"
+    },
+    {
+      "id": "vfx-animated-vector3f-variable-data__main-entries-characters-zac-skins-skin0-particles-zac-base-q-tar-complex-emitter-definition-data-2-birth-rotation0-dynamics_parameter_values",
+      "name": "values",
+      "type": "listVector3",
+      "defaultValue": "180, 180, 180"
+    }
+  ],
+  "internalStructures": [],
+  "embed": [],
+  "pointer": [],
+  "listEmbed": [],
+  "listPointer": [
+    {
+      "id": "VfxAnimatedVector3fVariableData_listPointer_probabilityTables",
+      "title": "probabilityTables",
+      "internalStructures": [
+        {
+          "id": "vfx-animated-vector3f-variable-data-probability-tables-0",
+          "name": "VfxProbabilityTableData",
+          "schemaId": "vfx-probability-table-data__probability-tables-0"
+        },
+        {
+          "id": "vfx-animated-vector3f-variable-data-probability-tables-1",
+          "name": "VfxProbabilityTableData",
+          "schemaId": "vfx-probability-table-data__probability-tables-1"
+        },
+        {
+          "id": "vfx-animated-vector3f-variable-data-probability-tables-2",
+          "name": "VfxProbabilityTableData",
+          "schemaId": "vfx-probability-table-data__probability-tables-2"
+        }
+      ],
+      "slots": [
+        {
+          "id": "VfxAnimatedVector3fVariableData_listPointer_probabilityTables__slot__0",
+          "name": "VfxProbabilityTableData",
+          "schemaId": "vfx-probability-table-data__probability-tables-0"
+        },
+        {
+          "id": "VfxAnimatedVector3fVariableData_listPointer_probabilityTables__slot__1",
+          "name": "VfxProbabilityTableData",
+          "schemaId": "vfx-probability-table-data__probability-tables-1"
+        },
+        {
+          "id": "VfxAnimatedVector3fVariableData_listPointer_probabilityTables__slot__2",
+          "name": "VfxProbabilityTableData",
+          "schemaId": "vfx-probability-table-data__probability-tables-2"
+        }
+      ],
+      "templateBlockId": "VfxAnimatedVector3fVariableData_listPointer_probabilityTables"
+    }
+  ],
+  "list2Embed": [],
+  "list2Pointer": [],
+  "tag": "neeko"
+}

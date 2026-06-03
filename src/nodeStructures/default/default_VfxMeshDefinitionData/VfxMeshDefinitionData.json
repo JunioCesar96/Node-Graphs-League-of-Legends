@@ -1,0 +1,47 @@
+{
+  "id": "vfx-mesh-definition-data__main-entries-0xa2fa6a01-complex-emitter-definition-data-7-primitive-m-mesh",
+  "title": "VfxMeshDefinitionData",
+  "parameters": [
+    {
+      "id": "VfxMeshDefinitionData_parameter_mSimpleMeshName",
+      "name": "mSimpleMeshName",
+      "type": "string",
+      "defaultValue": "ASSETS/Characters/zac/Skins/Base/Particles/Morgana_Base_R_indicator_ring.scb"
+    }
+  ],
+  "embed": [],
+  "pointer": [],
+  "listEmbed": [],
+  "listPointer": [],
+  "list2Embed": [],
+  "list2Pointer": [],
+  "internalStructures": [],
+  "nomenclature": {
+    "group": "#3 Internal Structures",
+    "collection": "#3 Embed Block",
+    "collectionType": "VfxMeshDefinitionData",
+    "pathHierarchy": "main > entries:0xa2fa6a01 > complexEmitterDefinitionData:7 > primitive > mMesh",
+    "pathHierarchySteps": [
+      {
+        "id": "main",
+        "type": "#0 Root main"
+      },
+      {
+        "id": "entries:0xa2fa6a01",
+        "type": "#2 Root Entry (VfxSystemDefinitionData)"
+      },
+      {
+        "id": "complexEmitterDefinitionData:7",
+        "type": "#3 Collection Block"
+      },
+      {
+        "id": "primitive",
+        "type": "#3 Pointer Node"
+      },
+      {
+        "id": "mMesh",
+        "type": "#3 Embed Block"
+      }
+    ]
+  }
+}

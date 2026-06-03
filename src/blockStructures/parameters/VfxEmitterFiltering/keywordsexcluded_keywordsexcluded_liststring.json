@@ -1,0 +1,21 @@
+{
+  "id": "keywordsExcluded_keywordsExcluded_listString",
+  "block": "VfxEmitterFiltering",
+  "parameterName": "keywordsExcluded",
+  "name": "keywordsExcluded",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-emitter-filtering__main-characters/brand/skins/skin0/particles/brand-base-p-apoc-detonate-big-complex-emitter-definition-data--slot--12-filtering_parameter_keywordsExcluded"
+  },
+  "type": "listString",
+  "items": [
+    "BattlebunnyRiven",
+    "Season2Riven",
+    "RivenSkin05"
+  ],
+  "slots": {
+    "out": [
+      "string"
+    ]
+  }
+}

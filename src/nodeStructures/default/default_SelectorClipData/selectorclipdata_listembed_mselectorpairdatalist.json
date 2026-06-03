@@ -1,0 +1,16 @@
+{
+  "id": "SelectorClipData_listEmbed_mSelectorPairDataList",
+  "title": "mSelectorPairDataList",
+  "internalStructures": [
+    {
+      "id": "SelectorClipData_listEmbed_mSelectorPairDataList-catalog-0",
+      "name": "SelectorPairData",
+      "schemaId": "selector-pair-data__m-selector-pair-data-list-0"
+    },
+    {
+      "id": "SelectorClipData_listEmbed_mSelectorPairDataList-catalog-1",
+      "name": "SelectorPairData",
+      "schemaId": "selector-pair-data__m-selector-pair-data-list-1"
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "id": "VfxSoftParticleDefinitionData_VfxSoftParticleDefinitionData",
+  "block": "softParticleParams",
+  "blockName": "VfxSoftParticleDefinitionData",
+  "type": "pointer",
+  "name": "VfxSoftParticleDefinitionData",
+  "source": {
+    "kind": "block",
+    "nodeId": "vfx-soft-particle-definition-data__entries-{particlePath}-complex-emitter-definition-data--slot--14-soft-particle-params"
+  },
+  "color": "#40ff56",
+  "headerSlots": [
+    "in[softParticleParams]",
+    "out[VfxSoftParticleDefinitionDataPreview]"
+  ],
+  "parameters": [
+    "deltaIn",
+    "beginIn",
+    "deltaOut"
+  ]
+}

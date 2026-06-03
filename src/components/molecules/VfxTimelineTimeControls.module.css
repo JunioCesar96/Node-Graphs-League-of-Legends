@@ -1,0 +1,95 @@
+.timeControls {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  margin-left: 6px;
+}
+
+.currentPill {
+  display: flex;
+  align-items: center;
+  min-width: 44px;
+  height: 28px;
+  padding: 0 10px;
+  background: var(--vfx-chrome-bg);
+  border: 1px solid var(--vfx-chrome-bg-hover);
+  border-radius: 8px;
+}
+
+.rangeGroup {
+  display: flex;
+  align-items: stretch;
+  height: 28px;
+  overflow: hidden;
+  background: var(--vfx-resize-handle-bg);
+  border: 1px solid var(--vfx-chrome-bg-hover);
+  border-radius: 8px;
+}
+
+.rangeIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  font-size: 12px;
+  color: var(--vfx-text-muted);
+  border-right: 1px solid var(--vfx-chrome-border);
+}
+
+.rangeSegment {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  padding: 0 10px;
+  min-width: 72px;
+}
+
+.rangeLabel {
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--vfx-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.rangeDivider {
+  width: 1px;
+  background: var(--vfx-chrome-border);
+}
+
+.valueBtn {
+  min-width: 28px;
+  padding: 0;
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--vfx-text-strong);
+  text-align: left;
+  cursor: text;
+  background: transparent;
+  border: none;
+}
+
+.valueBtn:hover {
+  color: var(--vfx-accent-text-strong);
+}
+
+.valueInput {
+  width: 48px;
+  padding: 2px 4px;
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--vfx-text-strong);
+  background: var(--vfx-inset-dark);
+  border: 1px solid var(--vfx-accent-border-soft);
+  border-radius: 4px;
+}
+
+.resetHint {
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  color: rgb(255 196 96 / 88%);
+  white-space: nowrap;
+}

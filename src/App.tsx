@@ -3,6 +3,7 @@ import type { GraphCanvasHandle } from '@/components/organisms/GraphCanvas'
 import type { CSSProperties, PointerEvent } from 'react'
 
 import { ConsoleNotificationCapsule } from '@/components/molecules/ConsoleNotificationCapsule'
+import { CanvasViewportStatusBar } from '@/components/molecules/CanvasViewportStatusBar'
 import { SceneTabBar } from '@/components/molecules/SceneTabBar'
 import type { TabContextMenuAction } from '@/components/molecules/TabContextMenu'
 import { NewCodeFileDialog } from '@/components/molecules/NewCodeFileDialog'
@@ -14,7 +15,14 @@ import {
   CODE_DOCK_MIN_WIDTH,
   type CodeDockFileBridge,
 } from '@/components/organisms/CodeDock'
+import {
+  VfxDock,
+  VFX_DOCK_DEFAULT_WIDTH,
+  VFX_DOCK_MIN_WIDTH,
+} from '@/components/organisms/VfxDock'
 import { getPreference } from '@jade/lib/preferenceStore'
+import { initAppTheme } from '@/core/appTheme'
+import { refreshJadeSurfaceTheme } from '@/core/jadeSurfaceTheme'
 import { pushCodeRecentFile, readCodeRecentFiles } from '@/jade/codeRecentFiles'
 import {
   NodeInstanceStringPicker,
@@ -26,8 +34,37 @@ import {
 } from '@/components/organisms/codeDockFloatingRect'
 import { GraphCanvas } from '@/components/organisms/GraphCanvas'
 import { DEFAULT_CANVAS_TOOLBAR_VISIBILITY } from '@/core/canvasToolbarVisibility'
+import {
+  toggleViewportToolbarDock,
+  type ViewportToolbarDockId,
+} from '@/core/viewportToolbarDock'
 import { ParameterValueLinkPicker } from '@/components/molecules/ParameterValueLinkPicker'
 import { NodeInspector } from '@/components/organisms/NodeInspector'
+import { BlockInspector } from '@/components/organisms/BlockInspector'
+import {
+  BlockParameterInspector,
+  type BlockParameterInspectorTarget,
+} from '@/components/organisms/BlockParameterInspector'
+import { fetchAddonsFromDisk } from '@/blockStructures/addonRegistry'
+import type { BlockDefinitionJsonDocument } from '@/core/blockDefinitionJson'
+import { GroupInspector } from '@/components/organisms/GroupInspector'
+import { BlockingProgressDialog } from '@/components/molecules/BlockingProgressDialog'
+import {
+  buildBlockAutoBuildPlan,
+  buildBlockAutoBuildPlanFromViewCode,
+} from '@/core/blockAutoBuild'
+import { codeToBlockScene } from '@/core/codeToBlockScene'
+import {
+  executeAutoBuildWorkItems,
+  flattenAutoBuildWorkItems,
+  type AutoBuildProgress,
+  type AutoBuildRunResult,
+} from '@/core/blockAutoBuildExecutor'
+import { buildBlockDefinitionJsonDocument } from '@/core/blockDefinitionJson'
+import { writeBlockDefinitionDocument } from '@/core/blockDefinitionStorage'
+import { buildBlockParameterJsonDocuments } from '@/core/blockParameterJson'
+import { writeBlockParameterDocuments } from '@/core/blockParameterStorage'
+import { blockTypeDefinitionsList } from '@/core/blockStructureRegistry'
 import { SceneNodesPanel, type SceneNodesPanelTab } from '@/components/organisms/SceneNodesPanel'
 import {
   filterRemovableNodeIds,
@@ -35,7 +72,6 @@ import {
   isNodeLocked,
 } from '@/core/canvasNodePresentation'
 import { stubBinStructureDocument } from '@/core/binImportStub'
-import { convertBinViaOptionalBridge } from '@/core/jadeBinBridge'
 import { binTreeJsonToCanvasScene } from '@/core/ltkBinTreeScene'
 import { getStoredRitobinExePath } from '@/core/ritobinExePreference'
 import { convertBinViaRitobinExeBridge } from '@/core/ritobinInvokeBridge'
@@ -119,10 +155,21 @@ import {
   CODE_DOCK_FILE_INPUT_ACCEPT,
   defaultContentForNewFile,
   getFileExtension,
+  isRitobinEditorPath,
   needsBinConversionOnOpen,
   needsBinConversionOnSave,
   normalizeCodeDockFileName,
+  sanitizeCodeDockBaseName,
 } from '@/core/codeDockFileTypes'
+import { applyRitualSnippetScalarsToNode } from '@/core/applyRitualSnippetScalarsToNode'
+import {
+  emitNodeRitualViewCodeText,
+  emitNodeBlockViewCodeText,
+  emitNodeBlockCardPreviewCodeText,
+  emitNodeGroupViewCodeText,
+  syncNodeToBoundCodeRange,
+  type NodeCodeEditorBinding,
+} from '@/core/nodeCodeEditorBinding'
 import { stripExtension } from '@/core/sceneTabsStorage'
 import { saveCodeDockTextManual } from '@/core/codeDockFileSave'
 import {
@@ -130,8 +177,27 @@ import {
   serializeSceneNodesStatePresetsFile,
 } from '@/core/sceneNodesStatePresets'
 import { isCanvasScene } from '@/hooks/useSceneHistory'
+import { useAppShortcutHandlers } from '@/shortcuts/useAppShortcutHandlers'
+import {
+  ensureJadeHashesLoaded,
+  getJadeEditorResolveStatus,
+  resolveBinFileForEditor,
+  resolveRitualTextForEditor,
+  type JadeEditorResolveStatus,
+} from '@/core/jadeEditorTextResolve'
+import { ritualContainsVfxSystem } from '@/core/vfx/ritualParseVfx'
+import { resolveVfxRitualText } from '@/core/vfx/resolveVfxRitualText'
 import { useCodeDockTabs } from '@/hooks/useCodeDockTabs'
+import { useNeekoTransform } from '@/hooks/useNeekoTransform'
+import { RitualDragOverlay } from '@/components/molecules/RitualDragOverlay'
+import { LangId } from '@/core/language/languageIds'
 import { useSceneTabs } from '@/hooks/useSceneTabs'
+import { useLanguage } from '@/language/LanguageProvider'
+import {
+  MESSENGER_TOAST_NEEKO_BUILD_FAILED,
+  MESSENGER_TOAST_NEEKO_TRANSFORM_ERROR,
+  MESSENGER_TOAST_NEEKO_TRANSFORM_WARNINGS,
+} from '@/messenger_popup/messengerCatalog'
 
 import styles from './App.module.css'
 
@@ -140,9 +206,6 @@ const BOOT_CONSOLE_TEST_MESSAGE = 'Teste, console de notificação funcionado.'
 const BOOT_CONSOLE_TEST_SECONDS = 3
 
 const SAVE_STATUS_NOTICE_SECONDS = 10
-
-const SCENE_WORKSPACE_EMPTY_HINT =
-  'Abra um ficheiro JSON de cena de trabalho ou crie uma cena nova.'
 
 type TabRenameTarget =
   | { kind: 'scene'; tabId: string; initial: string }
@@ -168,26 +231,6 @@ type InspectorDragGesture = {
   undockFromToolbarStarted: boolean
 }
 
-function isEditableTarget(target: EventTarget | null) {
-  if (!(target instanceof HTMLElement)) {
-    return false
-  }
-
-  return Boolean(target.closest('input, textarea, select, button, [contenteditable="true"]'))
-}
-
-function shouldIgnoreAppKeyboardShortcut(event: KeyboardEvent): boolean {
-  if (isEditableTarget(event.target)) {
-    return true
-  }
-  if (!(event.target instanceof HTMLElement)) {
-    return false
-  }
-  return Boolean(
-    event.target.closest('[data-structure-index-picker], [role="dialog"][aria-modal="true"]'),
-  )
-}
-
 const INSPECTOR_TOOLBAR_UNDOCK_DRAG_PX = 12
 
 const INSPECTOR_CHROME_STRIP_PX = 42
@@ -208,7 +251,57 @@ function readRootSpacePx(variable: string): number {
   return 0
 }
 
+type InspectorDockAnchor = {
+  clientX: number
+  clientY: number
+}
+
+function computeInspectorDockDefaultAnchor(
+  column: HTMLElement,
+  minimized: boolean,
+): { defaultRight: number; defaultTop: number } {
+  const col = column.getBoundingClientRect()
+  const narrow = typeof window !== 'undefined' && window.matchMedia('(max-width: 900px)').matches
+  const marginEdge = readRootSpacePx(narrow ? '--space-3' : '--space-5')
+
+  return {
+    defaultRight: col.right - marginEdge,
+    defaultTop: minimized
+      ? col.bottom - marginEdge - INSPECTOR_CHROME_STRIP_PX
+      : col.top + col.height - marginEdge - INSPECTOR_CHROME_STRIP_PX,
+  }
+}
+
+function computeInspectorDockOffsetFromPointer(
+  column: HTMLElement,
+  anchor: InspectorDockAnchor,
+  minimized: boolean,
+): InspectorOffset {
+  const { defaultRight, defaultTop } = computeInspectorDockDefaultAnchor(column, minimized)
+
+  return {
+    x: anchor.clientX - defaultRight,
+    y: anchor.clientY - defaultTop,
+  }
+}
+
+function computeInspectorDockOffsetFromStrip(
+  column: HTMLElement,
+  strip: HTMLElement,
+  minimized: boolean,
+): InspectorOffset {
+  const { defaultRight, defaultTop } = computeInspectorDockDefaultAnchor(column, minimized)
+  const sr = strip.getBoundingClientRect()
+  const marginBelowStrip = readRootSpacePx('--space-3')
+
+  return {
+    x: sr.right - defaultRight,
+    y: sr.bottom + marginBelowStrip - defaultTop,
+  }
+}
+
 function App() {
+  const { t } = useLanguage()
   const inspectorMovedDuringPointer = useRef(false)
   const inspectorDragGesture = useRef<InspectorDragGesture | null>(null)
   const sceneNodesMovedDuringPointer = useRef(false)
@@ -223,6 +316,15 @@ function App() {
     [dynamicStructurePacks],
   )
 
+  const [paletteSignal, setPaletteSignal] = useState(0)
+  const requestPalette = useCallback(() => {
+    setPaletteSignal((ticket) => ticket + 1)
+  }, [])
+
+  useEffect(() => {
+    void fetchAddonsFromDisk()
+  }, [])
+
   const mergedPackFolderBySchemaId = useMemo(
     () => ({
       ...schemaPackFolderBySchemaId,
@@ -236,6 +338,14 @@ function App() {
       ...schemaStructureSubfolderBySchemaId,
       ...dynamicPackStructureSubfolderMap(dynamicStructurePacks),
     }),
+    [dynamicStructurePacks],
+  )
+
+  const memoryPackFolders = useMemo(
+    () =>
+      [...new Set(dynamicStructurePacks.map((pack) => pack.folder.trim()).filter(Boolean))].sort(
+        (a, b) => a.localeCompare(b),
+      ),
     [dynamicStructurePacks],
   )
 
@@ -266,6 +376,7 @@ function App() {
     removeConnectionsFromOutputSlot,
     createChildNode,
     createRootNode,
+    spawnNeekoNodeAtPosition,
     deleteSelectedNodes,
     deleteNodeIds,
     patchNodeSceneOverlay,
@@ -277,6 +388,8 @@ function App() {
     setAllNodesLocked,
     resetNodePosition,
     toggleNodeBodyCollapsed,
+    toggleStructureCardParamsExpanded,
+    setStructureCardWidth,
     setAllNodesBodyCollapsed,
     toggleNodeCardSection,
     setNodeCardSectionOrder,
@@ -331,9 +444,94 @@ function App() {
     removeListEmbedBlock,
     removeListPointerSlot,
     removeListPointerBlock,
+    updateCanvasNodeNeekoPhase,
+    applyNeekoTransform,
+    generateBlockFromNode,
+    revertBlockView,
+    updateBlockParameter,
+    createBlockNodeFromDefinition,
+    createAddonNode,
+    applyAddonOutputsToScene,
+    connectAddonSlots,
+    syncBlockParameterCatalogFromDefinitions,
+    addBlockParameterFromCatalog,
+    removeBlockParameter,
+    updateBlockParameterFromInspector,
+    connectBlockSlots,
+    getBlockInspectorDraft,
+    updateBlockInspectorDraft,
+    refreshBlockInspectorDraft,
+    generateGroupFromNode,
+    revertGroupView,
+    updateGroupParameter,
+    connectGroupSlots,
+    getGroupInspectorDraft,
+    updateGroupInspectorDraft,
+    refreshGroupInspectorDraft,
   } = useSceneTabs({ extendSchemaLookup, lightModeEnabled: nodeLightModeEnabled })
 
   const { showConfirmByCatalogId, showToastByCatalogId } = useMessengerPopup()
+
+  const neekoTransformCallbacks = useMemo(
+    () => ({
+      updateCanvasNodeNeekoPhase,
+      applyNeekoTransform,
+    }),
+    [applyNeekoTransform, updateCanvasNodeNeekoPhase],
+  )
+
+  const {
+    transformingNodeId: neekoTransformingNodeId,
+    runTransform: runNeekoTransform,
+    canTransformNode: canNeekoTransformNode,
+  } = useNeekoTransform(neekoTransformCallbacks)
+
+  const neekoSendTarget = useMemo(() => {
+    if (!primarySelectedId || neekoTransformingNodeId === primarySelectedId) {
+      return null
+    }
+
+    const node = scene.nodes.find((canvasNode) => canvasNode.id === primarySelectedId)
+    if (!node || !canNeekoTransformNode(node.node.schema.id, node.locked)) {
+      return null
+    }
+
+    return { canvasNodeId: primarySelectedId }
+  }, [canNeekoTransformNode, neekoTransformingNodeId, primarySelectedId, scene.nodes])
+
+  const handleNeekoBuildFailed = useCallback(() => {
+    showToastByCatalogId(MESSENGER_TOAST_NEEKO_BUILD_FAILED)
+  }, [showToastByCatalogId])
+
+  const handleBuildNeekoAtPosition = useCallback(
+    (position: CanvasPosition) => spawnNeekoNodeAtPosition(position),
+    [spawnNeekoNodeAtPosition],
+  )
+
+  const handleNeekoDropCode = useCallback(
+    (canvasNodeId: string, text: string) => {
+      void runNeekoTransform(canvasNodeId, text).then((result) => {
+        if (!result?.ok) {
+          if (result?.error) {
+            showToastByCatalogId(MESSENGER_TOAST_NEEKO_TRANSFORM_ERROR, { error: result.error })
+          }
+          return
+        }
+        requestPalette()
+        if (result.warnings.length > 0) {
+          const preview = result.warnings.slice(0, 30).join('\n')
+          const suffix =
+            result.warnings.length > 30
+              ? `\n… e mais ${String(result.warnings.length - 30)} aviso(s).`
+              : ''
+          showToastByCatalogId(MESSENGER_TOAST_NEEKO_TRANSFORM_WARNINGS, {
+            summary: `${preview}${suffix}`,
+          })
+        }
+      })
+    },
+    [requestPalette, runNeekoTransform, showToastByCatalogId],
+  )
 
   const availableSchemas = useMemo(() => Object.values(extendSchemaLookup), [extendSchemaLookup])
 
@@ -374,6 +572,37 @@ function App() {
   const [inspectorMinimized, setInspectorMinimized] = useState(false)
   const [inspectorOffset, setInspectorOffset] = useState<InspectorOffset>({ x: 0, y: 0 })
   const [inspectorViewportDocked, setInspectorViewportDocked] = useState(true)
+  const [blockParameterInspectorTarget, setBlockParameterInspectorTarget] =
+    useState<BlockParameterInspectorTarget | null>(null)
+
+  const [blockInspectorMinimized, setBlockInspectorMinimized] = useState(false)
+  const [blockInspectorViewportDocked, setBlockInspectorViewportDocked] = useState(true)
+  const [blockInspectorOffset, setBlockInspectorOffset] = useState<InspectorOffset>({ x: 0, y: 0 })
+  const [autoBuildUi, setAutoBuildUi] = useState<{
+    phase: 'running' | 'confirmCancel' | 'summary' | 'error'
+    progress: AutoBuildProgress
+    result?: AutoBuildRunResult
+    errorMessage?: string
+  } | null>(null)
+  const autoBuildCancelRef = useRef(false)
+  const blockAutoBuildBusy = autoBuildUi !== null
+  const [blockCardPreviewUi, setBlockCardPreviewUi] = useState<{
+    phase: 'running' | 'confirmCancel' | 'summary' | 'error'
+    completed: number
+    total: number
+    currentLabel: string
+    summaryBody?: string
+    summaryTitle?: string
+  } | null>(null)
+  const blockCardPreviewCancelRef = useRef(false)
+  const blockCardPreviewBusy = blockCardPreviewUi !== null
+  const blockInspectorMovedDuringPointer = useRef(false)
+  const blockInspectorDragGesture = useRef<InspectorDragGesture | null>(null)
+  const [groupInspectorMinimized, setGroupInspectorMinimized] = useState(false)
+  const [groupInspectorViewportDocked, setGroupInspectorViewportDocked] = useState(true)
+  const [groupInspectorOffset, setGroupInspectorOffset] = useState<InspectorOffset>({ x: 0, y: 0 })
+  const groupInspectorMovedDuringPointer = useRef(false)
+  const groupInspectorDragGesture = useRef<InspectorDragGesture | null>(null)
   const [inspectorGrabFollowActive, setInspectorGrabFollowActive] = useState(false)
   const [inspectorGrabFollowCoords, setInspectorGrabFollowCoords] = useState({ x: 0, y: 0 })
   const sceneNodesMinimized = scene.sceneChrome?.sceneNodes?.minimized ?? true
@@ -381,10 +610,24 @@ function App() {
   const [sceneNodesPanelTab, setSceneNodesPanelTab] = useState<SceneNodesPanelTab>('nodes')
   const [sceneNodesOffset, setSceneNodesOffset] = useState<InspectorOffset>({ x: 0, y: 0 })
   const [sceneNodesViewportDocked, setSceneNodesViewportDocked] = useState(true)
+  const [activeViewportToolbarDock, setActiveViewportToolbarDock] =
+    useState<ViewportToolbarDockId | null>(null)
+  const [canvasToolbarChromeHost, setCanvasToolbarChromeHost] = useState<HTMLDivElement | null>(null)
   const [codeDockOpen, setCodeDockOpen] = useState(false)
   const [codeDockWidth, setCodeDockWidth] = useState(CODE_DOCK_DEFAULT_WIDTH)
   const [codeDockFloating, setCodeDockFloating] = useState(false)
   const [codeDockFloatingRect, setCodeDockFloatingRect] = useState(() =>
+    clampFloatingDockRect(createDefaultFloatingCodeDockRect()),
+  )
+  const [codeDockJadeBanner, setCodeDockJadeBanner] = useState<{
+    message: string
+    tone: 'fnv' | 'jade' | 'mock'
+  } | null>(null)
+  const [vfxDockOpen, setVfxDockOpen] = useState(false)
+  const [vfxRitualOverride, setVfxRitualOverride] = useState<string | null>(null)
+  const [vfxDockWidth, setVfxDockWidth] = useState(VFX_DOCK_DEFAULT_WIDTH)
+  const [vfxDockFloating, setVfxDockFloating] = useState(false)
+  const [vfxDockFloatingRect, setVfxDockFloatingRect] = useState(() =>
     clampFloatingDockRect(createDefaultFloatingCodeDockRect()),
   )
   const {
@@ -403,6 +646,7 @@ function App() {
     tabBarItems: codeDockTabBarItems,
     tabs: codeDockTabs,
   } = useCodeDockTabs()
+
   const [tabRenameTarget, setTabRenameTarget] = useState<TabRenameTarget | null>(null)
   const [newCodeFileDialogOpen, setNewCodeFileDialogOpen] = useState(false)
   const [codeRecentFiles, setCodeRecentFiles] = useState<string[]>(() => readCodeRecentFiles())
@@ -416,7 +660,6 @@ function App() {
   const [nodeInstanceStringPickerNodeId, setNodeInstanceStringPickerNodeId] = useState<null | string>(null)
   const [hashStringPickerNodeId, setHashStringPickerNodeId] = useState<null | string>(null)
   const [hashStringNoticeStamp, setHashStringNoticeStamp] = useState<number | null>(null)
-  const [paletteSignal, setPaletteSignal] = useState(0)
   const [codeToNewNodeGraphProgress, setCodeToNewNodeGraphProgress] = useState<{
     label: string
     ratio: number
@@ -432,6 +675,9 @@ function App() {
     message: string
     stamp: number
   } | null>(null)
+  const [nodeCodeBindings, setNodeCodeBindings] = useState<
+    Record<string, NodeCodeEditorBinding>
+  >({})
 
   const dismissBootConsoleTest = useCallback(() => {
     setBootConsoleTestStamp(null)
@@ -452,6 +698,99 @@ function App() {
     [],
   )
 
+  const applySnippetScalarsToCanvasNode = useCallback(
+    (canvasNodeId: string, snippet: string) => {
+      const canvasNode = scene.nodes.find((entry) => entry.id === canvasNodeId)
+      if (!canvasNode) {
+        return
+      }
+
+      const result = applyRitualSnippetScalarsToNode(canvasNode.node, snippet)
+      if (!result.ok) {
+        window.alert(result.error)
+        return
+      }
+
+      for (const update of result.updates) {
+        updateNodeParameter(canvasNodeId, update.parameterId, update.value)
+      }
+
+      showSaveStatusNotice(
+        `${String(result.updates.length)} valor(es) do código aplicado(s) ao nó «${canvasNode.node.schema.title}».`,
+      )
+
+      if (result.warnings.length > 0) {
+        const preview = result.warnings.slice(0, 20).join('\n')
+        const suffix =
+          result.warnings.length > 20
+            ? `\n… e mais ${String(result.warnings.length - 20)} aviso(s).`
+            : ''
+        window.alert(`[Replace Value to Graph]\n\n${preview}${suffix}`)
+      }
+    },
+    [scene.nodes, showSaveStatusNotice, updateNodeParameter],
+  )
+
+  const handleReplaceValueToGraph = useCallback(
+    (snippet: string) => {
+      if (!hasOpenSceneTabs) {
+        window.alert('Abra uma cena de trabalho antes de aplicar valores ao grafo.')
+        return
+      }
+
+      if (!primarySelectedId) {
+        window.alert('Seleccione um nó no canvas antes de aplicar valores do código.')
+        return
+      }
+
+      if (selectedNodeIds.length > 1) {
+        window.alert('Em selecção múltipla, use apenas o nó primário seleccionado.')
+        return
+      }
+
+      applySnippetScalarsToCanvasNode(primarySelectedId, snippet)
+    },
+    [
+      applySnippetScalarsToCanvasNode,
+      hasOpenSceneTabs,
+      primarySelectedId,
+      selectedNodeIds.length,
+    ],
+  )
+
+  const handleBindCodeRangeToNode = useCallback(
+    (
+      canvasNodeId: string,
+      payload: {
+        text: string
+        textRange: NodeCodeEditorBinding['range']
+      },
+    ) => {
+      if (!activeCodeDockTabId) {
+        window.alert('Abra uma aba no editor de código antes de vincular a área.')
+        return
+      }
+
+      const canvasNode = scene.nodes.find((entry) => entry.id === canvasNodeId)
+      if (!canvasNode) {
+        return
+      }
+
+      setNodeCodeBindings((previous) => ({
+        ...previous,
+        [canvasNodeId]: {
+          canvasNodeId,
+          codeDockTabId: activeCodeDockTabId,
+          range: payload.textRange,
+        },
+      }))
+
+      showSaveStatusNotice(
+        `Área do código vinculada ao nó «${canvasNode.node.schema.title}». Use «Sincronizar valores para o código» para actualizar o trecho.`,
+      )
+    },
+    [activeCodeDockTabId, scene.nodes, showSaveStatusNotice],
+  )
 
   const openClassGroupPackFolderDialog = useCallback(() => {
     setClassGroupPackFolderDialogMode('settings')
@@ -487,80 +826,163 @@ function App() {
   }, [nodeConfigurationMode, showConfirmByCatalogId])
 
   /** Ao desacoplar pelo pin: alinha o inspector lateral ao chip da barra (X) e coloca o topo a stripBottom + `--space-3`. */
-  const applyInspectorOffsetFromViewportStrip = useCallback(() => {
-    const column = graphColumnRef.current
+  const applyInspectorOffsetFromViewportStrip = useCallback(
+    (options?: { minimized?: boolean }) => {
+      const column = graphColumnRef.current
 
-    if (!column) {
-      setInspectorOffset({ x: 0, y: 0 })
-      return
-    }
+      if (!column) {
+        setInspectorOffset({ x: 0, y: 0 })
+        return
+      }
 
-    const strip = column.querySelector('[data-inspector-viewport-strip]')
+      const strip = column.querySelector('[data-inspector-viewport-strip]')
 
-    if (!(strip instanceof HTMLElement)) {
-      setInspectorOffset({ x: 0, y: 0 })
-      return
-    }
+      if (!(strip instanceof HTMLElement)) {
+        setInspectorOffset({ x: 0, y: 0 })
+        return
+      }
 
-    const sr = strip.getBoundingClientRect()
-    const col = column.getBoundingClientRect()
-    const narrow = typeof window !== 'undefined' && window.matchMedia('(max-width: 900px)').matches
-    const marginEdge = readRootSpacePx(narrow ? '--space-3' : '--space-5')
-    const marginBelowStrip = readRootSpacePx('--space-3')
+      const useMinimized = options?.minimized ?? inspectorMinimized
 
-    const defaultRight = col.right - marginEdge
+      setInspectorOffset(
+        computeInspectorDockOffsetFromStrip(column, strip, useMinimized),
+      )
+    },
+    [inspectorMinimized],
+  )
 
-    /** Coincide com `.inspectorDockExpanded` / `.inspectorDockMinimized` + altura da faixa chrome. */
-    const defaultTop = inspectorMinimized
-      ? col.bottom - marginEdge - INSPECTOR_CHROME_STRIP_PX
-      : col.top + col.height - marginEdge - INSPECTOR_CHROME_STRIP_PX
-
-    setInspectorOffset({
-      x: sr.right - defaultRight,
-      y: sr.bottom + marginBelowStrip - defaultTop,
-    })
-  }, [inspectorMinimized])
+  const toggleViewportToolbarDockById = useCallback((dockId: ViewportToolbarDockId) => {
+    setActiveViewportToolbarDock((current) => toggleViewportToolbarDock(current, dockId))
+  }, [])
 
   const handleUndockFromViewportToolbar = useCallback(() => {
-    applyInspectorOffsetFromViewportStrip()
+    setInspectorMinimized(true)
+    applyInspectorOffsetFromViewportStrip({ minimized: true })
     setInspectorViewportDocked(false)
+    setActiveViewportToolbarDock((current) => (current === 'node' ? null : current))
   }, [applyInspectorOffsetFromViewportStrip])
 
-  const applySceneNodesOffsetFromViewportStrip = useCallback(() => {
-    const column = graphColumnRef.current
+  const applyBlockInspectorOffsetFromViewportStrip = useCallback(
+    (anchor?: InspectorDockAnchor) => {
+      const column = graphColumnRef.current
 
-    if (!column) {
-      setSceneNodesOffset({ x: 0, y: 0 })
-      return
-    }
+      if (!column) {
+        setBlockInspectorOffset({ x: 0, y: 0 })
+        return
+      }
 
-    const strip = column.querySelector('[data-scene-nodes-viewport-strip]')
+      if (anchor) {
+        setBlockInspectorOffset(
+          computeInspectorDockOffsetFromPointer(column, anchor, blockInspectorMinimized),
+        )
+        return
+      }
 
-    if (!(strip instanceof HTMLElement)) {
-      setSceneNodesOffset({ x: 0, y: 0 })
-      return
-    }
+      const strip = column.querySelector('[data-block-inspector-strip]')
 
-    const sr = strip.getBoundingClientRect()
-    const col = column.getBoundingClientRect()
-    const narrow = typeof window !== 'undefined' && window.matchMedia('(max-width: 900px)').matches
-    const marginEdge = readRootSpacePx(narrow ? '--space-3' : '--space-5')
-    const marginBelowStrip = readRootSpacePx('--space-3')
-    const defaultLeft = col.left + marginEdge
-    const defaultTop = sceneNodesMinimized
-      ? col.bottom - marginEdge - INSPECTOR_CHROME_STRIP_PX
-      : col.top + col.height - marginEdge - INSPECTOR_CHROME_STRIP_PX
+      if (!(strip instanceof HTMLElement)) {
+        setBlockInspectorOffset({ x: 0, y: 0 })
+        return
+      }
 
-    setSceneNodesOffset({
-      x: sr.left - defaultLeft,
-      y: sr.bottom + marginBelowStrip - defaultTop,
-    })
-  }, [sceneNodesMinimized])
+      setBlockInspectorOffset(
+        computeInspectorDockOffsetFromStrip(column, strip, blockInspectorMinimized),
+      )
+    },
+    [blockInspectorMinimized],
+  )
+
+  const handleUndockBlockInspectorFromViewportToolbar = useCallback(
+    (anchor?: InspectorDockAnchor) => {
+      applyBlockInspectorOffsetFromViewportStrip(anchor)
+      setBlockInspectorViewportDocked(false)
+      setActiveViewportToolbarDock((current) => (current === 'block' ? null : current))
+    },
+    [applyBlockInspectorOffsetFromViewportStrip],
+  )
+
+  const applyGroupInspectorOffsetFromViewportStrip = useCallback(
+    (anchor?: InspectorDockAnchor, options?: { minimized?: boolean }) => {
+      const column = graphColumnRef.current
+      const useMinimized = options?.minimized ?? groupInspectorMinimized
+
+      if (!column) {
+        setGroupInspectorOffset({ x: 0, y: 0 })
+        return
+      }
+
+      if (anchor) {
+        setGroupInspectorOffset(
+          computeInspectorDockOffsetFromPointer(column, anchor, useMinimized),
+        )
+        return
+      }
+
+      const strip = column.querySelector('[data-group-inspector-strip]')
+
+      if (!(strip instanceof HTMLElement)) {
+        setGroupInspectorOffset({ x: 0, y: 0 })
+        return
+      }
+
+      setGroupInspectorOffset(
+        computeInspectorDockOffsetFromStrip(column, strip, useMinimized),
+      )
+    },
+    [groupInspectorMinimized],
+  )
+
+  const handleUndockGroupInspectorFromViewportToolbar = useCallback(
+    (anchor?: InspectorDockAnchor) => {
+      setGroupInspectorMinimized(true)
+      applyGroupInspectorOffsetFromViewportStrip(anchor, { minimized: true })
+      setGroupInspectorViewportDocked(false)
+      setActiveViewportToolbarDock((current) => (current === 'group' ? null : current))
+    },
+    [applyGroupInspectorOffsetFromViewportStrip],
+  )
+
+  const applySceneNodesOffsetFromViewportStrip = useCallback(
+    (options?: { minimized?: boolean }) => {
+      const column = graphColumnRef.current
+
+      if (!column) {
+        setSceneNodesOffset({ x: 0, y: 0 })
+        return
+      }
+
+      const strip = column.querySelector('[data-scene-nodes-viewport-strip]')
+
+      if (!(strip instanceof HTMLElement)) {
+        setSceneNodesOffset({ x: 0, y: 0 })
+        return
+      }
+
+      const useMinimized = options?.minimized ?? sceneNodesMinimized
+      const sr = strip.getBoundingClientRect()
+      const col = column.getBoundingClientRect()
+      const narrow = typeof window !== 'undefined' && window.matchMedia('(max-width: 900px)').matches
+      const marginEdge = readRootSpacePx(narrow ? '--space-3' : '--space-5')
+      const marginBelowStrip = readRootSpacePx('--space-3')
+      const defaultLeft = col.left + marginEdge
+      const defaultTop = useMinimized
+        ? col.bottom - marginEdge - INSPECTOR_CHROME_STRIP_PX
+        : col.top + col.height - marginEdge - INSPECTOR_CHROME_STRIP_PX
+
+      setSceneNodesOffset({
+        x: sr.left - defaultLeft,
+        y: sr.bottom + marginBelowStrip - defaultTop,
+      })
+    },
+    [sceneNodesMinimized],
+  )
 
   const handleUndockSceneNodesFromViewportToolbar = useCallback(() => {
-    applySceneNodesOffsetFromViewportStrip()
+    patchSceneChrome({ sceneNodes: { minimized: true } })
+    applySceneNodesOffsetFromViewportStrip({ minimized: true })
     setSceneNodesViewportDocked(false)
-  }, [applySceneNodesOffsetFromViewportStrip])
+    setActiveViewportToolbarDock((current) => (current === 'scene' ? null : current))
+  }, [applySceneNodesOffsetFromViewportStrip, patchSceneChrome])
 
   useEffect(() => {
     const loadTooltips = async () => {
@@ -582,11 +1004,9 @@ function App() {
     }
 
     void loadTooltips()
+    void initAppTheme()
+    void refreshJadeSurfaceTheme()
   }, [])
-
-  const requestPalette = () => {
-    setPaletteSignal((ticket) => ticket + 1)
-  }
 
   const persistConvertedStructurePack = useCallback(
     async (
@@ -903,6 +1323,37 @@ function App() {
     async (folder: string) => startCodeToCanvasWizard(folder),
     [startCodeToCanvasWizard],
   )
+
+  const handleCodeToNodeBlock = useCallback(async () => {
+    const converted = codeToBlockScene(codeText, extendSchemaLookup)
+
+    if (!converted.ok) {
+      window.alert(converted.error)
+      return false
+    }
+
+    const sceneTitle = stripExtension(codeDockFileName).trim() || 'Cena'
+    openOrReplaceSceneByTitle(sceneTitle, converted.scene)
+    selectNode(converted.rootNodeId)
+    graphCanvasRef.current?.focusSelectionIntoView([converted.rootNodeId])
+
+    if (converted.warnings.length > 0) {
+      const preview = converted.warnings.slice(0, 30).join('\n')
+      const suffix =
+        converted.warnings.length > 30
+          ? `\n… e mais ${String(converted.warnings.length - 30)} aviso(s).`
+          : ''
+      window.alert(`[Code To Node Block]\n\n${preview}${suffix}`)
+    }
+
+    return true
+  }, [
+    codeDockFileName,
+    codeText,
+    extendSchemaLookup,
+    openOrReplaceSceneByTitle,
+    selectNode,
+  ])
 
   const handleDismissCodeToCanvasWizard = useCallback(() => {
     const summary = codeToCanvasWizardController.summary
@@ -1260,24 +1711,71 @@ function App() {
     [codeText, dynamicStructurePacks],
   )
 
+  const refreshJadeResolveStatus = useCallback(() => getJadeEditorResolveStatus(), [])
+
+  const applyCodeDockJadeBanner = useCallback(
+    (via: 'unchanged' | 'jade-bridge' | 'fnv-fallback' | 'convert-only', status: JadeEditorResolveStatus | null) => {
+      if (via === 'fnv-fallback') {
+        setCodeDockJadeBanner({
+          tone: 'fnv',
+          message:
+            'Hashes parciais (fallback FNV). Use `npm run jade:http-bridge:build` e preload de hashes no Jade (Settings → Hashes).',
+        })
+        return
+      }
+      if (status?.isMockBridge) {
+        setCodeDockJadeBanner({
+          tone: 'mock',
+          message:
+            'Mock bridge activo — conversão/unhash incompletos. `npm run jade:http-bridge:build` e reinicia `npm run dev`.',
+        })
+        return
+      }
+      if (status?.provider === 'jade-http-bridge' && status.unhashText) {
+        const count =
+          status.fnvCount !== null && status.fnvCount !== undefined
+            ? String(status.fnvCount)
+            : '?'
+        setCodeDockJadeBanner({
+          tone: 'jade',
+          message: `Motor Jade (${count} hashes em cache).`,
+        })
+        return
+      }
+      setCodeDockJadeBanner(null)
+    },
+    [],
+  )
+
   const loadTextIntoCodeDock = useCallback(
-    (text: string, fileName: string, via: string, options?: { fullText?: boolean }) => {
+    async (
+      text: string,
+      fileName: string,
+      via: string,
+      options?: { fullText?: boolean; suppressConvertedOpenAlert?: boolean },
+    ) => {
       const maxPreview = 500_000
-      const content =
+      const raw =
         options?.fullText || text.length <= maxPreview
           ? text
           : `${text.slice(0, maxPreview)}\n…`
+      const status = await refreshJadeResolveStatus()
+      const unhashed = await resolveRitualTextForEditor(raw)
+      const content = unhashed.text
       const normalized = normalizeCodeDockFileName(fileName)
       openCodeDockTab(content, normalized)
       pushCodeRecentFile(normalized)
       setCodeRecentFiles(readCodeRecentFiles())
       setCodeDockOpen(true)
+      applyCodeDockJadeBanner(unhashed.via, status)
 
-      if (needsBinConversionOnOpen(normalized)) {
+      if (needsBinConversionOnOpen(normalized) && !options?.suppressConvertedOpenAlert) {
         window.alert(`«${normalized}» convertido e aberto no painel Código (${via}).`)
+      } else if (unhashed.changed && unhashed.via === 'fnv-fallback' && unhashed.warning) {
+        console.warn('[jadeEditorTextResolve] fallback FNV:', unhashed.warning)
       }
     },
-    [openCodeDockTab],
+    [applyCodeDockJadeBanner, openCodeDockTab, refreshJadeResolveStatus],
   )
 
   const handleGraphsToCode = useCallback(async () => {
@@ -1321,6 +1819,372 @@ function App() {
       setGraphsToCodeProgress(null)
     }
   }, [activeTabTitle, extendSchemaLookup, hasOpenSceneTabs, loadTextIntoCodeDock, scene])
+
+  const handleViewNodeCode = useCallback(
+    (nodeId: string) => {
+      if (!hasOpenSceneTabs) {
+        window.alert('Abra uma cena de trabalho antes de pré-visualizar código.')
+        return
+      }
+
+      const canvasNode = scene.nodes.find((entry) => entry.id === nodeId)
+
+      if (!canvasNode) {
+        return
+      }
+
+      const title = canvasNode.node.schema.title
+      const fileName = `preview_${sanitizeCodeDockBaseName(title)}.bin`
+
+      const result = emitNodeRitualViewCodeText(
+        hydrateScene(scene),
+        extendSchemaLookup,
+        nodeId,
+      )
+
+      if (!result.ok) {
+        window.alert(result.error)
+        return
+      }
+
+      loadTextIntoCodeDock(result.text, fileName, 'Ver código League bin', { fullText: true })
+
+      if (result.warnings.length > 0) {
+        const preview = result.warnings.slice(0, 30).join('\n')
+        const suffix =
+          result.warnings.length > 30
+            ? `\n… e mais ${String(result.warnings.length - 30)} aviso(s).`
+            : ''
+        window.alert(`[Ver código League bin]\n\n${preview}${suffix}`)
+      }
+    },
+    [extendSchemaLookup, hasOpenSceneTabs, loadTextIntoCodeDock, scene],
+  )
+
+  const handleViewNodeBlockCode = useCallback(
+    (nodeId: string) => {
+      if (!hasOpenSceneTabs) {
+        window.alert('Abra uma cena de trabalho antes de pré-visualizar código de bloco.')
+        return
+      }
+
+      const canvasNode = scene.nodes.find((entry) => entry.id === nodeId)
+
+      if (!canvasNode) {
+        return
+      }
+
+      const title = canvasNode.node.schema.title
+      const fileName = `preview_block_${sanitizeCodeDockBaseName(title)}.bin`
+
+      const result = emitNodeBlockViewCodeText(
+        hydrateScene(scene),
+        extendSchemaLookup,
+        nodeId,
+      )
+
+      if (!result.ok) {
+        window.alert(result.error)
+        return
+      }
+
+      loadTextIntoCodeDock(result.text, fileName, 'Ver código de bloco', { fullText: true })
+
+      if (result.warnings.length > 0) {
+        const preview = result.warnings.slice(0, 30).join('\n')
+        const suffix =
+          result.warnings.length > 30
+            ? `\n… e mais ${String(result.warnings.length - 30)} aviso(s).`
+            : ''
+        window.alert(`[Ver código de bloco]\n\n${preview}${suffix}`)
+      }
+    },
+    [extendSchemaLookup, hasOpenSceneTabs, loadTextIntoCodeDock, scene],
+  )
+
+  const handlePreviewBlockCardCode = useCallback(
+    async (nodeId: string) => {
+      if (blockCardPreviewBusy) {
+        return
+      }
+
+      if (!hasOpenSceneTabs) {
+        window.alert('Abra uma cena de trabalho antes de pré-visualizar código de bloco.')
+        return
+      }
+
+      const canvasNode = scene.nodes.find((entry) => entry.id === nodeId)
+      if (!canvasNode) {
+        return
+      }
+
+      const title = canvasNode.node.schema.title
+      const fileName = `preview_block_${sanitizeCodeDockBaseName(title)}.bin`
+
+      const nextFrame = () =>
+        new Promise<void>((resolve) => {
+          window.requestAnimationFrame(() => resolve())
+        })
+
+      const totalSteps = 4
+      const setRunningProgress = (completed: number, currentLabel: string) => {
+        setBlockCardPreviewUi((current) => {
+          if (!current || current.phase === 'confirmCancel') {
+            return current
+          }
+          return {
+            phase: 'running',
+            completed,
+            total: totalSteps,
+            currentLabel,
+          }
+        })
+      }
+
+      const isCancelled = () => blockCardPreviewCancelRef.current
+
+      blockCardPreviewCancelRef.current = false
+      setBlockCardPreviewUi({
+        phase: 'running',
+        completed: 0,
+        total: totalSteps,
+        currentLabel: 'A preparar conversão…',
+      })
+
+      try {
+        await nextFrame()
+        if (isCancelled()) {
+          setBlockCardPreviewUi({
+            phase: 'summary',
+            completed: 0,
+            total: totalSteps,
+            currentLabel: '',
+            summaryTitle: 'Conversão cancelada',
+            summaryBody: 'A conversão do Código Preview Block foi cancelada antes de iniciar.',
+          })
+          return
+        }
+
+        setRunningProgress(1, 'A sincronizar valores do card…')
+        await nextFrame()
+        if (isCancelled()) {
+          setBlockCardPreviewUi({
+            phase: 'summary',
+            completed: 1,
+            total: totalSteps,
+            currentLabel: '',
+            summaryTitle: 'Conversão cancelada',
+            summaryBody: 'A conversão do Código Preview Block foi cancelada pelo utilizador.',
+          })
+          return
+        }
+
+        const result = emitNodeBlockCardPreviewCodeText(
+          hydrateScene(scene),
+          extendSchemaLookup,
+          nodeId,
+        )
+
+        if (!result.ok) {
+          setBlockCardPreviewUi({
+            phase: 'error',
+            completed: 1,
+            total: totalSteps,
+            currentLabel: '',
+            summaryTitle: 'Falha na conversão',
+            summaryBody: result.error,
+          })
+          return
+        }
+
+        if (isCancelled()) {
+          setBlockCardPreviewUi({
+            phase: 'summary',
+            completed: 2,
+            total: totalSteps,
+            currentLabel: '',
+            summaryTitle: 'Conversão cancelada',
+            summaryBody: 'A conversão do Código Preview Block foi cancelada antes de abrir o resultado.',
+          })
+          return
+        }
+
+        setRunningProgress(3, 'A abrir no dock de código…')
+        await nextFrame()
+
+        loadTextIntoCodeDock(result.text, fileName, 'Código Preview Block', {
+          fullText: true,
+          suppressConvertedOpenAlert: true,
+        })
+
+        const warningLines =
+          result.warnings.length > 0
+            ? `\n\nAvisos (${String(result.warnings.length)}):\n${result.warnings.slice(0, 10).join('\n')}`
+            : ''
+
+        setBlockCardPreviewUi({
+          phase: 'summary',
+          completed: totalSteps,
+          total: totalSteps,
+          currentLabel: '',
+          summaryTitle: 'Conversão concluída',
+          summaryBody: `Código Preview Block gerado com sucesso para «${title}».${warningLines}`,
+        })
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        setBlockCardPreviewUi({
+          phase: 'error',
+          completed: 0,
+          total: totalSteps,
+          currentLabel: '',
+          summaryTitle: 'Falha na conversão',
+          summaryBody: message,
+        })
+      }
+    },
+    [blockCardPreviewBusy, extendSchemaLookup, hasOpenSceneTabs, loadTextIntoCodeDock, scene],
+  )
+
+  const handleViewNodeGroupCode = useCallback(
+    (nodeId: string) => {
+      if (!hasOpenSceneTabs) {
+        window.alert('Abra uma cena de trabalho antes de pré-visualizar código de grupo.')
+        return
+      }
+
+      const canvasNode = scene.nodes.find((entry) => entry.id === nodeId)
+
+      if (!canvasNode) {
+        return
+      }
+
+      const title = canvasNode.node.schema.title
+      const fileName = `preview_group_${sanitizeCodeDockBaseName(title)}.bin`
+
+      const result = emitNodeGroupViewCodeText(
+        hydrateScene(scene),
+        extendSchemaLookup,
+        nodeId,
+      )
+
+      if (!result.ok) {
+        window.alert(result.error)
+        return
+      }
+
+      loadTextIntoCodeDock(result.text, fileName, 'Ver código de grupo', { fullText: true })
+
+      if (result.warnings.length > 0) {
+        const preview = result.warnings.slice(0, 30).join('\n')
+        const suffix =
+          result.warnings.length > 30
+            ? `\n… e mais ${String(result.warnings.length - 30)} aviso(s).`
+            : ''
+        window.alert(`[Ver código de grupo]\n\n${preview}${suffix}`)
+      }
+    },
+    [extendSchemaLookup, hasOpenSceneTabs, loadTextIntoCodeDock, scene],
+  )
+
+  const primaryNodeCodeBinding = primarySelectedId
+    ? nodeCodeBindings[primarySelectedId]
+    : undefined
+
+  const canSyncNodeToCode = Boolean(
+    codeDockOpen &&
+      isRitobinEditorPath(codeDockFileName) &&
+      codeText.trim().length > 0 &&
+      primaryNodeCodeBinding &&
+      primaryNodeCodeBinding.codeDockTabId === activeCodeDockTabId,
+  )
+
+  const handleSyncNodeValueToCode = useCallback(
+    (nodeId: string) => {
+      if (!hasOpenSceneTabs) {
+        window.alert('Abra uma cena de trabalho antes de sincronizar valores.')
+        return
+      }
+
+      if (!selectedNodeIds.includes(nodeId)) {
+        window.alert('Seleccione o nó antes de sincronizar valores para o código.')
+        return
+      }
+
+      if (selectedNodeIds.length > 1 && primarySelectedId !== nodeId) {
+        window.alert('Em selecção múltipla, sincronize apenas o nó primário seleccionado.')
+        return
+      }
+
+      if (!codeDockOpen) {
+        window.alert('Abra o painel Código com o ficheiro ritual antes de sincronizar.')
+        return
+      }
+
+      if (!isRitobinEditorPath(codeDockFileName)) {
+        window.alert('A aba activa do CodeDock deve ser um ficheiro ritual (.bin ou .py).')
+        return
+      }
+
+      if (!codeText.trim()) {
+        window.alert('O editor de código está vazio.')
+        return
+      }
+
+      const binding = nodeCodeBindings[nodeId]
+      if (!binding) {
+        window.alert(
+          'Nenhuma área vinculada a este nó. Seleccione o trecho no editor e use Shift+arrasto até ao nó para vincular.',
+        )
+        return
+      }
+
+      if (binding.codeDockTabId !== activeCodeDockTabId) {
+        window.alert(
+          'A vinculação pertence a outra aba do editor. Active a aba correcta ou vincule de novo.',
+        )
+        return
+      }
+
+      const result = syncNodeToBoundCodeRange(
+        hydrateScene(scene),
+        extendSchemaLookup,
+        nodeId,
+        codeText,
+        binding,
+      )
+
+      if (!result.ok) {
+        window.alert(result.error)
+        return
+      }
+
+      setCodeText(result.newText)
+      showSaveStatusNotice('Valores sincronizados na área vinculada do código.')
+
+      if (result.warnings.length > 0) {
+        const preview = result.warnings.slice(0, 30).join('\n')
+        const suffix =
+          result.warnings.length > 30
+            ? `\n… e mais ${String(result.warnings.length - 30)} aviso(s).`
+            : ''
+        window.alert(`[Sync value to code]\n\n${preview}${suffix}`)
+      }
+    },
+    [
+      activeCodeDockTabId,
+      codeDockFileName,
+      codeDockOpen,
+      codeText,
+      extendSchemaLookup,
+      hasOpenSceneTabs,
+      nodeCodeBindings,
+      primarySelectedId,
+      scene,
+      selectedNodeIds,
+      setCodeText,
+      showSaveStatusNotice,
+    ],
+  )
 
   const saveCodeDockTabById = useCallback(
     async (tabId: string) => {
@@ -1433,8 +2297,8 @@ function App() {
     }
 
     const tryJadeBridge = async () => {
-      const bridge = await convertBinViaOptionalBridge(file)
-      if (bridge.branch === 'success') {
+      const bridge = await resolveBinFileForEditor(file)
+      if (bridge.ok) {
         loadTextIntoCodeDock(bridge.text, file.name, 'Jade bridge /convert')
         return true
       }
@@ -1448,11 +2312,13 @@ function App() {
         window.alert(
           `Não foi possível contactar o Jade bridge (${bridge.message}).\n\n` +
             'Em dev: confirma que `npm run dev` está a correr (inicia a ponte automaticamente).\n' +
-            'Manual: noutro terminal `npm run jade:http-bridge` ou `npm run jade-bridge:dev`.\n' +
-            'Conversão real .bin: `npm run jade:http-bridge` (compila Rust se necessário).',
+            'Manual: `npm run jade:http-bridge` ou `npm run jade:http-bridge:build` + `npm run dev`.\n' +
+            'Conversão real .bin exige `jade-http-bridge` Rust (não o mock Node).',
         )
       } else if (bridge.branch === 'bridge_error') {
-        window.alert(`Jade bridge respondeu com erro.\n${String(bridge.status)} — ${bridge.message}`)
+        window.alert(
+          `Jade bridge respondeu com erro.\n${bridge.status !== undefined ? String(bridge.status) : ''} — ${bridge.message}`,
+        )
       }
       return false
     }
@@ -1688,6 +2554,7 @@ function App() {
 
       setInspectorViewportDocked(false)
       setInspectorMinimized(true)
+      setActiveViewportToolbarDock((current) => (current === 'node' ? null : current))
       setInspectorGrabFollowActive(true)
       setInspectorGrabFollowCoords({ x: event.clientX, y: event.clientY })
       return
@@ -1718,9 +2585,138 @@ function App() {
     }
   }
 
+  const startBlockInspectorDrag = (event: PointerEvent<HTMLElement>) => {
+    if (event.button !== 0 || blockInspectorViewportDocked) {
+      return
+    }
+
+    blockInspectorMovedDuringPointer.current = false
+    blockInspectorDragGesture.current = {
+      element: event.currentTarget,
+      moved: false,
+      offset: blockInspectorOffset,
+      origin: { x: event.clientX, y: event.clientY },
+      pointerId: event.pointerId,
+      viewportDockedAtStart: blockInspectorViewportDocked,
+      undockFromToolbarStarted: false,
+    }
+    event.currentTarget.setPointerCapture(event.pointerId)
+    event.stopPropagation()
+  }
+
+  const moveBlockInspectorDrag = (event: PointerEvent<HTMLElement>) => {
+    const gesture = blockInspectorDragGesture.current
+    if (!gesture) {
+      return
+    }
+
+    const nextOffset = {
+      x: gesture.offset.x + event.clientX - gesture.origin.x,
+      y: gesture.offset.y + event.clientY - gesture.origin.y,
+    }
+    const moved = Math.abs(nextOffset.x - gesture.offset.x) > 3 || Math.abs(nextOffset.y - gesture.offset.y) > 3
+    gesture.moved = gesture.moved || moved
+    setBlockInspectorOffset(nextOffset)
+  }
+
+  const stopBlockInspectorDrag = (event: PointerEvent<HTMLElement>) => {
+    const gesture = blockInspectorDragGesture.current
+    if (gesture?.pointerId !== event.pointerId) {
+      return
+    }
+
+    blockInspectorMovedDuringPointer.current = gesture.moved
+    blockInspectorDragGesture.current = null
+
+    if (gesture.element.hasPointerCapture(event.pointerId)) {
+      gesture.element.releasePointerCapture(event.pointerId)
+    }
+  }
+
+  const startGroupInspectorDrag = (event: PointerEvent<HTMLElement>) => {
+    if (event.button !== 0 || groupInspectorViewportDocked) {
+      return
+    }
+
+    groupInspectorMovedDuringPointer.current = false
+    groupInspectorDragGesture.current = {
+      element: event.currentTarget,
+      moved: false,
+      offset: groupInspectorOffset,
+      origin: { x: event.clientX, y: event.clientY },
+      pointerId: event.pointerId,
+      viewportDockedAtStart: groupInspectorViewportDocked,
+      undockFromToolbarStarted: false,
+    }
+    event.currentTarget.setPointerCapture(event.pointerId)
+    event.stopPropagation()
+  }
+
+  const moveGroupInspectorDrag = (event: PointerEvent<HTMLElement>) => {
+    const gesture = groupInspectorDragGesture.current
+    if (!gesture) {
+      return
+    }
+
+    const nextOffset = {
+      x: gesture.offset.x + event.clientX - gesture.origin.x,
+      y: gesture.offset.y + event.clientY - gesture.origin.y,
+    }
+    const moved = Math.abs(nextOffset.x - gesture.offset.x) > 3 || Math.abs(nextOffset.y - gesture.offset.y) > 3
+    gesture.moved = gesture.moved || moved
+    setGroupInspectorOffset(nextOffset)
+  }
+
+  const stopGroupInspectorDrag = (event: PointerEvent<HTMLElement>) => {
+    const gesture = groupInspectorDragGesture.current
+    if (gesture?.pointerId !== event.pointerId) {
+      return
+    }
+
+    groupInspectorMovedDuringPointer.current = gesture.moved
+    groupInspectorDragGesture.current = null
+
+    if (gesture.element.hasPointerCapture(event.pointerId)) {
+      gesture.element.releasePointerCapture(event.pointerId)
+    }
+  }
+
+  const toggleBlockInspectorMinimized = () => {
+    if (blockInspectorMovedDuringPointer.current) {
+      blockInspectorMovedDuringPointer.current = false
+      return
+    }
+
+    if (blockInspectorViewportDocked) {
+      toggleViewportToolbarDockById('block')
+      return
+    }
+
+    setBlockInspectorMinimized((value) => !value)
+  }
+
+  const toggleGroupInspectorMinimized = () => {
+    if (groupInspectorMovedDuringPointer.current) {
+      groupInspectorMovedDuringPointer.current = false
+      return
+    }
+
+    if (groupInspectorViewportDocked) {
+      toggleViewportToolbarDockById('group')
+      return
+    }
+
+    setGroupInspectorMinimized((value) => !value)
+  }
+
   const toggleInspectorMinimized = () => {
     if (inspectorMovedDuringPointer.current) {
       inspectorMovedDuringPointer.current = false
+      return
+    }
+
+    if (inspectorViewportDocked) {
+      toggleViewportToolbarDockById('node')
       return
     }
 
@@ -1784,8 +2780,32 @@ function App() {
       return
     }
 
+    if (sceneNodesViewportDocked) {
+      toggleViewportToolbarDockById('scene')
+      return
+    }
+
     patchSceneChrome({ sceneNodes: { minimized: !sceneNodesMinimized } })
   }
+
+  const blockInspectorMinimizedEffective =
+    blockInspectorViewportDocked
+      ? activeViewportToolbarDock !== 'block'
+      : blockInspectorMinimized
+
+  const groupInspectorMinimizedEffective =
+    groupInspectorViewportDocked
+      ? activeViewportToolbarDock !== 'group'
+      : groupInspectorMinimized
+
+  const inspectorMinimizedEffective =
+    inspectorViewportDocked && !inspectorGrabFollowActive
+      ? activeViewportToolbarDock !== 'node'
+      : inspectorMinimized
+
+  const sceneNodesMinimizedEffective = sceneNodesViewportDocked
+    ? activeViewportToolbarDock !== 'scene'
+    : sceneNodesMinimized
 
   const inspectorDockClassName = [
     styles.inspectorDock,
@@ -1813,7 +2833,145 @@ function App() {
     setCodeDockOpen(false)
   }, [])
 
+  const handleCloseVfxDock = useCallback(() => {
+    setVfxDockOpen(false)
+  }, [])
+
+  const handleClosePanelShortcut = useCallback(() => {
+    if (vfxDockOpen) {
+      setVfxDockOpen(false)
+      return
+    }
+    handleCloseCodeDock()
+  }, [handleCloseCodeDock, vfxDockOpen])
+
+  const skipPropHumanizeOnceRef = useRef(false)
+
+  const handleHumanizePropRitualInEditor = useCallback(async () => {
+    if (!codeText.trim()) {
+      window.alert('O editor de código está vazio.')
+      return
+    }
+    const status = await refreshJadeResolveStatus()
+    const result = await resolveRitualTextForEditor(codeText)
+    if (!result.changed) {
+      window.alert(
+        result.warning
+          ? `Nenhuma hash foi convertida.\n\n${result.warning}`
+          : 'Nenhuma hash foi convertida (nomes já legíveis ou hashes desconhecidas).',
+      )
+      return
+    }
+    skipPropHumanizeOnceRef.current = true
+    setCodeText(result.text)
+    applyCodeDockJadeBanner(result.via, status)
+    const viaLabel =
+      result.via === 'jade-bridge'
+        ? 'parser Jade + tabelas de hash'
+        : 'fallback FNV (bridge Jade indisponível)'
+    showSaveStatusNotice(`Hashes convertidas (${viaLabel}).`)
+    if (result.warning) {
+      console.warn('[jadeEditorTextResolve]', result.warning)
+    }
+  }, [applyCodeDockJadeBanner, codeText, refreshJadeResolveStatus, setCodeText, showSaveStatusNotice])
+
+  const prevCodeTextForVfxRef = useRef(codeText)
+  useEffect(() => {
+    if (prevCodeTextForVfxRef.current === codeText) return
+    prevCodeTextForVfxRef.current = codeText
+    if (vfxRitualOverride && ritualContainsVfxSystem(codeText)) {
+      setVfxRitualOverride(null)
+    }
+  }, [codeText, vfxRitualOverride])
+
+  useEffect(() => {
+    if (!codeDockOpen) {
+      return
+    }
+    void ensureJadeHashesLoaded()
+    void refreshJadeResolveStatus()
+  }, [codeDockOpen, refreshJadeResolveStatus])
+
+  useEffect(() => {
+    if (!codeDockOpen || !codeText.trim()) {
+      return
+    }
+    if (skipPropHumanizeOnceRef.current) {
+      skipPropHumanizeOnceRef.current = false
+      return
+    }
+
+    let cancelled = false
+
+    void (async () => {
+      const status = await refreshJadeResolveStatus()
+      const result = await resolveRitualTextForEditor(codeText)
+      if (cancelled || !result.changed || result.text === codeText) {
+        return
+      }
+      skipPropHumanizeOnceRef.current = true
+      setCodeText(result.text)
+      applyCodeDockJadeBanner(result.via, status)
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [applyCodeDockJadeBanner, codeDockOpen, codeText, refreshJadeResolveStatus, setCodeText])
+
+  const vfxPreviewRitualText = useMemo(
+    () =>
+      resolveVfxRitualText({
+        codeText,
+        vfxRitualOverride,
+        scene,
+        registry: extendSchemaLookup,
+        primarySelectedId,
+        nodeCodeBindings,
+        activeCodeDockTabId,
+      }),
+    [
+      activeCodeDockTabId,
+      codeText,
+      extendSchemaLookup,
+      nodeCodeBindings,
+      primarySelectedId,
+      scene,
+      vfxRitualOverride,
+    ],
+  )
+
+  const handlePreviewNodeVfx = useCallback(
+    (nodeId: string) => {
+      if (!hasOpenSceneTabs) {
+        window.alert('Abra uma cena de trabalho antes de pré-visualizar VFX.')
+        return
+      }
+
+      const result = emitNodeRitualViewCodeText(
+        hydrateScene(scene),
+        extendSchemaLookup,
+        nodeId,
+      )
+
+      if (!result.ok) {
+        window.alert(result.error)
+        return
+      }
+
+      if (!ritualContainsVfxSystem(result.text)) {
+        window.alert('O nó seleccionado não contém VfxSystemDefinitionData.')
+        return
+      }
+
+      setVfxRitualOverride(result.text)
+      setVfxDockOpen(true)
+    },
+    [extendSchemaLookup, hasOpenSceneTabs, scene],
+  )
+
   const prevDockFloatingRef = useRef(codeDockFloating)
+  const prevVfxDockFloatingRef = useRef(vfxDockFloating)
 
   useEffect(() => {
     const was = prevDockFloatingRef.current
@@ -1838,79 +2996,525 @@ function App() {
     prevDockFloatingRef.current = codeDockFloating
   }, [codeDockFloating, codeDockFloatingRect.width, codeDockWidth])
 
+  useEffect(() => {
+    const was = prevVfxDockFloatingRef.current
+
+    if (was === vfxDockFloating) {
+      return
+    }
+
+    if (was && !vfxDockFloating) {
+      setVfxDockWidth(Math.round(vfxDockFloatingRect.width))
+    }
+
+    if (!was && vfxDockFloating) {
+      const defaultRect = createDefaultFloatingCodeDockRect()
+      setVfxDockFloatingRect(
+        clampFloatingDockRect({
+          ...defaultRect,
+          width: Math.max(vfxDockWidth, VFX_DOCK_MIN_WIDTH),
+          height: Math.max(defaultRect.height, 520),
+        }),
+      )
+    }
+
+    prevVfxDockFloatingRef.current = vfxDockFloating
+  }, [vfxDockFloating, vfxDockFloatingRect.width, vfxDockWidth])
+
   const resetFloatingDockDimensions = useCallback(() => {
     setCodeDockFloatingRect(clampFloatingDockRect(createDefaultFloatingCodeDockRect()))
   }, [])
 
-  useEffect(() => {
-    const handleKeyboardShortcut = (event: KeyboardEvent) => {
-      if (shouldIgnoreAppKeyboardShortcut(event)) {
-        return
-      }
-
-      const key = event.key.toLowerCase()
-
-      if ((event.ctrlKey || event.metaKey) && key === 'z') {
-        event.preventDefault()
-
-        if (event.shiftKey) {
-          redoScene()
-          return
-        }
-
-        undoScene()
-        return
-      }
-
-      if ((event.ctrlKey || event.metaKey) && key === 'y') {
-        event.preventDefault()
-        redoScene()
-        return
-      }
-
-      if (event.key === 'Delete' || event.key === 'Backspace') {
-        const deletableIds = filterRemovableNodeIds(scene, selectedNodeIds)
-
-        if (deletableIds.length === 0) {
-          const hasLocked = selectedNodeIds.some((id) => {
-            const node = scene.nodes.find((entry) => entry.id === id)
-
-            return node !== undefined && isNodeLocked(node)
-          })
-
-          if (hasLocked) {
-            event.preventDefault()
-            showToastByCatalogId(MESSENGER_TOAST_NODE_LOCKED)
-          }
-
-          return
-        }
-
-        event.preventDefault()
-        deleteNodeIds(deletableIds)
-      }
-    }
-
-    window.addEventListener('keydown', handleKeyboardShortcut)
-
-    return () => {
-      window.removeEventListener('keydown', handleKeyboardShortcut)
-    }
-  }, [
-    deleteNodeIds,
-    deleteSelectedNodes,
-    primarySelectedId,
-    redoScene,
+  useAppShortcutHandlers({
     scene,
     selectedNodeIds,
-    showToastByCatalogId,
     undoScene,
-  ])
+    redoScene,
+    deleteNodeIds,
+    showToastByCatalogId,
+    codeDockOpen,
+    vfxDockOpen,
+  })
 
   const inspectorTarget =
     selectedNodeIds.length > 0 && primarySelectedId
       ? scene.nodes.find((node) => node.id === primarySelectedId)
       : undefined
+
+  const blockInspectorTarget =
+    selectedNodeIds.length === 1 && primarySelectedId && inspectorTarget && !isNodeLocked(inspectorTarget)
+      ? inspectorTarget
+      : undefined
+
+  useEffect(() => {
+    if (!blockInspectorTarget) {
+      return
+    }
+    refreshBlockInspectorDraft(blockInspectorTarget.id)
+  }, [
+    blockInspectorTarget?.id,
+    blockInspectorTarget?.blockViewActive,
+    blockInspectorTarget?.blockStructure?.identification_codes?.join('|'),
+    refreshBlockInspectorDraft,
+  ])
+
+  const blockInspectorDraft = blockInspectorTarget
+    ? getBlockInspectorDraft(blockInspectorTarget.id)
+    : null
+
+  const handleGenerateBlock = useCallback(() => {
+    if (!blockInspectorTarget || !blockInspectorDraft) {
+      return
+    }
+    generateBlockFromNode(blockInspectorTarget.id, blockInspectorDraft)
+    refreshBlockInspectorDraft(blockInspectorTarget.id)
+  }, [
+    blockInspectorDraft,
+    blockInspectorTarget,
+    generateBlockFromNode,
+    refreshBlockInspectorDraft,
+  ])
+
+  const handleBuildBlockDefinition = useCallback(async () => {
+    if (!blockInspectorTarget || !blockInspectorDraft) {
+      return
+    }
+
+    const result = buildBlockDefinitionJsonDocument(
+      blockInspectorDraft,
+      scene,
+      blockInspectorTarget,
+    )
+
+    if (!result.ok) {
+      window.alert(
+        t(LangId.BlockInspectorBuildBlockFailed, undefined, {
+          error: result.error,
+        }),
+      )
+      return
+    }
+
+    const writeResult = await writeBlockDefinitionDocument(result.document)
+
+    if (!writeResult.ok) {
+      window.alert(
+        t(LangId.BlockInspectorBuildBlockFailed, undefined, {
+          error: writeResult.error ?? 'Erro desconhecido',
+        }),
+      )
+      return
+    }
+
+    const written = writeResult.written ?? result.document.id
+    const overwrittenNote = writeResult.overwritten ? ' (substituído)' : ''
+
+    window.alert(
+      t(LangId.BlockInspectorBuildBlockDone, undefined, {
+        written,
+        overwritten: overwrittenNote,
+      }),
+    )
+  }, [blockInspectorDraft, blockInspectorTarget, scene, t])
+
+  const handleBuildBlockParameters = useCallback(async () => {
+    if (!blockInspectorTarget || !blockInspectorDraft) {
+      return
+    }
+
+    const marked = blockInspectorDraft.entries.filter((entry) => entry.exposed)
+    if (marked.length === 0) {
+      return
+    }
+
+    const { documents, errors: buildErrors } = buildBlockParameterJsonDocuments(
+      marked,
+      blockInspectorDraft,
+      scene,
+      blockInspectorTarget,
+      extendSchemaLookup,
+    )
+
+    if (documents.length === 0) {
+      window.alert(
+        buildErrors.length > 0
+          ? t(LangId.BlockInspectorBuildParameterFailed, undefined, {
+              error: buildErrors.join('\n'),
+            })
+          : t(LangId.BlockInspectorBuildParameterFailed, undefined, { error: 'Nenhum documento válido' }),
+      )
+      return
+    }
+
+    const writeResult = await writeBlockParameterDocuments(documents)
+
+    if (!writeResult.ok) {
+      window.alert(
+        t(LangId.BlockInspectorBuildParameterFailed, undefined, {
+          error: writeResult.error ?? 'Erro desconhecido',
+        }),
+      )
+      return
+    }
+
+    const written = writeResult.written ?? []
+    const overwritten = writeResult.overwritten ?? []
+    const serverErrors = [...buildErrors, ...(writeResult.errors ?? []), ...(writeResult.skipped ?? [])]
+
+    const overwrittenNote =
+      overwritten.length > 0 ? ` (${overwritten.length} substituídos)` : ''
+
+    window.alert(
+      t(LangId.BlockInspectorBuildParameterDone, undefined, {
+        written: String(written.length),
+        overwritten: overwrittenNote,
+      }) + (serverErrors.length > 0 ? `\n\n${serverErrors.join('\n')}` : ''),
+    )
+  }, [blockInspectorDraft, blockInspectorTarget, extendSchemaLookup, scene, t])
+
+  const closeAutoBuildUi = useCallback(() => {
+    autoBuildCancelRef.current = false
+    setAutoBuildUi(null)
+  }, [])
+
+  const formatAutoBuildSummaryBody = useCallback(
+    (result: AutoBuildRunResult) => {
+      const lines = [
+        t(LangId.BlockInspectorAutoBuildSummaryBody, undefined, {
+          nodes: String(result.nodesProcessed),
+          written: String(result.written.length),
+          overwritten: String(result.overwritten.length),
+          errors: String(result.errors.length),
+        }),
+      ]
+
+      if (result.errors.length > 0) {
+        lines.push('', result.errors.join('\n'))
+      }
+
+      return lines.join('\n')
+    },
+    [t],
+  )
+
+  const runBlockAutoBuildPlan = useCallback(
+    async (plan: ReturnType<typeof buildBlockAutoBuildPlan>) => {
+      if (blockAutoBuildBusy) {
+        return
+      }
+
+      if (plan.errors.includes('NO_NODES')) {
+        setAutoBuildUi({
+          phase: 'error',
+          progress: { completed: 0, total: 0, currentLabel: '', currentKind: 'parameter' },
+          errorMessage: t(LangId.BlockInspectorAutoBuildNoMain),
+        })
+        return
+      }
+
+      if (plan.errors.includes('EMPTY_CODE')) {
+        setAutoBuildUi({
+          phase: 'error',
+          progress: { completed: 0, total: 0, currentLabel: '', currentKind: 'parameter' },
+          errorMessage: t(LangId.CodeBuildBlockEmptyEditor),
+        })
+        return
+      }
+
+      const items = flattenAutoBuildWorkItems(plan)
+
+      if (items.length === 0) {
+        setAutoBuildUi({
+          phase: 'error',
+          progress: { completed: 0, total: 0, currentLabel: '', currentKind: 'parameter' },
+          errorMessage: t(LangId.BlockInspectorAutoBuildFailed, undefined, {
+            error:
+              plan.errors.filter((entry) => entry !== 'NO_NODES' && entry !== 'EMPTY_CODE').join('\n') ||
+              'Nenhum documento válido gerado',
+          }),
+        })
+        return
+      }
+
+      autoBuildCancelRef.current = false
+      setAutoBuildUi({
+        phase: 'running',
+        progress: {
+          completed: 0,
+          total: items.length,
+          currentLabel: items[0]?.label ?? '',
+          currentKind: items[0]?.kind ?? 'parameter',
+        },
+      })
+
+      const result = await executeAutoBuildWorkItems({
+        items,
+        nodesProcessed: plan.nodeResults.length,
+        planErrors: plan.errors,
+        shouldCancel: () => autoBuildCancelRef.current,
+        onProgress: (progress) => {
+          setAutoBuildUi((current) => {
+            if (!current || current.phase === 'confirmCancel') {
+              return current
+            }
+            return {
+              ...current,
+              phase: 'running',
+              progress,
+            }
+          })
+        },
+      })
+
+      setAutoBuildUi({
+        phase: 'summary',
+        progress: {
+          completed: result.cancelled
+            ? result.written.length + result.overwritten.length
+            : items.length,
+          total: items.length,
+          currentLabel: '',
+          currentKind: 'parameter',
+        },
+        result,
+      })
+    },
+    [blockAutoBuildBusy, t],
+  )
+
+  const handleAutoBuildBlockHierarchy = useCallback(async () => {
+    await runBlockAutoBuildPlan(buildBlockAutoBuildPlan(scene, extendSchemaLookup))
+  }, [extendSchemaLookup, runBlockAutoBuildPlan, scene])
+
+  const handleCodeBuildBlock = useCallback(async () => {
+    if (!hasOpenSceneTabs) {
+      window.alert('Abra uma cena de trabalho antes de gerar blocos a partir do código.')
+      return false
+    }
+
+    const viewCodeResult = buildBlockAutoBuildPlanFromViewCode(scene, extendSchemaLookup, {
+      rootNodeId: primarySelectedId ?? undefined,
+    })
+
+    if (viewCodeResult.exportedText.trim()) {
+      const canvasNode = scene.nodes.find((entry) => entry.id === viewCodeResult.exportNodeId)
+      const title = canvasNode?.node.schema.title ?? 'ritual'
+      const fileName = `build_${sanitizeCodeDockBaseName(title)}.bin`
+      loadTextIntoCodeDock(viewCodeResult.exportedText, fileName, 'Code Build Block', {
+        fullText: true,
+      })
+    }
+
+    await runBlockAutoBuildPlan(viewCodeResult.plan)
+    return true
+  }, [
+    extendSchemaLookup,
+    hasOpenSceneTabs,
+    loadTextIntoCodeDock,
+    primarySelectedId,
+    runBlockAutoBuildPlan,
+    scene,
+  ])
+
+  const handleRevertBlock = useCallback(() => {
+    if (!blockInspectorTarget) {
+      return
+    }
+    revertBlockView(blockInspectorTarget.id)
+  }, [blockInspectorTarget, revertBlockView])
+
+  const showBlockInspectorPinnedToToolbar =
+    blockInspectorViewportDocked && Boolean(blockInspectorTarget)
+
+  const blockInspectorDockShowsSidebar = Boolean(blockInspectorTarget) && !showBlockInspectorPinnedToToolbar
+
+  const blockInspectorDockClassName = [
+    styles.inspectorDock,
+    blockInspectorMinimized ? styles.inspectorDockMinimized : styles.inspectorDockExpanded,
+  ]
+    .filter(Boolean)
+    .join(' ')
+
+  const blockInspectorDockStyle = {
+    transform: `translate(${blockInspectorOffset.x}px, ${blockInspectorOffset.y}px)`,
+  } satisfies CSSProperties
+
+  const blockInspectorDragHandleProps = blockInspectorViewportDocked
+    ? {}
+    : {
+        onPointerCancel: stopBlockInspectorDrag,
+        onPointerDown: startBlockInspectorDrag,
+        onPointerMove: moveBlockInspectorDrag,
+        onPointerUp: stopBlockInspectorDrag,
+      }
+
+  const blockInspectorPickHandlers = useMemo(
+    () => ({
+      onDockToViewport: () => {
+        setBlockInspectorViewportDocked(true)
+        setActiveViewportToolbarDock('block')
+      },
+      onUndockFromViewportToolbar: handleUndockBlockInspectorFromViewportToolbar,
+    }),
+    [handleUndockBlockInspectorFromViewportToolbar],
+  )
+
+  const knownBlockTypeIds = useMemo(() => {
+    const ids = new Set<string>()
+    for (const def of blockTypeDefinitionsList()) {
+      ids.add(def.id)
+    }
+    for (const canvasNode of scene.nodes) {
+      const blockType = canvasNode.blockStructure?.blockType
+      if (blockType?.trim()) {
+        ids.add(blockType.trim())
+      }
+    }
+    return [...ids].sort((a, b) => a.localeCompare(b))
+  }, [scene.nodes])
+
+  const blockInspectorControlsSlot = blockInspectorTarget ? (
+    <BlockInspector
+      autoBuildBusy={blockAutoBuildBusy}
+      draft={blockInspectorDraft}
+      knownBlockTypeIds={knownBlockTypeIds}
+      minimized={blockInspectorMinimizedEffective}
+      node={blockInspectorTarget}
+      onAutoBuild={handleAutoBuildBlockHierarchy}
+      onDraftChange={(draft) => updateBlockInspectorDraft(blockInspectorTarget.id, draft)}
+      onGenerateBlock={handleGenerateBlock}
+      onBuildParameters={handleBuildBlockParameters}
+      onBuildBlock={handleBuildBlockDefinition}
+      onRevertBlock={handleRevertBlock}
+      onToggleMinimized={toggleBlockInspectorMinimized}
+      {...blockInspectorPickHandlers}
+      viewportDocked={blockInspectorViewportDocked}
+    />
+  ) : null
+
+  const blockInspectorSidebar = blockInspectorTarget ? (
+    <BlockInspector
+      autoBuildBusy={blockAutoBuildBusy}
+      draft={blockInspectorDraft}
+      dragHandleProps={blockInspectorDragHandleProps}
+      knownBlockTypeIds={knownBlockTypeIds}
+      minimized={blockInspectorMinimized}
+      node={blockInspectorTarget}
+      onAutoBuild={handleAutoBuildBlockHierarchy}
+      onDraftChange={(draft) => updateBlockInspectorDraft(blockInspectorTarget.id, draft)}
+      onGenerateBlock={handleGenerateBlock}
+      onBuildParameters={handleBuildBlockParameters}
+      onBuildBlock={handleBuildBlockDefinition}
+      onRevertBlock={handleRevertBlock}
+      onToggleMinimized={toggleBlockInspectorMinimized}
+      {...blockInspectorPickHandlers}
+    />
+  ) : null
+
+  const groupInspectorTarget =
+    selectedNodeIds.length === 1 && primarySelectedId && inspectorTarget && !isNodeLocked(inspectorTarget)
+      ? inspectorTarget
+      : undefined
+
+  useEffect(() => {
+    if (!groupInspectorTarget) {
+      return
+    }
+    refreshGroupInspectorDraft(groupInspectorTarget.id)
+  }, [
+    groupInspectorTarget?.id,
+    groupInspectorTarget?.groupViewActive,
+    groupInspectorTarget?.groupStructure?.identification_codes?.join('|'),
+    refreshGroupInspectorDraft,
+  ])
+
+  const groupInspectorDraft = groupInspectorTarget
+    ? getGroupInspectorDraft(groupInspectorTarget.id)
+    : null
+
+  const handleGenerateGroup = useCallback(() => {
+    if (!groupInspectorTarget || !groupInspectorDraft) {
+      return
+    }
+    generateGroupFromNode(groupInspectorTarget.id, groupInspectorDraft)
+    refreshGroupInspectorDraft(groupInspectorTarget.id)
+  }, [
+    groupInspectorDraft,
+    groupInspectorTarget,
+    generateGroupFromNode,
+    refreshGroupInspectorDraft,
+  ])
+
+  const handleRevertGroup = useCallback(() => {
+    if (!groupInspectorTarget) {
+      return
+    }
+    revertGroupView(groupInspectorTarget.id)
+  }, [groupInspectorTarget, revertGroupView])
+
+  const showGroupInspectorPinnedToToolbar =
+    groupInspectorViewportDocked && Boolean(groupInspectorTarget)
+
+  const groupInspectorDockShowsSidebar = Boolean(groupInspectorTarget) && !showGroupInspectorPinnedToToolbar
+
+  const groupInspectorDockClassName = [
+    styles.inspectorDock,
+    groupInspectorMinimized ? styles.inspectorDockMinimized : styles.inspectorDockExpanded,
+  ]
+    .filter(Boolean)
+    .join(' ')
+
+  const groupInspectorDockStyle = {
+    transform: `translate(${groupInspectorOffset.x}px, ${groupInspectorOffset.y}px)`,
+  } satisfies CSSProperties
+
+  const groupInspectorDragHandleProps = groupInspectorViewportDocked
+    ? {}
+    : {
+        onPointerCancel: stopGroupInspectorDrag,
+        onPointerDown: startGroupInspectorDrag,
+        onPointerMove: moveGroupInspectorDrag,
+        onPointerUp: stopGroupInspectorDrag,
+      }
+
+  const groupInspectorPickHandlers = useMemo(
+    () => ({
+      onDockToViewport: () => {
+        setGroupInspectorViewportDocked(true)
+        setActiveViewportToolbarDock('group')
+      },
+      onUndockFromViewportToolbar: handleUndockGroupInspectorFromViewportToolbar,
+    }),
+    [handleUndockGroupInspectorFromViewportToolbar],
+  )
+
+  const groupInspectorControlsSlot = groupInspectorTarget ? (
+    <GroupInspector
+      draft={groupInspectorDraft}
+      minimized={groupInspectorMinimizedEffective}
+      node={groupInspectorTarget}
+      onDraftChange={(draft) => updateGroupInspectorDraft(groupInspectorTarget.id, draft)}
+      onGenerateGroup={handleGenerateGroup}
+      onRevertGroup={handleRevertGroup}
+      onToggleMinimized={toggleGroupInspectorMinimized}
+      {...groupInspectorPickHandlers}
+      viewportDocked={groupInspectorViewportDocked}
+    />
+  ) : null
+
+  const groupInspectorSidebar = groupInspectorTarget ? (
+    <GroupInspector
+      draft={groupInspectorDraft}
+      dragHandleProps={groupInspectorDragHandleProps}
+      minimized={groupInspectorMinimized}
+      node={groupInspectorTarget}
+      onDraftChange={(draft) => updateGroupInspectorDraft(groupInspectorTarget.id, draft)}
+      onGenerateGroup={handleGenerateGroup}
+      onRevertGroup={handleRevertGroup}
+      onToggleMinimized={toggleGroupInspectorMinimized}
+      {...groupInspectorPickHandlers}
+    />
+  ) : null
 
   const inspectorStubCatalog =
     inspectorTarget !== undefined
@@ -2424,7 +4028,7 @@ function App() {
     () => ({
       onDockToViewport: () => {
         setInspectorViewportDocked(true)
-        setInspectorMinimized(false)
+        setActiveViewportToolbarDock('node')
       },
       onUndockFromViewportToolbar: handleUndockFromViewportToolbar,
     }),
@@ -2435,7 +4039,7 @@ function App() {
     () => ({
       onDockToViewport: () => {
         setSceneNodesViewportDocked(true)
-        setSceneNodesMinimized(false)
+        setActiveViewportToolbarDock('scene')
       },
       onUndockFromViewportToolbar: handleUndockSceneNodesFromViewportToolbar,
     }),
@@ -2517,8 +4121,13 @@ function App() {
   )
 
   const expandSceneNodesPanel = useCallback(() => {
+    if (sceneNodesViewportDocked) {
+      setActiveViewportToolbarDock('scene')
+      return
+    }
+
     patchSceneChrome({ sceneNodes: { minimized: false } })
-  }, [patchSceneChrome])
+  }, [patchSceneChrome, sceneNodesViewportDocked])
 
   const openSceneNodesStatesTab = useCallback(() => {
     expandSceneNodesPanel()
@@ -2592,7 +4201,7 @@ function App() {
     ...sceneNodesPickHandlers,
     canDeleteSelected: sceneNodesCanDelete,
     dragHandleProps: sceneNodesDragHandleProps,
-    minimized: sceneNodesMinimized,
+    minimized: sceneNodesMinimizedEffective,
     sceneNodesStatePresets,
     onSaveNewSceneNodesState: handleSaveNewSceneNodesState,
     onLoadSceneNodesState: applySceneNodesStatePreset,
@@ -2646,6 +4255,7 @@ function App() {
           onDismiss={dismissSaveStatusNotice}
         />
       ) : null}
+      <RitualDragOverlay />
       <AppMenuBar
         nodeLightModeEnabled={nodeLightModeEnabled}
         nodeConfigurationMode={nodeConfigurationMode}
@@ -2663,6 +4273,7 @@ function App() {
         }
         onGraphsToCode={() => void handleGraphsToCode()}
         onToggleCodeDock={() => setCodeDockOpen((isOpen) => !isOpen)}
+        onToggleVfxDock={() => setVfxDockOpen((isOpen) => !isOpen)}
         recentScenes={recentScenes}
       />
 
@@ -2670,19 +4281,38 @@ function App() {
         <div className={styles.graphColumn} ref={graphColumnRef}>
           <div className={styles.graphSurface}>
             <div className={styles.sceneTabRow}>
-              <SceneTabBar
-                attached
-                onActivate={activateTab}
-                onClose={closeTab}
-                onNewTab={() => createWorkScene('Nova cena')}
-                onTabAction={handleSceneTabAction}
-                tabs={tabBarItems}
-              />
+              {hasOpenSceneTabs ? (
+                <div
+                  className={styles.sceneToolbarChrome}
+                  data-canvas-toolbar-chrome=""
+                  ref={setCanvasToolbarChromeHost}
+                />
+              ) : null}
+              <div className={styles.sceneTabBarSlot}>
+                <SceneTabBar
+                  attached
+                  onActivate={activateTab}
+                  onClose={closeTab}
+                  onNewTab={() => createWorkScene(t(LangId.SceneTabNew))}
+                  onTabAction={handleSceneTabAction}
+                  tabs={tabBarItems}
+                />
+              </div>
+              {hasOpenSceneTabs ? (
+                <CanvasViewportStatusBar
+                  nodeCount={scene.nodes.length}
+                  pan={scene.camera?.pan ?? { x: 0, y: 0 }}
+                  scale={scene.camera?.scale ?? 1}
+                />
+              ) : null}
             </div>
             <div className={styles.graphColumnMain}>
           {hasOpenSceneTabs ? (
           <GraphCanvas
+            activeViewportToolbarDock={activeViewportToolbarDock}
             attachedViewport
+            toolbarChromeHost={canvasToolbarChromeHost}
+            onViewportToolbarDockToggle={toggleViewportToolbarDockById}
             ref={graphCanvasRef}
             availableSchemas={availableSchemas}
             canRedo={sceneHistory.future.length > 0}
@@ -2716,13 +4346,29 @@ function App() {
               addDynamicParameter(canvasNodeId, definition)
             }
             onRequestRemoveElement={handleRequestRemoveNodeElement}
-            onCloseCodePanelShortcut={handleCloseCodeDock}
+            onCloseCodePanelShortcut={handleClosePanelShortcut}
             onConnectNodes={connectNodes}
             onRelinkInternalStructure={relinkInternalStructureSlot}
             onCreateChildNode={createChildNode}
             onCreateRootNode={createRootNode}
+            onCreateBlockFromDefinition={(definition, position, spawnLink) =>
+              createBlockNodeFromDefinition(definition, position, spawnLink)
+            }
+            onCreateAddonFromCatalog={(addonId, position, spawnLink) =>
+              createAddonNode(addonId, position, spawnLink)
+            }
+            onApplyAddonOutputs={applyAddonOutputsToScene}
+            onConnectAddonSlots={connectAddonSlots}
+            onSyncBlockParameterCatalog={syncBlockParameterCatalogFromDefinitions}
+            onAddBlockParameterFromCatalog={addBlockParameterFromCatalog}
+            onRemoveBlockParameter={removeBlockParameter}
+            onEditBlockParameter={(nodeId, param) => {
+              setBlockParameterInspectorTarget({ nodeId, paramId: param.idParameter, parameter: param })
+            }}
             onDeleteNodeIds={deleteNodeIds}
             onToggleNodeBodyCollapsed={toggleNodeBodyCollapsed}
+            onToggleStructureCardParamsExpanded={toggleStructureCardParamsExpanded}
+            onSetStructureCardWidth={setStructureCardWidth}
             onSetAllNodesBodyCollapsed={setAllNodesBodyCollapsed}
             onToggleNodeCardSection={toggleNodeCardSection}
             onSetNodeCardSectionOrder={setNodeCardSectionOrder}
@@ -2735,14 +4381,33 @@ function App() {
             onToolbarVisibilityChange={(toolbarVisibility) =>
               patchSceneChrome({ toolbarVisibility })
             }
+            onToolbarCollapsedChange={(toolbarCollapsed) => patchSceneChrome({ toolbarCollapsed })}
+            toolbarCollapsed={scene.sceneChrome?.toolbarCollapsed !== false}
             toolbarVisibility={
               scene.sceneChrome?.toolbarVisibility ?? DEFAULT_CANVAS_TOOLBAR_VISIBILITY
             }
+            showCanvasGrid={scene.sceneChrome?.showCanvasGrid !== false}
+            canvasGridSize={scene.sceneChrome?.canvasGridSize}
+            canvasGridOpacity={scene.sceneChrome?.canvasGridOpacity}
+            onCanvasGridChange={(patch) => patchSceneChrome(patch)}
             onNodeLockedInteraction={() => showToastByCatalogId(MESSENGER_TOAST_NODE_LOCKED)}
             onPatchNodeSceneOverlay={patchNodeSceneOverlay}
             onSceneNodesPanelRequest={expandSceneNodesPanel}
             onExtractSceneNodesStatePreset={handleExtractSceneNodesStateFromNode}
             onGraphsToCode={() => void handleGraphsToCode()}
+            onViewNodeCode={handleViewNodeCode}
+            onViewNodeBlockCode={handleViewNodeBlockCode}
+            onPreviewBlockCardCode={handlePreviewBlockCardCode}
+            onViewNodeGroupCode={handleViewNodeGroupCode}
+            onPreviewNodeVfx={handlePreviewNodeVfx}
+            onSyncNodeValueToCode={handleSyncNodeValueToCode}
+            canSyncNodeToCode={canSyncNodeToCode}
+            onNeekoDropCode={handleNeekoDropCode}
+            onBindCodeRangeToNode={handleBindCodeRangeToNode}
+            onBuildNeekoAtPosition={handleBuildNeekoAtPosition}
+            onNeekoBuildFailed={handleNeekoBuildFailed}
+            neekoTransformingNodeId={neekoTransformingNodeId}
+            memoryPackFolders={memoryPackFolders}
             onRedo={redoScene}
             onRemoveConnection={removeConnection}
             onResetScene={resetScene}
@@ -2767,9 +4432,20 @@ function App() {
             schemaBaseParameterCatalogBySchemaId={mergedBaseParameterCatalogBySchemaId}
             schemaNodeKindBySchemaId={mergedSchemaNodeKindBySchemaId}
             schemaPackFolderBySchemaId={mergedPackFolderBySchemaId}
+            schemaJsonRelativePathBySchemaId={schemaJsonRelativePathBySchemaId}
             schemaStructureSubfolderBySchemaId={mergedStructureSubfolderBySchemaId}
             selectedNodeId={primarySelectedId}
             selectedNodeIds={selectedNodeIds}
+            blockInspectorControlsSlot={
+              showBlockInspectorPinnedToToolbar ? blockInspectorControlsSlot : null
+            }
+            groupInspectorControlsSlot={
+              showGroupInspectorPinnedToToolbar ? groupInspectorControlsSlot : null
+            }
+            onUpdateBlockParameter={updateBlockParameter}
+            onConnectBlockSlots={connectBlockSlots}
+            onUpdateGroupParameter={updateGroupParameter}
+            onConnectGroupSlots={connectGroupSlots}
             sceneNodesControlsSlot={
               showSceneNodesPinnedToToolbar ? (
                 <SceneNodesPanel {...sceneNodesPanelProps} viewportDocked />
@@ -2781,7 +4457,7 @@ function App() {
                   {...inspectorPickHandlers}
                   canDelete={inspectorCanDelete}
                   dragHandleProps={inspectorDragHandleProps}
-                  minimized={inspectorMinimized}
+                  minimized={inspectorMinimizedEffective}
                   nodeConfigurationMode={nodeConfigurationMode}
                   node={inspectorTarget}
                   onAddHashStringInNode={nodeConfigurationMode ? addHashStringInNode : undefined}
@@ -2800,7 +4476,7 @@ function App() {
             }
           />
           ) : (
-            <p className={styles.empty}>{SCENE_WORKSPACE_EMPTY_HINT}</p>
+            <p className={styles.empty}>{t(LangId.AppSceneEmptyHint)}</p>
           )}
           {sceneNodesDockShowsSidebar ? (
             <div className={sceneNodesDockClassName} style={sceneNodesDockStyle}>
@@ -2827,6 +4503,16 @@ function App() {
                 onUpdateParameter={updateSelectedParameter}
                 onUpdatePosition={handleInspectorUpdatePosition}
               />
+            </div>
+          ) : null}
+          {blockInspectorDockShowsSidebar ? (
+            <div className={blockInspectorDockClassName} style={blockInspectorDockStyle}>
+              {blockInspectorSidebar}
+            </div>
+          ) : null}
+          {groupInspectorDockShowsSidebar ? (
+            <div className={groupInspectorDockClassName} style={groupInspectorDockStyle}>
+              {groupInspectorSidebar}
             </div>
           ) : null}
           {inspectorGrabFollowActive ? (
@@ -2940,6 +4626,32 @@ function App() {
         ) : null}
         </div>
 
+        {vfxDockOpen ? (
+          <div
+            className={vfxDockFloating ? styles.vfxDockPortalSlot : styles.vfxDockColumn}
+            style={
+              vfxDockFloating
+                ? undefined
+                : { width: vfxDockWidth, minWidth: VFX_DOCK_MIN_WIDTH }
+            }
+          >
+            <VfxDock
+              dockOpen={vfxDockOpen}
+              dockedWidth={vfxDockWidth}
+              floatingActive={vfxDockFloating}
+              floatingRect={vfxDockFloatingRect}
+              onClose={handleCloseVfxDock}
+              onDockedWidthChange={setVfxDockWidth}
+              onFloatingRectChange={setVfxDockFloatingRect}
+              onResetFloatingDimensions={() =>
+                setVfxDockFloatingRect(clampFloatingDockRect(createDefaultFloatingCodeDockRect()))
+              }
+              onToggleFloating={() => setVfxDockFloating((value) => !value)}
+              ritualText={vfxPreviewRitualText}
+            />
+          </div>
+        ) : null}
+
         {codeDockOpen ? (
           <div
             className={codeDockFloating ? styles.codeDockPortalSlot : styles.codeDockColumn}
@@ -2965,6 +4677,7 @@ function App() {
               activeTabId={activeCodeDockTabId}
               codeToNewGraphProgress={codeToNewNodeGraphProgress}
               dockedWidth={codeDockWidth}
+              jadeEditorBanner={codeDockJadeBanner}
               fileBridge={codeDockFileBridge}
               floatingActive={codeDockFloating}
               floatingRect={codeDockFloatingRect}
@@ -2974,12 +4687,15 @@ function App() {
                 listStructurePackFolders,
                 onConvertClassGroup: handleConvertClassGroupPack,
                 onConvertJadeFxEditor: handleConvertJadeFxEditorPack,
+                onHumanizePropRitual: handleHumanizePropRitualInEditor,
                 onApplyBinNomenclatura: handleApplyBinNomenclaturaPack,
                 onExtractNodeBase: handleExtractNodeBasePack,
                 onCodeToNodeGraph: handleCodeToNodeGraphPack,
                 onCodeToNodeGraphStepByStep: handleCodeToNodeGraphStepByStep,
                 onCodeToNewNodeGraph: handleCodeToNewNodeGraph,
                 onCodeToNewNodeGraphStepByStep: handleCodeToNewNodeGraphStepByStep,
+                onCodeToNodeBlock: handleCodeToNodeBlock,
+                onCodeBuildBlock: handleCodeBuildBlock,
                 getDefaultStructurePackFolder: getCodeToNodeGraphPackFolder,
                 getDefaultNewNodeGraphPackFolder: getCodeToNewNodeGraphPackFolder,
               }}
@@ -2993,6 +4709,10 @@ function App() {
               onTabAction={handleCodeDockTabAction}
               onResetFloatingDimensions={resetFloatingDockDimensions}
               onToggleFloating={() => setCodeDockFloating((v) => !v)}
+              neekoSendTarget={neekoSendTarget}
+              onSendCodeToNeeko={handleNeekoDropCode}
+              onReplaceValueToGraph={handleReplaceValueToGraph}
+              primarySelectedNodeId={primarySelectedId}
               tabs={codeDockTabBarItems}
               value={codeText}
             />
@@ -3002,6 +4722,106 @@ function App() {
 
       {graphsToCodeProgress ? (
         <GraphsToCodeProgressDialog progress={graphsToCodeProgress} />
+      ) : null}
+
+      {blockCardPreviewUi ? (
+        <BlockingProgressDialog
+          cancelConfirmMessage="Tem a certeza que deseja cancelar a conversão do Código Preview Block?"
+          cancelConfirmNoLabel="Continuar conversão"
+          cancelConfirmTitle="Cancelar conversão"
+          cancelConfirmYesLabel="Sim, cancelar"
+          cancelLabel="Cancelar"
+          closeLabel="OK"
+          completed={blockCardPreviewUi.completed}
+          onCancelConfirm={() => {
+            blockCardPreviewCancelRef.current = true
+            setBlockCardPreviewUi((current) =>
+              current ? { ...current, phase: 'running' } : current,
+            )
+          }}
+          onCancelDismiss={() => {
+            setBlockCardPreviewUi((current) =>
+              current ? { ...current, phase: 'running' } : current,
+            )
+          }}
+          onCancelRequest={() => {
+            setBlockCardPreviewUi((current) =>
+              current && current.phase === 'running'
+                ? { ...current, phase: 'confirmCancel' }
+                : current,
+            )
+          }}
+          onClose={() => {
+            blockCardPreviewCancelRef.current = false
+            setBlockCardPreviewUi(null)
+          }}
+          phase={blockCardPreviewUi.phase}
+          progressCountLabel={`${String(blockCardPreviewUi.completed)}/${String(blockCardPreviewUi.total)}`}
+          statusLabel={blockCardPreviewUi.phase === 'running' ? blockCardPreviewUi.currentLabel : undefined}
+          summaryBody={blockCardPreviewUi.summaryBody}
+          summaryTitle={blockCardPreviewUi.summaryTitle}
+          title="Código Preview Block"
+          total={blockCardPreviewUi.total}
+        />
+      ) : null}
+
+      {autoBuildUi ? (
+        <BlockingProgressDialog
+          cancelConfirmMessage={t(LangId.BlockInspectorAutoBuildCancelConfirmMessage)}
+          cancelConfirmNoLabel={t(LangId.BlockInspectorAutoBuildCancelConfirmContinue)}
+          cancelConfirmTitle={t(LangId.BlockInspectorAutoBuildCancelConfirmTitle)}
+          cancelConfirmYesLabel={t(LangId.BlockInspectorAutoBuildCancelConfirmYes)}
+          cancelLabel={t(LangId.BlockInspectorAutoBuildCancel)}
+          closeLabel={t(LangId.BlockInspectorAutoBuildClose)}
+          completed={autoBuildUi.progress.completed}
+          onCancelConfirm={() => {
+            autoBuildCancelRef.current = true
+            setAutoBuildUi((current) =>
+              current ? { ...current, phase: 'running' } : current,
+            )
+          }}
+          onCancelDismiss={() => {
+            setAutoBuildUi((current) =>
+              current ? { ...current, phase: 'running' } : current,
+            )
+          }}
+          onCancelRequest={() => {
+            setAutoBuildUi((current) =>
+              current && current.phase === 'running'
+                ? { ...current, phase: 'confirmCancel' }
+                : current,
+            )
+          }}
+          onClose={closeAutoBuildUi}
+          phase={autoBuildUi.phase}
+          progressCountLabel={t(LangId.BlockInspectorAutoBuildProgressCount, undefined, {
+            completed: String(autoBuildUi.progress.completed),
+            total: String(autoBuildUi.progress.total),
+          })}
+          statusLabel={
+            autoBuildUi.phase === 'running'
+              ? t(LangId.BlockInspectorAutoBuildBuilding, undefined, {
+                  name: autoBuildUi.progress.currentLabel,
+                })
+              : undefined
+          }
+          summaryBody={
+            autoBuildUi.phase === 'error'
+              ? autoBuildUi.errorMessage
+              : autoBuildUi.result
+                ? formatAutoBuildSummaryBody(autoBuildUi.result)
+                : undefined
+          }
+          summaryTitle={
+            autoBuildUi.phase === 'error'
+              ? t(LangId.BlockInspectorAutoBuildProgressTitle)
+              : autoBuildUi.result?.cancelled
+                ? t(LangId.BlockInspectorAutoBuildCancelledTitle)
+                : t(LangId.BlockInspectorAutoBuildSummaryTitle)
+          }
+          title={t(LangId.BlockInspectorAutoBuildProgressTitle)}
+          total={autoBuildUi.progress.total}
+        />
       ) : null}
 
       <CodeToCanvasWizardPanel
@@ -3015,11 +4835,32 @@ function App() {
         title="Code to new node graph — passo a passo"
       />
 
+      {blockParameterInspectorTarget ? (
+        <div
+          style={{
+            position: 'fixed',
+            right: 24,
+            top: 96,
+            zIndex: 9000,
+            pointerEvents: 'auto',
+          }}
+        >
+          <BlockParameterInspector
+            target={blockParameterInspectorTarget}
+            onClose={() => setBlockParameterInspectorTarget(null)}
+            onApply={(nodeId, paramId, entry) =>
+              updateBlockParameterFromInspector(nodeId, paramId, entry)
+            }
+          />
+        </div>
+      ) : null}
+
       <NewCodeFileDialog
         isOpen={newCodeFileDialogOpen}
         onCancel={() => setNewCodeFileDialogOpen(false)}
         onCreate={handleCreateCodeDockFile}
       />
+
 
       <TextInputDialog
         cancelLabel="Cancelar"

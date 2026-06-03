@@ -1,0 +1,20 @@
+{
+  "id": "mLockMeshToAttachment_mLockMeshToAttachment",
+  "block": "VfxMeshDefinitionData",
+  "parameterName": "mLockMeshToAttachment",
+  "name": "mLockMeshToAttachment",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-mesh-definition-data__main-characters/brand/skins/skin0/particles/brand-base-p-fire-mark3-complex-emitter-definition-data--slot--0-primitive-m-mesh_parameter_mLockMeshToAttachment"
+  },
+  "type": "bool",
+  "value": "true",
+  "slots": {
+    "in": [
+      "bool"
+    ],
+    "out": [
+      "bool"
+    ]
+  }
+}

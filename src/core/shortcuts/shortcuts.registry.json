@@ -1,0 +1,256 @@
+{
+  "scopes": [
+    { "id": "graph-canvas", "label": "Canvas de nós" },
+    { "id": "code-dock", "label": "Editor de código" },
+    { "id": "vfx-viewport", "label": "Viewport VFX" },
+    { "id": "vfx-dock", "label": "Dock VFX" },
+    { "id": "node-palette", "label": "Paleta de nós" }
+  ],
+  "bindings": [
+    {
+      "id": "graph-undo",
+      "scopeId": "graph-canvas",
+      "key": "z",
+      "modifiers": ["ctrl"],
+      "priority": 10
+    },
+    {
+      "id": "graph-redo-shift",
+      "scopeId": "graph-canvas",
+      "key": "z",
+      "modifiers": ["ctrl", "shift"],
+      "priority": 10
+    },
+    {
+      "id": "graph-redo-y",
+      "scopeId": "graph-canvas",
+      "key": "y",
+      "modifiers": ["ctrl"],
+      "priority": 10
+    },
+    {
+      "id": "graph-delete-selection",
+      "scopeId": "graph-canvas",
+      "key": "Delete",
+      "modifiers": [],
+      "priority": 5
+    },
+    {
+      "id": "graph-delete-selection-backspace",
+      "scopeId": "graph-canvas",
+      "key": "Backspace",
+      "modifiers": [],
+      "priority": 5
+    },
+    {
+      "id": "graph-open-palette",
+      "scopeId": "graph-canvas",
+      "key": "k",
+      "modifiers": ["ctrl"],
+      "priority": 8
+    },
+    {
+      "id": "graph-select-all-toggle",
+      "scopeId": "graph-canvas",
+      "key": "a",
+      "modifiers": []
+    },
+    {
+      "id": "graph-focus-selection",
+      "scopeId": "graph-canvas",
+      "key": ".",
+      "modifiers": []
+    },
+    {
+      "id": "graph-glue-toggle",
+      "scopeId": "graph-canvas",
+      "key": "g",
+      "modifiers": []
+    },
+    {
+      "id": "graph-escape",
+      "scopeId": "graph-canvas",
+      "key": "Escape",
+      "modifiers": [],
+      "priority": 20
+    },
+    {
+      "id": "graph-neeko-paste",
+      "scopeId": "graph-canvas",
+      "key": "v",
+      "modifiers": ["ctrl"],
+      "priority": 6
+    },
+    {
+      "id": "graph-structure-card-resize",
+      "scopeId": "graph-canvas",
+      "key": "PointerDrag",
+      "interaction": "pointer",
+      "label": "Alargar card grupo/bloco — Ctrl + arrastar bordas laterais (360–720px)",
+      "modifiers": ["ctrl"],
+      "priority": 0
+    },
+    {
+      "id": "graph-structure-card-resize-modifier",
+      "scopeId": "graph-canvas",
+      "key": "Control",
+      "modifiers": [],
+      "eventTypes": ["keydown", "keyup"],
+      "priority": 25
+    },
+    {
+      "id": "graph-structure-card-resize-modifier-meta",
+      "scopeId": "graph-canvas",
+      "key": "Meta",
+      "modifiers": [],
+      "eventTypes": ["keydown", "keyup"],
+      "priority": 25
+    },
+    {
+      "id": "ritual-ctrl-spawn",
+      "scopeId": "graph-canvas",
+      "key": "Control",
+      "modifiers": [],
+      "eventTypes": ["keydown", "keyup"],
+      "priority": 30
+    },
+    {
+      "id": "ritual-meta-spawn",
+      "scopeId": "graph-canvas",
+      "key": "Meta",
+      "modifiers": [],
+      "eventTypes": ["keydown", "keyup"],
+      "priority": 30
+    },
+    {
+      "id": "vfx-view-top",
+      "scopeId": "vfx-viewport",
+      "key": "7",
+      "modifiers": [],
+      "requiresOpen": ["vfx-dock"]
+    },
+    {
+      "id": "vfx-view-bottom",
+      "scopeId": "vfx-viewport",
+      "key": "7",
+      "modifiers": ["ctrl"],
+      "requiresOpen": ["vfx-dock"]
+    },
+    {
+      "id": "vfx-view-right",
+      "scopeId": "vfx-viewport",
+      "key": "3",
+      "modifiers": [],
+      "requiresOpen": ["vfx-dock"]
+    },
+    {
+      "id": "vfx-view-left",
+      "scopeId": "vfx-viewport",
+      "key": "3",
+      "modifiers": ["ctrl"],
+      "requiresOpen": ["vfx-dock"]
+    },
+    {
+      "id": "vfx-view-front",
+      "scopeId": "vfx-viewport",
+      "key": "1",
+      "modifiers": [],
+      "requiresOpen": ["vfx-dock"]
+    },
+    {
+      "id": "vfx-view-back",
+      "scopeId": "vfx-viewport",
+      "key": "1",
+      "modifiers": ["ctrl"],
+      "requiresOpen": ["vfx-dock"]
+    },
+    {
+      "id": "vfx-projection-toggle",
+      "scopeId": "vfx-viewport",
+      "key": "5",
+      "modifiers": [],
+      "requiresOpen": ["vfx-dock"]
+    },
+    {
+      "id": "vfx-window-isolation",
+      "scopeId": "vfx-dock",
+      "key": " ",
+      "modifiers": ["ctrl"],
+      "requiresOpen": ["vfx-dock"],
+      "allowInFormControls": true,
+      "priority": 12
+    },
+    {
+      "id": "vfx-window-isolation-viewport",
+      "scopeId": "vfx-viewport",
+      "key": " ",
+      "modifiers": ["ctrl"],
+      "requiresOpen": ["vfx-dock"],
+      "allowInFormControls": true,
+      "priority": 12
+    },
+    {
+      "id": "code-find",
+      "scopeId": "code-dock",
+      "key": "f",
+      "modifiers": ["ctrl"],
+      "requiresOpen": ["code-dock"]
+    },
+    {
+      "id": "code-replace",
+      "scopeId": "code-dock",
+      "key": "h",
+      "modifiers": ["ctrl"],
+      "requiresOpen": ["code-dock"]
+    },
+    {
+      "id": "code-undo",
+      "scopeId": "code-dock",
+      "key": "z",
+      "modifiers": ["ctrl"],
+      "requiresOpen": ["code-dock"]
+    },
+    {
+      "id": "code-redo-shift",
+      "scopeId": "code-dock",
+      "key": "z",
+      "modifiers": ["ctrl", "shift"],
+      "requiresOpen": ["code-dock"]
+    },
+    {
+      "id": "code-redo-y",
+      "scopeId": "code-dock",
+      "key": "y",
+      "modifiers": ["ctrl"],
+      "requiresOpen": ["code-dock"]
+    },
+    {
+      "id": "code-general-edit",
+      "scopeId": "code-dock",
+      "key": "o",
+      "modifiers": ["ctrl"],
+      "requiresOpen": ["code-dock"]
+    },
+    {
+      "id": "code-particle-panel",
+      "scopeId": "code-dock",
+      "key": "p",
+      "modifiers": ["ctrl"],
+      "requiresOpen": ["code-dock"]
+    },
+    {
+      "id": "palette-expand",
+      "scopeId": "node-palette",
+      "key": "m",
+      "modifiers": [],
+      "requiresOpen": ["node-palette"]
+    },
+    {
+      "id": "palette-compact",
+      "scopeId": "node-palette",
+      "key": "n",
+      "modifiers": [],
+      "requiresOpen": ["node-palette"]
+    }
+  ]
+}

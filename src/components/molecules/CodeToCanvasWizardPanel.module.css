@@ -1,0 +1,173 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10060;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgb(0 0 0 / 55%);
+}
+
+.panel {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: min(520px, 100%);
+  max-height: min(80vh, 640px);
+  padding: 20px 22px;
+  overflow: auto;
+  background: rgb(18 18 18 / 98%);
+  border: 1px solid var(--color-border-soft);
+  border-radius: 14px;
+  box-shadow: 0 24px 64px rgb(0 0 0 / 45%);
+}
+
+.title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-text-primary, #f2f2f2);
+}
+
+.progress {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.progressMeta {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: rgb(255 255 255 / 62%);
+}
+
+.progressBar {
+  height: 6px;
+  overflow: hidden;
+  background: rgb(255 255 255 / 10%);
+  border-radius: 999px;
+}
+
+.progressFill {
+  height: 100%;
+  background: linear-gradient(90deg, #3d8f6e, #5cb88a);
+  border-radius: 999px;
+  transition: width 0.2s ease;
+}
+
+.stepLabel {
+  margin: 0;
+  font-size: 0.9375rem;
+  line-height: 1.45;
+  color: rgb(255 255 255 / 88%);
+}
+
+.verdictGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.verdictOption {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.875rem;
+  color: rgb(255 255 255 / 85%);
+  cursor: pointer;
+}
+
+.verdictOption input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: #5cb88a;
+}
+
+.wrongNote {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.wrongNote label {
+  font-size: 0.8125rem;
+  color: rgb(255 255 255 / 62%);
+}
+
+.wrongNote textarea {
+  box-sizing: border-box;
+  min-height: 72px;
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 0.875rem;
+  color: rgb(255 255 255 / 92%);
+  resize: vertical;
+  background: rgb(255 255 255 / 6%);
+  border: 1px solid rgb(255 255 255 / 14%);
+  border-radius: 8px;
+}
+
+.summaryBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: rgb(255 255 255 / 82%);
+}
+
+.summaryList {
+  margin: 0;
+  padding-left: 1.1rem;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.ghostButton {
+  padding: 6px 12px;
+  font: inherit;
+  font-size: 0.8125rem;
+  color: rgb(255 255 255 / 78%);
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid rgb(255 255 255 / 18%);
+  border-radius: 8px;
+}
+
+.ghostButton:hover:not(:disabled) {
+  background: rgb(255 255 255 / 8%);
+}
+
+.ghostButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.primaryButton {
+  padding: 6px 14px;
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #0f1a14;
+  cursor: pointer;
+  background: #5cb88a;
+  border: none;
+  border-radius: 8px;
+}
+
+.primaryButton:hover:not(:disabled) {
+  background: #6ec99a;
+}
+
+.primaryButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}

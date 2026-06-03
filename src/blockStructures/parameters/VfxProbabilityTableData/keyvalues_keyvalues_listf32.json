@@ -1,0 +1,20 @@
+{
+  "id": "keyValues_keyValues_listF32",
+  "block": "VfxProbabilityTableData",
+  "parameterName": "keyValues",
+  "name": "keyValues",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-probability-table-data__entries-{particlePath}-complex-emitter-definition-data--slot--0-particle-lifetime-dynamics-probability-tables--slot--0_parameter_keyValues"
+  },
+  "type": "listF32",
+  "items": [
+    "0.2",
+    "1"
+  ],
+  "slots": {
+    "out": [
+      "f32"
+    ]
+  }
+}

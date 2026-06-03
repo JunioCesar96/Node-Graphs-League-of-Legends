@@ -1,0 +1,62 @@
+{
+  "id": "vfx-alpha-erosion-definition-data__main-entries-0x0eed7307-complex-emitter-definition-data-4-alpha-erosion-definition",
+  "title": "VfxAlphaErosionDefinitionData",
+  "parameters": [
+    {
+      "id": "VfxAlphaErosionDefinitionData_parameter_erosionFeatherOut",
+      "name": "erosionFeatherOut",
+      "type": "f32",
+      "defaultValue": "0.2"
+    },
+    {
+      "id": "VfxAlphaErosionDefinitionData_parameter_erosionMapName",
+      "name": "erosionMapName",
+      "type": "string",
+      "defaultValue": "ASSETS/Characters/Vladimir/Skins/Skin14/Particles/Vladimir_Skin14_W_SmokeErosion.tex"
+    }
+  ],
+  "embed": [
+    {
+      "id": "VfxAlphaErosionDefinitionData_embed_erosionDriveCurve",
+      "title": "erosionDriveCurve",
+      "internalStructures": [
+        {
+          "id": "vfx-alpha-erosion-definition-data-erosion-drive-curve",
+          "name": "ValueFloat",
+          "schemaId": "value-float__main-entries-0x0eed7307-complex-emitter-definition-data-4-alpha-erosion-definition-erosion-drive-curve"
+        }
+      ],
+      "slots": [
+        {
+          "id": "VfxAlphaErosionDefinitionData_embed_erosionDriveCurve__slot__0",
+          "name": "ValueFloat",
+          "schemaId": "value-float__main-entries-0x0eed7307-complex-emitter-definition-data-4-alpha-erosion-definition-erosion-drive-curve"
+        }
+      ]
+    },
+    {
+      "id": "VfxAlphaErosionDefinitionData_embed_erosionMapChannelMixer",
+      "title": "erosionMapChannelMixer",
+      "internalStructures": [
+        {
+          "id": "vfx-alpha-erosion-definition-data-erosion-map-channel-mixer",
+          "name": "ValueColor",
+          "schemaId": "value-color__main-entries-0x0eed7307-complex-emitter-definition-data-4-alpha-erosion-definition-erosion-map-channel-mixer"
+        }
+      ],
+      "slots": [
+        {
+          "id": "VfxAlphaErosionDefinitionData_embed_erosionMapChannelMixer__slot__0",
+          "name": "ValueColor",
+          "schemaId": "value-color__main-entries-0x0eed7307-complex-emitter-definition-data-4-alpha-erosion-definition-erosion-map-channel-mixer"
+        }
+      ]
+    }
+  ],
+  "pointer": [],
+  "listEmbed": [],
+  "listPointer": [],
+  "list2Embed": [],
+  "list2Pointer": [],
+  "internalStructures": []
+}

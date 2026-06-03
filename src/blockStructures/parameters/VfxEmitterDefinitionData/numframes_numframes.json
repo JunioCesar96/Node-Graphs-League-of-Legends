@@ -1,0 +1,20 @@
+{
+  "id": "numFrames_numFrames",
+  "block": "VfxEmitterDefinitionData",
+  "parameterName": "numFrames",
+  "name": "numFrames",
+  "source": {
+    "kind": "parameter",
+    "parameterId": "vfx-emitter-definition-data__entries-{particlePath}-complex-emitter-definition-data--slot--0_parameter_numFrames"
+  },
+  "type": "u16",
+  "value": "2",
+  "slots": {
+    "in": [
+      "u16"
+    ],
+    "out": [
+      "u16"
+    ]
+  }
+}

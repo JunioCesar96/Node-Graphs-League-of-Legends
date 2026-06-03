@@ -1,0 +1,26 @@
+{
+  "id": "VfxTextureMultDefinitionData_VfxTextureMultDefinitionData",
+  "block": "textureMult",
+  "blockName": "VfxTextureMultDefinitionData",
+  "type": "pointer",
+  "name": "VfxTextureMultDefinitionData",
+  "source": {
+    "kind": "block",
+    "nodeId": "vfx-texture-mult-definition-data__entries-{particlePath}-complex-emitter-definition-data--slot--7-texture-mult"
+  },
+  "color": "#40ff56",
+  "headerSlots": [
+    "in[textureMult]",
+    "out[VfxTextureMultDefinitionDataPreview]"
+  ],
+  "parameters": [
+    "texAddressModeMult",
+    "textureMult",
+    "uvScrollClampMult",
+    "uvScaleMult",
+    "ParticleIntegratedUvScrollMult",
+    "birthUVOffsetMult",
+    "birthUvScrollRateMult",
+    "texDivMult"
+  ]
+}
