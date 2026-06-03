@@ -9,7 +9,7 @@ Arquivo salvo em: `feature_md/feature/feature-addon-palette-install.md`
 | Nome da Branch | `feature/addon-palette-install` |
 | Nome das Features | Catálogo Add-ons no Ctrl+K; cartões expandidos com `manifest.info`; instalação por drag-and-drop; add-ons de referência `addon-galeria` e `addon-string-prefix`; APIs dev de listagem/instalação e pasta nativa da galeria |
 | Versão atual | `1.5.0` |
-| Hash do Commit | _(preencher com `git rev-parse HEAD` na branch de entrega)_ |
+| Hash do Commit | `d037948` |
 
 Documentação relacionada: `feature_md/prompet/prompet_addon.md`.
 

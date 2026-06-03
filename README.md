@@ -1,229 +1,220 @@
-# Implementation Documentation — Jade Surface Theme & Syntax Color Scheme
+# Documentação de Implementação — Catálogo de Add-ons (Ctrl+K), metadados `info` e instalação por arrastar
 
-Saved at: `feature_md/feature/feature-jade-surface-theme.md`
-
-## 1. Header
-
-| Field | Value |
-| --- | --- |
-| Branch Name | `feature-jade-surface-theme` |
-| Feature Name(s) | Jade Surface Theme (independent toggles); Syntax Color Scheme; context-menu checkboxes; app/VFX chrome theming |
-| Current Version | `1.5.3` |
-| Commit Hash | `4bdc558` |
-
----
-
-## 2. Tag Definition and Summary
-
-| Tag | Definition |
-| --- | --- |
-| `[NOVO]` | New module, hook, preference key, CSS token family, or UI entry point created in this branch. |
-| `[ATUALIZADO]` | Existing component, menu, or stylesheet wired to Jade theme/syntax preferences. |
-| `[REMOVIDO]` | Legacy single-toggle preference or submenu-only theme UX replaced by flat checkboxes. |
-
-Tags present in this implementation:
-
-- `[NOVO]`
-- `[ATUALIZADO]`
-- `[REMOVIDO]`
-
----
-
-## 3. Operation Flowchart
-
-```mermaid
-flowchart TD
-  subgraph prefs [Preferences]
-    TPref[NodeGraphsApplyJadeTheme]
-    SPref[NodeGraphsApplyJadeSyntax]
-    Legacy[NodeGraphsApplyJadeThemeSyntax deprecated]
-  end
-
-  subgraph core [Core]
-    GetState[getJadeSurfaceThemeState]
-    Refresh[refreshJadeSurfaceTheme]
-    ApplyTheme[applyJadeAppTheme via Jade]
-    ApplySyntax[applySyntaxColorsCss]
-    ApplyChrome[applyStructureSurfacesFromJadeTheme]
-    RevertTheme[revertJadeAppTheme]
-    RevertSyntax[revertSyntaxColorsCss]
-    RevertChrome[revertStructureSurfacesToDefaults]
-    Monaco[applyMonacoTheme / ritobin-dark]
-  end
-
-  subgraph ui [UI surfaces]
-    Canvas[Graph canvas grid + context menu]
-    MenuBar[AppMenuBar]
-    CodeDock[CodeDock header tabs resize]
-    NodeUI[Node headers cards inspector]
-    VFX[VFX Editor dock timeline inspector]
-    GroupBlock[Group/Block cards inspectors]
-  end
-
-  User[User toggles Tema or Syntax] --> Hook[useJadeSurfaceTheme]
-  Hook --> ToggleT[toggleJadeThemeEnabled]
-  Hook --> ToggleS[toggleJadeSyntaxEnabled]
-  ToggleT --> TPref
-  ToggleS --> SPref
-  ToggleT --> Event[jade-surface-theme-changed]
-  ToggleS --> Event
-  Event --> Refresh
-  GetState --> Legacy
-  GetState --> TPref
-  GetState --> SPref
-  Refresh --> GetState
-  Refresh -->|theme ON| ApplyTheme
-  Refresh -->|theme ON| ApplyChrome
-  Refresh -->|theme OFF| RevertTheme
-  Refresh -->|theme OFF| RevertChrome
-  Refresh -->|syntax ON| ApplySyntax
-  Refresh -->|syntax OFF| RevertSyntax
-  Refresh --> Monaco
-  ApplyChrome --> htmlAttr[html data-jade-surface-theme=on]
-  htmlAttr --> tokens[tokens.css --vfx-* --app-* overrides]
-  tokens --> ui
-  ApplySyntax --> tokens
-```
-
----
-
-## 4. Function Activation Sequence Diagram
-
-```mermaid
-sequenceDiagram
-  actor U as User
-  participant CM as Context menu / checkbox
-  participant Hook as useJadeSurfaceTheme
-  participant Core as jadeSurfaceTheme.ts
-  participant Prefs as preferenceStore Jade
-  participant DOM as document.documentElement
-  participant Monaco as Monaco Editor
-  participant CSS as tokens.css surfaces
-
-  Note over U,CSS: Boot
-  U->>Core: App mount refreshJadeSurfaceTheme()
-  Core->>Prefs: get NodeGraphsApplyJadeTheme / Syntax
-  Core->>DOM: applyTheme / syntax CSS / data attribute
-  Core->>Monaco: applyMonacoTheme or ritobin-dark
-
-  Note over U,CSS: Toggle Theme
-  U->>CM: Click checkbox Tema
-  CM->>Hook: toggleTheme()
-  Hook->>Core: toggleJadeThemeEnabled()
-  Core->>Prefs: set NodeGraphsApplyJadeTheme
-  Core->>DOM: dispatch jade-surface-theme-changed
-  Hook->>Core: refreshJadeSurfaceTheme(monaco)
-  alt theme ON
-    Core->>DOM: applyJadeAppTheme + data-jade-surface-theme
-  else theme OFF
-    Core->>DOM: revertJadeAppTheme + remove data attribute
-  end
-  Core->>Monaco: applyMonacoTheme(themeId, syntaxId)
-  CSS-->>U: chrome colors update
-
-  Note over U,CSS: Toggle Syntax only
-  U->>CM: Click checkbox Syntax Color Scheme
-  CM->>Hook: toggleSyntax()
-  Hook->>Core: toggleJadeSyntaxEnabled()
-  Core->>Prefs: set NodeGraphsApplyJadeSyntax
-  Core->>Core: applySyntaxColorsCss or revertSyntaxColorsCss
-  Core->>Monaco: syntax half of applyMonacoTheme
-```
-
----
-
-## 5. Functions and Components Table
-
-| Status | Name | Feature | Technical Description | Parameters / Return |
-| --- | --- | --- | --- | --- |
-| `[NOVO]` | `jadeSurfaceTheme.ts` | Core theme engine | Orchestrates Jade theme, syntax CSS, structure surfaces, app chrome revert, Monaco theme id. | `refreshJadeSurfaceTheme(monaco?)` → `Promise<string \| null>` |
-| `[NOVO]` | `useJadeSurfaceTheme.ts` | React hook | Subscribes to `jade-surface-theme-changed`; exposes `themeEnabled`, `syntaxEnabled`, toggles. | optional `monacoRef` → hook API |
-| `[NOVO]` | `surfaceThemeContextMenu.ts` | Menu builder | `buildSurfaceThemeMenuItems` — two flat checkbox items (not submenu). | `JadeSurfaceThemeState`, `tr` → `ContextMenuItem[]` |
-| `[NOVO]` | `SurfaceThemeContextMenu.tsx` | Standalone menu | Canvas-style menu with Tema + Syntax checkboxes. | `anchor`, `onClose` |
-| `[NOVO]` | `useSurfaceThemeContextMenu.ts` | Hook | Opens anchor for inspector/menu-bar right-click theme menu. | → `{ surfaceThemeMenuAnchor, open…, close… }` |
-| `[NOVO]` | `JADE_THEME_PREF` / `JADE_SYNTAX_PREF` | Persistence | Independent prefs `NodeGraphsApplyJadeTheme` and `NodeGraphsApplyJadeSyntax`. | string keys |
-| `[NOVO]` | `--vfx-*` token family | VFX theming | 40+ CSS variables; default VFX blue chrome; Jade overrides when theme ON. | CSS custom properties |
-| `[ATUALIZADO]` | `GraphCanvas.tsx` | Canvas menu | Passes `jadeThemeEnabled` / `jadeSyntaxEnabled`; handles `surface.toggleJadeTheme/Syntax`. | context menu handlers |
-| `[ATUALIZADO]` | `canvasContextMenuItems.ts` | Canvas menu | Appends theme checkboxes to empty canvas, node, and structure card menus. | build context |
-| `[ATUALIZADO]` | `CodeDockEditorContextMenu.tsx` | Editor menu | Flat Tema + Syntax checkboxes (no nested submenu). | editor context |
-| `[ATUALIZADO]` | `AppMenuBar.tsx` | Top menu | Right-click opens theme menu; `--app-menu-*` tokens. | — |
-| `[ATUALIZADO]` | `App.tsx` | Boot | Calls `refreshJadeSurfaceTheme()` on mount. | — |
-| `[ATUALIZADO]` | `tokens.css` | Design tokens | `html[data-jade-surface-theme='on']` maps Jade vars to app/node/VFX chrome. | — |
-| `[ATUALIZADO]` | `CodeDock.module.css` | Code dock | Header, shell, resize grip use theme tokens. | — |
-| `[ATUALIZADO]` | `NodeHeader.module.css` | Node cards | `--color-node-header` from Jade tab bg when theme ON. | — |
-| `[ATUALIZADO]` | `NodeInspector.module.css` | Inspector | `--app-panel-*` surfaces. | — |
-| `[ATUALIZADO]` | `SceneNodesPanel.module.css` | Nodes in scene | Panel chrome via app tokens. | — |
-| `[ATUALIZADO]` | `AddNodePalette.module.css` | Add node | Dialog/overlay gradient tokens. | — |
-| `[ATUALIZADO]` | `GraphCanvas.module.css` | Grid | `--canvas-grid-*` from editor bg/text. | — |
-| `[ATUALIZADO]` | `GroupInspector.tsx` / `BlockInspector.tsx` | Structure inspectors | Theme context menu + group surface vars. | — |
-| `[ATUALIZADO]` | `useCodeDockJadeEditor.ts` | Monaco | Listens `JADE_SURFACE_THEME_CHANGED`; reapplies theme. | — |
-| `[ATUALIZADO]` | 20× `*Vfx*.module.css` | VFX Editor | Hardcoded blues → `--vfx-*` variables. | — |
-| `[ATUALIZADO]` | `languageIds.ts` + `pt-br.json` / `en.json` | i18n | `CtxApplyJadeTheme` (484), `CtxApplyJadeSyntax` (485). | LangId |
-| `[REMOVIDO]` | `NodeGraphsApplyJadeThemeSyntax` (single) | Legacy | Replaced by split prefs; still read for migration. | deprecated |
-| `[REMOVIDO]` | `surface.tema` submenu item | UX | Replaced by two top-level checkbox rows. | — |
-| `[REMOVIDO]` | `buildSurfaceThemeMenuItem` nested children | UX | Replaced by `buildSurfaceThemeMenuItems`. | — |
-
----
-
-## 6. Detailed Description
-
-### Architecture (English)
-
-The feature separates **Jade Theme** (window/editor/tab colors and structural chrome) from **Syntax Color Scheme** (keyword/string/slot colors and Monaco syntax). Each preference persists independently via Jade `preferenceStore`. `refreshJadeSurfaceTheme` is the single entry point: it reads both flags, applies or reverts Jade CSS variables on `:root`, sets `html[data-jade-surface-theme="on"]` only when theme is enabled, applies syntax CSS variables when syntax is enabled, updates group/block structure surfaces, and configures Monaco via `applyMonacoTheme` or falls back to `ritobin-dark` when both are off.
-
-UI exposure uses **flat checkbox menu items** (not a nested “Tema” submenu): labels **Tema** and **Syntax Color Scheme** with ✓ when active. Menus: empty canvas, nodes, structure cards, CodeDock editor, AppMenuBar right-click, Group/Block inspector right-click.
-
-When theme is disabled, `revertJadeAppTheme` removes inline Jade variables so defaults from `tokens.css` return. Syntax revert clears `--syntax-*-color`, `--port-child`, etc.
-
-Error handling: `refreshJadeSurfaceTheme` wraps apply in try/catch, logs a warning, and reverts all surfaces on failure.
-
-### Architecture (Português)
-
-A feature separa **Tema Jade** (cores de janela/editor/abas e chrome estrutural) do **Syntax Color Scheme** (cores de keywords/strings/slots e syntax no Monaco). Cada preferência persiste de forma independente. `refreshJadeSurfaceTheme` centraliza: lê os dois flags, aplica ou reverte variáveis CSS, define `data-jade-surface-theme` só com tema activo, aplica syntax quando activa, actualiza superfícies grupo/bloco e configura o Monaco.
-
-A UI usa **checkboxes directos** (**Tema** e **Syntax Color Scheme**) nos menus de contexto: grade, nós, cards estrutura, editor CodeDock, barra de menu e inspetores Grupo/Bloco.
-
-Com tema desligado, o visual padrão do Node Graphs regressa. Com syntax desligada, cores de syntax e slots voltam ao default; tema pode continuar activo isoladamente.
-
-### How to use / Como utilizar
-
-| Step (EN) | Passo (PT) |
-| --- | --- |
-| Right-click canvas, top menu bar, CodeDock editor, or Group/Block inspector | Clique direito na grade, barra de menu, editor ou inspetor Grupo/Bloco |
-| Toggle **Theme** ✓ to apply Jade window/editor colors across app, nodes, VFX dock | Active **Tema** ✓ para cores Jade em app, nodes e Editor VFX |
-| Toggle **Syntax Color Scheme** ✓ for keyword/string colors in editor, slots, boolean inputs | Active **Syntax Color Scheme** ✓ para cores de syntax no editor e slots |
-| Turn either off to restore defaults for that layer | Desligue qualquer opção para voltar ao padrão dessa camada |
-| Combinations: theme only, syntax only, both, or neither | Combinações: só tema, só syntax, ambos, ou nenhum |
-
----
-
-# Documentação de Implementação — Tema Superfície Jade e Syntax Color Scheme
-
-Arquivo salvo em: `feature_md/feature/feature-jade-surface-theme.md`
+Arquivo salvo em: `feature_md/feature/feature-addon-palette-install.md`
 
 ## 1. Cabeçalho
 
 | Campo | Valor |
 | --- | --- |
-| Nome da Branch | `feature-jade-surface-theme` |
-| Nome da(s) Feature(s) | Tema Superfície Jade; Syntax Color Scheme; checkboxes nos menus; theming app/VFX |
-| Versão atual | `1.5.3` |
-| Hash do Commit | `4bdc558` |
+| Nome da Branch | `feature/addon-palette-install` |
+| Nome das Features | Catálogo Add-ons no Ctrl+K; cartões expandidos com `manifest.info`; instalação por drag-and-drop; add-ons de referência `addon-galeria` e `addon-string-prefix`; APIs dev de listagem/instalação e pasta nativa da galeria |
+| Versão atual | `1.5.0` |
+| Hash do Commit | `d037948` |
 
-## 2–6. (Mesma estrutura acima — ver secções em inglês para diagramas e tabela.)
+Documentação relacionada: `feature_md/prompet/prompet_addon.md`.
 
-### Utilização simples (Português)
+---
 
-1. Abra o menu de contexto (grade, menu superior, editor ou inspetor).
-2. Marque ou desmarque **Tema** para ligar/desligar cores Jade (fundo, abas, cabeçalhos, Editor VFX).
-3. Marque ou desmarque **Syntax Color Scheme** para ligar/desligar cores de syntax (editor Monaco, slots, inputs).
-4. As escolhas são guardadas automaticamente e reaplicadas ao reiniciar a app.
+## 2. Definição e Resumo de Tags
+
+| Tag | Definição |
+| --- | --- |
+| `[NOVO]` | Módulo, componente, API dev, add-on sandbox ou fluxo criado nesta entrega. |
+| `[ATUALIZADO]` | Componente ou serviço existente alterado para suportar add-ons ou o catálogo Ctrl+K. |
+| `[REMOVIDO]` | Comportamento ou API removida. |
+
+Tags presentes nesta implementação:
+
+- `[NOVO]`
+- `[ATUALIZADO]`
+
+Não houve itens classificados como `[REMOVIDO]`.
+
+---
+
+## 3. Fluxograma de Funcionamento
+
+```mermaid
+graph TD
+  subgraph boot [Arranque da app]
+    A[App.tsx mount] --> B[fetchAddonsFromDisk]
+    B --> C{GET /api/addons-list}
+    C -->|ok dev| D[manifests em public/addons]
+    C -->|fallback| E[GET /addons/index.json + loadManifestOnly]
+    D --> F[registerAddonManifest no addonRegistry]
+    E --> F
+  end
+
+  subgraph palette [Ctrl+K Addons]
+    G[Utilizador abre Ctrl+K] --> H[Separador Addons]
+    H --> I[PaletteAddonInstallZone]
+    H --> J[Lista PaletteAddAddonOption]
+    J --> K[resolveAddonManifestInfo i18n]
+    K --> L[Hover/seleção expande info tags links]
+  end
+
+  subgraph install [Instalação drag-and-drop]
+    M[Arrastar pasta para zona] --> N[readDroppedAddonFolder]
+    N --> O[Validar manifest.json na raiz]
+    O --> P[installDroppedAddonFiles]
+    P --> Q[POST /api/addons-install]
+    Q --> R[Gravar public/addons/id + index.json]
+    R --> S[refreshAddonsCatalog]
+  end
+
+  subgraph canvas [Canvas]
+    T[Escolher add-on na paleta] --> U[preloadAddonPackage]
+    U --> V[AddonCardHost + logic.js execute]
+    V --> W[crossSlotConnections grafo + DOM]
+  end
+
+  I --> M
+  J --> T
+  F --> J
+  S --> B
+```
+
+---
+
+## 4. Fluxograma de Acionamento de Funções
+
+```mermaid
+sequenceDiagram
+  actor U as Utilizador
+  participant Pal as AddNodePalette
+  participant Zone as PaletteAddonInstallZone
+  participant Drop as addonInstallFromDrop
+  participant API as vite.addonsInstallHandler
+  participant Reg as addonRegistry
+  participant GC as GraphCanvas
+  participant Loader as AddonLoaderService
+
+  U->>Pal: Ctrl+K → Addons
+  Pal->>Reg: fetchAddonsFromDisk / refreshAddonsCatalog
+  Reg-->>Pal: manifests[]
+
+  U->>Zone: drop pasta add-on
+  Zone->>Drop: installAddonFromDataTransfer
+  Drop->>Drop: readDroppedAddonFolder + validateAddonManifest
+  Drop->>API: POST /api/addons-install { files }
+  API->>API: isAddonManifest + fs.writeFile + updateAddonsIndex
+  API-->>Drop: { ok, manifest }
+  Drop-->>Zone: progress 100% + nome
+  Zone->>Pal: onInstalled → refreshAddonsCatalog
+
+  U->>Pal: Clica add-on na lista
+  Pal->>GC: onPickAddon addonId
+  GC->>Loader: preloadAddonPackage
+  Loader->>Loader: loadFromSandbox ui.html logic.js language
+  Loader-->>GC: AddonPackage
+  GC->>GC: createAddonNode + render AddonCard
+```
+
+---
+
+## 5. Tabela de Funções e Componentes
+
+| Status | Nome | Feature | Descrição Técnica | Parâmetros / Retorno |
+| --- | --- | --- | --- | --- |
+| `[NOVO]` | `addonLoader.service.ts` | Runtime add-on | Valida/normaliza manifest; carrega `ui.html`, `logic.js`, i18n e menus de contexto. | `loadFromSandbox(id, locale)` → `AddonPackage`. |
+| `[NOVO]` | `addonRegistry.ts` | Catálogo | Cache de manifests/packages; `fetchAddonsFromDisk`; pesquisa inclui `info`. | `registerAddonManifest`, `matchesAddonQuery`. |
+| `[NOVO]` | `addonManifestInfo.ts` | Metadados Ctrl+K | Resolve `description`/`tags` i18n; texto de pesquisa. | `resolveAddonManifestInfo`, `addonManifestInfoSearchText`. |
+| `[NOVO]` | `PaletteAddAddonOption.tsx` | UI catálogo | Cartão estilo blocos; expande com autor, versão, licença, tags, Repo/Docs. | `manifest`, `expanded`, `onPick`. |
+| `[NOVO]` | `PaletteAddonInstallZone.tsx` | Instalação | Zona drag-and-drop; barra de progresso; nome e estado sucesso/erro. | `onInstalled` callback. |
+| `[NOVO]` | `addonInstallFromDrop.ts` | Client install | Lê pasta via `webkitGetAsEntry`; envia ficheiros JSON ao servidor dev. | `installAddonFromDataTransfer` → `AddonInstallResult`. |
+| `[NOVO]` | `vite.addonsInstallHandler.ts` | API dev | `POST /api/addons-install`; valida manifest; grava disco; actualiza `index.json`. | `handleAddonsInstallRequest`. |
+| `[NOVO]` | `vite.addonsListHandler.ts` | API dev | `GET /api/addons-list`; enumera `public/addons/*/manifest.json`. | `handleAddonsListRequest`, `isAddonManifest`. |
+| `[NOVO]` | `vite.plugin.addonsList.ts` | Plugin Vite | Middleware dev para list + install + available. | `apply: serve`. |
+| `[NOVO]` | `AddonCardHost.tsx` / `AddonCardView.tsx` | Canvas | Renderiza UI sandbox; slots IN/OUT; drive reactivo. | Props de cena + `AddonPackage`. |
+| `[NOVO]` | `addonSlotConnections.ts` / `crossSlotConnections.ts` | Ligações | Conexões entre slots de add-on e nós/blocos. | `applyAddonSlotConnectionToScene`, etc. |
+| `[NOVO]` | `useAddonCanvasLinks.ts` | Interacção | Drag de slots add-on; abre paleta Addons filtrada. | Hook no `GraphCanvas`. |
+| `[NOVO]` | `addon-galeria` | Add-on Media | Galeria LoL: Root Folder, personagem, origem Particles/Base/Path; `.tex`/`.dds`; menu contexto. | `public/addons/addon-galeria/`. |
+| `[NOVO]` | `vite.galleryFolderHandler.ts` | API galeria dev | Pick folder, scan directory, read file (Windows dev). | Endpoints `/api/gallery-*`. |
+| `[ATUALIZADO]` | `AddNodePalette.tsx` | Ctrl+K | Separador Addons; zona instalação; pesquisa; oculta filtros A-Z/pastas em modo Addons. | `onPickAddon`, `refreshAddonsCatalog`. |
+| `[ATUALIZADO]` | `GraphCanvas.tsx` | Paleta add-on | `addonDropLinkContext`; spawn ao escolher na paleta. | `handlePaletteAddonPick`. |
+| `[ATUALIZADO]` | `App.tsx` | Boot | `fetchAddonsFromDisk()` no mount. | — |
+| `[ATUALIZADO]` | `addon-string-prefix` | Metadados | Bloco `info` + chaves i18n 20–23 alinhadas à galeria. | `manifest.json`, `language/*.json`. |
+| `[ATUALIZADO]` | `languageIds.ts` + `language/*.json` | i18n | Strings catálogo Addons e zona de instalação (556–564). | `LangId.NodePaletteCatalogAddons`, etc. |
+
+---
+
+## 6. Descrição Detalhada de Funcionamento
+
+### Catálogo Add-ons (Ctrl+K)
+
+[NOVO] O `AddNodePalette` ganhou o modo **Addons**, activo quando `addonsCatalogEnabled` (por defeito quando não há contexto de ligação de nó/bloco exclusivo). A lista vem de `fetchAddonsFromDisk`, que preferencialmente usa `GET /api/addons-list` em dev e, em fallback, lê `public/addons/index.json` e carrega cada manifest.
+
+[ATUALIZADO] Em modo Addons, filtros de pasta e organização A-Z ficam ocultos — apenas pesquisa por título, id, categoria e campos de `manifest.info`.
+
+[NOVO] `PaletteAddAddonOption` replica o layout compacto/expandido dos blocos: ao hover ou seleção por teclado, expande e mostra descrição (i18n), autor · versão · licença, tags traduzidas e links **Repo** / **Docs** quando presentes em `manifest.info`.
+
+[NOVO] `addonManifestInfo.ts` interpreta chaves `[{n}]` / `{n}` usando o pack `language/{locale}.json` de cada add-on.
+
+### Instalação por arrastar pasta
+
+[NOVO] `PaletteAddonInstallZone` aparece acima da lista no modo Addons. O utilizador arrasta **uma pasta** contendo `manifest.json` na raiz.
+
+[NOVO] O cliente (`addonInstallFromDrop.ts`) percorre a árvore via `DataTransferItem.webkitGetAsEntry`, valida o manifest com `validateAddonManifest`, resolve o nome para exibição (i18n local) e envia todos os ficheiros em JSON para `POST /api/addons-install`.
+
+[NOVO] O servidor (`vite.addonsInstallHandler.ts`) revalida com `isAddonManifest`, impede path traversal, grava em `public/addons/{id}/`, actualiza `public/addons/index.json` e responde com o manifest instalado.
+
+[ATUALIZADO] Após sucesso, `refreshAddonsCatalog` repovoa a lista sem reiniciar a app.
+
+**Limitação:** instalação disponível apenas com `npm run dev` (`GET /api/addons-install-available`). Em build estático, a zona mostra mensagem de indisponibilidade.
+
+### Add-on Galeria (referência)
+
+[NOVO] Fluxo `{Raiz}` → personagem (`characters.json`) → origem Particles / Base / Path; barra de progresso `#D8EBF2` durante scan; suporte `.tex`/`.dds`; menu contexto (guardar imagem, copiar caminho absoluto em dev, copiar nome).
+
+[NOVO] APIs dev em `vite.galleryFolderHandler.ts` para pick de pasta Windows, scan recursivo e leitura de ficheiro.
+
+### Runtime no canvas
+
+[NOVO] `AddonLoaderService.loadFromSandbox` importa `logic.js` como módulo ESM, injecta `ui.html` no cartão, aplica drive (`inputChange`, `always`, etc.) e propaga outputs via `addonOutputPropagation`.
+
+[NOVO] Ligações cruzadas add-on ↔ nó/bloco via `crossSlotConnections` e hook `useAddonCanvasLinks` (arrastar slot OUT abre paleta Addons).
+
+### Tratamento de erros
+
+- Pasta sem `manifest.json` na raiz → mensagem na zona de instalação (sem Messenger; fluxo inline).
+- Manifest inválido → erro antes do upload ou resposta 400 da API.
+- Múltiplas pastas no drop → rejeição no cliente.
+- API indisponível (produção) → zona desactivada com hint i18n.
+- Add-ons ignorados em listagem dev aparecem em `skipped` no JSON de `/api/addons-list` (log servidor).
+
+**Confirmações de UI:** esta feature **não** introduz diálogos de confirmação; feedback é inline na zona de instalação e na barra de progresso. Não usa `window.confirm` / `window.alert`.
+
+---
+
+## 7. Como utilizar (didático)
+
+### Português
+
+1. Execute **`npm run dev`** (instalação de add-ons requer o servidor Vite).
+2. Abra **Ctrl+K** e seleccione o separador **Addons**.
+3. Para **instalar**: arraste a pasta do add-on (com `manifest.json` na raiz) para a caixa **Instalar Addon**.
+4. Aguarde a barra de progresso, o nome do add-on e a mensagem **Instalado com sucesso.**
+5. O add-on passa a aparecer na lista abaixo; use a pesquisa por nome ou id.
+6. Passe o rato sobre um add-on para ver descrição, autor, tags e links Repo/Docs.
+7. Clique num add-on para o colocar no canvas; ligue slots como nos blocos.
+8. **Galeria:** defina **Root Folder**, escolha personagem e origem (Particles / Base / Path); use o menu de contexto nas imagens.
+
+### English
+
+1. Run **`npm run dev`** (add-on install requires the Vite dev server).
+2. Open **Ctrl+K** and select the **Addons** tab.
+3. To **install**: drag the add-on folder (with root `manifest.json`) onto **Install Addon**.
+4. Wait for the progress bar, add-on name, and **Installed successfully.**
+5. The add-on appears in the list below; search by name or id.
+6. Hover an entry to see description, author, tags, and Repo/Docs links.
+7. Click an add-on to spawn it on the canvas; wire slots like blocks.
+8. **Gallery:** set **Root Folder**, pick character and source (Particles / Base / Path); use the image context menu.
 
 ---
 
 ## Acknowledgements
 
-Special thanks to **Bud**, creator of the Jade tool that powers the BIN conversion system used in this project.  
+Special thanks to **Bud**, creator of the Jade tool that powers the BIN conversion system used in this project.
 GitHub: https://github.com/budlibu500
 
 Key contributions include:
