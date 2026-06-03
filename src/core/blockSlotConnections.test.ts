@@ -449,7 +449,7 @@ describe('blockSlotConnections', () => {
     expect(point!.y).toBeGreaterThan(100)
   })
 
-  it('normaliza headerSlots legados com múltiplos in[ ] para slot único com tipos combinados', () => {
+  it('normaliza headerSlots legados preservando entradas in[] separadas', () => {
     const node = makeVfxEmitterCanvasNode({
       id: 'catalog-legacy-multi-in',
       position: { x: 200, y: 100 },
@@ -477,14 +477,14 @@ describe('blockSlotConnections', () => {
 
     expect(inputHeaders).toHaveLength(3)
     expect(outputHeaders).toHaveLength(1)
-    expect(inputHeaders.map((entry) => entry.types[0])).toEqual([
-      'birthVelocity',
-      'birthDrag',
-      'birthScale0',
+    expect(inputHeaders.map((entry) => entry.types)).toEqual([
+      ['birthVelocity'],
+      ['birthDrag'],
+      ['birthScale0'],
     ])
   })
 
-  it('considera múltiplos tipos num único headerSlot IN/OUT', () => {
+  it('considera múltiplos tipos num único descriptor de headerSlot IN/OUT', () => {
     const node = makeVfxEmitterCanvasNode({
       id: 'catalog-multi-header',
       position: { x: 200, y: 100 },
@@ -508,22 +508,22 @@ describe('blockSlotConnections', () => {
     const headerIns = endpoints.filter((entry) => entry.kind === 'header' && entry.direction === 'input')
     const headerOuts = endpoints.filter((entry) => entry.kind === 'header' && entry.direction === 'output')
 
-    expect(headerIns).toHaveLength(2)
-    expect(headerIns.map((entry) => entry.types[0])).toEqual(['branchA', 'branchB'])
-    expect(headerOuts).toHaveLength(2)
-    expect(headerOuts.map((entry) => entry.types[0])).toEqual([
+    expect(headerIns).toHaveLength(1)
+    expect(headerIns[0]?.types).toEqual(['branchA', 'branchB'])
+    expect(headerOuts).toHaveLength(1)
+    expect(headerOuts[0]?.types).toEqual([
       'VfxSystemDefinitionDataPreview',
       'VfxSystemDefinitionDataPreviewAlt',
     ])
 
     const inPoint = resolveBlockSlotCanvasPoint(
       node,
-      blockHeaderSlotId('VfxSystemDefinitionData', 0, 'branchA'),
+      blockHeaderSlotId('VfxSystemDefinitionData', 0),
       'input',
     )
     const outPoint = resolveBlockSlotCanvasPoint(
       node,
-      blockHeaderSlotId('VfxSystemDefinitionData', 1, 'VfxSystemDefinitionDataPreview'),
+      blockHeaderSlotId('VfxSystemDefinitionData', 1),
       'output',
     )
     expect(inPoint).not.toBeNull()

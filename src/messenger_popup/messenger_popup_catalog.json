@@ -31,6 +31,12 @@
       "kind": "confirm"
     },
     {
+      "id": "confirm_addon_connection_forced",
+      "message": "«{outputLabel}» envia tipo «{outputType}», mas «{inputLabel}» espera «{inputType}». Deseja forçar a conexão?",
+      "durationMs": null,
+      "kind": "confirm"
+    },
+    {
       "id": "example_toast_saved",
       "message": "Alterações guardadas.",
       "durationMs": 4000,

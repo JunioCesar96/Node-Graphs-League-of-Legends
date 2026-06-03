@@ -2864,6 +2864,22 @@ export function useSceneHistory(options?: {
     [updateScene],
   )
 
+  const removeConnectionsFromBlockSlot = useCallback(
+    (nodeId: string, slotId: string) => {
+      updateScene((currentScene) => ({
+        ...currentScene,
+        connections: currentScene.connections.filter(
+          (connection) =>
+            !(
+              (connection.fromNodeId === nodeId && connection.fromBlockSlotId === slotId) ||
+              (connection.toNodeId === nodeId && connection.toBlockSlotId === slotId)
+            ),
+        ),
+      }))
+    },
+    [updateScene],
+  )
+
   const removePointerSlot = useCallback(
     (nodeId: string, slotId: string) => {
       updateScene((currentScene) => {
@@ -3340,7 +3356,7 @@ export function useSceneHistory(options?: {
             slotRules: param.slotRules,
             slotTags: isBlockPointerSourcePath(param.sourcePath)
               ? mandatoryPointerSlotTags(param.nameParameter)
-              : slotRulesToTags(param.slotRules),
+              : undefined,
           })),
         }
       }
@@ -3998,6 +4014,7 @@ export function useSceneHistory(options?: {
     connectNodes,
     removeConnection,
     removeConnectionsFromOutputSlot,
+    removeConnectionsFromBlockSlot,
     relinkInternalStructureSlot,
     createChildNode,
     createRootNode,

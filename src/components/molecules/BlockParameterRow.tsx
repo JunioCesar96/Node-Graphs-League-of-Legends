@@ -30,7 +30,6 @@ type BlockParameterRowProps = {
   onInputPointerUp?: PointerEventHandler<HTMLButtonElement>
   onSlotWirelessHoverStart?: (slotId: string, link: BlockSlotWirelessLink) => void
   onSlotWirelessHoverEnd?: () => void
-  onSlotCycleRouting?: (connectionId: string) => void
 }
 
 export function BlockParameterRow({
@@ -52,7 +51,6 @@ export function BlockParameterRow({
   canvasNodeId,
   onSlotWirelessHoverStart,
   onSlotWirelessHoverEnd,
-  onSlotCycleRouting,
 }: BlockParameterRowProps) {
   const outputSlotId = `block-param:${parameter.idParameter}:output`
   const inputSlotId = `block-param:${parameter.idParameter}:input`
@@ -90,14 +88,6 @@ export function BlockParameterRow({
               }
             }}
             onPointerLeave={onSlotWirelessHoverEnd}
-            onContextMenu={(event) => {
-              if (!inputSlotLink || !onSlotCycleRouting) {
-                return
-              }
-              event.preventDefault()
-              event.stopPropagation()
-              onSlotCycleRouting(inputSlotLink.connectionId)
-            }}
           />
         ) : null}
       </div>
@@ -116,6 +106,7 @@ export function BlockParameterRow({
               className={styles.input}
               type={dataType}
               fieldTitle={parameter.nameParameter}
+              readOnly={Boolean(inputSlotLink)}
               value={value}
               onCommit={onCommitValue}
               onFocusChange={isStringInput ? setInputFocused : undefined}
@@ -149,14 +140,6 @@ export function BlockParameterRow({
               }
             }}
             onPointerLeave={onSlotWirelessHoverEnd}
-            onContextMenu={(event) => {
-              if (!outputSlotLink || !onSlotCycleRouting) {
-                return
-              }
-              event.preventDefault()
-              event.stopPropagation()
-              onSlotCycleRouting(outputSlotLink.connectionId)
-            }}
           />
         ) : null}
       </div>

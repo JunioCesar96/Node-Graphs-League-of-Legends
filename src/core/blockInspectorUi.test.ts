@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 
 import {
   addSlotTag,
+  blockInspectorTagsFromEntry,
+  defaultBlockInspectorSlotTags,
   parseSlotDraftInput,
   slotTagsToRules,
   toggleSlotTagActive,
@@ -38,5 +40,30 @@ describe('blockInspectorUi', () => {
     ])
     expect(rules?.outputs).toEqual(['vec'])
     expect(rules?.inputs).toBeUndefined()
+  })
+
+  it('defaultBlockInspectorSlotTags cria par IN/OUT desactivado', () => {
+    expect(defaultBlockInspectorSlotTags('vec4')).toEqual([
+      { direction: 'input', type: 'vec4', active: false },
+      { direction: 'output', type: 'vec4', active: false },
+    ])
+  })
+
+  it('blockInspectorTagsFromEntry reflecte slotRules activos por direcção', () => {
+    const tags = blockInspectorTagsFromEntry({
+      typeParameter: 'u8',
+      slotRules: { inputs: ['u8'], outputs: ['u8'] },
+    })
+    expect(tags).toEqual([
+      { direction: 'input', type: 'u8', active: true },
+      { direction: 'output', type: 'u8', active: true },
+    ])
+  })
+
+  it('blockInspectorTagsFromEntry sem slotRules fica desactivado', () => {
+    expect(blockInspectorTagsFromEntry({ typeParameter: 'f32' })).toEqual([
+      { direction: 'input', type: 'f32', active: false },
+      { direction: 'output', type: 'f32', active: false },
+    ])
   })
 })

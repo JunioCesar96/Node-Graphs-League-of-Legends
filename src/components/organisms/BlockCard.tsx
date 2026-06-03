@@ -18,9 +18,8 @@ import {
 } from '@/core/structureCardLayout'
 import { BlockCardParameterMenu } from '@/components/molecules/BlockCardParameterMenu'
 import {
-  blockHeaderSlotOffsetY,
+  blockHeaderPortStackOffsetY,
   expandBlockHeaderSlotPorts,
-  parseBlockHeaderSlotDescriptor,
   resolveBlockHeaderSlotsForStructure,
 } from '@/core/blockCardHeaderSlots'
 import { blockTypeDefinitionById } from '@/core/blockStructureRegistry'
@@ -75,7 +74,6 @@ type BlockCardProps = {
   blockWirelessPulseSlotId?: string
   onBlockSlotWirelessHoverStart?: (slotId: string, link: BlockSlotWirelessLink) => void
   onBlockSlotWirelessHoverEnd?: () => void
-  onBlockSlotCycleRouting?: (connectionId: string) => void
   canvasScale?: number
   structureCardResizeModifierActive?: boolean
   onStructureCardResize?: (payload: { width: number; positionX: number }) => void
@@ -105,7 +103,6 @@ export function BlockCard({
   blockWirelessPulseSlotId,
   onBlockSlotWirelessHoverStart,
   onBlockSlotWirelessHoverEnd,
-  onBlockSlotCycleRouting,
   canvasScale = 1,
   structureCardResizeModifierActive = false,
   onStructureCardResize,
@@ -157,16 +154,14 @@ export function BlockCard({
   const headerInputPorts = headerPorts.filter((port) => port.direction === 'input')
   const headerOutputPorts = headerPorts.filter((port) => port.direction === 'output')
 
-  const headerPortOffsetY = (port: (typeof headerPorts)[number]): number => {
-    const parsed = parseBlockHeaderSlotDescriptor(headerSlots[port.slotIndex] ?? '')
-    const typeCount = parsed?.types.length ?? 1
-    if (typeCount <= 1) {
-      return 0
+  const headerPortOffsetY = (port: (typeof headerPorts)[number]): number =>
+    blockHeaderPortStackOffsetY(headerPorts, port)
+
+  const headerSlotTypeLabel = (port: (typeof headerPorts)[number]): string => {
+    if (port.types.length <= 1) {
+      return port.types[0] ?? port.direction
     }
-    const fieldIndex = port.fieldKey
-      ? parsed!.types.findIndex((type) => type === port.fieldKey)
-      : 0
-    return blockHeaderSlotOffsetY(typeCount, fieldIndex >= 0 ? fieldIndex : 0)
+    return `${String(port.types.length)} tipos (${port.types.join(', ')})`
   }
 
   return (
@@ -216,7 +211,7 @@ export function BlockCard({
               >
                 <BlockSlot
                   variant="in"
-                  ariaLabel={`Entrada do bloco (${port.fieldKey ?? port.types[0] ?? 'in'})`}
+                  ariaLabel={`Entrada do bloco (${headerSlotTypeLabel(port)})`}
                   disabled={interactionLocked}
                   linked={Boolean(blockWirelessDisplay?.slots.get(port.slotId))}
                   wireless={blockWirelessDisplay?.slots.get(port.slotId)?.routing === 'wireless'}
@@ -258,7 +253,7 @@ export function BlockCard({
               >
                 <BlockSlot
                   variant="out"
-                  ariaLabel={`Saída do bloco (${port.fieldKey ?? port.types[0] ?? 'out'})`}
+                  ariaLabel={`Saída do bloco (${headerSlotTypeLabel(port)})`}
                   disabled={interactionLocked}
                   active={activeBlockSlotId === port.slotId}
                   linked={Boolean(blockWirelessDisplay?.slots.get(port.slotId))}
@@ -352,7 +347,6 @@ export function BlockCard({
               }
               onSlotWirelessHoverStart={onBlockSlotWirelessHoverStart}
               onSlotWirelessHoverEnd={onBlockSlotWirelessHoverEnd}
-              onSlotCycleRouting={onBlockSlotCycleRouting}
             />
           )
         })}

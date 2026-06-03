@@ -8,6 +8,7 @@ import {
   blockParameterJsonDocumentToNodeDataType,
   isParameterAlreadyOnBlock,
 } from './blockParameterFromJson'
+import { blockInspectorTagsFromEntry } from './blockInspectorUi'
 import type { BlockParameterJsonDocument } from './blockParameterJson'
 
 const simpleDoc: BlockParameterJsonDocument = {
@@ -74,6 +75,24 @@ describe('blockParameterJsonDocumentToNodeDataType', () => {
   })
 })
 
+describe('blockInspectorEntryFromParameterDef', () => {
+  it('expõe IN/OUT do tipo do parâmetro desactivados quando sem slots', () => {
+    const def = blockParameterDefFromJsonDocument(
+      {
+        ...simpleDoc,
+        slots: { in: [], out: [] },
+      },
+      'VfxEmitterDefinitionData',
+      [],
+    )
+    const entry = blockInspectorEntryFromParameterDef(def)
+    expect(blockInspectorTagsFromEntry(entry)).toEqual([
+      { direction: 'input', type: 'u8', active: false },
+      { direction: 'output', type: 'u8', active: false },
+    ])
+  })
+})
+
 describe('applyInspectorEntryToParameterDef', () => {
   it('preserva slot OUT em parâmetro estrutural', () => {
     const def = blockParameterDefFromJsonDocument(pointerDoc, 'Emitter', [])
@@ -84,5 +103,23 @@ describe('applyInspectorEntryToParameterDef', () => {
     }
     const merged = applyInspectorEntryToParameterDef(def, edited)
     expect(merged.slotRules?.outputs).toEqual(['VfxPrimitiveMesh'])
+  })
+
+  it('aplica slotRules explícitas quando slotTags está vazio', () => {
+    const def = blockParameterDefFromJsonDocument(
+      {
+        ...simpleDoc,
+        slots: { in: [], out: [] },
+      },
+      'VfxEmitterDefinitionData',
+      [],
+    )
+    const withoutSlots = { ...def, slotRules: undefined }
+    const merged = applyInspectorEntryToParameterDef(withoutSlots, {
+      ...blockInspectorEntryFromParameterDef(withoutSlots),
+      slotTags: [],
+      slotRules: { outputs: ['string'], inputs: ['string'] },
+    })
+    expect(merged.slotRules).toEqual({ outputs: ['string'], inputs: ['string'] })
   })
 })

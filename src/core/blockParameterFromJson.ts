@@ -175,7 +175,7 @@ export function blockInspectorEntryFromParameterDef(param: BlockParameterDef): B
   const isPointer = param.sourcePath.kind === 'pointerChild'
   const slotTags = isPointer
     ? mandatoryPointerSlotTags(param.typeParameter.trim() || param.nameParameter)
-    : slotRulesToTags(param.slotRules).map((tag) => ({ ...tag, active: true }))
+    : undefined
 
   return {
     sourcePath: param.sourcePath,
@@ -212,6 +212,9 @@ export function applyInspectorEntryToParameterDef(
   }
 
   let slotRules = slotTagsToRules(entry.slotTags ?? slotRulesToTags(entry.slotRules))
+  if ((!entry.slotTags || entry.slotTags.length === 0) && entry.slotRules) {
+    slotRules = entry.slotRules
+  }
 
   if (structural && param.slotRules?.outputs?.length) {
     slotRules = {

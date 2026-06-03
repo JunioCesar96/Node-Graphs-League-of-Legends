@@ -11,6 +11,12 @@ export type CanvasContextTarget =
   | { type: 'nodeInputPort'; nodeId: string }
   | { type: 'connection'; connectionId: string }
   | {
+      type: 'blockSlot'
+      nodeId: string
+      slotId: string
+      direction: 'input' | 'output'
+    }
+  | {
       type: 'element'
       nodeId: string
       kind: NodeElementKind | 'list2EmbedBlock' | 'list2PointerBlock' | 'list2EmbedInstance' | 'list2PointerInstance'
@@ -91,6 +97,8 @@ export type ContextMenuItemId =
   | 'nodeInputPort.focusPeerOutputSlot'
   | 'element.relink'
   | 'element.removeConnections'
+  | 'blockSlot.removeConnections'
+  | 'blockSlot.focusPeerSlot'
   | 'element.remove'
   | 'element.openElementMenu'
   | 'element.removeInstance'

@@ -34,13 +34,50 @@ const embedDoc: BlockParameterJsonDocument = {
 }
 
 describe('addParameterToBlockStructure', () => {
-  it('desativa slots por padrão para parâmetro simples quando solicitado', () => {
-    const result = addParameterToBlockStructure(baseStructure, simpleDoc, {
+  it('desativa slots por padrão para parâmetro simples sem slots no catálogo', () => {
+    const docWithoutSlots: BlockParameterJsonDocument = {
+      ...simpleDoc,
+      slots: { in: [], out: [] },
+    }
+    const result = addParameterToBlockStructure(baseStructure, docWithoutSlots, {
       disableSimpleSlotsByDefault: true,
     })
 
     expect(result.error).toBeUndefined()
     expect(result.structure.parameters[0]?.slotRules).toBeUndefined()
+  })
+
+  it('desativa slots de parâmetro simples mesmo quando o catálogo JSON define slots', () => {
+    const emitterNameDoc: BlockParameterJsonDocument = {
+      id: 'emitterName_emitterName',
+      block: 'VfxEmitterDefinitionData',
+      parameterName: 'emitterName',
+      name: 'emitterName',
+      source: { kind: 'parameter', parameterId: 'p-emitterName' },
+      type: 'string',
+      value: 'Pillar_bk2',
+      slots: { in: ['string'], out: ['string'] },
+    }
+
+    const result = addParameterToBlockStructure(baseStructure, emitterNameDoc)
+
+    expect(result.error).toBeUndefined()
+    expect(result.structure.parameters[0]?.slotRules).toBeUndefined()
+  })
+
+  it('aplica política por defeito sem opções explícitas', () => {
+    const docWithoutSlots: BlockParameterJsonDocument = {
+      ...simpleDoc,
+      slots: { in: [], out: [] },
+    }
+
+    const simpleResult = addParameterToBlockStructure(baseStructure, docWithoutSlots)
+    expect(simpleResult.structure.parameters[0]?.slotRules).toBeUndefined()
+
+    const complexResult = addParameterToBlockStructure(simpleResult.structure, embedDoc)
+    expect(complexResult.structure.parameters[1]?.slotRules).toEqual({
+      outputs: ['ValueVector3'],
+    })
   })
 
   it('mantém slots estruturais mesmo com disableSimpleSlotsByDefault', () => {

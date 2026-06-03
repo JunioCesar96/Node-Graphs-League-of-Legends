@@ -65,6 +65,45 @@ export function normalizeDraftEntrySlots(entry: {
   return slotRulesToTags(entry.slotRules)
 }
 
+/** Par IN/OUT do tipo do parâmetro — ambos desactivados por defeito. */
+export function defaultBlockInspectorSlotTags(typeParameter: string): BlockInspectorSlotTag[] {
+  const type = typeParameter.trim()
+  if (!type) {
+    return []
+  }
+  return [
+    { direction: 'input', type, active: false },
+    { direction: 'output', type, active: false },
+  ]
+}
+
+/** Normaliza tags do inspetor de bloco: só IN e OUT com o typeParameter. */
+export function blockInspectorTagsFromEntry(entry: {
+  typeParameter: string
+  slotTags?: BlockInspectorSlotTag[]
+  slotRules?: BlockSlotRules
+}): BlockInspectorSlotTag[] {
+  const base = defaultBlockInspectorSlotTags(entry.typeParameter)
+
+  if (entry.slotTags?.length) {
+    return base.map((tag) => {
+      const match = entry.slotTags!.find((candidate) => candidate.direction === tag.direction)
+      return match ? { ...tag, active: match.active } : tag
+    })
+  }
+
+  if (entry.slotRules) {
+    const hasIn = (entry.slotRules.inputs?.length ?? 0) > 0
+    const hasOut = (entry.slotRules.outputs?.length ?? 0) > 0
+    return base.map((tag) => ({
+      ...tag,
+      active: tag.direction === 'input' ? hasIn : hasOut,
+    }))
+  }
+
+  return base
+}
+
 /** Interpreta texto do campo slot; `{…}` é ignorado na tag (ex.: `in{1}vec` → `in:vec`). */
 export function parseSlotDraftInput(
   raw: string,

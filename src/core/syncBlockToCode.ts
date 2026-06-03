@@ -1,3 +1,4 @@
+import { resolveIncomingAddonOutputForBlockParameter } from './addonOutputPropagation'
 import type { CanvasNode, CanvasScene } from './canvasScene'
 import type { BlockStructurePayload } from './blockSchema'
 import {
@@ -80,6 +81,10 @@ export function readBlockParameterDisplayValue(
   const param = structure.parameters.find((entry) => entry.idParameter === paramId)
   if (!param) {
     return ''
+  }
+  const wiredAddonValue = resolveIncomingAddonOutputForBlockParameter(scene, canvasNode, paramId)
+  if (wiredAddonValue !== undefined) {
+    return wiredAddonValue
   }
   return resolveBlockParameterValue(scene, canvasNode, param.sourcePath) || param.defaultValue
 }

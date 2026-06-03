@@ -374,6 +374,7 @@ function App() {
     relinkInternalStructureSlot,
     removeConnection,
     removeConnectionsFromOutputSlot,
+    removeConnectionsFromBlockSlot,
     createChildNode,
     createRootNode,
     spawnNeekoNodeAtPosition,
@@ -4421,6 +4422,7 @@ function App() {
             onSetAllNodeElementsRetracted={setAllNodeElementsRetracted}
             onSetElementSelectedIndex={setElementSelectedIndex}
             onRemoveConnectionsFromOutputSlot={removeConnectionsFromOutputSlot}
+            onRemoveConnectionsFromBlockSlot={removeConnectionsFromBlockSlot}
             onShowOnlyConnectedComponent={showOnlyConnectedComponent}
             onShowOnlySlotSubtree={showOnlySlotSubtree}
             onShowOnlyIncomingSlotBranch={showOnlyIncomingSlotBranch}

@@ -186,3 +186,51 @@ describe('buildContextMenuItems block card node menu', () => {
     expect(items[3]?.children?.map((item) => item.id)).toEqual(['node.codigoPreviewBlock'])
   })
 })
+
+describe('buildContextMenuItems block slot', () => {
+  const baseCtx = {
+    canRedo: false,
+    canUndo: false,
+    glueNodeId: null,
+    hasSelectAll: false,
+    viewportNavigateMode: false,
+    toolbarVisibility: DEFAULT_CANVAS_TOOLBAR_VISIBILITY,
+    hasPendingLink: false,
+    hasInspectorSlot: false,
+    onSetConnectionRouting: () => {},
+    onPreviewBlockCardCode: () => {},
+  }
+
+  it('mostra remover, focar e forma de ligação quando o slot tem conexão', () => {
+    const blockConnection: CanvasConnection = {
+      id: 'block:a:out->b:in',
+      fromNodeId: 'a',
+      fromInternalStructureId: '__block__:block-param:p1:output',
+      toNodeId: 'b',
+      toBlockSlotId: 'block-param:p2:input',
+      fromBlockSlotId: 'block-param:p1:output',
+      routing: 'wireless',
+    }
+
+    const scene: CanvasScene = {
+      nodes: [stubNode('a'), stubNode('b')],
+      connections: [blockConnection],
+    }
+
+    const target: CanvasContextTarget = {
+      type: 'blockSlot',
+      nodeId: 'a',
+      slotId: 'block-param:p1:output',
+      direction: 'output',
+    }
+
+    const items = buildContextMenuItems(target, { ...baseCtx, scene, selectedNodeIds: [] })
+
+    expect(items.map((item) => item.id)).toEqual([
+      'blockSlot.removeConnections',
+      'blockSlot.focusPeerSlot',
+      'slot.connectionRoutingMenu',
+    ])
+    expect(items[1]?.label).toBe('Focar no slot de entrada')
+  })
+})

@@ -6,10 +6,10 @@ import type { BlockInspectorDraftEntry, BlockInspectorSlotTag } from '@/core/blo
 import {
   BLOCK_ICON_PRESETS,
   addSlotTag,
+  blockInspectorTagsFromEntry,
   blockSlotPresetsForDirection,
   isBlockInspectorPointerEntry,
   mandatoryPointerSlotTags,
-  normalizeDraftEntrySlots,
   parseSlotDraftInput,
   resolveBlockIconHint,
   slotRulesToTags,
@@ -68,7 +68,7 @@ export function BlockInspectorParameterCard({
   const slotTags = useMemo(() => {
     const base = isPointerEntry
       ? mandatoryPointerSlotTags(entry.typeParameter.trim() || entry.nameParameter || entry.ritualName)
-      : normalizeDraftEntrySlots(entry)
+      : blockInspectorTagsFromEntry(entry)
     return mergeStructuralSlotTags(entry, base, lockStructuralSlots)
   }, [entry, isPointerEntry, lockStructuralSlots])
   const iconOptions = useMemo(() => BLOCK_ICON_PRESETS.map((preset) => preset.id).filter(Boolean), [])

@@ -34,6 +34,7 @@ import {
   getConnectionRoutingLabel,
   setConnectionRoutingMenuId,
 } from '@/core/connectionRoutingMenu'
+import { findConnectionForBlockSlot } from '@/core/blockSlotConnections'
 import {
   collectLinkedChildNodeIds,
   isStructuralSlotContextKind,
@@ -853,6 +854,40 @@ function buildPeerOutputFocusItems(
   ]
 }
 
+function buildBlockSlotItems(
+  ctx: CanvasContextMenuBuildContext,
+  target: Extract<CanvasContextTarget, { type: 'blockSlot' }>,
+): ContextMenuItem[] {
+  const connection = findConnectionForBlockSlot(ctx.scene, target.nodeId, target.slotId)
+
+  if (!connection) {
+    return []
+  }
+
+  const items: ContextMenuItem[] = [
+    {
+      id: 'blockSlot.removeConnections',
+      label: trLabel(ctx, LangId.CtxRemoveSlotConnections, 'Remover ligações do slot'),
+      danger: true,
+    },
+    {
+      id: 'blockSlot.focusPeerSlot',
+      label:
+        target.direction === 'output'
+          ? trLabel(ctx, LangId.CtxFocusInputSlot, 'Focar no slot de entrada')
+          : trLabel(ctx, LangId.CtxFocusOutputSlot, 'Focar no slot de saída'),
+      separatorBefore: true,
+    },
+  ]
+
+  const routingMenu = buildConnectionRoutingSubmenu(ctx, connection, true)
+  if (routingMenu) {
+    items.push(routingMenu)
+  }
+
+  return items
+}
+
 function buildNodeInputPortItems(
   ctx: CanvasContextMenuBuildContext,
   nodeId: string,
@@ -906,6 +941,8 @@ export function buildContextMenuItems(
       return buildNodeInputPortItems(ctx, target.nodeId)
     case 'connection':
       return buildConnectionItems(ctx, target.connectionId, ctx.scene)
+    case 'blockSlot':
+      return buildBlockSlotItems(ctx, target)
     case 'element':
       return buildElementItems(ctx, target)
     default:

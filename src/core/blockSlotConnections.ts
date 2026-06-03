@@ -10,7 +10,7 @@ import type { BlockSlotRules, BlockStructurePayload } from './blockSchema'
 import {
   expandBlockHeaderSlotPorts,
   parseBlockHeaderSlotDescriptor,
-  blockHeaderSlotOffsetY,
+  blockHeaderPortStackOffsetY,
   resolveBlockHeaderSlotsForStructure,
 } from './blockCardHeaderSlots'
 import { blockDefinitionByBlockName } from './blockDefinitionRegistry'
@@ -448,7 +448,41 @@ export function findBlockSlotEndpoint(
   canvasNode: CanvasNode,
   slotId: string,
 ): BlockSlotEndpoint | undefined {
-  return listBlockSlotEndpoints(canvasNode).find((entry) => entry.slotId === slotId)
+  const listed = listBlockSlotEndpoints(canvasNode).find((entry) => entry.slotId === slotId)
+  if (listed) {
+    return listed
+  }
+
+  if (!canvasNode.blockStructure || !canvasNode.blockViewActive) {
+    return undefined
+  }
+
+  const match = /^block-param:([^:]+):(input|output)$/.exec(slotId)
+  if (!match) {
+    return undefined
+  }
+
+  const paramId = match[1]
+  const direction = match[2] as 'input' | 'output'
+  const param = canvasNode.blockStructure.parameters.find((entry) => entry.idParameter === paramId)
+  if (!param?.slotRules) {
+    return undefined
+  }
+
+  const types =
+    direction === 'output' ? (param.slotRules.outputs ?? []) : (param.slotRules.inputs ?? [])
+  if (types.length === 0) {
+    return undefined
+  }
+
+  return {
+    nodeId: canvasNode.id,
+    slotId,
+    direction,
+    types,
+    kind: 'parameter',
+    parameterId: paramId,
+  }
 }
 
 export function isBlockSlotConnection(connection: CanvasConnection): boolean {
@@ -457,6 +491,18 @@ export function isBlockSlotConnection(connection: CanvasConnection): boolean {
 
 export function blockConnectionUsesSlot(connection: CanvasConnection, slotId: string): boolean {
   return connection.fromBlockSlotId === slotId || connection.toBlockSlotId === slotId
+}
+
+export function findConnectionForBlockSlot(
+  scene: Pick<CanvasScene, 'connections'>,
+  nodeId: string,
+  slotId: string,
+): CanvasConnection | undefined {
+  return scene.connections.find(
+    (connection) =>
+      (connection.fromNodeId === nodeId && connection.fromBlockSlotId === slotId) ||
+      (connection.toNodeId === nodeId && connection.toBlockSlotId === slotId),
+  )
 }
 
 /** Uma entrada de bloco só pode ter uma ligação — remove a anterior ao mesmo `toBlockSlotId`. */
@@ -531,16 +577,8 @@ export function getBlockSlotPortYOffset(
   const ports = expandBlockHeaderSlotPorts(structure.blockType, headerSlots)
   const port = ports.find((entry) => entry.slotId === slotId)
   if (port) {
-    const parsed = parseBlockHeaderSlotDescriptor(headerSlots[port.slotIndex] ?? '')
-    const typeCount = parsed?.types.length ?? 1
-    if (typeCount <= 1) {
-      return headerHeight / 2
-    }
-    const fieldIndex = port.fieldKey
-      ? parsed!.types.findIndex((type) => type === port.fieldKey)
-      : 0
-    const safeIndex = fieldIndex >= 0 ? fieldIndex : 0
-    return headerHeight / 2 + blockHeaderSlotOffsetY(typeCount, safeIndex)
+    const stackOffset = blockHeaderPortStackOffsetY(ports, port)
+    return headerHeight / 2 + stackOffset
   }
 
   const parsedSlotId = parseBlockHeaderSlotId(slotId)
@@ -548,15 +586,11 @@ export function getBlockSlotPortYOffset(
     const descriptor = headerSlots[parsedSlotId.slotIndex]
     const parsed = parseBlockHeaderSlotDescriptor(descriptor ?? '')
     if (parsed) {
-      const typeCount = parsed.types.length
-      if (typeCount <= 1) {
-        return headerHeight / 2
+      const matchedPort = ports.find((entry) => entry.slotId === slotId)
+      if (matchedPort) {
+        return headerHeight / 2 + blockHeaderPortStackOffsetY(ports, matchedPort)
       }
-      const fieldIndex = parsedSlotId.fieldKey
-        ? parsed.types.findIndex((type) => type === parsedSlotId.fieldKey)
-        : 0
-      const safeIndex = fieldIndex >= 0 ? fieldIndex : 0
-      return headerHeight / 2 + blockHeaderSlotOffsetY(typeCount, safeIndex)
+      return headerHeight / 2
     }
   }
 
