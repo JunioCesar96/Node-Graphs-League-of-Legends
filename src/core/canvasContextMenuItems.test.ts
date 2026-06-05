@@ -185,6 +185,92 @@ describe('buildContextMenuItems block card node menu', () => {
     expect(items[1]?.label).toBe('Já seleccionado')
     expect(items[3]?.children?.map((item) => item.id)).toEqual(['node.codigoPreviewBlock'])
   })
+
+  it('mostra submenu Parâmetros com adicionar, editar e remover', () => {
+    const blockStructure: BlockStructurePayload = {
+      blockType: 'IntegratedValueVector3',
+      blockName: 'IntegratedValueVector3',
+      parameters: [
+        {
+          idParameter: 'p1',
+          nameParameter: 'velocity',
+          typeParameter: 'vec3',
+          defaultValue: '0,0,0',
+        },
+      ],
+      identification_codes: [],
+    }
+
+    const blockNode: CanvasNode = {
+      ...stubNode('block-node'),
+      blockViewActive: true,
+      blockStructure,
+    }
+
+    const scene: CanvasScene = {
+      nodes: [blockNode],
+      connections: [],
+    }
+
+    const target: CanvasContextTarget = { type: 'node', nodeId: 'block-node' }
+    const items = buildContextMenuItems(target, {
+      ...baseCtx,
+      scene,
+      selectedNodeIds: ['block-node'],
+      onRequestBlockParameterPanel: () => {},
+      blockParameterMenu: { canAdd: true, canEdit: true, canRemove: true },
+    })
+
+    const paramsMenu = items.find((item) => item.id === 'node.blockParameters')
+    expect(paramsMenu?.label).toBe('Parâmetros')
+    expect(paramsMenu?.children?.map((item) => item.id)).toEqual([
+      'node.blockParameters.add',
+      'node.blockParameters.edit',
+      'node.blockParameters.remove',
+    ])
+    expect(paramsMenu?.children?.find((item) => item.id === 'node.blockParameters.edit')?.disabled).toBe(
+      false,
+    )
+  })
+
+  it('desactiva editar e remover quando o bloco não tem parâmetros', () => {
+    const blockStructure: BlockStructurePayload = {
+      blockType: 'IntegratedValueVector3',
+      blockName: 'IntegratedValueVector3',
+      parameters: [],
+      identification_codes: [],
+    }
+
+    const blockNode: CanvasNode = {
+      ...stubNode('block-node'),
+      blockViewActive: true,
+      blockStructure,
+    }
+
+    const scene: CanvasScene = {
+      nodes: [blockNode],
+      connections: [],
+    }
+
+    const items = buildContextMenuItems(
+      { type: 'node', nodeId: 'block-node' },
+      {
+        ...baseCtx,
+        scene,
+        selectedNodeIds: ['block-node'],
+        onRequestBlockParameterPanel: () => {},
+        blockParameterMenu: { canAdd: true, canEdit: true, canRemove: true },
+      },
+    )
+
+    const paramsMenu = items.find((item) => item.id === 'node.blockParameters')
+    expect(paramsMenu?.children?.find((item) => item.id === 'node.blockParameters.edit')?.disabled).toBe(
+      true,
+    )
+    expect(paramsMenu?.children?.find((item) => item.id === 'node.blockParameters.remove')?.disabled).toBe(
+      true,
+    )
+  })
 })
 
 describe('buildContextMenuItems block slot', () => {
@@ -232,5 +318,38 @@ describe('buildContextMenuItems block slot', () => {
       'slot.connectionRoutingMenu',
     ])
     expect(items[1]?.label).toBe('Focar no slot de entrada')
+  })
+
+  it('mostra menu para slot de addon ligado', () => {
+    const addonConnection: CanvasConnection = {
+      id: 'mix:block->addon',
+      fromNodeId: 'block-a',
+      fromInternalStructureId: '__block__:out',
+      toNodeId: 'addon-a',
+      fromBlockSlotId: 'block-param:p1:output',
+      toAddonSlotId: 'addon:text:input',
+      routing: 'wireless',
+    }
+
+    const scene: CanvasScene = {
+      nodes: [stubNode('block-a'), stubNode('addon-a')],
+      connections: [addonConnection],
+    }
+
+    const target: CanvasContextTarget = {
+      type: 'addonSlot',
+      nodeId: 'addon-a',
+      slotId: 'addon:text:input',
+      direction: 'input',
+    }
+
+    const items = buildContextMenuItems(target, { ...baseCtx, scene, selectedNodeIds: [] })
+
+    expect(items.map((item) => item.id)).toEqual([
+      'blockSlot.removeConnections',
+      'blockSlot.focusPeerSlot',
+      'slot.connectionRoutingMenu',
+    ])
+    expect(items[1]?.label).toBe('Focar no slot de saída')
   })
 })

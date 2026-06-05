@@ -6,7 +6,7 @@
   "name": "VfxShapeCylinder",
   "source": {
     "kind": "block",
-    "nodeId": "vfx-shape-cylinder__entries-{particlePath}-complex-emitter-definition-data--slot--0-spawn-shape"
+    "nodeId": "vfx-shape-cylinder__main-characters/brand/skins/skin0/particles/brand-base-e-conflagration-buf-complex-emitter-definition-data--slot--0-spawn-shape"
   },
   "color": "#40ff56",
   "headerSlots": [
@@ -14,8 +14,8 @@
     "out[VfxShapeCylinderPreview]"
   ],
   "parameters": [
-    "height",
     "radius",
+    "height",
     "flags"
   ]
 }

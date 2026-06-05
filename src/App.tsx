@@ -41,6 +41,8 @@ import {
 import { ParameterValueLinkPicker } from '@/components/molecules/ParameterValueLinkPicker'
 import { NodeInspector } from '@/components/organisms/NodeInspector'
 import { BlockInspector } from '@/components/organisms/BlockInspector'
+import { BlockCardMenuFloatingLayer } from '@/components/molecules/BlockCardMenuFloatingLayer'
+import { BLOCK_PARAMETER_INSPECTOR_PLACEMENT_ESTIMATE } from '@/core/ui/screenAnchoredPanelPlacement'
 import {
   BlockParameterInspector,
   type BlockParameterInspectorTarget,
@@ -51,9 +53,9 @@ import { GroupInspector } from '@/components/organisms/GroupInspector'
 import { BlockingProgressDialog } from '@/components/molecules/BlockingProgressDialog'
 import {
   buildBlockAutoBuildPlan,
-  buildBlockAutoBuildPlanFromViewCode,
+  buildBlockAutoBuildPlanFromRitualCode,
 } from '@/core/blockAutoBuild'
-import { codeToBlockScene } from '@/core/codeToBlockScene'
+import { codeToBlockSceneAsync } from '@/core/codeToBlockScene'
 import {
   executeAutoBuildWorkItems,
   flattenAutoBuildWorkItems,
@@ -375,6 +377,7 @@ function App() {
     removeConnection,
     removeConnectionsFromOutputSlot,
     removeConnectionsFromBlockSlot,
+    removeConnectionsFromAddonSlot,
     createChildNode,
     createRootNode,
     spawnNeekoNodeAtPosition,
@@ -597,6 +600,17 @@ function App() {
   } | null>(null)
   const blockCardPreviewCancelRef = useRef(false)
   const blockCardPreviewBusy = blockCardPreviewUi !== null
+  const [codeToNodeBlockUi, setCodeToNodeBlockUi] = useState<{
+    phase: 'running' | 'confirmCancel' | 'summary' | 'error'
+    completed: number
+    total: number
+    currentLabel: string
+    progressCountLabel: string
+    summaryBody?: string
+    summaryTitle?: string
+  } | null>(null)
+  const codeToNodeBlockCancelRef = useRef(false)
+  const codeToNodeBlockBusy = codeToNodeBlockUi !== null
   const blockInspectorMovedDuringPointer = useRef(false)
   const blockInspectorDragGesture = useRef<InspectorDragGesture | null>(null)
   const [groupInspectorMinimized, setGroupInspectorMinimized] = useState(false)
@@ -1326,31 +1340,124 @@ function App() {
   )
 
   const handleCodeToNodeBlock = useCallback(async () => {
-    const converted = codeToBlockScene(codeText, extendSchemaLookup)
-
-    if (!converted.ok) {
-      window.alert(converted.error)
+    if (codeToNodeBlockBusy) {
       return false
     }
 
-    const sceneTitle = stripExtension(codeDockFileName).trim() || 'Cena'
-    openOrReplaceSceneByTitle(sceneTitle, converted.scene)
-    selectNode(converted.rootNodeId)
-    graphCanvasRef.current?.focusSelectionIntoView([converted.rootNodeId])
+    const nextFrame = () =>
+      new Promise<void>((resolve) => {
+        window.requestAnimationFrame(() => resolve())
+      })
 
-    if (converted.warnings.length > 0) {
-      const preview = converted.warnings.slice(0, 30).join('\n')
-      const suffix =
-        converted.warnings.length > 30
-          ? `\n… e mais ${String(converted.warnings.length - 30)} aviso(s).`
-          : ''
-      window.alert(`[Code To Node Block]\n\n${preview}${suffix}`)
+    const formatProgressCountLabel = (input: {
+      completed: number
+      total: number
+      blockTotal: number
+      parameterTotal: number
+      blocksDone: number
+      parametersDone: number
+    }) =>
+      `${String(input.completed)}/${String(input.total)} · Blocos ${String(input.blocksDone)}/${String(input.blockTotal)} · Parâmetros ${String(input.parametersDone)}/${String(input.parameterTotal)}`
+
+    const isCancelled = () => codeToNodeBlockCancelRef.current
+
+    codeToNodeBlockCancelRef.current = false
+    setCodeToNodeBlockUi({
+      phase: 'running',
+      completed: 0,
+      total: 1,
+      currentLabel: 'A iniciar…',
+      progressCountLabel: '0/1 · Blocos 0/0 · Parâmetros 0/0',
+    })
+
+    try {
+      await nextFrame()
+
+      const converted = await codeToBlockSceneAsync(codeText, extendSchemaLookup, {
+        shouldCancel: isCancelled,
+        onProgress: (progress) => {
+          setCodeToNodeBlockUi((current) => {
+            if (!current || current.phase === 'confirmCancel') {
+              return current
+            }
+            const kindPrefix =
+              progress.currentKind === 'parameter'
+                ? 'Parâmetro'
+                : progress.currentKind === 'block'
+                  ? 'Bloco'
+                  : 'Etapa'
+            return {
+              phase: 'running',
+              completed: progress.completed,
+              total: progress.total,
+              currentLabel: `${kindPrefix}: ${progress.currentLabel}`,
+              progressCountLabel: formatProgressCountLabel(progress),
+            }
+          })
+        },
+      })
+
+      if (isCancelled()) {
+        setCodeToNodeBlockUi({
+          phase: 'summary',
+          completed: 0,
+          total: 1,
+          currentLabel: '',
+          progressCountLabel: '',
+          summaryTitle: 'Code To Node Block cancelado',
+          summaryBody: 'A conversão foi cancelada pelo utilizador.',
+        })
+        return false
+      }
+
+      if (!converted.ok) {
+        setCodeToNodeBlockUi({
+          phase: 'error',
+          completed: 0,
+          total: 1,
+          currentLabel: '',
+          progressCountLabel: '',
+          summaryTitle: 'Code To Node Block falhou',
+          summaryBody: converted.error,
+        })
+        return false
+      }
+
+      const sceneTitle = stripExtension(codeDockFileName).trim() || 'Cena'
+      openOrReplaceSceneByTitle(sceneTitle, converted.scene)
+      selectNode(converted.rootNodeId)
+      graphCanvasRef.current?.focusSelectionIntoView([converted.rootNodeId])
+
+      codeToNodeBlockCancelRef.current = false
+      setCodeToNodeBlockUi(null)
+
+      if (converted.warnings.length > 0) {
+        const preview = converted.warnings.slice(0, 30).join('\n')
+        const suffix =
+          converted.warnings.length > 30
+            ? `\n… e mais ${String(converted.warnings.length - 30)} aviso(s).`
+            : ''
+        window.alert(`[Code To Node Block]\n\n${preview}${suffix}`)
+      }
+
+      return true
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      setCodeToNodeBlockUi({
+        phase: 'error',
+        completed: 0,
+        total: 1,
+        currentLabel: '',
+        progressCountLabel: '',
+        summaryTitle: 'Code To Node Block falhou',
+        summaryBody: message,
+      })
+      return false
     }
-
-    return true
   }, [
     codeDockFileName,
     codeText,
+    codeToNodeBlockBusy,
     extendSchemaLookup,
     openOrReplaceSceneByTitle,
     selectNode,
@@ -3288,40 +3395,36 @@ function App() {
   }, [extendSchemaLookup, runBlockAutoBuildPlan, scene])
 
   const handleCodeBuildBlock = useCallback(async () => {
-    if (!hasOpenSceneTabs) {
-      window.alert('Abra uma cena de trabalho antes de gerar blocos a partir do código.')
+    if (!codeDockOpen) {
+      window.alert(t(LangId.CodeBuildBlockOpenEditor))
       return false
     }
 
-    const viewCodeResult = buildBlockAutoBuildPlanFromViewCode(scene, extendSchemaLookup, {
-      rootNodeId: primarySelectedId ?? undefined,
-    })
-
-    if (viewCodeResult.exportedText.trim()) {
-      const canvasNode = scene.nodes.find((entry) => entry.id === viewCodeResult.exportNodeId)
-      const title = canvasNode?.node.schema.title ?? 'ritual'
-      const fileName = `build_${sanitizeCodeDockBaseName(title)}.bin`
-      loadTextIntoCodeDock(viewCodeResult.exportedText, fileName, 'Code Build Block', {
-        fullText: true,
-      })
-    }
-
-    await runBlockAutoBuildPlan(viewCodeResult.plan)
+    const editorText = codeText.trim()
+    const plan = buildBlockAutoBuildPlanFromRitualCode(editorText, extendSchemaLookup)
+    await runBlockAutoBuildPlan(plan)
     return true
-  }, [
-    extendSchemaLookup,
-    hasOpenSceneTabs,
-    loadTextIntoCodeDock,
-    primarySelectedId,
-    runBlockAutoBuildPlan,
-    scene,
-  ])
+  }, [codeDockOpen, codeText, extendSchemaLookup, runBlockAutoBuildPlan, t])
 
-  const handleRevertBlock = useCallback(() => {
+  const handleRevertBlock = useCallback(async () => {
     if (!blockInspectorTarget) {
       return
     }
-    revertBlockView(blockInspectorTarget.id)
+
+    const result = await revertBlockView(blockInspectorTarget.id)
+    if (!result.ok) {
+      window.alert(result.error)
+      return
+    }
+
+    if (result.warnings.length > 0) {
+      const preview = result.warnings.slice(0, 20).join('\n')
+      const suffix =
+        result.warnings.length > 20
+          ? `\n… e mais ${String(result.warnings.length - 20)} aviso(s).`
+          : ''
+      window.alert(`[Reverter bloco para nó]\n\n${preview}${suffix}`)
+    }
   }, [blockInspectorTarget, revertBlockView])
 
   const showBlockInspectorPinnedToToolbar =
@@ -4363,8 +4466,16 @@ function App() {
             onSyncBlockParameterCatalog={syncBlockParameterCatalogFromDefinitions}
             onAddBlockParameterFromCatalog={addBlockParameterFromCatalog}
             onRemoveBlockParameter={removeBlockParameter}
-            onEditBlockParameter={(nodeId, param) => {
-              setBlockParameterInspectorTarget({ nodeId, paramId: param.idParameter, parameter: param })
+            onEditBlockParameter={(nodeId, param, screenAnchor) => {
+              if (!screenAnchor) {
+                return
+              }
+              setBlockParameterInspectorTarget({
+                nodeId,
+                paramId: param.idParameter,
+                parameter: param,
+                screenAnchor,
+              })
             }}
             onDeleteNodeIds={deleteNodeIds}
             onToggleNodeBodyCollapsed={toggleNodeBodyCollapsed}
@@ -4423,6 +4534,7 @@ function App() {
             onSetElementSelectedIndex={setElementSelectedIndex}
             onRemoveConnectionsFromOutputSlot={removeConnectionsFromOutputSlot}
             onRemoveConnectionsFromBlockSlot={removeConnectionsFromBlockSlot}
+            onRemoveConnectionsFromAddonSlot={removeConnectionsFromAddonSlot}
             onShowOnlyConnectedComponent={showOnlyConnectedComponent}
             onShowOnlySlotSubtree={showOnlySlotSubtree}
             onShowOnlyIncomingSlotBranch={showOnlyIncomingSlotBranch}
@@ -4726,6 +4838,47 @@ function App() {
         <GraphsToCodeProgressDialog progress={graphsToCodeProgress} />
       ) : null}
 
+      {codeToNodeBlockUi ? (
+        <BlockingProgressDialog
+          cancelConfirmMessage="Tem a certeza que deseja cancelar o Code To Node Block?"
+          cancelConfirmNoLabel="Continuar conversão"
+          cancelConfirmTitle="Cancelar Code To Node Block"
+          cancelConfirmYesLabel="Sim, cancelar"
+          cancelLabel="Cancelar"
+          closeLabel="OK"
+          completed={codeToNodeBlockUi.completed}
+          onCancelConfirm={() => {
+            codeToNodeBlockCancelRef.current = true
+            setCodeToNodeBlockUi((current) =>
+              current ? { ...current, phase: 'running' } : current,
+            )
+          }}
+          onCancelDismiss={() => {
+            setCodeToNodeBlockUi((current) =>
+              current ? { ...current, phase: 'running' } : current,
+            )
+          }}
+          onCancelRequest={() => {
+            setCodeToNodeBlockUi((current) =>
+              current && current.phase === 'running'
+                ? { ...current, phase: 'confirmCancel' }
+                : current,
+            )
+          }}
+          onClose={() => {
+            codeToNodeBlockCancelRef.current = false
+            setCodeToNodeBlockUi(null)
+          }}
+          phase={codeToNodeBlockUi.phase}
+          progressCountLabel={codeToNodeBlockUi.progressCountLabel}
+          statusLabel={codeToNodeBlockUi.phase === 'running' ? codeToNodeBlockUi.currentLabel : undefined}
+          summaryBody={codeToNodeBlockUi.summaryBody}
+          summaryTitle={codeToNodeBlockUi.summaryTitle}
+          title="Code To Node Block"
+          total={codeToNodeBlockUi.total}
+        />
+      ) : null}
+
       {blockCardPreviewUi ? (
         <BlockingProgressDialog
           cancelConfirmMessage="Tem a certeza que deseja cancelar a conversão do Código Preview Block?"
@@ -4837,15 +4990,14 @@ function App() {
         title="Code to new node graph — passo a passo"
       />
 
-      {blockParameterInspectorTarget ? (
-        <div
-          style={{
-            position: 'fixed',
-            right: 24,
-            top: 96,
-            zIndex: 9000,
-            pointerEvents: 'auto',
-          }}
+      {blockParameterInspectorTarget?.screenAnchor ? (
+        <BlockCardMenuFloatingLayer
+          open
+          draggable
+          requireScreenAnchor
+          screenAnchor={blockParameterInspectorTarget.screenAnchor}
+          placementEstimate={BLOCK_PARAMETER_INSPECTOR_PLACEMENT_ESTIMATE}
+          zIndex={9000}
         >
           <BlockParameterInspector
             target={blockParameterInspectorTarget}
@@ -4854,7 +5006,7 @@ function App() {
               updateBlockParameterFromInspector(nodeId, paramId, entry)
             }
           />
-        </div>
+        </BlockCardMenuFloatingLayer>
       ) : null}
 
       <NewCodeFileDialog

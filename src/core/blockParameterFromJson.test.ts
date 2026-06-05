@@ -58,6 +58,22 @@ describe('blockParameterDefFromJsonDocument', () => {
       inputs: ['VfxPrimitiveMesh'],
       outputs: ['VfxPrimitiveMesh'],
     })
+    expect(def.listParameter).toBeUndefined()
+  })
+
+  it('converte list[pointer] com list: true no JSON', () => {
+    const listPointerDoc: BlockParameterJsonDocument = {
+      ...pointerDoc,
+      id: 'complexEmitterDefinitionData_complexEmitterDefinitionData_pointer_VfxEmitterDefinitionData',
+      parameterName: 'complexEmitterDefinitionData',
+      name: 'complexEmitterDefinitionData',
+      pointer: 'VfxEmitterDefinitionData',
+      list: true,
+      slots: { out: ['VfxEmitterDefinitionData'] },
+    }
+    const def = blockParameterDefFromJsonDocument(listPointerDoc, 'VfxSystemDefinitionData', [])
+    expect(def.listParameter).toBe(true)
+    expect(def.typeParameter).toBe('VfxEmitterDefinitionData')
   })
 
   it('dedupe por parameterId no bloco', () => {
@@ -65,6 +81,31 @@ describe('blockParameterDefFromJsonDocument', () => {
       blockParameterDefFromJsonDocument(simpleDoc, 'Emitter', []),
     ]
     expect(isParameterAlreadyOnBlock(existing, simpleDoc)).toBe(true)
+  })
+
+  it('converte mapHashEmbed com entries[] do catálogo JSON', () => {
+    const mapDoc: BlockParameterJsonDocument = {
+      id: 'entries_entries_mapHashEmbed',
+      block: 'Main',
+      parameterName: 'entries',
+      name: 'entries',
+      source: {
+        kind: 'parameter',
+        parameterId: 'main_parameter_entries',
+      },
+      type: 'mapHashEmbed',
+      mapKind: 'mapHashEmbed',
+      entries: [
+        { key: 'Characters/Brand/Skins/Skin0/Particles/Brand_Base_Joke', target: 'VfxSystemDefinitionData' },
+        { key: '0xdeadbeef', target: 'ResourceResolver' },
+      ],
+      slots: { out: ['VfxSystemDefinitionData', 'ResourceResolver'] },
+    }
+
+    const def = blockParameterDefFromJsonDocument(mapDoc, 'Main', [])
+    expect(def.defaultValue).toContain('Characters/Brand/Skins/Skin0/Particles/Brand_Base_Joke')
+    expect(def.defaultValue).toContain('VfxSystemDefinitionData')
+    expect(def.defaultValue).toContain('0xdeadbeef')
   })
 })
 

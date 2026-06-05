@@ -14,7 +14,32 @@ import {
   resolveBlockHeaderSlotsForStructure,
 } from './blockCardHeaderSlots'
 import { blockDefinitionByBlockName } from './blockDefinitionRegistry'
-import { BLOCK_CARD_WIDTH, blockParameterSlotId, parseBlockHeaderSlotId } from './blockSchema'
+import { BLOCK_CARD_WIDTH, blockParameterSlotId, isBlockMapStructureType, parseBlockHeaderSlotId } from './blockSchema'
+import {
+  blockMapHashEntrySlotCenterY,
+  estimateBlockMapHashListRowHeight,
+} from './blockMapHashFieldLayout'
+import { hasMapHashEmbedStructure, parseMapHashEmbedString } from './mapHashEmbedValue'
+import { hasMapHashPointerStructure, parseMapHashPointerString } from './mapHashPointerValue'
+import { hasMapU64PointerStructure, parseMapU64PointerString } from './mapU64PointerValue'
+import {
+  mapHashEmbedSlotId,
+  mapHashEmbedSlotsForParameter,
+  parseMapHashEmbedSlotId,
+} from './mapHashEmbedSlots'
+import {
+  mapHashPointerSlotId,
+  mapHashPointerSlotsForParameter,
+  parseMapHashPointerSlotId,
+} from './mapHashPointerSlots'
+import {
+  mapU64PointerSlotId,
+  mapU64PointerSlotsForParameter,
+  parseMapU64PointerSlotId,
+} from './mapU64PointerSlots'
+import { parseListEmbedSlotIndex } from './listEmbedSlots'
+import { parseListPointerSlotIndex } from './listPointerSlots'
+import type { NodeInstance } from './nodeSchema'
 import {
   resolveBlockCardWidth,
   STRUCTURE_CARD_BODY_PADDING_Y,
@@ -67,6 +92,161 @@ function typesFromRules(rules: BlockSlotRules | undefined, direction: 'input' | 
   return rules?.inputs ?? []
 }
 
+function collectionOutputTypesForParameter(param: {
+  idParameter: string
+  nameParameter: string
+  typeParameter: string
+  defaultValue: string
+  slotRules?: BlockSlotRules
+}): string[] {
+  const fromRules = typesFromRules(param.slotRules, 'output')
+  if (fromRules.length > 0) {
+    return fromRules
+  }
+  const typeParameter = param.typeParameter.trim()
+  return typeParameter ? [typeParameter] : []
+}
+
+function appendMapCollectionOutputEndpoints(
+  canvasNode: CanvasNode,
+  param: BlockStructurePayload['parameters'][number],
+  endpoints: BlockSlotEndpoint[],
+): void {
+  const value = param.defaultValue
+  if (param.typeParameter === 'mapHashEmbed') {
+    for (const slot of mapHashEmbedSlotsForParameter(
+      { id: param.idParameter, name: param.nameParameter, type: 'mapHashEmbed', defaultValue: value },
+      value,
+    )) {
+      endpoints.push({
+        nodeId: canvasNode.id,
+        slotId: slot.id,
+        direction: 'output',
+        types: collectionOutputTypesForParameter(param),
+        kind: 'parameter',
+        parameterId: param.idParameter,
+      })
+    }
+    return
+  }
+
+  if (param.typeParameter === 'mapHashPointer') {
+    for (const slot of mapHashPointerSlotsForParameter(
+      { id: param.idParameter, name: param.nameParameter, type: 'mapHashPointer', defaultValue: value },
+      value,
+    )) {
+      endpoints.push({
+        nodeId: canvasNode.id,
+        slotId: slot.id,
+        direction: 'output',
+        types: collectionOutputTypesForParameter(param),
+        kind: 'parameter',
+        parameterId: param.idParameter,
+      })
+    }
+    return
+  }
+
+  if (param.typeParameter === 'mapU64Pointer') {
+    for (const slot of mapU64PointerSlotsForParameter(
+      { id: param.idParameter, name: param.nameParameter, type: 'mapU64Pointer', defaultValue: value },
+      value,
+    )) {
+      endpoints.push({
+        nodeId: canvasNode.id,
+        slotId: slot.id,
+        direction: 'output',
+        types: collectionOutputTypesForParameter(param),
+        kind: 'parameter',
+        parameterId: param.idParameter,
+      })
+    }
+  }
+}
+
+function resolveCollectionBlockSlotEndpoint(
+  canvasNode: CanvasNode,
+  slotId: string,
+): BlockSlotEndpoint | undefined {
+  const structure = canvasNode.blockStructure
+  if (!structure) {
+    return undefined
+  }
+
+  const mapEmbedParsed = parseMapHashEmbedSlotId(slotId)
+  if (mapEmbedParsed) {
+    const param = structure.parameters.find((entry) => entry.idParameter === mapEmbedParsed.parameterId)
+    if (param) {
+      return {
+        nodeId: canvasNode.id,
+        slotId,
+        direction: 'output',
+        types: collectionOutputTypesForParameter(param),
+        kind: 'parameter',
+        parameterId: param.idParameter,
+      }
+    }
+  }
+
+  const mapPointerParsed = parseMapHashPointerSlotId(slotId)
+  if (mapPointerParsed) {
+    const param = structure.parameters.find((entry) => entry.idParameter === mapPointerParsed.parameterId)
+    if (param) {
+      return {
+        nodeId: canvasNode.id,
+        slotId,
+        direction: 'output',
+        types: collectionOutputTypesForParameter(param),
+        kind: 'parameter',
+        parameterId: param.idParameter,
+      }
+    }
+  }
+
+  const mapU64Parsed = parseMapU64PointerSlotId(slotId)
+  if (mapU64Parsed) {
+    const param = structure.parameters.find((entry) => entry.idParameter === mapU64Parsed.parameterId)
+    if (param) {
+      return {
+        nodeId: canvasNode.id,
+        slotId,
+        direction: 'output',
+        types: collectionOutputTypesForParameter(param),
+        kind: 'parameter',
+        parameterId: param.idParameter,
+      }
+    }
+  }
+
+  for (const param of structure.parameters) {
+    const listPointerIndex = parseListPointerSlotIndex(slotId, param.idParameter)
+    if (listPointerIndex !== null) {
+      return {
+        nodeId: canvasNode.id,
+        slotId,
+        direction: 'output',
+        types: collectionOutputTypesForParameter(param),
+        kind: 'parameter',
+        parameterId: param.idParameter,
+      }
+    }
+
+    const listEmbedIndex = parseListEmbedSlotIndex(slotId, param.idParameter)
+    if (listEmbedIndex !== null) {
+      return {
+        nodeId: canvasNode.id,
+        slotId,
+        direction: 'output',
+        types: collectionOutputTypesForParameter(param),
+        kind: 'parameter',
+        parameterId: param.idParameter,
+      }
+    }
+  }
+
+  return undefined
+}
+
 export function listBlockSlotEndpoints(canvasNode: CanvasNode): BlockSlotEndpoint[] {
   if (!canvasNode.blockStructure || !canvasNode.blockViewActive) {
     return []
@@ -110,6 +290,14 @@ export function listBlockSlotEndpoints(canvasNode: CanvasNode): BlockSlotEndpoin
         kind: 'parameter',
         parameterId: param.idParameter,
       })
+    }
+
+    if (
+      param.typeParameter === 'mapHashEmbed' ||
+      param.typeParameter === 'mapHashPointer' ||
+      param.typeParameter === 'mapU64Pointer'
+    ) {
+      appendMapCollectionOutputEndpoints(canvasNode, param, endpoints)
     }
   }
 
@@ -423,7 +611,10 @@ export function applyBlockSlotConnectionToScene(
     [...fromApplied.childPatches, ...toApplied.childPatches].map((patch) => [patch.nodeId, patch.node]),
   )
 
-  const connections = withoutConnectionsToBlockInputSlot(scene.connections, toNodeId, toBlockSlotId)
+  const prunedInputs = withoutConnectionsToBlockInputSlot(scene.connections, toNodeId, toBlockSlotId)
+  const connections = isListPointerBlockOutputSlot(fromNode, fromBlockSlotId, fromBlockParameterId)
+    ? prunedInputs
+    : withoutConnectionsFromBlockOutputSlot(prunedInputs, fromNodeId, fromBlockSlotId)
 
   return {
     ...scene,
@@ -451,6 +642,11 @@ export function findBlockSlotEndpoint(
   const listed = listBlockSlotEndpoints(canvasNode).find((entry) => entry.slotId === slotId)
   if (listed) {
     return listed
+  }
+
+  const collection = resolveCollectionBlockSlotEndpoint(canvasNode, slotId)
+  if (collection) {
+    return collection
   }
 
   if (!canvasNode.blockStructure || !canvasNode.blockViewActive) {
@@ -493,15 +689,122 @@ export function blockConnectionUsesSlot(connection: CanvasConnection, slotId: st
   return connection.fromBlockSlotId === slotId || connection.toBlockSlotId === slotId
 }
 
+export function blockOutputSlotConnectionKey(nodeId: string, slotId: string): string {
+  return `${nodeId}::${slotId}`
+}
+
+export function findConnectionsForBlockOutputSlot(
+  scene: Pick<CanvasScene, 'connections'>,
+  nodeId: string,
+  slotId: string,
+): CanvasConnection[] {
+  return scene.connections.filter((connection) =>
+    connectionUsesBlockOutputSlot(connection, nodeId, slotId),
+  )
+}
+
+export function clampBlockOutputSlotConnectionIndex(
+  index: number | undefined,
+  connectionCount: number,
+): number {
+  if (connectionCount <= 0) {
+    return 0
+  }
+  if (index === undefined) {
+    return connectionCount - 1
+  }
+  return Math.min(Math.max(0, index), connectionCount - 1)
+}
+
+export function resolveBlockOutputSlotConnectionIndex(
+  indexBySlotKey: ReadonlyMap<string, number>,
+  nodeId: string,
+  slotId: string,
+  connectionCount: number,
+): number {
+  return clampBlockOutputSlotConnectionIndex(
+    indexBySlotKey.get(blockOutputSlotConnectionKey(nodeId, slotId)),
+    connectionCount,
+  )
+}
+
+export type FindConnectionForBlockSlotOptions = {
+  /** Índice da ligação activa quando a saída tem fan-out (0-based). */
+  connectionIndex?: number
+}
+
 export function findConnectionForBlockSlot(
   scene: Pick<CanvasScene, 'connections'>,
   nodeId: string,
   slotId: string,
+  options?: FindConnectionForBlockSlotOptions,
 ): CanvasConnection | undefined {
+  const outputConnections = findConnectionsForBlockOutputSlot(scene, nodeId, slotId)
+  if (outputConnections.length > 0) {
+    const index = clampBlockOutputSlotConnectionIndex(
+      options?.connectionIndex,
+      outputConnections.length,
+    )
+    return outputConnections[index]
+  }
+
   return scene.connections.find(
-    (connection) =>
-      (connection.fromNodeId === nodeId && connection.fromBlockSlotId === slotId) ||
-      (connection.toNodeId === nodeId && connection.toBlockSlotId === slotId),
+    (connection) => connection.toNodeId === nodeId && connection.toBlockSlotId === slotId,
+  )
+}
+
+export function connectionUsesBlockOutputSlot(
+  connection: CanvasConnection,
+  fromNodeId: string,
+  fromBlockSlotId: string,
+): boolean {
+  if (connection.fromNodeId !== fromNodeId) {
+    return false
+  }
+  if (connection.fromBlockSlotId === fromBlockSlotId) {
+    return true
+  }
+  return connection.fromInternalStructureId === `__block__:${fromBlockSlotId}`
+}
+
+/** `list[pointer]` pode ligar a vários destinos a partir da mesma saída (fan-out). */
+export function isListPointerBlockOutputSlot(
+  canvasNode: CanvasNode,
+  slotId: string,
+  parameterId?: string,
+): boolean {
+  const structure = canvasNode.blockStructure
+  if (!structure) {
+    return false
+  }
+
+  const matches = (param: BlockStructurePayload['parameters'][number]): boolean => {
+    if (!param.listParameter || param.sourcePath.kind !== 'pointerChild') {
+      return false
+    }
+
+    return (
+      slotId === blockParameterSlotId(param.idParameter, 'output') ||
+      parseListPointerSlotIndex(slotId, param.idParameter) !== null
+    )
+  }
+
+  if (parameterId) {
+    const param = structure.parameters.find((entry) => entry.idParameter === parameterId)
+    return param ? matches(param) : false
+  }
+
+  return structure.parameters.some(matches)
+}
+
+/** Uma saída de bloco/parâmetro só pode ter uma ligação — remove a anterior ao mesmo `fromBlockSlotId`. */
+export function withoutConnectionsFromBlockOutputSlot(
+  connections: readonly CanvasConnection[],
+  fromNodeId: string,
+  fromBlockSlotId: string,
+): CanvasConnection[] {
+  return connections.filter(
+    (connection) => !connectionUsesBlockOutputSlot(connection, fromNodeId, fromBlockSlotId),
   )
 }
 
@@ -548,12 +851,86 @@ export function propagateBlockConnectionValue(
 /** Rodapé com botão «Parâmetro» (ver BlockCard.module.css). */
 export const BLOCK_CARD_FOOTER_HEIGHT = 44
 
-export function estimateBlockCardHeight(structure: BlockStructurePayload): number {
-  const bodyRows = Math.max(structure.parameters.length, 0)
-  const bodyHeight =
-    bodyRows > 0
-      ? STRUCTURE_CARD_BODY_PADDING_Y * 2 + bodyRows * STRUCTURE_CARD_ROW_HEIGHT
-      : 0
+function blockMapHashSlotYOffset(
+  param: BlockStructurePayload['parameters'][number],
+  slotId: string,
+): number | null {
+  if (param.typeParameter === 'mapHashEmbed') {
+    const entries = parseMapHashEmbedString(param.defaultValue)
+    for (let index = 0; index < entries.length; index += 1) {
+      const item = entries[index]!
+      if (hasMapHashEmbedStructure(item) && mapHashEmbedSlotId(param.idParameter, item.key) === slotId) {
+        return blockMapHashEntrySlotCenterY()
+      }
+    }
+    return null
+  }
+
+  if (param.typeParameter === 'mapHashPointer') {
+    const entries = parseMapHashPointerString(param.defaultValue)
+    for (let index = 0; index < entries.length; index += 1) {
+      const item = entries[index]!
+      if (
+        hasMapHashPointerStructure(item) &&
+        mapHashPointerSlotId(param.idParameter, item.key) === slotId
+      ) {
+        return blockMapHashEntrySlotCenterY()
+      }
+    }
+    return null
+  }
+
+  if (param.typeParameter === 'mapU64Pointer') {
+    const entries = parseMapU64PointerString(param.defaultValue)
+    for (let index = 0; index < entries.length; index += 1) {
+      const item = entries[index]!
+      if (
+        hasMapU64PointerStructure(item) &&
+        mapU64PointerSlotId(param.idParameter, item.key) === slotId
+      ) {
+        return blockMapHashEntrySlotCenterY()
+      }
+    }
+  }
+
+  return null
+}
+
+function mapHashEntryCount(param: BlockStructurePayload['parameters'][number]): number {
+  if (param.typeParameter === 'mapHashEmbed') {
+    return parseMapHashEmbedString(param.defaultValue).length
+  }
+  if (param.typeParameter === 'mapHashPointer') {
+    return parseMapHashPointerString(param.defaultValue).length
+  }
+  if (param.typeParameter === 'mapU64Pointer') {
+    return parseMapU64PointerString(param.defaultValue).length
+  }
+  return 0
+}
+
+export function estimateBlockParameterRowHeight(
+  param: BlockStructurePayload['parameters'][number],
+  _node?: NodeInstance,
+): number {
+  if (!isBlockMapStructureType(param.typeParameter)) {
+    return STRUCTURE_CARD_ROW_HEIGHT
+  }
+
+  return estimateBlockMapHashListRowHeight(mapHashEntryCount(param), false)
+}
+
+export function estimateBlockCardHeight(
+  structure: BlockStructurePayload,
+  node?: NodeInstance,
+): number {
+  let bodyHeight = 0
+  for (const param of structure.parameters) {
+    bodyHeight += estimateBlockParameterRowHeight(param, node)
+  }
+  if (structure.parameters.length > 0) {
+    bodyHeight += STRUCTURE_CARD_BODY_PADDING_Y * 2
+  }
 
   return (
     STRUCTURE_CARD_HEADER_HEIGHT +
@@ -566,11 +943,11 @@ export function estimateBlockCardHeight(structure: BlockStructurePayload): numbe
 export function getBlockSlotPortYOffset(
   structure: BlockStructurePayload,
   slotId: string,
+  node?: NodeInstance,
 ): number | null {
   const headerHeight = STRUCTURE_CARD_HEADER_HEIGHT
   const dividerHeight = STRUCTURE_CARD_DIVIDER_HEIGHT
   const bodyPaddingY = STRUCTURE_CARD_BODY_PADDING_Y
-  const rowHeight = STRUCTURE_CARD_ROW_HEIGHT
   const bodyTop = headerHeight + dividerHeight + bodyPaddingY
 
   const headerSlots = resolveBlockHeaderSlotsForStructure(structure)
@@ -594,15 +971,37 @@ export function getBlockSlotPortYOffset(
     }
   }
 
+  let accumulatedHeight = 0
   for (let index = 0; index < structure.parameters.length; index += 1) {
-    const param = structure.parameters[index]
-    const y = bodyTop + index * rowHeight + rowHeight / 2
+    const param = structure.parameters[index]!
+    const rowHeight = estimateBlockParameterRowHeight(param, node)
+    const rowCenter = bodyTop + accumulatedHeight + rowHeight / 2
+
+    if (param.typeParameter === 'mapHashEmbed') {
+      const offset = blockMapHashSlotYOffset(param, slotId)
+      if (offset !== null) {
+        return bodyTop + accumulatedHeight + offset
+      }
+    } else if (param.typeParameter === 'mapHashPointer') {
+      const offset = blockMapHashSlotYOffset(param, slotId)
+      if (offset !== null) {
+        return bodyTop + accumulatedHeight + offset
+      }
+    } else if (param.typeParameter === 'mapU64Pointer') {
+      const offset = blockMapHashSlotYOffset(param, slotId)
+      if (offset !== null) {
+        return bodyTop + accumulatedHeight + offset
+      }
+    }
+
     if (
       blockParameterSlotId(param.idParameter, 'input') === slotId ||
       blockParameterSlotId(param.idParameter, 'output') === slotId
     ) {
-      return y
+      return rowCenter
     }
+
+    accumulatedHeight += rowHeight
   }
 
   return null
@@ -618,7 +1017,7 @@ export function resolveBlockSlotCanvasPoint(
     return null
   }
 
-  const yOffset = getBlockSlotPortYOffset(canvasNode.blockStructure, slotId)
+  const yOffset = getBlockSlotPortYOffset(canvasNode.blockStructure, slotId, canvasNode.node)
   if (yOffset === null) {
     return null
   }
@@ -694,39 +1093,43 @@ export function resolveBlockConnectionPath(
     return null
   }
 
-  const exitX = start.x + 24
-  const entryX = end.x - 24
-  const curveOffset = Math.max(48, Math.abs(entryX - exitX) * 0.35)
   const routing = connection.routing ?? 'wireless'
-
   const forced = connection.forced === true
-
-  if (routing === 'rigid') {
-    const bendX = (start.x + end.x) / 2
-    return {
-      id: connection.id,
-      routing,
-      forced,
-      d: [
-        `M ${start.x} ${start.y}`,
-        `L ${bendX} ${start.y}`,
-        `L ${bendX} ${end.y}`,
-        `L ${end.x} ${end.y}`,
-      ].join(' '),
-    }
-  }
 
   return {
     id: connection.id,
     routing,
     forced,
-    d: [
-      `M ${start.x} ${start.y}`,
-      `L ${exitX} ${start.y}`,
-      `C ${exitX + curveOffset} ${start.y}, ${entryX - curveOffset} ${end.y}, ${entryX} ${end.y}`,
-      `L ${end.x} ${end.y}`,
-    ].join(' '),
+    d: buildSlotWirePathD(start, end, routing),
   }
+}
+
+export function buildSlotWirePathD(
+  start: CanvasPosition,
+  end: CanvasPosition,
+  routing?: ConnectionRouting,
+): string {
+  const exitX = start.x + 24
+  const entryX = end.x - 24
+  const curveOffset = Math.max(48, Math.abs(entryX - exitX) * 0.35)
+  const resolved = routing ?? 'wireless'
+
+  if (resolved === 'rigid') {
+    const bendX = (start.x + end.x) / 2
+    return [
+      `M ${start.x} ${start.y}`,
+      `L ${bendX} ${start.y}`,
+      `L ${bendX} ${end.y}`,
+      `L ${end.x} ${end.y}`,
+    ].join(' ')
+  }
+
+  return [
+    `M ${start.x} ${start.y}`,
+    `L ${exitX} ${start.y}`,
+    `C ${exitX + curveOffset} ${start.y}, ${entryX - curveOffset} ${end.y}, ${entryX} ${end.y}`,
+    `L ${end.x} ${end.y}`,
+  ].join(' ')
 }
 
 export function createBlockDraftConnectionPath(sx: number, sy: number, ex: number, ey: number): string {

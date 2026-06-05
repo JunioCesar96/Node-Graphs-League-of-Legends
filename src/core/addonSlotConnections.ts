@@ -1,7 +1,7 @@
 import { getAddonManifest } from '@/blockStructures/addonRegistry'
 import type { AddonManifest, AddonSlot } from '@/services/addonLoader.service'
 
-import { resolveBlockSlotCanvasPoint } from '@/core/blockSlotConnections'
+import { buildSlotWirePathD, resolveBlockSlotCanvasPoint } from '@/core/blockSlotConnections'
 import { resolveBlockCardWidth } from '@/core/structureCardLayout'
 import { addonSlotAnchorKey, type GraphPanPoint } from '@/core/graphPortAnchors'
 
@@ -94,6 +94,18 @@ export function findAddonSlotEndpoint(
 
 export function isAddonSlotConnection(connection: CanvasConnection): boolean {
   return Boolean(connection.fromAddonSlotId || connection.toAddonSlotId)
+}
+
+export function findConnectionForAddonSlot(
+  scene: Pick<CanvasScene, 'connections'>,
+  nodeId: string,
+  slotId: string,
+): CanvasConnection | undefined {
+  return scene.connections.find(
+    (connection) =>
+      (connection.fromNodeId === nodeId && connection.fromAddonSlotId === slotId) ||
+      (connection.toNodeId === nodeId && connection.toAddonSlotId === slotId),
+  )
 }
 
 export function withoutConnectionsToAddonInputSlot(
@@ -328,13 +340,12 @@ export function resolveAddonConnectionPath(
     return null
   }
 
-  const midX = (fromPoint.x + toPoint.x) / 2
-  const d = `M ${fromPoint.x} ${fromPoint.y} C ${midX} ${fromPoint.y}, ${midX} ${toPoint.y}, ${toPoint.x} ${toPoint.y}`
+  const routing = connection.routing ?? 'wireless'
 
   return {
     id: connection.id,
-    d,
-    routing: connection.routing,
+    d: buildSlotWirePathD(fromPoint, toPoint, routing),
+    routing,
     forced: connection.forced,
   }
 }
@@ -342,11 +353,6 @@ export function resolveAddonConnectionPath(
 export function createAddonDraftConnectionPath(sx: number, sy: number, tx: number, ty: number): string {
   const midX = (sx + tx) / 2
   return `M ${sx} ${sy} C ${midX} ${sy}, ${midX} ${ty}, ${tx} ${ty}`
-}
-
-function bezierPath(from: CanvasPosition, to: CanvasPosition): string {
-  const midX = (from.x + to.x) / 2
-  return `M ${from.x} ${from.y} C ${midX} ${from.y}, ${midX} ${to.y}, ${to.x} ${to.y}`
 }
 
 /** Ligações que envolvem pelo menos um slot de add-on (inclui mistas bloco↔add-on). */
@@ -412,10 +418,12 @@ export function resolveAddonInvolvedConnectionPath(
     return null
   }
 
+  const routing = connection.routing ?? 'wireless'
+
   return {
     id: connection.id,
-    d: bezierPath(fromPoint, toPoint),
-    routing: connection.routing,
+    d: buildSlotWirePathD(fromPoint, toPoint, routing),
+    routing,
     forced: connection.forced,
   }
 }

@@ -7,6 +7,7 @@ import { formatVector2RitualBrace, parseListVector2String } from '@/core/listVec
 import { formatVector3RitualBrace, parseListVector3String } from '@/core/listVector3Value'
 import { formatVector4RitualBrace, parseListVector4String } from '@/core/listVector4Value'
 import { formatMapHashLinkRitualLine, parseMapHashLinkString } from '@/core/mapHashLinkValue'
+import { hasMapHashEmbedStructure, parseMapHashEmbedString } from '@/core/mapHashEmbedValue'
 import { formatMapHashPointerString, parseMapHashPointerString } from '@/core/mapHashPointerValue'
 import { formatMapU64PointerString, parseMapU64PointerString } from '@/core/mapU64PointerValue'
 import { parseMtx44String } from '@/core/mtx44Value'
@@ -129,8 +130,22 @@ function formatPrimitiveListRitualBody(
   return `{ ${raw.trim()} }`
 }
 
+function formatMapHashEmbedRitualBody(raw: string, innerIndent: string): string {
+  const itemIndent = `${innerIndent}    `
+  const entries = parseMapHashEmbedString(raw).filter(hasMapHashEmbedStructure)
+  if (entries.length === 0) {
+    return '{ }'
+  }
+  return `{\n${entries
+    .map((entry) => `${itemIndent}${formatMapEntryKey(entry.key)} = ${entry.typeName} { }`)
+    .join('\n')}\n${innerIndent}}`
+}
+
 function formatMapRitualBody(type: NodeDataType, raw: string, innerIndent: string): string {
   const itemIndent = `${innerIndent}    `
+  if (type === 'mapHashEmbed') {
+    return formatMapHashEmbedRitualBody(raw, innerIndent)
+  }
   if (type === 'mapHashLink') {
     const entries = parseMapHashLinkString(raw)
     if (entries.length === 0) {
@@ -238,6 +253,7 @@ function formatScalarRitualValue(
     case 'listVector3':
     case 'listVector4':
       return formatPrimitiveListRitualBody(ritType, trimmed, valueIndent)
+    case 'mapHashEmbed':
     case 'mapHashLink':
     case 'mapHashPointer':
     case 'mapU64Pointer':

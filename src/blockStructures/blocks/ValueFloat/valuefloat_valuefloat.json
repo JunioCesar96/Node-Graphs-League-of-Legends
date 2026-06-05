@@ -6,11 +6,11 @@
   "name": "ValueFloat",
   "source": {
     "kind": "block",
-    "nodeId": "value-float__entries-{particlePath}-complex-emitter-definition-data--slot--0-rate"
+    "nodeId": "value-float__main-characters/brand/skins/skin0/particles/brand-base-e-conflagration-buf-complex-emitter-definition-data--slot--0-rate"
   },
   "color": "#40ff56",
   "headerSlots": [
-    "in[rate,particleLifetime,bindWeight,birthFrameRate,erosionDriveCurve]",
+    "in[rate,particleLifetime,bindWeight,birthFrameRate,birthDrag,uvRotation,erosionDriveCurve,emitRotationAngles,birthScale,Scale,birthRotation,birthRotationalVelocity,radius,Frequency,velocityDelta]",
     "out[ValueFloatPreview]"
   ],
   "parameters": [

@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 
 import { BlockInspectorParameterCard } from '@/components/molecules/BlockInspectorParameterCard'
+import { useBlockCardMenuFloatingLayerDragHandle } from '@/components/molecules/BlockCardMenuFloatingLayer'
 import { InspectorFloatingPanelShell } from '@/components/molecules/InspectorFloatingPanelShell'
+import type { CanvasContextMenuAnchor } from '@/core/canvasContextMenuTypes'
 import {
   blockInspectorEntryFromParameterDef,
   isStructuralParameterSourcePath,
@@ -17,6 +19,8 @@ export type BlockParameterInspectorTarget = {
   nodeId: string
   paramId: string
   parameter: BlockParameterDef
+  /** Ponto de ecrã do clique (menu de contexto ou lista ancorada). */
+  screenAnchor?: CanvasContextMenuAnchor
 }
 
 type BlockParameterInspectorProps = {
@@ -27,6 +31,7 @@ type BlockParameterInspectorProps = {
 
 export function BlockParameterInspector({ target, onClose, onApply }: BlockParameterInspectorProps) {
   const { t } = useLanguage()
+  const dragHandleProps = useBlockCardMenuFloatingLayerDragHandle()
   const [entry, setEntry] = useState<BlockInspectorDraftEntry | null>(null)
 
   useEffect(() => {
@@ -50,6 +55,7 @@ export function BlockParameterInspector({ target, onClose, onApply }: BlockParam
       title={displayName}
       eyebrow={t(LangId.BlockParameterInspectorTitle)}
       shellSurfaceClassName={inspectorStyles.panel}
+      dragHandleProps={dragHandleProps}
       headerActions={
         <button
           type="button"

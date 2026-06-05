@@ -5,7 +5,7 @@
   "name": "LegacySimple",
   "source": {
     "kind": "parameter",
-    "parameterId": "vfx-emitter-definition-data__entries-{particlePath}-complex-emitter-definition-data--slot--0-legacy-simple"
+    "parameterId": "vfx-emitter-definition-data__main-characters/brand/skins/skin0/particles/brand-base-q-blaze-mis-complex-emitter-definition-data--slot--13-legacy-simple"
   },
   "type": "pointer",
   "pointer": "VfxEmitterLegacySimple",

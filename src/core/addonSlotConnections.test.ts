@@ -9,8 +9,32 @@ import {
   classifyAddonSlotConnection,
   listAddonSlotEndpoints,
   parseAddonSlotId,
+  resolveAddonInvolvedConnectionPath,
   resolveWiredAddonInputSlotNames,
 } from './addonSlotConnections'
+import { blockParameterSlotId } from './blockSchema'
+import { makeVfxEmitterCanvasNode } from './blockTestFixtures'
+import type { CanvasConnection } from './canvasScene'
+
+function makeBlockNode(id: string, x: number, y: number): CanvasNode {
+  return makeVfxEmitterCanvasNode({
+    id,
+    position: { x, y },
+    blockViewActive: true,
+    blockStructure: {
+      blockType: 'VfxEmitterDefinitionData',
+      blockName: 'Emitter',
+      parameters: [
+        {
+          idParameter: 'Emitter01',
+          nameParameter: 'color',
+          typeParameter: 'vec4',
+          defaultValue: '0.55,0.95,1,1',
+        },
+      ],
+    },
+  })
+}
 
 const manifest: AddonManifest = {
   id: 'x',
@@ -118,5 +142,36 @@ describe('addonSlotConnections', () => {
     }
 
     expect(resolveWiredAddonInputSlotNames(scene, target, manifestWithInput)).toEqual(new Set(['text']))
+  })
+
+  it('resolveAddonInvolvedConnectionPath respeita routing rigid bloco->add-on', () => {
+    const blockNode = makeBlockNode('block', 80, 40)
+    const addonNode: CanvasNode = {
+      id: 'addon',
+      position: { x: 420, y: 120 },
+      addonViewActive: true,
+      addonInstance: { addonId: 'x', outputValues: {} },
+      node: createAddonPlaceholderInstance('addon'),
+    }
+    const connection: CanvasConnection = {
+      id: 'mix:block->addon',
+      fromNodeId: 'block',
+      fromInternalStructureId: '__block__:out',
+      toNodeId: 'addon',
+      routing: 'rigid',
+      fromBlockSlotId: blockParameterSlotId('Emitter01', 'output'),
+      fromBlockParameterId: 'Emitter01',
+      toAddonSlotId: addonSlotId('b', 'input'),
+    }
+
+    const path = resolveAddonInvolvedConnectionPath(
+      connection,
+      [blockNode, addonNode],
+      () => manifest,
+    )
+    expect(path).not.toBeNull()
+    expect(path?.routing).toBe('rigid')
+    expect(path?.d).not.toContain('C ')
+    expect(path?.d).toMatch(/L \d+(\.\d+)? \d+(\.\d+)?/)
   })
 })

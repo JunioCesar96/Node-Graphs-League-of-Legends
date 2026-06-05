@@ -5,9 +5,10 @@
   "name": "complexEmitterDefinitionData",
   "source": {
     "kind": "parameter",
-    "parameterId": "vfx-system-definition-data__entries-{particlePath}-complex-emitter-definition-data"
+    "parameterId": "vfx-system-definition-data__main-characters/brand/skins/skin0/particles/brand-base-e-conflagration-buf-complex-emitter-definition-data"
   },
   "type": "pointer",
+  "list": true,
   "pointer": "VfxEmitterDefinitionData",
   "slots": {
     "out": [

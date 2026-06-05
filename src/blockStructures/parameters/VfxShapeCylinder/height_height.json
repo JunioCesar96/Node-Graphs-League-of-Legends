@@ -5,7 +5,7 @@
   "name": "height",
   "source": {
     "kind": "parameter",
-    "parameterId": "vfx-shape-cylinder__entries-{particlePath}-complex-emitter-definition-data--slot--0-spawn-shape_parameter_height"
+    "parameterId": "vfx-shape-cylinder__main-characters/brand/skins/skin0/particles/brand-base-e-conflagration-buf-complex-emitter-definition-data--slot--0-spawn-shape_parameter_height"
   },
   "type": "f32",
   "value": "100",

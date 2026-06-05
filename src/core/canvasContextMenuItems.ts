@@ -35,6 +35,7 @@ import {
   setConnectionRoutingMenuId,
 } from '@/core/connectionRoutingMenu'
 import { findConnectionForBlockSlot } from '@/core/blockSlotConnections'
+import { findConnectionForAddonSlot } from '@/core/addonSlotConnections'
 import {
   collectLinkedChildNodeIds,
   isStructuralSlotContextKind,
@@ -93,6 +94,16 @@ export type CanvasContextMenuBuildContext = {
     fallback: string,
     vars?: Readonly<Record<string, string | number>>,
   ) => string
+  /** Abre o painel do menu Parâmetros do card de bloco (add / edit / remove). */
+  onRequestBlockParameterPanel?: (
+    nodeId: string,
+    panel: 'add' | 'edit' | 'remove',
+  ) => void
+  blockParameterMenu?: {
+    canAdd: boolean
+    canEdit: boolean
+    canRemove: boolean
+  }
 }
 
 function trLabel(
@@ -347,6 +358,38 @@ function buildStructureCardItems(
           : trLabel(ctx, LangId.CtxGlueEnable, 'Modo cola (glue)'),
         shortcut: 'G',
       },
+      ...(ctx.onRequestBlockParameterPanel && ctx.blockParameterMenu
+        ? [
+            {
+              id: 'node.blockParameters' as const,
+              label: trLabel(ctx, LangId.BlockCardParameterMenu, 'Parâmetros'),
+              separatorBefore: true,
+              children: [
+                {
+                  id: 'node.blockParameters.add' as const,
+                  label: 'Adicionar',
+                  disabled: nodeLocked || !ctx.blockParameterMenu.canAdd,
+                },
+                {
+                  id: 'node.blockParameters.edit' as const,
+                  label: 'Editar',
+                  disabled:
+                    nodeLocked ||
+                    !ctx.blockParameterMenu.canEdit ||
+                    (canvasNode.blockStructure?.parameters.length ?? 0) === 0,
+                },
+                {
+                  id: 'node.blockParameters.remove' as const,
+                  label: 'Remover',
+                  disabled:
+                    nodeLocked ||
+                    !ctx.blockParameterMenu.canRemove ||
+                    (canvasNode.blockStructure?.parameters.length ?? 0) === 0,
+                },
+              ],
+            },
+          ]
+        : []),
       ...(ctx.onPreviewBlockCardCode
         ? [
             {
@@ -854,12 +897,15 @@ function buildPeerOutputFocusItems(
   ]
 }
 
-function buildBlockSlotItems(
+function buildCanvasSlotItems(
   ctx: CanvasContextMenuBuildContext,
-  target: Extract<CanvasContextTarget, { type: 'blockSlot' }>,
+  target: {
+    nodeId: string
+    slotId: string
+    direction: 'input' | 'output'
+  },
+  connection: CanvasConnection | undefined,
 ): ContextMenuItem[] {
-  const connection = findConnectionForBlockSlot(ctx.scene, target.nodeId, target.slotId)
-
   if (!connection) {
     return []
   }
@@ -886,6 +932,30 @@ function buildBlockSlotItems(
   }
 
   return items
+}
+
+function buildBlockSlotItems(
+  ctx: CanvasContextMenuBuildContext,
+  target: Extract<CanvasContextTarget, { type: 'blockSlot' }>,
+): ContextMenuItem[] {
+  return buildCanvasSlotItems(
+    ctx,
+    target,
+    findConnectionForBlockSlot(ctx.scene, target.nodeId, target.slotId, {
+      connectionIndex: target.connectionIndex,
+    }),
+  )
+}
+
+function buildAddonSlotItems(
+  ctx: CanvasContextMenuBuildContext,
+  target: Extract<CanvasContextTarget, { type: 'addonSlot' }>,
+): ContextMenuItem[] {
+  return buildCanvasSlotItems(
+    ctx,
+    target,
+    findConnectionForAddonSlot(ctx.scene, target.nodeId, target.slotId),
+  )
 }
 
 function buildNodeInputPortItems(
@@ -943,6 +1013,8 @@ export function buildContextMenuItems(
       return buildConnectionItems(ctx, target.connectionId, ctx.scene)
     case 'blockSlot':
       return buildBlockSlotItems(ctx, target)
+    case 'addonSlot':
+      return buildAddonSlotItems(ctx, target)
     case 'element':
       return buildElementItems(ctx, target)
     default:

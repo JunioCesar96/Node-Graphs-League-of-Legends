@@ -1,6 +1,11 @@
+import type { WirelessPortLink } from './connectionDisplay'
 import type { CanvasConnection, CanvasNode, ConnectionRouting } from './canvasScene'
 import { connectionInvolvesAddon } from './addonSlotConnections'
-import { isBlockSlotConnection } from './blockSlotConnections'
+import {
+  findConnectionsForBlockOutputSlot,
+  isBlockSlotConnection,
+  resolveBlockOutputSlotConnectionIndex,
+} from './blockSlotConnections'
 
 export type BlockSlotWirelessLink = {
   connectionId: string
@@ -153,6 +158,75 @@ export function buildBlockWirelessDisplayByNode(
   }
 
   return byNode
+}
+
+/** Substitui a ligação activa em saídas com fan-out pela selecção do índice. */
+export function applyBlockOutputSlotConnectionSelection(
+  displayByNode: Map<string, BlockWirelessNodeDisplay>,
+  connections: readonly CanvasConnection[],
+  nodes: readonly CanvasNode[],
+  indexBySlotKey: ReadonlyMap<string, number>,
+): Map<string, BlockWirelessNodeDisplay> {
+  const next = new Map<string, BlockWirelessNodeDisplay>()
+
+  for (const [nodeId, display] of displayByNode) {
+    const patchedSlots = new Map(display.slots)
+    let changed = false
+
+    for (const [slotId, link] of display.slots) {
+      const outputConnections = findConnectionsForBlockOutputSlot({ connections }, nodeId, slotId)
+      if (outputConnections.length <= 1) {
+        continue
+      }
+
+      const index = resolveBlockOutputSlotConnectionIndex(
+        indexBySlotKey,
+        nodeId,
+        slotId,
+        outputConnections.length,
+      )
+      const selected = outputConnections[index]
+      if (!selected || selected.id === link.connectionId) {
+        continue
+      }
+
+      patchedSlots.set(slotId, {
+        connectionId: selected.id,
+        routing: selected.routing ?? 'wireless',
+        forced: selected.forced === true,
+        peerNodeId: selected.toNodeId,
+        peerTitle: nodeTitle(nodes, selected.toNodeId),
+        peerBlockName: blockName(nodes, selected.toNodeId),
+        peerSlotId: selected.toBlockSlotId ?? link.peerSlotId,
+        peerPulsePortKind: 'input',
+      })
+      changed = true
+    }
+
+    next.set(nodeId, changed ? { ...display, slots: patchedSlots } : display)
+  }
+
+  return next
+}
+
+export function blockWirelessSlotsToOutputLinks(
+  slots: ReadonlyMap<string, BlockSlotWirelessLink> | undefined,
+): ReadonlyMap<string, WirelessPortLink> {
+  const outputs = new Map<string, WirelessPortLink>()
+  if (!slots) {
+    return outputs
+  }
+  for (const [slotId, link] of slots) {
+    outputs.set(slotId, {
+      connectionId: link.connectionId,
+      routing: link.routing,
+      peerNodeId: link.peerNodeId,
+      peerTitle: link.peerTitle,
+      peerPulsePortKind: link.peerPulsePortKind,
+      peerPulseOutputSlotId: link.peerSlotId,
+    })
+  }
+  return outputs
 }
 
 export function isBlockSlotPulsing(

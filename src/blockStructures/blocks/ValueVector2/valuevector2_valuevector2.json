@@ -6,11 +6,11 @@
   "name": "ValueVector2",
   "source": {
     "kind": "block",
-    "nodeId": "value-vector2__entries-{particlePath}-complex-emitter-definition-data--slot--5-birth-uv-scroll-rate"
+    "nodeId": "value-vector2__main-characters/brand/skins/skin0/particles/brand-base-e-conflagration-buf-complex-emitter-definition-data--slot--5-birth-uv-scroll-rate"
   },
   "color": "#40ff56",
   "headerSlots": [
-    "in[birthUvScrollRate,birthUVOffset,uvScaleMult,birthUVOffsetMult]",
+    "in[birthUvScrollRate,birthUVOffset,uvScale,rateByVelocityFunction,uvScaleMult,birthUVOffsetMult,birthUvScrollRateMult]",
     "out[ValueVector2Preview]"
   ],
   "parameters": [

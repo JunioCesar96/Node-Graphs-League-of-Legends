@@ -6,7 +6,7 @@
   "name": "VfxProbabilityTableData",
   "source": {
     "kind": "block",
-    "nodeId": "vfx-probability-table-data__entries-{particlePath}-complex-emitter-definition-data--slot--0-particle-lifetime-dynamics-probability-tables--slot--0"
+    "nodeId": "vfx-probability-table-data__main-characters/brand/skins/skin0/particles/brand-base-e-conflagration-buf-complex-emitter-definition-data--slot--0-particle-lifetime-dynamics-probability-tables--slot--0"
   },
   "color": "#40ff56",
   "headerSlots": [

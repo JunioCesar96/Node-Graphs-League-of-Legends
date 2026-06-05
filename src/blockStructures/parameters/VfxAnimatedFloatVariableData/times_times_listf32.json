@@ -5,7 +5,7 @@
   "name": "times",
   "source": {
     "kind": "parameter",
-    "parameterId": "vfx-animated-float-variable-data__entries-{particlePath}-complex-emitter-definition-data--slot--0-particle-lifetime-dynamics_parameter_times"
+    "parameterId": "vfx-animated-float-variable-data__main-characters/brand/skins/skin0/particles/brand-base-e-conflagration-buf-complex-emitter-definition-data--slot--0-particle-lifetime-dynamics_parameter_times"
   },
   "type": "listF32",
   "items": [

@@ -5,7 +5,7 @@
   "name": "particleName",
   "source": {
     "kind": "parameter",
-    "parameterId": "vfx-system-definition-data__entries-{particlePath}_parameter_particleName"
+    "parameterId": "vfx-system-definition-data__main-characters/brand/skins/skin0/particles/brand-base-e-conflagration-buf_parameter_particleName"
   },
   "type": "string",
   "value": "Brand_Base_E_Conflagration_buf",

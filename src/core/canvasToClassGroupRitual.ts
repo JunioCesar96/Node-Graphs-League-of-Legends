@@ -3,9 +3,10 @@ import { MAIN_SCHEMA_ID } from '@/core/classGroupRitualStackParser'
 import { findEmbedBySlotId } from '@/core/embedSlots'
 import { findList2EmbedByInstanceSlotId } from '@/core/list2EmbedSlots'
 import { findList2PointerByInstanceSlotId } from '@/core/list2PointerSlots'
-import { findListEmbedBySlotId, populatedSlotsForListEmbed } from '@/core/listEmbedSlots'
+import { findListEmbedBySlotId, parseListEmbedSlotIndex, populatedSlotsForListEmbed } from '@/core/listEmbedSlots'
 import {
   findListPointerBySlotId,
+  parseListPointerSlotIndex,
   populatedSlotsForListPointer,
 } from '@/core/listPointerSlots'
 import {
@@ -18,8 +19,9 @@ import {
 } from '@/core/ritualBinFidelity'
 import {
   findMapHashEmbedEntryBySlotId,
-  isMapHashEmbedSlotId,
+  mapHashEmbedSlotId,
   parseMapHashEmbedSlotId,
+  resolveMapHashEmbedSlotIdFromConnection,
 } from '@/core/mapHashEmbedSlots'
 import { isMapHashPointerSlotId, parseMapHashPointerSlotId } from '@/core/mapHashPointerSlots'
 import { isMapU64PointerSlotId, parseMapU64PointerSlotId } from '@/core/mapU64PointerSlots'
@@ -30,11 +32,12 @@ import type {
   ListPointerDefinition,
   NodeDataType,
   NodeInstance,
+  NodeParameterDefinition,
   NodeSchemaDefinition,
   PointerDefinition,
 } from '@/core/nodeSchema'
 import type { BlockParameterDef } from '@/core/blockSchema'
-import { parseMapHashEmbedString } from '@/core/mapHashEmbedValue'
+import { hasMapHashEmbedStructure, parseMapHashEmbedString } from '@/core/mapHashEmbedValue'
 import { findPointerBySlotId } from '@/core/pointerSlots'
 import {
   formatMapEntryKey,
@@ -136,13 +139,202 @@ function collectSubtreeNodeIds(scene: CanvasScene, rootId: string): Set<string> 
   return reached
 }
 
+function resolveBlockConnectionSlotId(connection: CanvasConnection): string | null {
+  if (connection.fromBlockSlotId?.trim()) {
+    return connection.fromBlockSlotId.trim()
+  }
+  const internal = connection.fromInternalStructureId?.trim() ?? ''
+  const prefix = '__block__:'
+  if (internal.startsWith(prefix)) {
+    return internal.slice(prefix.length)
+  }
+  return internal.length > 0 ? internal : null
+}
+
+function blockFilterIncludesStructuralField(
+  blockFilter: {
+    pointerIds: Set<string>
+    pointerTitles: Set<string>
+    embedIds: Set<string>
+    embedTitles: Set<string>
+  },
+  kind: 'pointer' | 'embed',
+  block: { id: string; title: string },
+): boolean {
+  const title = block.title.trim()
+  if (kind === 'pointer') {
+    return blockFilter.pointerTitles.has(title) || blockFilter.pointerIds.has(block.id)
+  }
+  return blockFilter.embedTitles.has(title) || blockFilter.embedIds.has(block.id)
+}
+
+function normalizeStructuralFieldName(name: string): string {
+  return name.trim()
+}
+
+function schemaListEmbedFieldNames(schema: NodeSchemaDefinition): Set<string> {
+  return new Set(
+    (schema.listEmbed ?? []).map((block) =>
+      normalizeStructuralFieldName(block.parameterName ?? block.title),
+    ),
+  )
+}
+
+function schemaListPointerFieldNames(schema: NodeSchemaDefinition): Set<string> {
+  return new Set(
+    (schema.listPointer ?? []).map((block) => normalizeStructuralFieldName(block.title)),
+  )
+}
+
+function schemaList2EmbedFieldNames(schema: NodeSchemaDefinition): Set<string> {
+  return new Set(
+    (schema.list2Embed ?? []).map((block) => normalizeStructuralFieldName(block.title)),
+  )
+}
+
+function schemaList2PointerFieldNames(schema: NodeSchemaDefinition): Set<string> {
+  return new Set(
+    (schema.list2Pointer ?? []).map((block) => normalizeStructuralFieldName(block.title)),
+  )
+}
+
+function resolveEmbedChildLinkKind(
+  sourceParam: BlockParameterDef,
+  schema: NodeSchemaDefinition,
+): 'embed' | 'listEmbed' {
+  if (sourceParam.listParameter) {
+    return 'listEmbed'
+  }
+  const fieldName = normalizeStructuralFieldName(sourceParam.nameParameter)
+  if (schemaListEmbedFieldNames(schema).has(fieldName)) {
+    return 'listEmbed'
+  }
+  return 'embed'
+}
+
+function resolvePointerChildLinkKind(
+  sourceParam: BlockParameterDef,
+  schema: NodeSchemaDefinition,
+): 'pointer' | 'listPointer' {
+  if (sourceParam.listParameter) {
+    return 'listPointer'
+  }
+  const fieldName = normalizeStructuralFieldName(sourceParam.nameParameter)
+  if (schemaListPointerFieldNames(schema).has(fieldName)) {
+    return 'listPointer'
+  }
+  return 'pointer'
+}
+
+function mergeStructuralListLinks<T extends { childCanvasId: string; index: number }>(
+  primary: readonly T[],
+  fallback: readonly T[],
+): T[] {
+  const seen = new Set(primary.map((link) => link.childCanvasId))
+  const merged = [...primary]
+  for (const link of fallback) {
+    if (seen.has(link.childCanvasId)) {
+      continue
+    }
+    seen.add(link.childCanvasId)
+    merged.push(link)
+  }
+  return merged.sort((a, b) => a.index - b.index)
+}
+
+function blockCardListEmbedLinks(
+  partitioned: ReturnType<typeof partitionLinks>,
+  fieldName: string,
+): Array<OutgoingLink & { kind: 'listEmbed'; index: number }> {
+  const title = normalizeStructuralFieldName(fieldName)
+  const fromList = (partitioned.linksByListEmbed.get(title) ?? []).filter(
+    (link): link is OutgoingLink & { kind: 'listEmbed'; index: number } => link.kind === 'listEmbed',
+  )
+  const fromSimple = (partitioned.linksByEmbed.get(title) ?? []).map(
+    (link, index): OutgoingLink & { kind: 'listEmbed'; index: number } => ({
+      kind: 'listEmbed',
+      fieldName: title,
+      index,
+      childCanvasId: link.childCanvasId,
+    }),
+  )
+  return mergeStructuralListLinks(fromList, fromSimple)
+}
+
+function blockCardListPointerLinks(
+  partitioned: ReturnType<typeof partitionLinks>,
+  fieldName: string,
+): Array<OutgoingLink & { kind: 'listPointer'; index: number }> {
+  const title = normalizeStructuralFieldName(fieldName)
+  const fromList = (partitioned.linksByListPointer.get(title) ?? []).filter(
+    (link): link is OutgoingLink & { kind: 'listPointer'; index: number } =>
+      link.kind === 'listPointer',
+  )
+  const fromSimple = (partitioned.linksByPointer.get(title) ?? []).map(
+    (link, index): OutgoingLink & { kind: 'listPointer'; index: number } => ({
+      kind: 'listPointer',
+      fieldName: title,
+      index,
+      childCanvasId: link.childCanvasId,
+    }),
+  )
+  return mergeStructuralListLinks(fromList, fromSimple)
+}
+
+function blockCardList2EmbedLinks(
+  partitioned: ReturnType<typeof partitionLinks>,
+  fieldName: string,
+): Array<OutgoingLink & { kind: 'list2Embed'; instanceIndex: number }> {
+  const title = normalizeStructuralFieldName(fieldName)
+  const fromList2 = (partitioned.linksByList2Embed.get(title) ?? []).filter(
+    (link): link is OutgoingLink & { kind: 'list2Embed'; instanceIndex: number } =>
+      link.kind === 'list2Embed',
+  )
+  const fromSimple = (partitioned.linksByEmbed.get(title) ?? []).map(
+    (link, instanceIndex): OutgoingLink & { kind: 'list2Embed'; instanceIndex: number } => ({
+      kind: 'list2Embed',
+      fieldName: title,
+      instanceIndex,
+      childCanvasId: link.childCanvasId,
+    }),
+  )
+  return mergeStructuralListLinks(
+    fromList2.map((link) => ({ ...link, index: link.instanceIndex })),
+    fromSimple.map((link) => ({ ...link, index: link.instanceIndex })),
+  ).map(({ index, ...link }) => ({ ...link, instanceIndex: index }))
+}
+
+function blockCardList2PointerLinks(
+  partitioned: ReturnType<typeof partitionLinks>,
+  fieldName: string,
+): Array<OutgoingLink & { kind: 'list2Pointer'; instanceIndex: number }> {
+  const title = normalizeStructuralFieldName(fieldName)
+  const fromList2 = (partitioned.linksByList2Pointer.get(title) ?? []).filter(
+    (link): link is OutgoingLink & { kind: 'list2Pointer'; instanceIndex: number } =>
+      link.kind === 'list2Pointer',
+  )
+  const fromSimple = (partitioned.linksByPointer.get(title) ?? []).map(
+    (link, instanceIndex): OutgoingLink & { kind: 'list2Pointer'; instanceIndex: number } => ({
+      kind: 'list2Pointer',
+      fieldName: title,
+      instanceIndex,
+      childCanvasId: link.childCanvasId,
+    }),
+  )
+  return mergeStructuralListLinks(
+    fromList2.map((link) => ({ ...link, index: link.instanceIndex })),
+    fromSimple.map((link) => ({ ...link, index: link.instanceIndex })),
+  ).map(({ index, ...link }) => ({ ...link, instanceIndex: index }))
+}
+
 export function classifyOutgoingLink(parent: CanvasNode, connection: CanvasConnection): OutgoingLink | null {
   const slotId = connection.fromInternalStructureId
   const schema = parent.node.schema
   const values = valuesByParameterId(parent.node)
 
-  if (isMapHashEmbedSlotId(slotId)) {
-    const hit = findMapHashEmbedEntryBySlotId(schema, slotId, values)
+  const mapEmbedSlotId = resolveMapHashEmbedSlotIdFromConnection(connection)
+  if (mapEmbedSlotId) {
+    const hit = findMapHashEmbedEntryBySlotId(schema, mapEmbedSlotId, values)
     if (hit) {
       return {
         kind: 'mapHashEmbed',
@@ -151,7 +343,31 @@ export function classifyOutgoingLink(parent: CanvasNode, connection: CanvasConne
         childCanvasId: connection.toNodeId,
       }
     }
-    const parsed = parseMapHashEmbedSlotId(slotId)
+    if (parent.blockViewActive && parent.blockStructure) {
+      const parsed = parseMapHashEmbedSlotId(mapEmbedSlotId)
+      if (parsed) {
+        const blockParam = parent.blockStructure.parameters.find(
+          (entry) => entry.idParameter === parsed.parameterId,
+        )
+        if (blockParam?.typeParameter === 'mapHashEmbed') {
+          const entries = parseMapHashEmbedString(blockParam.defaultValue)
+          const entry = entries.find(
+            (item) =>
+              hasMapHashEmbedStructure(item) &&
+              mapHashEmbedSlotId(blockParam.idParameter, item.key) === mapEmbedSlotId,
+          )
+          if (entry) {
+            return {
+              kind: 'mapHashEmbed',
+              parameterName: blockParam.nameParameter,
+              entryKey: entry.key,
+              childCanvasId: connection.toNodeId,
+            }
+          }
+        }
+      }
+    }
+    const parsed = parseMapHashEmbedSlotId(mapEmbedSlotId)
     if (parsed) {
       const param = schema.parameters.find((p) => p.id === parsed.parameterId)
       if (param) {
@@ -272,6 +488,7 @@ export function classifyOutgoingLink(parent: CanvasNode, connection: CanvasConne
 function resolveOutgoingLinks(parent: CanvasNode, scene: CanvasScene): OutgoingLink[] {
   const links: OutgoingLink[] = []
   const seen = new Set<string>()
+  const schema = parent.node.schema
 
   const pushUnique = (link: OutgoingLink) => {
     const key = `${link.kind}:${'fieldName' in link ? link.fieldName : link.parameterName}:${link.childCanvasId}`
@@ -310,20 +527,67 @@ function resolveOutgoingLinks(parent: CanvasNode, scene: CanvasScene): OutgoingL
     }
 
     if (sourceParam.sourcePath.kind === 'embedChild') {
-      pushUnique({
-        kind: 'embed',
-        fieldName,
-        childCanvasId: connection.toNodeId,
-      })
+      const linkKind = resolveEmbedChildLinkKind(sourceParam, schema)
+      if (linkKind === 'listEmbed') {
+        const slotId = resolveBlockConnectionSlotId(connection)
+        const index =
+          slotId != null ? parseListEmbedSlotIndex(slotId, sourceParam.idParameter) : null
+        pushUnique({
+          kind: 'listEmbed',
+          fieldName,
+          index: index ?? 0,
+          childCanvasId: connection.toNodeId,
+        })
+      } else {
+        pushUnique({
+          kind: 'embed',
+          fieldName,
+          childCanvasId: connection.toNodeId,
+        })
+      }
       continue
     }
 
     if (sourceParam.sourcePath.kind === 'pointerChild') {
-      pushUnique({
-        kind: 'pointer',
-        fieldName,
-        childCanvasId: connection.toNodeId,
-      })
+      const linkKind = resolvePointerChildLinkKind(sourceParam, schema)
+      if (linkKind === 'listPointer') {
+        const slotId = resolveBlockConnectionSlotId(connection)
+        const index =
+          slotId != null ? parseListPointerSlotIndex(slotId, sourceParam.idParameter) : null
+        pushUnique({
+          kind: 'listPointer',
+          fieldName,
+          index: index ?? 0,
+          childCanvasId: connection.toNodeId,
+        })
+      } else {
+        pushUnique({
+          kind: 'pointer',
+          fieldName,
+          childCanvasId: connection.toNodeId,
+        })
+      }
+      continue
+    }
+
+    if (sourceParam.typeParameter === 'mapHashEmbed') {
+      const embedSlotId = resolveMapHashEmbedSlotIdFromConnection(connection)
+      if (embedSlotId) {
+        const entries = parseMapHashEmbedString(sourceParam.defaultValue)
+        const entry = entries.find(
+          (item) =>
+            hasMapHashEmbedStructure(item) &&
+            mapHashEmbedSlotId(sourceParam.idParameter, item.key) === embedSlotId,
+        )
+        if (entry) {
+          pushUnique({
+            kind: 'mapHashEmbed',
+            parameterName: sourceParam.nameParameter,
+            entryKey: entry.key,
+            childCanvasId: connection.toNodeId,
+          })
+        }
+      }
     }
   }
 
@@ -643,6 +907,31 @@ export class RitualEmitter {
     }
   }
 
+  private pushMapHashEmbedParameterLines(
+    canvasNode: CanvasNode,
+    parameter: Pick<NodeParameterDefinition, 'id' | 'name' | 'defaultValue'>,
+    exportFieldName: string,
+    rawValue: string,
+    allLinks: readonly OutgoingLink[],
+    depth: number,
+    lines: string[],
+  ): void {
+    lines.push(
+      ...emitMapHashEmbedMapBlock(
+        this,
+        canvasNode,
+        parameter,
+        exportFieldName,
+        rawValue,
+        allLinks,
+        depth,
+        {
+          includeOrphanLinks: !this.fidelity.blockCardSelectedParametersOnly,
+        },
+      ),
+    )
+  }
+
   private collectBlockFilterFromParameter(
     parameter: BlockParameterDef,
     looksSynthetic: (id: string) => boolean,
@@ -719,6 +1008,24 @@ export class RitualEmitter {
         }
         emittedParameterIds.add(parameter.id)
 
+        if (parameter.type === 'mapHashEmbed') {
+          const raw =
+            parameterFromSchema != null
+              ? parameterValue(instance, parameter.id, parameter.defaultValue)
+              : selected.defaultValue
+          const blockCardOverride =
+            blockFilter.parameterValueByName.get(parameter.name.trim().toLowerCase()) ?? null
+          this.pushMapHashEmbedParameterLines(
+            canvasNode,
+            parameter,
+            this.exportFieldName(parameter),
+            blockCardOverride ?? raw,
+            links,
+            depth,
+            lines,
+          )
+          continue
+        }
         if (isMapHashParameterType(parameter.type)) {
           continue
         }
@@ -745,6 +1052,21 @@ export class RitualEmitter {
           !blockFilter.parameterIds.has(parameter.id) &&
           !blockFilter.parameterNames.has(parameter.name.trim().toLowerCase())
         ) {
+          continue
+        }
+        if (parameter.type === 'mapHashEmbed') {
+          const raw = parameterValue(instance, parameter.id, parameter.defaultValue)
+          const blockCardOverride =
+            blockFilter?.parameterValueByName.get(parameter.name.trim().toLowerCase()) ?? null
+          this.pushMapHashEmbedParameterLines(
+            canvasNode,
+            parameter,
+            this.exportFieldName(parameter),
+            blockCardOverride ?? raw,
+            links,
+            depth,
+            lines,
+          )
           continue
         }
         if (isMapHashParameterType(parameter.type)) {
@@ -786,6 +1108,13 @@ export class RitualEmitter {
       ) {
         continue
       }
+      if (
+        blockFilter &&
+        (schemaListEmbedFieldNames(schema).has(block.title.trim()) ||
+          schemaList2EmbedFieldNames(schema).has(block.title.trim()))
+      ) {
+        continue
+      }
       const fieldName = this.exportBlockTitle(block.title)
       const fieldLinks = partitioned.linksByEmbed.get(block.title) ?? []
       const child = fieldLinks[0] ? findCanvasNode(this.scene, fieldLinks[0].childCanvasId) : null
@@ -810,6 +1139,13 @@ export class RitualEmitter {
       ) {
         continue
       }
+      if (
+        blockFilter &&
+        (schemaListPointerFieldNames(schema).has(block.title.trim()) ||
+          schemaList2PointerFieldNames(schema).has(block.title.trim()))
+      ) {
+        continue
+      }
       const fieldName = this.exportBlockTitle(block.title)
       const fieldLinks = partitioned.linksByPointer.get(block.title) ?? []
       const child = fieldLinks[0] ? findCanvasNode(this.scene, fieldLinks[0].childCanvasId) : null
@@ -827,10 +1163,10 @@ export class RitualEmitter {
     }
 
     for (const blocks of groupListStructureBlocks(schema.listEmbed)) {
-      if (blockFilter) {
+      const block = blocks[0]!
+      if (blockFilter && !blockFilterIncludesStructuralField(blockFilter, 'embed', block)) {
         continue
       }
-      const block = blocks[0]!
       const fieldName = this.exportBlockTitle(block.title)
       const fieldLinks = (partitioned.linksByListEmbed.get(block.title) ?? []).sort(
         (a, b) => a.index - b.index,
@@ -838,10 +1174,30 @@ export class RitualEmitter {
       const linksByIndex = listEmbedLinksByGlobalIndex(canvasNode, this.scene, blocks, fieldLinks)
       const bodyDepth = depth + INDENT_STEP
       const itemPad = indent(bodyDepth)
+      lines.push(`${pad}${fieldName}: list[embed] = {`)
+
+      if (blockFilter) {
+        const linkedEmbeds = blockCardListEmbedLinks(partitioned, block.title)
+        for (const link of linkedEmbeds) {
+          const child = findCanvasNode(this.scene, link.childCanvasId)
+          if (!child) {
+            lines.push(
+              structOnlyChildLine(itemPad, childTitleForListEmbedExportSlot(blocks, link.index)),
+            )
+            continue
+          }
+          const childTitle = this.childTitle(link.childCanvasId)
+          const itemBodyDepth = bodyDepth + INDENT_STEP
+          lines.push(`${itemPad}${childTitle} {`)
+          lines.push(...this.emitTypeBody(child, itemBodyDepth))
+          lines.push(`${itemPad}}`)
+        }
+        lines.push(`${pad}}`)
+        continue
+      }
+
       const populatedEmbedCount = exportSlotCountForListEmbedGroup(blocks)
       const slotCount = populatedEmbedCount > 0 ? populatedEmbedCount : fieldLinks.length
-
-      lines.push(`${pad}${fieldName}: list[embed] = {`)
 
       for (let slotIndex = 0; slotIndex < slotCount; slotIndex += 1) {
         const link = linksByIndex.get(slotIndex)
@@ -865,10 +1221,10 @@ export class RitualEmitter {
     }
 
     for (const blocks of groupListStructureBlocks(schema.listPointer)) {
-      if (blockFilter) {
+      const block = blocks[0]!
+      if (blockFilter && !blockFilterIncludesStructuralField(blockFilter, 'pointer', block)) {
         continue
       }
-      const block = blocks[0]!
       const fieldName = this.exportBlockTitle(block.title)
       const fieldLinks = (partitioned.linksByListPointer.get(block.title) ?? []).sort(
         (a, b) => a.index - b.index,
@@ -881,6 +1237,39 @@ export class RitualEmitter {
         fieldName.toLowerCase() === 'probabilitytables'
 
       lines.push(`${pad}${fieldName}: list[pointer] = {`)
+
+      if (blockFilter) {
+        const linkedPointers = blockCardListPointerLinks(partitioned, block.title)
+        for (const link of linkedPointers) {
+          const child = findCanvasNode(this.scene, link.childCanvasId)
+          if (!child) {
+            lines.push(
+              structOnlyChildLine(
+                itemPad,
+                childTitleForListPointerExportSlot(blocks, link.index),
+              ),
+            )
+            continue
+          }
+
+          if (
+            compactProbTables &&
+            child.node.schema.title === VFX_PROBABILITY_TABLE_TITLE &&
+            isPlaceholderProbabilityTableNode(child)
+          ) {
+            lines.push(structOnlyChildLine(itemPad, VFX_PROBABILITY_TABLE_TITLE))
+            continue
+          }
+
+          const childTitle = this.childTitle(link.childCanvasId)
+          const itemBodyDepth = bodyDepth + INDENT_STEP
+          lines.push(`${itemPad}${childTitle} {`)
+          lines.push(...this.emitTypeBody(child, itemBodyDepth))
+          lines.push(`${itemPad}}`)
+        }
+        lines.push(`${pad}}`)
+        continue
+      }
 
       const populatedPointerCount = exportSlotCountForListPointerGroup(blocks)
       const slotCount = populatedPointerCount > 0 ? populatedPointerCount : fieldLinks.length
@@ -915,16 +1304,34 @@ export class RitualEmitter {
     }
 
     for (const block of schema.list2Embed ?? []) {
-      if (blockFilter) {
+      if (blockFilter && !blockFilterIncludesStructuralField(blockFilter, 'embed', block)) {
         continue
       }
       const fieldName = this.exportBlockTitle(block.title)
-      const fieldLinks = (partitioned.linksByList2Embed.get(block.title) ?? []).sort(
-        (a, b) => a.instanceIndex - b.instanceIndex,
-      )
       const bodyDepth = depth + INDENT_STEP
       const itemPad = indent(bodyDepth)
       lines.push(`${pad}${fieldName}: list2[embed] = {`)
+
+      if (blockFilter) {
+        const linkedEmbeds = blockCardList2EmbedLinks(partitioned, block.title)
+        for (const link of linkedEmbeds) {
+          const child = findCanvasNode(this.scene, link.childCanvasId)
+          if (!child) {
+            continue
+          }
+          const childTitle = this.childTitle(link.childCanvasId)
+          const itemBodyDepth = bodyDepth + INDENT_STEP
+          lines.push(`${itemPad}${childTitle} {`)
+          lines.push(...this.emitTypeBody(child, itemBodyDepth))
+          lines.push(`${itemPad}}`)
+        }
+        lines.push(`${pad}}`)
+        continue
+      }
+
+      const fieldLinks = (partitioned.linksByList2Embed.get(block.title) ?? []).sort(
+        (a, b) => a.instanceIndex - b.instanceIndex,
+      )
       for (const link of fieldLinks) {
         const child = findCanvasNode(this.scene, link.childCanvasId)
         if (!child) {
@@ -940,16 +1347,34 @@ export class RitualEmitter {
     }
 
     for (const block of schema.list2Pointer ?? []) {
-      if (blockFilter) {
+      if (blockFilter && !blockFilterIncludesStructuralField(blockFilter, 'pointer', block)) {
         continue
       }
       const fieldName = this.exportBlockTitle(block.title)
-      const fieldLinks = (partitioned.linksByList2Pointer.get(block.title) ?? []).sort(
-        (a, b) => a.instanceIndex - b.instanceIndex,
-      )
       const bodyDepth = depth + INDENT_STEP
       const itemPad = indent(bodyDepth)
       lines.push(`${pad}${fieldName}: list2[pointer] = {`)
+
+      if (blockFilter) {
+        const linkedPointers = blockCardList2PointerLinks(partitioned, block.title)
+        for (const link of linkedPointers) {
+          const child = findCanvasNode(this.scene, link.childCanvasId)
+          if (!child) {
+            continue
+          }
+          const childTitle = this.childTitle(link.childCanvasId)
+          const itemBodyDepth = bodyDepth + INDENT_STEP
+          lines.push(`${itemPad}${childTitle} {`)
+          lines.push(...this.emitTypeBody(child, itemBodyDepth))
+          lines.push(`${itemPad}}`)
+        }
+        lines.push(`${pad}}`)
+        continue
+      }
+
+      const fieldLinks = (partitioned.linksByList2Pointer.get(block.title) ?? []).sort(
+        (a, b) => a.instanceIndex - b.instanceIndex,
+      )
       for (const link of fieldLinks) {
         const child = findCanvasNode(this.scene, link.childCanvasId)
         if (!child) {
@@ -968,46 +1393,162 @@ export class RitualEmitter {
   }
 }
 
-function buildOrderedEntryLinks(
-  mainNode: CanvasNode,
-  scene: CanvasScene,
-  entriesParam: NodeSchemaDefinition['parameters'][number],
-  entryLinks: OutgoingLink[],
-  warnings: string[],
-): OutgoingLink[] {
-  const instance = mainNode.node
-  const raw =
-    parameterValue(instance, entriesParam.id, entriesParam.defaultValue) ?? entriesParam.defaultValue
-  const catalog = parseMapHashEmbedString(raw)
+type EmitMapHashEmbedMapBlockOptions = {
+  /** Quando false (preview do block card), ignora ligações que não estão no catálogo do parâmetro. */
+  includeOrphanLinks?: boolean
+}
 
-  const linkByKey = new Map<string, OutgoingLink>()
+function emitMapHashEmbedMapBlock(
+  emitter: RitualEmitter,
+  canvasNode: CanvasNode,
+  parameter: Pick<NodeParameterDefinition, 'id' | 'name' | 'defaultValue'>,
+  exportFieldName: string,
+  rawValue: string,
+  allLinks: readonly OutgoingLink[],
+  depth: number,
+  options: EmitMapHashEmbedMapBlockOptions = {},
+): string[] {
+  const includeOrphanLinks = options.includeOrphanLinks ?? true
+  const pad = indent(depth)
+  const bodyDepth = depth + INDENT_STEP
+  const itemPad = indent(bodyDepth)
+  const childBodyDepth = bodyDepth + INDENT_STEP
+  const parameterNameNorm = parameter.name.trim().toLowerCase()
+
+  const entryLinks = allLinks.filter(
+    (link): link is OutgoingLink & { kind: 'mapHashEmbed' } =>
+      link.kind === 'mapHashEmbed' && link.parameterName.trim().toLowerCase() === parameterNameNorm,
+  )
+
+  const catalog = parseMapHashEmbedString(rawValue)
+  const linkByKey = new Map<string, OutgoingLink & { kind: 'mapHashEmbed' }>()
   for (const link of entryLinks) {
     linkByKey.set(normalizeMapKey(link.entryKey), link)
   }
 
-  const ordered: OutgoingLink[] = []
+  const lines: string[] = [`${pad}${exportFieldName}: map[hash,embed] = {`]
   const used = new Set<string>()
 
   for (const entry of catalog) {
+    if (!hasMapHashEmbedStructure(entry)) {
+      continue
+    }
     const key = normalizeMapKey(entry.key)
     const link = linkByKey.get(key)
+    const keyLabel = formatMapEntryKey(entry.key)
+    const child = link ? findCanvasNode(emitter.scene, link.childCanvasId) : undefined
+    const typeTitle = child?.node.schema.title ?? entry.typeName
+    lines.push(`${itemPad}${keyLabel} = ${typeTitle} {`)
+    if (child) {
+      lines.push(...emitter.emitTypeBody(child, childBodyDepth))
+    }
+    lines.push(`${itemPad}}`)
     if (link) {
-      ordered.push(link)
       used.add(key)
     } else {
-      warnings.push(`Entrada «${entry.key}» em entries sem nó ligado na cena.`)
+      emitter.warnings.push(
+        `Entrada «${entry.key}» em ${parameter.name} sem nó ligado na cena.`,
+      )
     }
   }
 
   for (const link of entryLinks) {
     const key = normalizeMapKey(link.entryKey)
-    if (!used.has(key)) {
-      ordered.push(link)
-      warnings.push(`Ligação entries «${link.entryKey}» não está no catálogo mapHashEmbed.`)
+    if (used.has(key)) {
+      continue
     }
+    emitter.warnings.push(
+      `Ligação ${parameter.name} «${link.entryKey}» não está no catálogo mapHashEmbed.`,
+    )
+    if (!includeOrphanLinks) {
+      continue
+    }
+    const keyLabel = formatMapEntryKey(link.entryKey)
+    const child = findCanvasNode(emitter.scene, link.childCanvasId)
+    const typeTitle = child?.node.schema.title ?? 'Unknown'
+    lines.push(`${itemPad}${keyLabel} = ${typeTitle} {`)
+    if (child) {
+      lines.push(...emitter.emitTypeBody(child, childBodyDepth))
+    }
+    lines.push(`${itemPad}}`)
   }
 
-  return ordered
+  lines.push(`${pad}}`)
+  return lines
+}
+
+export function emitMainBlockCardPreview(
+  mainNode: CanvasNode,
+  scene: CanvasScene,
+  registry: Record<string, NodeSchemaDefinition>,
+  fidelity: RitualExportFidelity = {},
+): { text: string; warnings: string[] } {
+  const structure = mainNode.blockStructure
+  if (!structure) {
+    return { text: '', warnings: ['Block card Main sem blockStructure.'] }
+  }
+
+  const emitter = new RitualEmitter(scene, registry, mainNode.id, fidelity)
+  const lines: string[] = ['#PROP_text']
+  const instance = mainNode.node
+  const schema = instance.schema
+  const mainTemplate = registry[MAIN_SCHEMA_ID] ?? schema
+  const links = resolveOutgoingLinks(mainNode, scene)
+  const emittedParameterIds = new Set<string>()
+
+  for (const selected of structure.parameters) {
+    if (selected.sourcePath.kind !== 'parameter') {
+      continue
+    }
+
+    const normalizedName = selected.nameParameter.trim().toLowerCase()
+    const parameterFromSchema =
+      schema.parameters.find((entry) => entry.id === selected.sourcePath.parameterId) ??
+      schema.parameters.find((entry) => entry.name.trim().toLowerCase() === normalizedName) ??
+      mainTemplate.parameters.find((entry) => entry.id === selected.sourcePath.parameterId) ??
+      mainTemplate.parameters.find((entry) => entry.name.trim().toLowerCase() === normalizedName)
+
+    const parameter =
+      parameterFromSchema ??
+      ({
+        id: selected.idParameter,
+        name: selected.nameParameter,
+        type: selected.typeParameter as unknown as NodeDataType,
+        defaultValue: selected.defaultValue,
+      } satisfies Pick<NodeParameterDefinition, 'id' | 'name' | 'type' | 'defaultValue'>)
+
+    if (emittedParameterIds.has(parameter.id)) {
+      continue
+    }
+    emittedParameterIds.add(parameter.id)
+
+    const exportFieldName = resolveExportFieldName(
+      parameter,
+      fidelity,
+      ritualExportFieldNameFromParameter,
+    )
+    const raw = selected.defaultValue
+
+    if (parameter.type === 'mapHashEmbed') {
+      lines.push(
+        ...emitMapHashEmbedMapBlock(emitter, mainNode, parameter, exportFieldName, raw, links, 0, {
+          includeOrphanLinks: false,
+        }),
+      )
+      continue
+    }
+
+    if (isMapHashParameterType(parameter.type)) {
+      continue
+    }
+    if (parameter.type === 'comment' || parameter.type === 'property') {
+      continue
+    }
+
+    lines.push(formatRitualScalarAssignment(parameter, raw, '', { fieldName: exportFieldName }))
+  }
+
+  return { text: `${lines.join('\n')}\n`, warnings: emitter.warnings }
 }
 
 export function emitMainPropFile(
@@ -1040,26 +1581,12 @@ export function emitMainPropFile(
     mainTemplate.parameters.find((p) => p.name === 'entries' && p.type === 'mapHashEmbed')
 
   if (entriesParam) {
-    lines.push('entries: map[hash,embed] = {')
-    const orderedLinks = buildOrderedEntryLinks(
-      mainNode,
-      scene,
-      entriesParam,
-      entryLinks,
-      emitter.warnings,
+    const raw =
+      parameterValue(instance, entriesParam.id, entriesParam.defaultValue) ??
+      entriesParam.defaultValue
+    lines.push(
+      ...emitMapHashEmbedMapBlock(emitter, mainNode, entriesParam, 'entries', raw, links, 0),
     )
-
-    for (const link of orderedLinks) {
-      const child = findCanvasNode(scene, link.childCanvasId)
-      const typeTitle = child?.node.schema.title ?? 'Unknown'
-      const keyLabel = formatMapEntryKey(link.entryKey)
-      lines.push(`    ${keyLabel} = ${typeTitle} {`)
-      if (child) {
-        lines.push(...emitter.emitTypeBody(child, 8))
-      }
-      lines.push('    }')
-    }
-    lines.push('}')
   } else {
     emitter.warnings.push('Parâmetro «entries» (mapHashEmbed) não encontrado em Main.')
   }
@@ -1080,6 +1607,24 @@ export function canvasNodeSubtreeToRitual(
   }
 
   if (canvasNode.node.schema.id === MAIN_SCHEMA_ID) {
+    const exportFidelity: RitualExportFidelity = {
+      compactPlaceholderProbabilityTables: true,
+      useSchemaFieldNames: true,
+      ...fidelity,
+    }
+    if (
+      exportFidelity.blockCardSelectedParametersOnly &&
+      canvasNode.blockViewActive &&
+      canvasNode.blockStructure
+    ) {
+      const { text, warnings } = emitMainBlockCardPreview(
+        canvasNode,
+        scene,
+        registry,
+        exportFidelity,
+      )
+      return { ok: true, text, warnings }
+    }
     const { text, warnings } = emitMainPropFile(canvasNode, scene, registry)
     return { ok: true, text, warnings }
   }

@@ -5,7 +5,7 @@
   "name": "textureMult",
   "source": {
     "kind": "parameter",
-    "parameterId": "vfx-texture-mult-definition-data__entries-{particlePath}-complex-emitter-definition-data--slot--7-texture-mult_parameter_textureMult"
+    "parameterId": "vfx-texture-mult-definition-data__main-characters/brand/skins/skin0/particles/brand-base-e-conflagration-buf-complex-emitter-definition-data--slot--7-texture-mult_parameter_textureMult"
   },
   "type": "string",
   "value": "ASSETS/Characters/Brand/Skins/Base/Particles/Brand_Base_E_Swirl.tex",

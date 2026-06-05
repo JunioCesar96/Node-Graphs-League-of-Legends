@@ -6,7 +6,7 @@
   "name": "VfxAnimatedVector3fVariableData",
   "source": {
     "kind": "block",
-    "nodeId": "vfx-animated-vector3f-variable-data__entries-{particlePath}-complex-emitter-definition-data--slot--0-birth-velocity-dynamics"
+    "nodeId": "vfx-animated-vector3f-variable-data__main-characters/brand/skins/skin0/particles/brand-base-e-conflagration-buf-complex-emitter-definition-data--slot--0-birth-velocity-dynamics"
   },
   "color": "#40ff56",
   "headerSlots": [

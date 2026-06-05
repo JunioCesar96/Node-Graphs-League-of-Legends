@@ -6,7 +6,7 @@
   "name": "VfxAlphaErosionDefinitionData",
   "source": {
     "kind": "block",
-    "nodeId": "vfx-alpha-erosion-definition-data__entries-{particlePath}-complex-emitter-definition-data--slot--0-alpha-erosion-definition"
+    "nodeId": "vfx-alpha-erosion-definition-data__main-characters/brand/skins/skin0/particles/brand-base-e-conflagration-buf-complex-emitter-definition-data--slot--0-alpha-erosion-definition"
   },
   "color": "#40ff56",
   "headerSlots": [

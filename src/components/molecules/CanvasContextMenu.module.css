@@ -26,6 +26,8 @@
   justify-content: space-between;
   width: 100%;
   padding: var(--space-2) var(--space-3);
+  font-size: 0.8rem;
+  line-height: 1.25;
   color: var(--color-text-secondary);
   text-align: left;
   cursor: pointer;
@@ -68,7 +70,8 @@
 .menu small {
   color: var(--color-text-muted);
   font-family: var(--font-data);
-  font-size: 0.66rem;
+  font-size: 0.8rem;
+  line-height: 1.25;
   white-space: nowrap;
 }
 
@@ -217,6 +220,7 @@
 .exibirTrigger {
   color: var(--color-text-primary);
   font-weight: 600;
+  font-size: 0.8rem;
 }
 
 .submenuCaret {
@@ -228,8 +232,8 @@
 .submenuFlyout {
   position: absolute;
   top: 0;
-  left: calc(100% + 4px);
-  z-index: 1;
+  left: 100%;
+  z-index: 10;
   display: none;
   gap: var(--space-1);
   min-width: 260px;
@@ -243,9 +247,24 @@
   backdrop-filter: blur(12px);
 }
 
+/* Ponte invisível entre o item pai e o flyout (evita fechar ao atravessar o intervalo). */
+.submenuFlyout::before {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 100%;
+  width: 12px;
+  content: '';
+}
+
 .submenuFlyout[data-flip-x='true'] {
-  right: calc(100% + 4px);
+  right: 100%;
   left: auto;
+}
+
+.submenuFlyout[data-flip-x='true']::before {
+  right: auto;
+  left: 100%;
 }
 
 .submenuFlyout[data-flip-y='true'] {
@@ -257,8 +276,7 @@
   border-color: color-mix(in srgb, var(--syntax-keyword) 18%, var(--color-border-soft));
 }
 
-.submenuRow[data-open='true'] .submenuFlyout,
-.submenuRow:focus-within .submenuFlyout {
+.submenuRow[data-open='true'] .submenuFlyout {
   display: grid;
 }
 

@@ -1,17 +1,17 @@
-# Documentação de Implementação — Catálogo de Add-ons (Ctrl+K), metadados `info` e instalação por arrastar
+# Documentação de Implementação — Melhorias de slots do BlockCard
 
-Arquivo salvo em: `feature_md/feature/feature-addon-palette-install.md`
+Arquivo salvo em: `feature_md/feature/feature-block-slot-improvements.md`
 
 ## 1. Cabeçalho
 
 | Campo | Valor |
 | --- | --- |
-| Nome da Branch | `feature/addon-palette-install` |
-| Nome das Features | Catálogo Add-ons no Ctrl+K; cartões expandidos com `manifest.info`; instalação por drag-and-drop; add-ons de referência `addon-galeria` e `addon-string-prefix`; APIs dev de listagem/instalação e pasta nativa da galeria |
+| Nome da Branch | `feature/block-slot-improvements` |
+| Nome das Features | Slot tools no BlockCard; pager de fan-out; preview ritual com listas; editor flutuante de parâmetro; remoção de parâmetro com desligação de conexões; campos mapHash no card |
 | Versão atual | `1.5.0` |
-| Hash do Commit | `d037948` |
+| Hash do Commit | `f304659` |
 
-Documentação relacionada: `feature_md/prompet/prompet_addon.md`.
+Documentação relacionada: `feature_md/prompet/prompet_sistema_blocos.md`, `feature_md/feature/feature-block-link-palette.md`.
 
 ---
 
@@ -19,8 +19,8 @@ Documentação relacionada: `feature_md/prompet/prompet_addon.md`.
 
 | Tag | Definição |
 | --- | --- |
-| `[NOVO]` | Módulo, componente, API dev, add-on sandbox ou fluxo criado nesta entrega. |
-| `[ATUALIZADO]` | Componente ou serviço existente alterado para suportar add-ons ou o catálogo Ctrl+K. |
+| `[NOVO]` | Novo módulo, componente, hook ou fluxo criado nesta entrega. |
+| `[ATUALIZADO]` | Componente ou função existente alterada para suportar slot tools, pager, preview ou editor. |
 | `[REMOVIDO]` | Comportamento ou API removida. |
 
 Tags presentes nesta implementação:
@@ -36,42 +36,31 @@ Não houve itens classificados como `[REMOVIDO]`.
 
 ```mermaid
 graph TD
-  subgraph boot [Arranque da app]
-    A[App.tsx mount] --> B[fetchAddonsFromDisk]
-    B --> C{GET /api/addons-list}
-    C -->|ok dev| D[manifests em public/addons]
-    C -->|fallback| E[GET /addons/index.json + loadManifestOnly]
-    D --> F[registerAddonManifest no addonRegistry]
-    E --> F
+  subgraph card [BlockCard]
+    A[Rodapé BlockCardParameterMenu] --> B{Slot tools activas?}
+    B -->|Sim| C[Mostrar BlockSlotPeerToolbar nos slots ligados]
+    B -->|Não| D[Só slots sem barra de ferramentas]
+    C --> E{Fan-out > 1 ligação?}
+    E -->|Sim| F[BlockSlotConnectionPager abaixo da linha]
+    E -->|Não| G[Slot + toolbar inline]
   end
 
-  subgraph palette [Ctrl+K Addons]
-    G[Utilizador abre Ctrl+K] --> H[Separador Addons]
-    H --> I[PaletteAddonInstallZone]
-    H --> J[Lista PaletteAddAddonOption]
-    J --> K[resolveAddonManifestInfo i18n]
-    K --> L[Hover/seleção expande info tags links]
+  subgraph edit [Editar parâmetro]
+    H[Botão Editar / menu contexto] --> I[StructureListPanel ou directo]
+    I --> J[onEditBlockParameter + screenAnchor]
+    J --> K[BlockCardMenuFloatingLayer draggable]
+    K --> L[BlockParameterInspector]
   end
 
-  subgraph install [Instalação drag-and-drop]
-    M[Arrastar pasta para zona] --> N[readDroppedAddonFolder]
-    N --> O[Validar manifest.json na raiz]
-    O --> P[installDroppedAddonFiles]
-    P --> Q[POST /api/addons-install]
-    Q --> R[Gravar public/addons/id + index.json]
-    R --> S[refreshAddonsCatalog]
+  subgraph preview [Block Code Preview]
+    M[canvasToClassGroupRitual] --> N{classifica ligação list vs simples}
+    N --> O[Emite list embed/pointer no ritual]
   end
 
-  subgraph canvas [Canvas]
-    T[Escolher add-on na paleta] --> U[preloadAddonPackage]
-    U --> V[AddonCardHost + logic.js execute]
-    V --> W[crossSlotConnections grafo + DOM]
+  subgraph remove [Remover parâmetro]
+    P[removeBlockParameter] --> Q[Filtra conexões do paramId e slots]
+    Q --> R[removeParameterFromBlockStructure]
   end
-
-  I --> M
-  J --> T
-  F --> J
-  S --> B
 ```
 
 ---
@@ -81,33 +70,33 @@ graph TD
 ```mermaid
 sequenceDiagram
   actor U as Utilizador
-  participant Pal as AddNodePalette
-  participant Zone as PaletteAddonInstallZone
-  participant Drop as addonInstallFromDrop
-  participant API as vite.addonsInstallHandler
-  participant Reg as addonRegistry
+  participant Menu as BlockCardParameterMenu
   participant GC as GraphCanvas
-  participant Loader as AddonLoaderService
+  participant Layer as BlockCardMenuFloatingLayer
+  participant Insp as BlockParameterInspector
+  participant Hist as useSceneHistory
+  participant Core as blockSlotConnections
 
-  U->>Pal: Ctrl+K → Addons
-  Pal->>Reg: fetchAddonsFromDisk / refreshAddonsCatalog
-  Reg-->>Pal: manifests[]
+  U->>Menu: Activa slot tools
+  Menu->>GC: onSlotToolsEnabledChange
+  GC->>GC: blockSlotToolsEnabledNodes Set
 
-  U->>Zone: drop pasta add-on
-  Zone->>Drop: installAddonFromDataTransfer
-  Drop->>Drop: readDroppedAddonFolder + validateAddonManifest
-  Drop->>API: POST /api/addons-install { files }
-  API->>API: isAddonManifest + fs.writeFile + updateAddonsIndex
-  API-->>Drop: { ok, manifest }
-  Drop-->>Zone: progress 100% + nome
-  Zone->>Pal: onInstalled → refreshAddonsCatalog
+  U->>Menu: Editar parâmetro
+  Menu->>GC: onEditParameter param, screenAnchor
+  GC->>Hist: setBlockParameterInspectorTarget
+  Hist-->>Layer: screenAnchor + draggable
+  Layer->>Insp: dragHandleProps via contexto
+  U->>Insp: Arrasta cabeçalho
+  Insp->>Layer: manualPosition clamped
 
-  U->>Pal: Clica add-on na lista
-  Pal->>GC: onPickAddon addonId
-  GC->>Loader: preloadAddonPackage
-  Loader->>Loader: loadFromSandbox ui.html logic.js language
-  Loader-->>GC: AddonPackage
-  GC->>GC: createAddonNode + render AddonCard
+  U->>Menu: Remover parâmetro confirmado
+  Menu->>Hist: removeBlockParameter nodeId, paramId
+  Hist->>Core: filter connections by paramId/slotIds
+  Hist->>Hist: removeParameterFromBlockStructure
+
+  U->>GC: Pager ‹ 0 / N ›
+  GC->>GC: blockOutputSlotConnectionIndexByKey
+  GC->>Core: resolveBlockOutputSlotConnectionIndex
 ```
 
 ---
@@ -116,73 +105,68 @@ sequenceDiagram
 
 | Status | Nome | Feature | Descrição Técnica | Parâmetros / Retorno |
 | --- | --- | --- | --- | --- |
-| `[NOVO]` | `addonLoader.service.ts` | Runtime add-on | Valida/normaliza manifest; carrega `ui.html`, `logic.js`, i18n e menus de contexto. | `loadFromSandbox(id, locale)` → `AddonPackage`. |
-| `[NOVO]` | `addonRegistry.ts` | Catálogo | Cache de manifests/packages; `fetchAddonsFromDisk`; pesquisa inclui `info`. | `registerAddonManifest`, `matchesAddonQuery`. |
-| `[NOVO]` | `addonManifestInfo.ts` | Metadados Ctrl+K | Resolve `description`/`tags` i18n; texto de pesquisa. | `resolveAddonManifestInfo`, `addonManifestInfoSearchText`. |
-| `[NOVO]` | `PaletteAddAddonOption.tsx` | UI catálogo | Cartão estilo blocos; expande com autor, versão, licença, tags, Repo/Docs. | `manifest`, `expanded`, `onPick`. |
-| `[NOVO]` | `PaletteAddonInstallZone.tsx` | Instalação | Zona drag-and-drop; barra de progresso; nome e estado sucesso/erro. | `onInstalled` callback. |
-| `[NOVO]` | `addonInstallFromDrop.ts` | Client install | Lê pasta via `webkitGetAsEntry`; envia ficheiros JSON ao servidor dev. | `installAddonFromDataTransfer` → `AddonInstallResult`. |
-| `[NOVO]` | `vite.addonsInstallHandler.ts` | API dev | `POST /api/addons-install`; valida manifest; grava disco; actualiza `index.json`. | `handleAddonsInstallRequest`. |
-| `[NOVO]` | `vite.addonsListHandler.ts` | API dev | `GET /api/addons-list`; enumera `public/addons/*/manifest.json`. | `handleAddonsListRequest`, `isAddonManifest`. |
-| `[NOVO]` | `vite.plugin.addonsList.ts` | Plugin Vite | Middleware dev para list + install + available. | `apply: serve`. |
-| `[NOVO]` | `AddonCardHost.tsx` / `AddonCardView.tsx` | Canvas | Renderiza UI sandbox; slots IN/OUT; drive reactivo. | Props de cena + `AddonPackage`. |
-| `[NOVO]` | `addonSlotConnections.ts` / `crossSlotConnections.ts` | Ligações | Conexões entre slots de add-on e nós/blocos. | `applyAddonSlotConnectionToScene`, etc. |
-| `[NOVO]` | `useAddonCanvasLinks.ts` | Interacção | Drag de slots add-on; abre paleta Addons filtrada. | Hook no `GraphCanvas`. |
-| `[NOVO]` | `addon-galeria` | Add-on Media | Galeria LoL: Root Folder, personagem, origem Particles/Base/Path; `.tex`/`.dds`; menu contexto. | `public/addons/addon-galeria/`. |
-| `[NOVO]` | `vite.galleryFolderHandler.ts` | API galeria dev | Pick folder, scan directory, read file (Windows dev). | Endpoints `/api/gallery-*`. |
-| `[ATUALIZADO]` | `AddNodePalette.tsx` | Ctrl+K | Separador Addons; zona instalação; pesquisa; oculta filtros A-Z/pastas em modo Addons. | `onPickAddon`, `refreshAddonsCatalog`. |
-| `[ATUALIZADO]` | `GraphCanvas.tsx` | Paleta add-on | `addonDropLinkContext`; spawn ao escolher na paleta. | `handlePaletteAddonPick`. |
-| `[ATUALIZADO]` | `App.tsx` | Boot | `fetchAddonsFromDisk()` no mount. | — |
-| `[ATUALIZADO]` | `addon-string-prefix` | Metadados | Bloco `info` + chaves i18n 20–23 alinhadas à galeria. | `manifest.json`, `language/*.json`. |
-| `[ATUALIZADO]` | `languageIds.ts` + `language/*.json` | i18n | Strings catálogo Addons e zona de instalação (556–564). | `LangId.NodePaletteCatalogAddons`, etc. |
+| `[NOVO]` | `BlockSlotPeerToolbar.tsx` | Slot tools | Barra lock/focus/eye/unlink no slot ligado. | Props `peer`, callbacks de acção. |
+| `[NOVO]` | `BlockSlotConnectionPager.tsx` | Fan-out | Pager compacto `‹ i / n ›` para várias ligações na mesma saída. | `selectedIndex`, `total`, `layout: inline \| below`. |
+| `[NOVO]` | `blockSlotPeerState.ts` / `blockSlotPeerActions.ts` | Slot tools | Estado e acções sobre o nó peer ligado ao slot. | `getPeerState`, `onToggleLock`, etc. |
+| `[NOVO]` | `BlockCardMenuFloatingLayer.tsx` | Editor flutuante | Portal fixo com quadrante de ecrã, drag pelo cabeçalho. | `draggable`, `screenAnchor`, `useBlockCardMenuFloatingLayerDragHandle`. |
+| `[NOVO]` | `screenAnchoredPanelPlacement.ts` | Posicionamento | `buildFrozenScreenAnchoredStyle` com quadrante e maxHeight corrigido. | `anchor`, `size` → `CSSProperties`. |
+| `[NOVO]` | `StructureListPanel.tsx` | Menus card | Lista flutuante Editar/Remover/Adicionar parâmetro. | `screenAnchor`, `onPickItem`. |
+| `[NOVO]` | `BlockMapHash*Field.tsx` | mapHash | Campos embed/pointer/u64 no corpo do BlockCard. | Props de slot, lista, commit. |
+| `[ATUALIZADO]` | `BlockCard.tsx` | Slot tools / pager | Header e linhas com toolbar; pager abaixo quando tools activas. | `slotToolsEnabled`, `blockSlotPeerActions`. |
+| `[ATUALIZADO]` | `BlockParameterRow.tsx` | Layout | `data-slot-tools`, pager below, truncamento de label. | Props fan-out + slot tools. |
+| `[ATUALIZADO]` | `GroupBlockParameterRow.module.css` | CSS | Grid compacto, ellipsis, segunda linha para pager. | Regras `data-slot-pager-below`. |
+| `[ATUALIZADO]` | `BlockCardParameterMenu.tsx` | CRUD param | Toggle slot tools; lista editar; fix âncora Mouse/Pointer. | `onEditParameter`, `externalPanelRequest`. |
+| `[ATUALIZADO]` | `BlockParameterInspector.tsx` | Editor | Inspetor flutuante com drag handle do layer. | `target`, `onApply`. |
+| `[ATUALIZADO]` | `InspectorFloatingPanelShell.tsx` | Drag | Arrasto só na zona do título (não no botão ×). | `dragHandleProps` em `dockedHeaderMain`. |
+| `[ATUALIZADO]` | `canvasToClassGroupRitual.ts` | Preview | Merge embed→listEmbed; emite `list[pointer]`/`list[embed]`. | Testes `complexEmitterDefinitionData`, `erosionDriveCurve`. |
+| `[ATUALIZADO]` | `blockSlotConnections.ts` | Fan-out | `findConnectionsForBlockOutputSlot`, índice seleccionado, menu contexto. | `connectionIndex` opcional. |
+| `[ATUALIZADO]` | `useSceneHistory.removeBlockParameter` | Remoção | Remove todas as conexões do parâmetro antes de actualizar estrutura. | `nodeId`, `paramId`. |
+| `[ATUALIZADO]` | `GraphCanvas.tsx` | Estado global | `blockSlotToolsEnabledNodes`, índices de fan-out, `buildBlockSlotPeerActions`. | Props para BlockCard. |
+| `[ATUALIZADO]` | `tokens.css` | Grid | Coluna nome `minmax(0, 2fr)` para permitir ellipsis. | `--group-block-body-columns-compact`. |
 
 ---
 
 ## 6. Descrição Detalhada de Funcionamento
 
-### Catálogo Add-ons (Ctrl+K)
+### Slot tools
 
-[NOVO] O `AddNodePalette` ganhou o modo **Addons**, activo quando `addonsCatalogEnabled` (por defeito quando não há contexto de ligação de nó/bloco exclusivo). A lista vem de `fetchAddonsFromDisk`, que preferencialmente usa `GET /api/addons-list` em dev e, em fallback, lê `public/addons/index.json` e carrega cada manifest.
+[NOVO] Toggle no rodapé do `BlockCard` (ícone `slot tools.svg`) activa ferramentas junto a slots **ligados**: travar posição do peer, focar no canvas, ocultar/mostrar na cena e remover ligação. Estado por nó em `blockSlotToolsEnabledNodes`.
 
-[ATUALIZADO] Em modo Addons, filtros de pasta e organização A-Z ficam ocultos — apenas pesquisa por título, id, categoria e campos de `manifest.info`.
+[ATUALIZADO] O menu de contexto e a toolbar respeitam o **índice** do pager quando há fan-out na mesma saída (`list[pointer]`).
 
-[NOVO] `PaletteAddAddonOption` replica o layout compacto/expandido dos blocos: ao hover ou seleção por teclado, expande e mostra descrição (i18n), autor · versão · licença, tags traduzidas e links **Repo** / **Docs** quando presentes em `manifest.info`.
+### Pager de fan-out
 
-[NOVO] `addonManifestInfo.ts` interpreta chaves `[{n}]` / `{n}` usando o pack `language/{locale}.json` de cada add-on.
+[NOVO] `BlockSlotConnectionPager` mostra `‹ índice / total ›` quando `total > 1`. Com slot tools activas, o pager passa para uma **segunda linha centrada** abaixo da linha do parâmetro ou do header do bloco (`data-slot-pager-below`).
 
-### Instalação por arrastar pasta
+[ATUALIZADO] `blockOutputSlotConnectionIndexByKey` no `GraphCanvas` persiste o índice seleccionado por slot.
 
-[NOVO] `PaletteAddonInstallZone` aparece acima da lista no modo Addons. O utilizador arrasta **uma pasta** contendo `manifest.json` na raiz.
+### Layout e truncamento de nomes
 
-[NOVO] O cliente (`addonInstallFromDrop.ts`) percorre a árvore via `DataTransferItem.webkitGetAsEntry`, valida o manifest com `validateAddonManifest`, resolve o nome para exibição (i18n local) e envia todos os ficheiros em JSON para `POST /api/addons-install`.
+[ATUALIZADO] Com slot tools, nomes longos (ex.: `complexEmitterDefinitionData`) usam `text-overflow: ellipsis` e grid com `minmax(0, 2fr)` na coluna do nome para não sobrepor a toolbar.
 
-[NOVO] O servidor (`vite.addonsInstallHandler.ts`) revalida com `isAddonManifest`, impede path traversal, grava em `public/addons/{id}/`, actualiza `public/addons/index.json` e responde com o manifest instalado.
+### Preview ritual (Block Code)
 
-[ATUALIZADO] Após sucesso, `refreshAddonsCatalog` repovoa a lista sem reiniciar a app.
+[ATUALIZADO] `canvasToClassGroupRitual` classifica ligações via schema + `listParameter`, faz merge de stubs `embed` → `listEmbed` em modo block card e emite `list[pointer]` / `list[embed]` / `list2[...]` correctamente no preview.
 
-**Limitação:** instalação disponível apenas com `npm run dev` (`GET /api/addons-install-available`). Em build estático, a zona mostra mensagem de indisponibilidade.
+### Editor flutuante de parâmetro
 
-### Add-on Galeria (referência)
+[NOVO] Ao editar, `BlockCardMenuFloatingLayer` posiciona o inspetor com regra de **quadrante** (`computeContextMenuPlacement`). Correcção de `maxHeight` na metade inferior do ecrã usa `anchor.top` em vez do topo já deslocado do painel.
 
-[NOVO] Fluxo `{Raiz}` → personagem (`characters.json`) → origem Particles / Base / Path; barra de progresso `#D8EBF2` durante scan; suporte `.tex`/`.dds`; menu contexto (guardar imagem, copiar caminho absoluto em dev, copiar nome).
+[NOVO] Arrastar pelo **cabeçalho** (título + eyebrow) move o painel; botão fechar não inicia drag. Posição manual é reposta ao abrir outro parâmetro ou nova âncora.
 
-[NOVO] APIs dev em `vite.galleryFolderHandler.ts` para pick de pasta Windows, scan recursivo e leitura de ficheiro.
+### Remoção de parâmetro
 
-### Runtime no canvas
+[ATUALIZADO] `removeBlockParameter` remove conexões onde `fromBlockParameterId` / `toBlockParameterId` ou `fromBlockSlotId` / `toBlockSlotId` correspondem aos slots `input`/`output` do parâmetro, evitando ligações órfãs.
 
-[NOVO] `AddonLoaderService.loadFromSandbox` importa `logic.js` como módulo ESM, injecta `ui.html` no cartão, aplica drive (`inputChange`, `always`, etc.) e propaga outputs via `addonOutputPropagation`.
+### Campos mapHash
 
-[NOVO] Ligações cruzadas add-on ↔ nó/bloco via `crossSlotConnections` e hook `useAddonCanvasLinks` (arrastar slot OUT abre paleta Addons).
+[NOVO] Componentes `BlockMapHashEmbedField`, `BlockMapHashPointerField`, `BlockMapU64PointerField` e `BlockMapHashStructureField` integram listas e slots no layout de 5 colunas do card.
 
-### Tratamento de erros
+### Regras de negócio e erros
 
-- Pasta sem `manifest.json` na raiz → mensagem na zona de instalação (sem Messenger; fluxo inline).
-- Manifest inválido → erro antes do upload ou resposta 400 da API.
-- Múltiplas pastas no drop → rejeição no cliente.
-- API indisponível (produção) → zona desactivada com hint i18n.
-- Add-ons ignorados em listagem dev aparecem em `skipped` no JSON de `/api/addons-list` (log servidor).
-
-**Confirmações de UI:** esta feature **não** introduz diálogos de confirmação; feedback é inline na zona de instalação e na barra de progresso. Não usa `window.confirm` / `window.alert`.
+- Confirmação de remoção de parâmetro usa diálogo do menu (`confirmRemove`); erros de catálogo em adicionar podem usar `window.alert` legado.
+- `createPortal` importa de **`react-dom`** (não de `react`).
+- Slot tools só mostram toolbar quando existe ligação activa no slot (`outputPeerState` / `inputPeerState`).
 
 ---
 
@@ -190,25 +174,23 @@ sequenceDiagram
 
 ### Português
 
-1. Execute **`npm run dev`** (instalação de add-ons requer o servidor Vite).
-2. Abra **Ctrl+K** e seleccione o separador **Addons**.
-3. Para **instalar**: arraste a pasta do add-on (com `manifest.json` na raiz) para a caixa **Instalar Addon**.
-4. Aguarde a barra de progresso, o nome do add-on e a mensagem **Instalado com sucesso.**
-5. O add-on passa a aparecer na lista abaixo; use a pesquisa por nome ou id.
-6. Passe o rato sobre um add-on para ver descrição, autor, tags e links Repo/Docs.
-7. Clique num add-on para o colocar no canvas; ligue slots como nos blocos.
-8. **Galeria:** defina **Root Folder**, escolha personagem e origem (Particles / Base / Path); use o menu de contexto nas imagens.
+1. Abra um **BlockCard** no canvas (vista bloco activa).
+2. No rodapé, clique no ícone **slot tools** para activar as ferramentas nos slots ligados.
+3. Em saídas com **várias ligações**, use `‹ 0 / N ›` para escolher qual ligação editar no menu ou nas tools; com tools activas o índice aparece **centrado abaixo** da linha.
+4. Use **lock / focus / eye / unlink** à direita (ou esquerda) do slot conforme a direcção.
+5. Para **editar** um parâmetro: botão lápis → escolha na lista → painel flutuante; **arraste pelo título** para reposicionar.
+6. Para **remover** parâmetro: botão remover → confirme; todas as **ligações desse parâmetro são desfeitas** automaticamente.
+7. No **Block Code Preview**, campos `list[pointer]` e `list[embed]` reflectem ligações do card.
 
 ### English
 
-1. Run **`npm run dev`** (add-on install requires the Vite dev server).
-2. Open **Ctrl+K** and select the **Addons** tab.
-3. To **install**: drag the add-on folder (with root `manifest.json`) onto **Install Addon**.
-4. Wait for the progress bar, add-on name, and **Installed successfully.**
-5. The add-on appears in the list below; search by name or id.
-6. Hover an entry to see description, author, tags, and Repo/Docs links.
-7. Click an add-on to spawn it on the canvas; wire slots like blocks.
-8. **Gallery:** set **Root Folder**, pick character and source (Particles / Base / Path); use the image context menu.
+1. Open a **BlockCard** on the canvas (block view enabled).
+2. In the footer, click **slot tools** to show peer actions on connected slots.
+3. For **multiple connections** on one output, use `‹ 0 / N ›`; with tools enabled the pager sits **centered below** the row.
+4. Use **lock / focus / eye / unlink** next to the slot.
+5. To **edit** a parameter: pencil button → pick from list → floating panel; **drag the header** to move it.
+6. To **remove** a parameter: remove button → confirm; all **connections for that parameter are removed** automatically.
+7. **Block Code Preview** shows `list[pointer]` / `list[embed]` fields according to card links.
 
 ---
 

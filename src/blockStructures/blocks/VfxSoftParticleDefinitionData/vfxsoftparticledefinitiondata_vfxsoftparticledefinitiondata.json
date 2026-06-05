@@ -6,7 +6,7 @@
   "name": "VfxSoftParticleDefinitionData",
   "source": {
     "kind": "block",
-    "nodeId": "vfx-soft-particle-definition-data__entries-{particlePath}-complex-emitter-definition-data--slot--14-soft-particle-params"
+    "nodeId": "vfx-soft-particle-definition-data__main-characters/brand/skins/skin0/particles/brand-base-e-conflagration-buf-complex-emitter-definition-data--slot--14-soft-particle-params"
   },
   "color": "#40ff56",
   "headerSlots": [

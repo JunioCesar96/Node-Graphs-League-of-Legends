@@ -5,6 +5,8 @@ import type {
   BlockSlotRules,
 } from './blockSchema'
 import { blockRitualTypeToNodeDataType } from './blockSchema'
+import { slugifyTypeValueForId } from './blockParameterClassification'
+import { slugifyStructureId } from './convertRitobinTextToNodeStructures'
 import type { NodeDataType } from './nodeSchema'
 import {
   iconIdFromDraft,
@@ -13,9 +15,13 @@ import {
   slotRulesToTags,
   slotTagsToRules,
 } from './blockInspectorUi'
-import type { BlockParameterJsonDocument } from './blockParameterJson'
-import { isSimpleBlockParameterDocument } from './blockParameterJson'
+import type { BlockParameterJsonDocument, BlockParameterJsonDocumentMap } from './blockParameterJson'
+import { blockParameterDocumentIsList, isSimpleBlockParameterDocument } from './blockParameterJson'
 import { isStructuralParameterDocument } from './blockParameterRegistry'
+import { formatMapHashEmbedString } from './mapHashEmbedValue'
+import { formatMapHashPointerString } from './mapHashPointerValue'
+import { formatMapU64PointerString } from './mapU64PointerValue'
+import { entryWithStructure } from './mapHashStructureValue'
 
 export { isStructuralParameterDocument } from './blockParameterRegistry'
 
@@ -24,9 +30,42 @@ function syntheticId(prefix: string, docId: string): string {
   return `${prefix}-${safe}`
 }
 
-function defaultValueFromDocument(doc: BlockParameterJsonDocument): string {
+function isMapParameterDocument(doc: BlockParameterJsonDocument): doc is BlockParameterJsonDocumentMap {
+  return doc.type === 'mapHashEmbed' || doc.type === 'mapHashPointer' || doc.type === 'mapU64Pointer'
+}
+
+function schemaIdForMapCatalogEntry(typeName: string, key: string): string {
+  const typeSlug = slugifyStructureId(typeName)
+  const keySlug = slugifyTypeValueForId(key.replace(/\//g, '-'))
+  return `${typeSlug}__entries-${keySlug}`
+}
+
+function defaultValueFromMapDocument(doc: BlockParameterJsonDocumentMap): string {
+  const structureEntries = doc.entries
+    .filter((entry) => entry.key.trim())
+    .map((entry) => {
+      const target = entry.target.trim()
+      return entryWithStructure(entry.key, target, schemaIdForMapCatalogEntry(target, entry.key))
+    })
+
+  switch (doc.mapKind) {
+    case 'mapHashEmbed':
+      return formatMapHashEmbedString(structureEntries)
+    case 'mapHashPointer':
+      return formatMapHashPointerString(structureEntries)
+    case 'mapU64Pointer':
+      return formatMapU64PointerString(structureEntries)
+    default:
+      return ''
+  }
+}
+
+export function blockParameterDefaultValueFromJsonDocument(doc: BlockParameterJsonDocument): string {
   if (isSimpleBlockParameterDocument(doc)) {
     return doc.value
+  }
+  if (isMapParameterDocument(doc)) {
+    return defaultValueFromMapDocument(doc)
   }
   if (doc.type === 'optionF32' || doc.type === 'optionString' || doc.type === 'optionVector3') {
     return doc.item ?? ''
@@ -42,6 +81,10 @@ function defaultValueFromDocument(doc: BlockParameterJsonDocument): string {
     return doc.items.join('\n')
   }
   return ''
+}
+
+function defaultValueFromDocument(doc: BlockParameterJsonDocument): string {
+  return blockParameterDefaultValueFromJsonDocument(doc)
 }
 
 /** Tipo de sintaxe (`SyntaxType`) para um parâmetro de bloco no catálogo JSON. */
@@ -162,6 +205,7 @@ export function blockParameterDefFromJsonDocument(
     defaultValue: defaultValueFromDocument(doc),
     slotRules,
     iconHint: null,
+    ...(blockParameterDocumentIsList(doc) ? { listParameter: true } : {}),
     sourcePath: sourcePathFromDocument(doc),
   }
 }

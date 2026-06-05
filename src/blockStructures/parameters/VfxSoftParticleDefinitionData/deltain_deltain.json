@@ -5,7 +5,7 @@
   "name": "deltaIn",
   "source": {
     "kind": "parameter",
-    "parameterId": "vfx-soft-particle-definition-data__entries-{particlePath}-complex-emitter-definition-data--slot--14-soft-particle-params_parameter_deltaIn"
+    "parameterId": "vfx-soft-particle-definition-data__main-characters/brand/skins/skin0/particles/brand-base-e-conflagration-buf-complex-emitter-definition-data--slot--14-soft-particle-params_parameter_deltaIn"
   },
   "type": "f32",
   "value": "50",

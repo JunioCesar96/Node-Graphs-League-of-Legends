@@ -5,12 +5,20 @@ import {
   canConnectBlockSlots,
   classifyBlockSlotConnection,
   createBlockDraftConnectionPath,
+  buildSlotWirePathD,
   findBlockSlotAtPoint,
   listBlockSlotEndpoints,
   resolveBlockConnectionPath,
   resolveBlockSlotCanvasPoint,
+  applyBlockSlotConnectionToScene,
+  findConnectionForBlockSlot,
+  findConnectionsForBlockOutputSlot,
+  isListPointerBlockOutputSlot,
+  resolveBlockOutputSlotConnectionIndex,
+  withoutConnectionsFromBlockOutputSlot,
   withoutConnectionsToBlockInputSlot,
 } from './blockSlotConnections'
+import { listPointerSlotId } from './listPointerSlots'
 import { blockHeaderSlotId, blockParameterSlotId } from './blockSchema'
 import { makeVfxEmitterCanvasNode } from './blockTestFixtures'
 
@@ -405,6 +413,32 @@ describe('blockSlotConnections', () => {
     expect(path!.d.startsWith('M ')).toBe(true)
   })
 
+  it('builds orthogonal SVG path when routing is rigid', () => {
+    const fromNode = makeBlockNode('a', 80, 40)
+    const toNode = makeBlockNode('b', 420, 120)
+    const connection: CanvasConnection = {
+      id: 'block:a->b',
+      fromNodeId: 'a',
+      fromInternalStructureId: '__block__:out',
+      toNodeId: 'b',
+      routing: 'rigid',
+      fromBlockSlotId: blockParameterSlotId('Emitter01', 'output'),
+      toBlockSlotId: blockParameterSlotId('Emitter01', 'input'),
+      fromBlockParameterId: 'Emitter01',
+      toBlockParameterId: 'Emitter01',
+    }
+
+    const path = resolveBlockConnectionPath(connection, [fromNode, toNode])
+    expect(path?.routing).toBe('rigid')
+    expect(path?.d).not.toContain('C ')
+    expect(path?.d.split(' L ').length).toBeGreaterThan(2)
+  })
+
+  it('buildSlotWirePathD rigid usa segmentos ortogonais', () => {
+    const d = buildSlotWirePathD({ x: 100, y: 50 }, { x: 400, y: 120 }, 'rigid')
+    expect(d).toBe('M 100 50 L 250 50 L 250 120 L 400 120')
+  })
+
   it('creates draft path for in-progress block link', () => {
     const d = createBlockDraftConnectionPath(10, 20, 200, 80)
     expect(d).toContain('M 10 20')
@@ -563,5 +597,196 @@ describe('blockSlotConnections', () => {
 
     const filtered = withoutConnectionsToBlockInputSlot([first, second, otherTarget], 'emitter', inputSlot)
     expect(filtered).toEqual([otherTarget])
+  })
+
+  it('withoutConnectionsFromBlockOutputSlot remove ligações anteriores da mesma saída', () => {
+    const outputSlot = blockParameterSlotId('Emitter01', 'output')
+    const first: CanvasConnection = {
+      id: 'block:emitter:out->sys1',
+      fromNodeId: 'emitter',
+      fromInternalStructureId: `__block__:${outputSlot}`,
+      toNodeId: 'sys1',
+      routing: 'wireless',
+      fromBlockSlotId: outputSlot,
+      toBlockSlotId: blockHeaderSlotId('VfxSystemDefinitionData', 0),
+    }
+    const second: CanvasConnection = {
+      id: 'block:emitter:out->sys2',
+      fromNodeId: 'emitter',
+      fromInternalStructureId: `__block__:${outputSlot}`,
+      toNodeId: 'sys2',
+      routing: 'wireless',
+      fromBlockSlotId: outputSlot,
+      toBlockSlotId: blockHeaderSlotId('VfxSystemDefinitionData', 0),
+    }
+    const otherOutput: CanvasConnection = {
+      id: 'block:emitter:other->sys3',
+      fromNodeId: 'emitter',
+      fromInternalStructureId: '__block__:other',
+      toNodeId: 'sys3',
+      routing: 'wireless',
+      fromBlockSlotId: blockParameterSlotId('rate', 'output'),
+      toBlockSlotId: blockHeaderSlotId('ValueFloat', 0),
+    }
+
+    const filtered = withoutConnectionsFromBlockOutputSlot([first, second, otherOutput], 'emitter', outputSlot)
+    expect(filtered).toEqual([otherOutput])
+  })
+
+  it('list[pointer] permite várias ligações a partir da mesma saída indexada', () => {
+    const listParamId = 'complexEmitterDefinitionData_list_pointer'
+    const parent = makeVfxEmitterCanvasNode({
+      id: 'system',
+      position: { x: 0, y: 0 },
+      blockViewActive: true,
+      blockStructure: {
+        blockType: 'VfxSystemDefinitionData',
+        blockName: 'System',
+        parameters: [
+          {
+            idParameter: listParamId,
+            nameParameter: 'complexEmitterDefinitionData',
+            typeParameter: 'VfxEmitterDefinitionData',
+            defaultValue: '',
+            listParameter: true,
+            slotRules: { outputs: ['VfxEmitterDefinitionData'] },
+            iconHint: null,
+            sourcePath: {
+              kind: 'pointerChild',
+              pointerId: 'catalog-ptr-complex',
+              slotId: 'catalog-ptr-complex-slot',
+            },
+          },
+        ],
+        identification_codes: [],
+        appearance: {
+          color: '#40ff56',
+          headerSlots: ['in[complexEmitterDefinitionData]', 'out[VfxSystemDefinitionDataPreview]'],
+        },
+      },
+    })
+    const childA = makeBlockNode('emitter-a', 400, 0)
+    const childB = makeBlockNode('emitter-b', 800, 0)
+    const outputSlot = listPointerSlotId(listParamId, 0)
+    const inputSlot = blockHeaderSlotId('VfxEmitterDefinitionData', 0, 'complexEmitterDefinitionData')
+
+    expect(isListPointerBlockOutputSlot(parent, outputSlot, listParamId)).toBe(true)
+
+    const scene = { width: 1200, height: 800, nodes: [parent, childA, childB], connections: [] }
+
+    const first = applyBlockSlotConnectionToScene(scene, {
+      fromNodeId: 'system',
+      fromBlockSlotId: outputSlot,
+      fromBlockParameterId: listParamId,
+      toNodeId: 'emitter-a',
+      toBlockSlotId: inputSlot,
+    })
+    expect(first).not.toBeNull()
+    if (!first) {
+      return
+    }
+    expect(first.connections).toHaveLength(1)
+
+    const second = applyBlockSlotConnectionToScene(first, {
+      fromNodeId: 'system',
+      fromBlockSlotId: outputSlot,
+      fromBlockParameterId: listParamId,
+      toNodeId: 'emitter-b',
+      toBlockSlotId: inputSlot,
+    })
+    expect(second).not.toBeNull()
+    if (!second) {
+      return
+    }
+    expect(second.connections).toHaveLength(2)
+    expect(second.connections.map((connection) => connection.toNodeId).sort()).toEqual([
+      'emitter-a',
+      'emitter-b',
+    ])
+  })
+
+  it('applyBlockSlotConnectionToScene substitui ligação anterior da mesma saída', () => {
+    const emitter = makeBlockNode('emitter', 0, 0)
+    const targetA = makeBlockNode('targetA', 400, 0)
+    const targetB = makeBlockNode('targetB', 800, 0)
+    const outputSlot = blockParameterSlotId('Emitter01', 'output')
+    const inputSlot = blockParameterSlotId('Emitter01', 'input')
+
+    const scene = {
+      width: 1000,
+      height: 800,
+      nodes: [emitter, targetA, targetB],
+      connections: [],
+    }
+
+    const first = applyBlockSlotConnectionToScene(scene, {
+      fromNodeId: 'emitter',
+      fromBlockSlotId: outputSlot,
+      fromBlockParameterId: 'Emitter01',
+      toNodeId: 'targetA',
+      toBlockSlotId: inputSlot,
+      toBlockParameterId: 'Emitter01',
+    })
+    expect(first).not.toBeNull()
+    if (!first) {
+      return
+    }
+    expect(first.connections).toHaveLength(1)
+    expect(first.connections[0]?.toNodeId).toBe('targetA')
+
+    const second = applyBlockSlotConnectionToScene(first, {
+      fromNodeId: 'emitter',
+      fromBlockSlotId: outputSlot,
+      fromBlockParameterId: 'Emitter01',
+      toNodeId: 'targetB',
+      toBlockSlotId: inputSlot,
+      toBlockParameterId: 'Emitter01',
+    })
+    expect(second).not.toBeNull()
+    if (!second) {
+      return
+    }
+    expect(second.connections).toHaveLength(1)
+    expect(second.connections[0]?.toNodeId).toBe('targetB')
+  })
+
+  it('findConnectionForBlockSlot usa índice da ligação em saída com fan-out', () => {
+    const outputSlot = blockParameterSlotId('Emitter01', 'output')
+    const connections: CanvasConnection[] = [
+      {
+        id: 'block:emitter:out->a',
+        fromNodeId: 'emitter',
+        fromInternalStructureId: `__block__:${outputSlot}`,
+        toNodeId: 'targetA',
+        routing: 'wireless',
+        fromBlockSlotId: outputSlot,
+        toBlockSlotId: blockHeaderSlotId('VfxSystemDefinitionData', 0),
+      },
+      {
+        id: 'block:emitter:out->b',
+        fromNodeId: 'emitter',
+        fromInternalStructureId: `__block__:${outputSlot}`,
+        toNodeId: 'targetB',
+        routing: 'wireless',
+        fromBlockSlotId: outputSlot,
+        toBlockSlotId: blockHeaderSlotId('VfxSystemDefinitionData', 0),
+      },
+    ]
+
+    expect(findConnectionsForBlockOutputSlot({ connections }, 'emitter', outputSlot)).toHaveLength(2)
+    expect(
+      findConnectionForBlockSlot({ connections }, 'emitter', outputSlot, { connectionIndex: 0 })
+        ?.toNodeId,
+    ).toBe('targetA')
+    expect(
+      findConnectionForBlockSlot({ connections }, 'emitter', outputSlot, { connectionIndex: 1 })
+        ?.toNodeId,
+    ).toBe('targetB')
+    expect(
+      findConnectionForBlockSlot({ connections }, 'emitter', outputSlot)?.toNodeId,
+    ).toBe('targetB')
+    expect(
+      resolveBlockOutputSlotConnectionIndex(new Map([['emitter::' + outputSlot, 0]]), 'emitter', outputSlot, 2),
+    ).toBe(0)
   })
 })

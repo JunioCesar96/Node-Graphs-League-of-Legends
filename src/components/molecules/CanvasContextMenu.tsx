@@ -144,19 +144,28 @@ function ContextMenuEntry({
   onSelect,
   t,
   highlighted = false,
+  openSubmenuId,
+  onOpenSubmenu,
+  onCloseSubmenus,
 }: {
   item: ContextMenuItem
   onClose: () => void
   onSelect: (id: ContextMenuItemId) => void
   t: ReturnType<typeof useLanguage>['t']
   highlighted?: boolean
+  openSubmenuId: ContextMenuItemId | null
+  onOpenSubmenu: (id: ContextMenuItemId) => void
+  onCloseSubmenus: () => void
 }) {
   if (item.children && item.children.length > 0) {
     return (
       <ContextMenuSubmenuRow
         highlighted={highlighted}
         item={item}
+        isOpen={openSubmenuId === item.id}
         onClose={onClose}
+        onCloseSubmenus={onCloseSubmenus}
+        onOpenSubmenu={onOpenSubmenu}
         onSelect={onSelect}
         t={t}
       />
@@ -181,17 +190,22 @@ function ContextMenuSubmenuRow({
   onSelect,
   t,
   highlighted = false,
+  isOpen,
+  onOpenSubmenu,
+  onCloseSubmenus,
 }: {
   item: ContextMenuItem
   onClose: () => void
   onSelect: (id: ContextMenuItemId) => void
   t: ReturnType<typeof useLanguage>['t']
   highlighted?: boolean
+  isOpen: boolean
+  onOpenSubmenu: (id: ContextMenuItemId) => void
+  onCloseSubmenus: () => void
 }) {
   const children = item.children ?? []
   const rowRef = useRef<HTMLDivElement>(null)
   const flyoutRef = useRef<HTMLDivElement>(null)
-  const [open, setOpen] = useState(false)
   const [flipX, setFlipX] = useState(false)
   const [flipY, setFlipY] = useState(false)
   const [flyoutMaxHeight, setFlyoutMaxHeight] = useState<number | undefined>(undefined)
@@ -207,11 +221,10 @@ function ContextMenuSubmenuRow({
     const rowRect = row.getBoundingClientRect()
     const flyoutWidth = flyout.offsetWidth
     const flyoutHeight = flyout.offsetHeight
-    const gap = 4
     const margin = 8
 
-    const openRightLeft = rowRect.right + gap
-    const openLeftLeft = rowRect.left - gap - flyoutWidth
+    const openRightLeft = rowRect.right
+    const openLeftLeft = rowRect.left - flyoutWidth
     const shouldFlipX = openRightLeft + flyoutWidth + margin > window.innerWidth && openLeftLeft >= margin
     setFlipX(shouldFlipX)
 
@@ -230,31 +243,34 @@ function ContextMenuSubmenuRow({
     setFlyoutMaxHeight(shouldFlipY ? availableAbove : availableBelow)
   }
 
+  useEffect(() => {
+    if (!isOpen) {
+      return
+    }
+    requestAnimationFrame(updateFlyoutPlacement)
+  }, [isOpen])
+
+  const openThisSubmenu = () => {
+    onOpenSubmenu(item.id)
+    requestAnimationFrame(updateFlyoutPlacement)
+  }
+
   return (
     <div
-      data-open={open ? 'true' : undefined}
+      data-open={isOpen ? 'true' : undefined}
       className={styles.submenuRow}
       ref={rowRef}
-      onFocus={() => {
-        setOpen(true)
-        requestAnimationFrame(updateFlyoutPlacement)
-      }}
-      onMouseEnter={(event) => {
-        setOpen(true)
-        requestAnimationFrame(updateFlyoutPlacement)
-      }}
-      onMouseLeave={(event) => {
-        setOpen(false)
-      }}
     >
       <button
-        aria-expanded={open ? 'true' : 'false'}
+        aria-expanded={isOpen ? 'true' : 'false'}
         aria-haspopup="menu"
         className={[styles.submenuTrigger, highlighted ? styles.exibirTrigger : ''].filter(Boolean).join(' ')}
+        onFocus={openThisSubmenu}
+        onMouseEnter={openThisSubmenu}
         role="menuitem"
         type="button"
       >
-        <span>{item.label}</span>
+        <span className={styles.itemLabel}>{item.label}</span>
         <span aria-hidden className={styles.submenuCaret}>
           ›
         </span>
@@ -264,7 +280,8 @@ function ContextMenuSubmenuRow({
           className={[styles.submenuFlyout, highlighted ? styles.exibirFlyout : ''].filter(Boolean).join(' ')}
           data-flip-x={flipX ? 'true' : undefined}
           data-flip-y={flipY ? 'true' : undefined}
-          data-open={open ? 'true' : undefined}
+          data-open={isOpen ? 'true' : undefined}
+          onMouseEnter={openThisSubmenu}
           ref={flyoutRef}
           role="menu"
           style={flyoutMaxHeight ? { maxHeight: `${flyoutMaxHeight}px` } : undefined}
@@ -275,7 +292,10 @@ function ContextMenuSubmenuRow({
               <ContextMenuEntry
                 item={child}
                 onClose={onClose}
+                onCloseSubmenus={onCloseSubmenus}
+                onOpenSubmenu={onOpenSubmenu}
                 onSelect={onSelect}
+                openSubmenuId={null}
                 t={t}
               />
             </div>
@@ -290,6 +310,11 @@ export function CanvasContextMenu({ anchor, items, onClose, onSelect }: CanvasCo
   const { t } = useLanguage()
   const menuRef = useRef<HTMLDivElement>(null)
   const placement = useContextMenuPlacement(anchor.left, anchor.top, menuRef)
+  const [openSubmenuId, setOpenSubmenuId] = useState<ContextMenuItemId | null>(null)
+
+  useEffect(() => {
+    setOpenSubmenuId(null)
+  }, [anchor.left, anchor.top, items])
 
   useEffect(() => {
     const closeOnOutsideClick = (event: MouseEvent) => {
@@ -332,6 +357,13 @@ export function CanvasContextMenu({ anchor, items, onClose, onSelect }: CanvasCo
       ref={menuRef}
       role="menu"
       style={{ left: `${placement.x}px`, top: `${placement.y}px` }}
+      onMouseLeave={(event) => {
+        const related = event.relatedTarget
+        if (related instanceof globalThis.Node && menuRef.current?.contains(related)) {
+          return
+        }
+        setOpenSubmenuId(null)
+      }}
     >
       {items.map((item) => (
         <div key={item.id}>
@@ -340,7 +372,10 @@ export function CanvasContextMenu({ anchor, items, onClose, onSelect }: CanvasCo
             highlighted={item.id === 'canvas.exibir'}
             item={item}
             onClose={onClose}
+            onCloseSubmenus={() => setOpenSubmenuId(null)}
+            onOpenSubmenu={setOpenSubmenuId}
             onSelect={onSelect}
+            openSubmenuId={openSubmenuId}
             t={t}
           />
         </div>

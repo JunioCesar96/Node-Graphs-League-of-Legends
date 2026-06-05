@@ -48,12 +48,12 @@ import {
 import { createCompactElementCanvasVisibility } from '@/core/compactElementBranchVisibility'
 import type { BlockInspectorDraft } from '@/core/blockSchema'
 import { mandatoryPointerSlotTags, slotRulesToTags } from '@/core/blockInspectorUi'
-import { BLOCK_CARD_WIDTH, isBlockPointerSourcePath } from '@/core/blockSchema'
+import { BLOCK_CARD_WIDTH, blockParameterSlotId, isBlockPointerSourcePath } from '@/core/blockSchema'
 import {
   buildBlockInspectorDraftFromNode,
   generateBlockStructureFromDraft,
-  revertBlockTokensFromNode,
 } from '@/core/blockTokenCodegen'
+import { buildBlockRevertViaNeekoScene } from '@/core/blockRevertToNodeViaNeeko'
 import { syncBlockParameterEdit, applyBlockStructureToNodeValues } from '@/core/syncBlockToCode'
 import type { BlockDefinitionJsonDocument } from '@/core/blockDefinitionJson'
 import {
@@ -100,6 +100,7 @@ import {
   canConnectGroupSlots,
   findGroupSlotEndpoint,
   propagateGroupConnectionValue,
+  withoutConnectionsFromGroupOutputSlot,
   withoutConnectionsToGroupInputSlot,
 } from '@/core/groupSlotConnections'
 import { groupInspectorTagsFromEntry } from '@/core/groupInspectorUi'
@@ -2865,14 +2866,32 @@ export function useSceneHistory(options?: {
   )
 
   const removeConnectionsFromBlockSlot = useCallback(
+    (nodeId: string, slotId: string, connectionId?: string) => {
+      updateScene((currentScene) => ({
+        ...currentScene,
+        connections: currentScene.connections.filter((connection) => {
+          if (connectionId) {
+            return connection.id !== connectionId
+          }
+          return !(
+            (connection.fromNodeId === nodeId && connection.fromBlockSlotId === slotId) ||
+            (connection.toNodeId === nodeId && connection.toBlockSlotId === slotId)
+          )
+        }),
+      }))
+    },
+    [updateScene],
+  )
+
+  const removeConnectionsFromAddonSlot = useCallback(
     (nodeId: string, slotId: string) => {
       updateScene((currentScene) => ({
         ...currentScene,
         connections: currentScene.connections.filter(
           (connection) =>
             !(
-              (connection.fromNodeId === nodeId && connection.fromBlockSlotId === slotId) ||
-              (connection.toNodeId === nodeId && connection.toBlockSlotId === slotId)
+              (connection.fromNodeId === nodeId && connection.fromAddonSlotId === slotId) ||
+              (connection.toNodeId === nodeId && connection.toAddonSlotId === slotId)
             ),
         ),
       }))
@@ -3466,44 +3485,21 @@ export function useSceneHistory(options?: {
   )
 
   const revertBlockView = useCallback(
-    (nodeId: string) => {
-      updateScene((currentScene) => {
-        const canvasNode = currentScene.nodes.find((node) => node.id === nodeId)
-        if (!canvasNode?.blockStructure) {
-          return currentScene
-        }
+    async (nodeId: string) => {
+      const result = await buildBlockRevertViaNeekoScene(
+        hydrateScene(sceneHistory.present),
+        nodeId,
+        schemaLookup,
+      )
 
-        const reverted = revertBlockTokensFromNode(currentScene, canvasNode, canvasNode.blockStructure)
-        const childPatchMap = new Map(reverted.childNodePatches.map((patch) => [patch.nodeId, patch.node]))
+      if (!result.ok) {
+        return { ok: false as const, error: result.error }
+      }
 
-        return {
-          ...currentScene,
-          connections: currentScene.connections.filter(
-            (connection) =>
-              !(
-                (connection.fromBlockSlotId || connection.toBlockSlotId) &&
-                (connection.fromNodeId === nodeId || connection.toNodeId === nodeId)
-              ),
-          ),
-          nodes: currentScene.nodes.map((node) => {
-            if (node.id === nodeId) {
-              return {
-                ...node,
-                node: reverted.node,
-                blockStructure: undefined,
-                blockViewActive: false,
-              }
-            }
-            const childPatch = childPatchMap.get(node.id)
-            if (childPatch) {
-              return { ...node, node: childPatch }
-            }
-            return node
-          }),
-        }
-      })
+      updateScene(() => result.scene)
+      return { ok: true as const, warnings: result.warnings, codeWarnings: result.codeWarnings }
     },
-    [updateScene],
+    [schemaLookup, sceneHistory.present, updateScene],
   )
 
   const updateBlockParameter = useCallback(
@@ -3602,12 +3598,29 @@ export function useSceneHistory(options?: {
           return currentScene
         }
 
+        const inputSlotId = blockParameterSlotId(paramId, 'input')
+        const outputSlotId = blockParameterSlotId(paramId, 'output')
+        const nextConnections = currentScene.connections.filter(
+          (connection) =>
+            !(
+              (connection.fromNodeId === nodeId &&
+                (connection.fromBlockParameterId === paramId ||
+                  connection.fromBlockSlotId === outputSlotId ||
+                  connection.fromBlockSlotId === inputSlotId)) ||
+              (connection.toNodeId === nodeId &&
+                (connection.toBlockParameterId === paramId ||
+                  connection.toBlockSlotId === inputSlotId ||
+                  connection.toBlockSlotId === outputSlotId))
+            ),
+        )
+
         const structure = removeParameterFromBlockStructure(canvasNode.blockStructure, paramId)
         const applied = applyBlockStructureWithTokens(currentScene, canvasNode, structure)
         const childPatchMap = new Map(applied.childPatches.map((patch) => [patch.nodeId, patch.node]))
 
         return {
           ...currentScene,
+          connections: nextConnections,
           nodes: currentScene.nodes.map((node) => {
             if (node.id === nodeId) {
               return {
@@ -3955,10 +3968,14 @@ export function useSceneHistory(options?: {
           ...toApplied.childPatches,
         ].map((patch) => [patch.nodeId, patch.node]))
 
-        const connections = withoutConnectionsToGroupInputSlot(
-          currentScene.connections,
-          toNodeId,
-          toGroupSlotId,
+        const connections = withoutConnectionsFromGroupOutputSlot(
+          withoutConnectionsToGroupInputSlot(
+            currentScene.connections,
+            toNodeId,
+            toGroupSlotId,
+          ),
+          fromNodeId,
+          fromGroupSlotId,
         )
 
         return {
@@ -4015,6 +4032,7 @@ export function useSceneHistory(options?: {
     removeConnection,
     removeConnectionsFromOutputSlot,
     removeConnectionsFromBlockSlot,
+    removeConnectionsFromAddonSlot,
     relinkInternalStructureSlot,
     createChildNode,
     createRootNode,

@@ -56,6 +56,20 @@ describe('formatRitualScalarAssignment option blocks', () => {
     expect(line).not.toContain('0, 20, 80')
   })
 
+  it('mapHashEmbed emite entradas map[hash,embed] com chave e tipo', () => {
+    const param = {
+      id: 'main_parameter_entries',
+      name: 'entries',
+      type: 'mapHashEmbed' as const,
+    }
+    const raw =
+      'Characters/Brand/Particles/Foo\tvfx-system\tVfxSystemDefinitionData\n0xabc123\tatomic-clip\tAtomicClipData'
+    const line = formatRitualScalarAssignment(param, raw, '    ')
+    expect(line).toContain('map[hash,embed] = {')
+    expect(line).toContain('"Characters/Brand/Particles/Foo" = VfxSystemDefinitionData { }')
+    expect(line).toContain('AtomicClipData { }')
+  })
+
   it('optionVector3 emite vec3 dentro do bloco', () => {
     const line = formatRitualScalarAssignment(
       optionParam('optionVector3', 'overrideBoundingBox'),

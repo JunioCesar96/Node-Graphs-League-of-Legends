@@ -22,6 +22,7 @@ import type {
   NodeParameterDefinition,
 } from '@/core/nodeSchema'
 import { populatedSlotsForPointer } from '@/core/pointerSlots'
+import { isBlockMapStructureType } from '@/core/blockSchema'
 import { hasMapHashEmbedStructure, parseMapHashEmbedString } from '@/core/mapHashEmbedValue'
 import { hasMapHashPointerStructure, parseMapHashPointerString } from '@/core/mapHashPointerValue'
 
@@ -184,6 +185,25 @@ export function getElementViewState(
   key: ElementViewKey,
 ): ElementViewState {
   return node.elementView?.[key] ?? defaultElementViewState(node, key)
+}
+
+/** Estado de vista compacto/lista para parâmetros map no BlockCard (ids distintos do schema do nó). */
+export function getBlockParameterElementViewState(
+  node: NodeInstance,
+  parameter: { idParameter: string; nameParameter: string; typeParameter: string },
+): ElementViewState {
+  const key = elementViewKeyForParameter(parameter.idParameter)
+  const stored = node.elementView?.[key]
+  if (stored) {
+    return { ...defaultElementViewState(node, key), ...stored }
+  }
+  if (
+    parameter.nameParameter === 'entries' &&
+    isBlockMapStructureType(parameter.typeParameter)
+  ) {
+    return { mode: 'compact', selectedIndex: 0 }
+  }
+  return getElementViewState(node, key)
 }
 
 export function isElementViewCompact(node: NodeInstance, key: ElementViewKey): boolean {

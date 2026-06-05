@@ -34,6 +34,7 @@ type BlockInspectorProps = {
 }
 
 const BLOCK_TYPE_DATALIST_ID = 'block-inspector-type-options'
+const BLOCK_INSPECTOR_BODY_CLASS = `${styles.dockedBodyLayout} inspectorScrollHost`
 
 function buildBlockTypeOptions(
   knownIds: readonly string[],
@@ -115,46 +116,48 @@ function BlockInspectorBody({
       : t(LangId.BlockInspectorTypeSelectHint)
 
   return (
-    <>
-      <div className={styles.fieldRow}>
-        <label htmlFor="block-inspector-type">{t(LangId.BlockInspectorTypeLabel)}</label>
-        <input
-          id="block-inspector-type"
-          list={BLOCK_TYPE_DATALIST_ID}
-          value={draft.blockType}
-          placeholder={t(LangId.BlockInspectorTypePlaceholder)}
-          spellCheck={false}
-          onChange={(event) => onDraftChange({ ...draft, blockType: event.target.value })}
-        />
-        <datalist id={BLOCK_TYPE_DATALIST_ID}>
-          {blockTypeOptions.map((type) => (
-            <option key={type.id} value={type.id} label={type.title} />
+    <div className={styles.inspectorBody}>
+      <div className={[styles.inspectorScroll, 'panelViewportDockedBody'].join(' ')}>
+        <div className={styles.fieldRow}>
+          <label htmlFor="block-inspector-type">{t(LangId.BlockInspectorTypeLabel)}</label>
+          <input
+            id="block-inspector-type"
+            list={BLOCK_TYPE_DATALIST_ID}
+            value={draft.blockType}
+            placeholder={t(LangId.BlockInspectorTypePlaceholder)}
+            spellCheck={false}
+            onChange={(event) => onDraftChange({ ...draft, blockType: event.target.value })}
+          />
+          <datalist id={BLOCK_TYPE_DATALIST_ID}>
+            {blockTypeOptions.map((type) => (
+              <option key={type.id} value={type.id} label={type.title} />
+            ))}
+          </datalist>
+          <span className={styles.fieldHint}>{typeHint}</span>
+        </div>
+
+        <div className={styles.fieldRow}>
+          <label htmlFor="block-inspector-name">{t(LangId.BlockInspectorNameLabel)}</label>
+          <input
+            id="block-inspector-name"
+            value={draft.blockName}
+            onChange={(event) => onDraftChange({ ...draft, blockName: event.target.value })}
+          />
+        </div>
+
+        <ul className={styles.paramList}>
+          {draft.entries.map((entry, index) => (
+            <li key={`${entry.ritualName}-${index}`}>
+              <BlockInspectorParameterCard
+                entry={entry}
+                onChange={(next) => patchEntry(index, next)}
+              />
+            </li>
           ))}
-        </datalist>
-        <span className={styles.fieldHint}>{typeHint}</span>
+        </ul>
       </div>
 
-      <div className={styles.fieldRow}>
-        <label htmlFor="block-inspector-name">{t(LangId.BlockInspectorNameLabel)}</label>
-        <input
-          id="block-inspector-name"
-          value={draft.blockName}
-          onChange={(event) => onDraftChange({ ...draft, blockName: event.target.value })}
-        />
-      </div>
-
-      <ul className={styles.paramList}>
-        {draft.entries.map((entry, index) => (
-          <li key={`${entry.ritualName}-${index}`}>
-            <BlockInspectorParameterCard
-              entry={entry}
-              onChange={(next) => patchEntry(index, next)}
-            />
-          </li>
-        ))}
-      </ul>
-
-      <div className={styles.actions}>
+      <footer className={styles.actions}>
         <button
           type="button"
           className={styles.secondary}
@@ -192,8 +195,8 @@ function BlockInspectorBody({
             {t(LangId.InspectorRevertToNode)}
           </button>
         ) : null}
-      </div>
-    </>
+      </footer>
+    </div>
   )
 }
 
@@ -281,7 +284,7 @@ export function BlockInspector({
     return (
       <InspectorViewportDockShell
         body={inspectorBody}
-        bodyClassName="inspectorScrollHost"
+        bodyClassName={BLOCK_INSPECTOR_BODY_CLASS}
         expandAriaLabel={t(LangId.BlockInspectorTitle)}
         expandContent={<DockTabIcon kind="block" />}
         eyebrow={node?.node.schema.title ?? defaultEyebrow}
@@ -322,7 +325,7 @@ export function BlockInspector({
     <InspectorFloatingPanelShell
       ariaLabel={inspectorTitle}
       body={inspectorBody}
-      bodyClassName="inspectorScrollHost"
+      bodyClassName={BLOCK_INSPECTOR_BODY_CLASS}
       dragHandleProps={dragHandleProps}
       eyebrow={node?.node.schema.title ?? defaultEyebrow}
       headerActions={headerActions}

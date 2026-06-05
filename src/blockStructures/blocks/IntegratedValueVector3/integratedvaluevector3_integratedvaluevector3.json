@@ -6,11 +6,11 @@
   "name": "IntegratedValueVector3",
   "source": {
     "kind": "block",
-    "nodeId": "integrated-value-vector3__entries-{particlePath}-complex-emitter-definition-data--slot--0-world-acceleration"
+    "nodeId": "integrated-value-vector3__main-characters/brand/skins/skin0/particles/brand-base-e-conflagration-buf-complex-emitter-definition-data--slot--0-world-acceleration"
   },
   "color": "#40ff56",
   "headerSlots": [
-    "in[worldAcceleration]",
+    "in[worldAcceleration,rotation0]",
     "out[IntegratedValueVector3Preview]"
   ],
   "parameters": [

@@ -1,6 +1,9 @@
 import { resolveIncomingAddonOutputForBlockParameter } from './addonOutputPropagation'
 import type { CanvasNode, CanvasScene } from './canvasScene'
 import type { BlockStructurePayload } from './blockSchema'
+import { isBlockMapStructureType } from './blockSchema'
+import { blockParameterDefaultValueFromJsonDocument } from './blockParameterFromJson'
+import { blockParameterCatalogByName } from './blockParameterCatalogRegistry'
 import {
   resolveBlockParameterValue,
   updateBlockParameterTokenValue,
@@ -86,7 +89,15 @@ export function readBlockParameterDisplayValue(
   if (wiredAddonValue !== undefined) {
     return wiredAddonValue
   }
-  return resolveBlockParameterValue(scene, canvasNode, param.sourcePath) || param.defaultValue
+  const resolved = resolveBlockParameterValue(scene, canvasNode, param.sourcePath) || param.defaultValue
+  if (resolved.trim() || !isBlockMapStructureType(param.typeParameter)) {
+    return resolved
+  }
+  const catalogDoc = blockParameterCatalogByName(structure.blockType, param.nameParameter)
+  if (!catalogDoc) {
+    return resolved
+  }
+  return blockParameterDefaultValueFromJsonDocument(catalogDoc) || resolved
 }
 
 export function ritualExportScalarOrToken(raw: string): string {

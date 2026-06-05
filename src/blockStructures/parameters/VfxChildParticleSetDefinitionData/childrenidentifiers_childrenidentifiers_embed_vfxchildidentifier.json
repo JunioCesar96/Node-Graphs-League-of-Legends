@@ -8,6 +8,7 @@
     "parameterId": "vfx-child-particle-set-definition-data__main-characters/brand/skins/skin0/particles/brand-base-p-redring-complex-emitter-definition-data--slot--5-child-particle-set-definition-children-identifiers"
   },
   "type": "embed",
+  "list": true,
   "embed": "VfxChildIdentifier",
   "slots": {
     "out": [

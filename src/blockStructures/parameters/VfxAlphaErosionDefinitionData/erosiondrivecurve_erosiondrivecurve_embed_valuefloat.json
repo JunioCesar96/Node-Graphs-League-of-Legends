@@ -5,7 +5,7 @@
   "name": "erosionDriveCurve",
   "source": {
     "kind": "parameter",
-    "parameterId": "vfx-alpha-erosion-definition-data__entries-{particlePath}-complex-emitter-definition-data--slot--0-alpha-erosion-definition-erosion-drive-curve"
+    "parameterId": "vfx-alpha-erosion-definition-data__main-characters/brand/skins/skin0/particles/brand-base-e-conflagration-buf-complex-emitter-definition-data--slot--0-alpha-erosion-definition-erosion-drive-curve"
   },
   "type": "embed",
   "embed": "ValueFloat",

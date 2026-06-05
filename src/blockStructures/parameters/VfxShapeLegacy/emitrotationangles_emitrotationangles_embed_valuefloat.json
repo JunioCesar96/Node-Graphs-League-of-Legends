@@ -8,6 +8,7 @@
     "parameterId": "vfx-shape-legacy__main-characters/brand/skins/skin0/particles/brand-base-p-fire-mark3-complex-emitter-definition-data--slot--2-spawn-shape-emit-rotation-angles"
   },
   "type": "embed",
+  "list": true,
   "embed": "ValueFloat",
   "slots": {
     "out": [

@@ -6,11 +6,11 @@
   "name": "ValueVector3",
   "source": {
     "kind": "block",
-    "nodeId": "value-vector3__entries-{particlePath}-complex-emitter-definition-data--slot--0-birth-velocity"
+    "nodeId": "value-vector3__main-characters/brand/skins/skin0/particles/brand-base-e-conflagration-buf-complex-emitter-definition-data--slot--0-birth-velocity"
   },
   "color": "#40ff56",
   "headerSlots": [
-    "in[birthVelocity,birthDrag,EmitterPosition,birthRotation0,birthScale0,scale0,birthRotationalVelocity0]",
+    "in[birthVelocity,birthDrag,EmitterPosition,birthRotation0,birthScale0,scale0,birthRotationalVelocity0,drag,birthScale1,rotation0,rotation1,birthOrbitalVelocity,birthAcceleration,paletteSelector,emitOffset,Position,mBirthTilingSize]",
     "out[ValueVector3Preview]"
   ],
   "parameters": [

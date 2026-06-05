@@ -46,6 +46,8 @@ export type BlockParameterDef = {
   iconHint?: BlockParameterIconHint
   /** Identificador de ícone (predefinido ou personalizado, ex.: blend.png). */
   iconId?: string
+  /** Campo ritual `list[pointer]` / `list[embed]` — saída pode ligar a vários destinos. */
+  listParameter?: boolean
   sourcePath: BlockParameterSourcePath
 }
 
@@ -140,6 +142,14 @@ export function parseBlockHeaderSlotId(
 
 export function blockParameterSlotId(idParameter: string, direction: 'input' | 'output'): string {
   return `block-param:${idParameter}:${direction}`
+}
+
+export function isBlockMapStructureType(typeParameter: string): boolean {
+  return (
+    typeParameter === 'mapHashEmbed' ||
+    typeParameter === 'mapHashPointer' ||
+    typeParameter === 'mapU64Pointer'
+  )
 }
 
 /** Converte tipo ritual do bloco para `NodeDataType` usado em `ParameterValueInput`. */

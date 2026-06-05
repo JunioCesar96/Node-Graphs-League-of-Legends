@@ -1,8 +1,10 @@
 import type { BlockDefinitionJsonDocument } from './blockDefinitionJson'
+import { buildMapParameterJsonDocument } from './blockParameterMapDocument'
 import type {
   BlockParameterJsonDocument,
   BlockParameterJsonDocumentEmbed,
   BlockParameterJsonDocumentList,
+  BlockParameterJsonDocumentMap,
   BlockParameterJsonDocumentOption,
   BlockParameterJsonDocumentPointer,
   BlockParameterJsonDocumentSimple,
@@ -128,6 +130,7 @@ function synthesizePointer(
   definition: BlockDefinitionJsonDocument,
   parameterName: string,
   pointerType: string,
+  options?: { list?: boolean },
 ): BlockParameterJsonDocumentPointer {
   const name = parameterName.trim()
   return {
@@ -143,6 +146,7 @@ function synthesizePointer(
       parameterId: blockParameterSourceId(definition.source.nodeId, parameterName, 'pointer'),
     },
     type: 'pointer',
+    ...(options?.list ? { list: true } : {}),
     pointer: pointerType,
     slots: { out: [pointerType] },
   }
@@ -152,6 +156,7 @@ function synthesizeEmbed(
   definition: BlockDefinitionJsonDocument,
   parameterName: string,
   embedType: string,
+  options?: { list?: boolean },
 ): BlockParameterJsonDocumentEmbed {
   const name = parameterName.trim()
   return {
@@ -164,6 +169,7 @@ function synthesizeEmbed(
       parameterId: blockParameterSourceId(definition.source.nodeId, parameterName, 'scalar'),
     },
     type: 'embed',
+    ...(options?.list ? { list: true } : {}),
     embed: embedType,
     slots: { out: [embedType] },
   }
@@ -248,6 +254,11 @@ export function synthesizeBlockParameterDocument(
 
   const scalar = schema.parameters.find((entry) => entry.name === key)
   if (scalar) {
+    const mapTypes = new Set<BlockParameterJsonDocumentMap['mapKind']>([
+      'mapHashEmbed',
+      'mapHashPointer',
+      'mapU64Pointer',
+    ])
     const listTypes = new Set([
       'listF32',
       'listString',
@@ -257,6 +268,15 @@ export function synthesizeBlockParameterDocument(
       'listVector4',
     ])
     const optionTypes = new Set(['optionF32', 'optionString', 'optionVector3'])
+    if (mapTypes.has(scalar.type as BlockParameterJsonDocumentMap['mapKind'])) {
+      return buildMapParameterJsonDocument({
+        blockName: definition.blockName.trim(),
+        parameterName: key,
+        parameterId: blockParameterSourceId(definition.source.nodeId, key, 'scalar'),
+        mapKind: scalar.type as BlockParameterJsonDocumentMap['mapKind'],
+        rawValue: scalar.defaultValue,
+      })
+    }
     if (listTypes.has(scalar.type)) {
       return synthesizeList(
         definition,
@@ -274,6 +294,24 @@ export function synthesizeBlockParameterDocument(
       )
     }
     return synthesizeSimple(definition, key, scalar.type, scalar.defaultValue)
+  }
+
+  const listPointer = schema.listPointer?.find((entry) => entry.title === key)
+  if (listPointer) {
+    const target =
+      listPointer.internalStructures[0]?.name ??
+      listPointer.slots?.[0]?.name ??
+      'pointer'
+    return synthesizePointer(definition, key, target, { list: true })
+  }
+
+  const listEmbed = schema.listEmbed?.find(
+    (entry) => (entry.parameterName ?? entry.title).trim() === key,
+  )
+  if (listEmbed) {
+    const target =
+      listEmbed.internalStructures[0]?.name ?? listEmbed.slots?.[0]?.name ?? 'embed'
+    return synthesizeEmbed(definition, key, target, { list: true })
   }
 
   const pointer = schema.pointer?.find((entry) => entry.title === key)

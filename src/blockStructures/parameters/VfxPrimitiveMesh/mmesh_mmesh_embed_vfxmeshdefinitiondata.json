@@ -5,7 +5,7 @@
   "name": "mMesh",
   "source": {
     "kind": "parameter",
-    "parameterId": "vfx-primitive-mesh__entries-{particlePath}-complex-emitter-definition-data--slot--5-primitive-m-mesh"
+    "parameterId": "vfx-primitive-mesh__main-characters/brand/skins/skin0/particles/brand-base-e-conflagration-buf-complex-emitter-definition-data--slot--5-primitive-m-mesh"
   },
   "type": "embed",
   "embed": "VfxMeshDefinitionData",

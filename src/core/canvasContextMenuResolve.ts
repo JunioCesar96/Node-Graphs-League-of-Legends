@@ -107,6 +107,18 @@ export function resolveContextTarget(event: ReactMouseEvent): CanvasContextTarge
     }
   }
 
+  const addonSlotEl = target.closest('[data-addon-slot-id]')
+
+  if (addonSlotEl) {
+    const nodeId = addonSlotEl.getAttribute('data-addon-slot-node-id')
+    const slotId = addonSlotEl.getAttribute('data-addon-slot-id')
+    const direction = addonSlotEl.getAttribute('data-addon-slot-direction')
+
+    if (nodeId && slotId && (direction === 'input' || direction === 'output')) {
+      return { type: 'addonSlot', nodeId, slotId, direction }
+    }
+  }
+
   const wireEl = target.closest('[data-canvas-wire="true"]')
 
   if (wireEl) {

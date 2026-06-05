@@ -5,7 +5,7 @@
   "name": "dynamics",
   "source": {
     "kind": "parameter",
-    "parameterId": "integrated-value-vector3__entries-{particlePath}-complex-emitter-definition-data--slot--0-world-acceleration-dynamics"
+    "parameterId": "integrated-value-vector3__main-characters/brand/skins/skin0/particles/brand-base-e-conflagration-buf-complex-emitter-definition-data--slot--0-world-acceleration-dynamics"
   },
   "type": "pointer",
   "pointer": "VfxAnimatedVector3fVariableData",
