@@ -8,7 +8,7 @@
   grid-template-rows: auto;
   gap: 2px var(--space-2);
   align-items: center;
-  min-width: min-content;
+  min-width: 0;
   overflow: visible;
   padding: var(--group-block-row-padding-y) var(--space-2);
   border-bottom: 1px solid rgb(0 0 0 / 28%);
@@ -36,6 +36,14 @@
   justify-content: flex-start;
 }
 
+.slotInStack {
+  display: flex;
+  flex-direction: row;
+  gap: 2px;
+  align-items: center;
+  justify-content: flex-start;
+}
+
 .iconCell {
   grid-column: 2;
   grid-row: 1;
@@ -44,13 +52,14 @@
 .label {
   grid-column: 3;
   grid-row: 1;
-  min-width: min-content;
-  overflow: visible;
+  min-width: 0;
+  overflow: hidden;
   color: var(--syntax-property);
   font-family: var(--font-data);
   font-size: 0.72rem;
   line-height: 1.15;
   white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .field[data-empty='1'] {
@@ -78,6 +87,14 @@
 .slotOut {
   grid-column: 5;
   grid-row: 1;
+  justify-content: flex-end;
+}
+
+.slotOutStack {
+  display: flex;
+  flex-direction: row;
+  gap: 2px;
+  align-items: center;
   justify-content: flex-end;
 }
 
@@ -243,4 +260,153 @@ div.input:focus-within {
 :global([data-params-layout='expanded']) .row[data-input-focused='1'] .field {
   grid-column: 1 / -1;
   grid-row: 1 / -1;
+}
+
+.rowMapHashStructure {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--space-2);
+  align-items: start;
+  min-height: auto;
+  padding: var(--space-2);
+}
+
+.rowMapHashStructure .slotIn {
+  grid-column: 1;
+  grid-row: 1;
+  align-self: start;
+  padding-top: 10px;
+}
+
+.rowMapHashStructure .mapHashField {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+
+.rowMapHashStructure:has(.slotIn:not(:empty)) .mapHashField {
+  grid-column: 2;
+}
+
+.mapHashInput {
+  width: 100%;
+  min-width: 0;
+}
+
+/* Map hash — triângulo + input na coluna de valor; lista flutuante via portal */
+.row[data-map-list='1'] {
+  align-items: center;
+}
+
+.row[data-map-list='1'] .iconCell {
+  display: none;
+}
+
+.row[data-map-list='1'] .slotIn {
+  grid-column: 1;
+  grid-row: 1;
+  align-self: center;
+}
+
+.row[data-map-list='1'] .label {
+  grid-column: 3;
+  grid-row: 1;
+  align-self: center;
+}
+
+.row[data-map-list='1'] .field {
+  grid-column: 4;
+  grid-row: 1;
+  min-width: 0;
+}
+
+.row[data-map-list='1'] .slotOut {
+  grid-column: 5;
+  grid-row: 1;
+  align-self: center;
+}
+
+:global([data-params-layout='expanded']) .row[data-map-list='1'] .label {
+  grid-column: 3 / span 2;
+  grid-row: 1;
+}
+
+.row[data-map-list='1'][data-input-focused='1'] .slotIn,
+.row[data-map-list='1'][data-input-focused='1'] .label,
+.row[data-map-list='1'][data-input-focused='1'] .slotOut {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.row[data-map-list='1'][data-input-focused='1'] .field {
+  z-index: 2;
+  display: grid;
+  grid-column: 1 / -1;
+  grid-row: 1;
+  gap: 3px;
+  overflow: visible;
+}
+
+.row[data-map-list='1'][data-input-focused='1'] .focusedTitle {
+  display: block;
+}
+
+.row[data-map-list='1'][data-input-focused='1'] .field input[type='text'] {
+  text-overflow: clip;
+  white-space: nowrap;
+}
+
+:global([data-params-layout='expanded']) .row[data-map-list='1'][data-input-focused='1'] .field {
+  grid-column: 1 / -1;
+  grid-row: 1 / -1;
+}
+
+/* Slot tools: o grid compacto agora permite encolher o nome; manter só o ajuste de coluna
+   quando não há valor (estrutura) para o label não invadir o `slotOut`. */
+.row[data-slot-tools='1'][data-no-value='1'] .label {
+  grid-column: 3 / 5;
+}
+
+/* Slot tools + fan-out: índice da ligação centrado abaixo da linha */
+.row[data-slot-pager-below='1'] {
+  grid-template-rows: auto auto;
+}
+
+.row[data-slot-pager-below='1'] .slotPagerBelow {
+  display: flex;
+  grid-column: 1 / -1;
+  grid-row: 2;
+  justify-content: center;
+  width: 100%;
+  padding-top: 1px;
+  padding-bottom: 2px;
+}
+
+:global([data-params-layout='expanded']) .row[data-slot-pager-below='1'] {
+  grid-template-rows: auto auto auto;
+}
+
+:global([data-params-layout='expanded']) .row[data-slot-pager-below='1'] .slotIn,
+:global([data-params-layout='expanded']) .row[data-slot-pager-below='1'] .iconCell,
+:global([data-params-layout='expanded']) .row[data-slot-pager-below='1'] .slotOut {
+  grid-row: 1 / span 2;
+  align-self: center;
+}
+
+:global([data-params-layout='expanded']) .row[data-slot-pager-below='1'] .slotPagerBelow {
+  grid-row: 3;
+}
+
+:global([data-params-layout='expanded']) .row[data-slot-pager-below='1'][data-no-value='1'] {
+  grid-template-rows: auto auto;
+}
+
+:global([data-params-layout='expanded']) .row[data-slot-pager-below='1'][data-no-value='1'] .slotIn,
+:global([data-params-layout='expanded']) .row[data-slot-pager-below='1'][data-no-value='1'] .iconCell,
+:global([data-params-layout='expanded']) .row[data-slot-pager-below='1'][data-no-value='1'] .slotOut {
+  grid-row: 1;
+}
+
+:global([data-params-layout='expanded']) .row[data-slot-pager-below='1'][data-no-value='1'] .slotPagerBelow {
+  grid-row: 2;
 }

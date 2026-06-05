@@ -75,6 +75,16 @@ describe('buildBlockStructureFromDefinition', () => {
     expect(ritualNames.some((name) => name.includes('dynamics'))).toBe(true)
     expect(structure.parameters).toHaveLength(2)
     expect(structure.identification_codes).toHaveLength(2)
+
+    const constantParam = structure.parameters.find((entry) =>
+      entry.nameParameter.toLowerCase().includes('constantvalue'),
+    )
+    const dynamicsParam = structure.parameters.find((entry) =>
+      entry.nameParameter.toLowerCase().includes('dynamics'),
+    )
+    expect(constantParam?.slotRules).toBeUndefined()
+    expect(dynamicsParam?.slotRules?.outputs?.length).toBeGreaterThan(0)
+    expect(dynamicsParam?.slotRules?.inputs).toBeUndefined()
   })
 
   it('collects parameter docs for block tree including pointer child block', () => {

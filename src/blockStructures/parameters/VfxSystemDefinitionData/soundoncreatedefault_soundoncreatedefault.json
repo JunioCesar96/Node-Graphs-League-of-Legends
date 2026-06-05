@@ -5,7 +5,7 @@
   "name": "soundOnCreateDefault",
   "source": {
     "kind": "parameter",
-    "parameterId": "vfx-system-definition-data__entries-{particlePath}_parameter_soundOnCreateDefault"
+    "parameterId": "vfx-system-definition-data__main-characters/brand/skins/skin0/particles/brand-base-e-conflagration-buf_parameter_soundOnCreateDefault"
   },
   "type": "string",
   "value": "Play_sfx_Brand_BrandE_hit",

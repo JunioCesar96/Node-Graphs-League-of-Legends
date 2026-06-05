@@ -25,8 +25,10 @@ export function InspectorFloatingPanelShell({
   dragHandleProps,
   onContextMenu,
 }: InspectorFloatingPanelShellProps) {
-  const headerClassName = [
-    dockStyles.dockedHeader,
+  const headerClassName = dockStyles.dockedHeader
+
+  const headerMainClassName = [
+    dockStyles.dockedHeaderMain,
     dragHandleProps?.onPointerDown ? dockStyles.dockedHeaderDraggable : '',
   ]
     .filter(Boolean)
@@ -45,8 +47,8 @@ export function InspectorFloatingPanelShell({
         .join(' ')}
       onContextMenu={onContextMenu}
     >
-      <header className={headerClassName} {...dragHandleProps}>
-        <div className={dockStyles.dockedHeaderMain}>
+      <header className={headerClassName}>
+        <div className={headerMainClassName} {...dragHandleProps}>
           <h2 className={dockStyles.dockedTitle}>{title}</h2>
           {eyebrow ? <div className={dockStyles.dockedEyebrow}>{eyebrow}</div> : null}
         </div>

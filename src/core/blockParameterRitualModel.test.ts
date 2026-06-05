@@ -65,6 +65,34 @@ describe('blockParameterRitualModel', () => {
     expect(ritualClassOutSlots('VfxAnimatedColorVariableData')).toEqual([
       'VfxAnimatedColorVariableData',
     ])
+    expect(dynamics?.list).toBeUndefined()
+  })
+
+  it('list[pointer] ritual gera JSON pointer com list: true', () => {
+    const schema = schemaFromRitual(
+      `VfxSystemDefinitionData {
+  complexEmitterDefinitionData: list[pointer] = {
+    VfxEmitterDefinitionData {
+      emitterName: string = "E1"
+    }
+  }
+}`,
+      'VfxSystemDefinitionData',
+    )
+
+    const docs = buildParameterDocumentsFromRitualSchema({
+      blockName: 'VfxSystemDefinitionData',
+      nodeId: 'vfx-system-definition-data',
+      schema,
+    })
+
+    const listParam = docs.find((doc) => doc.parameterName === 'complexEmitterDefinitionData')
+    expect(listParam).toMatchObject({
+      type: 'pointer',
+      list: true,
+      pointer: 'VfxEmitterDefinitionData',
+      slots: { out: ['VfxEmitterDefinitionData'] },
+    })
   })
 
   it('classifica option composto com out = f32', () => {
@@ -129,5 +157,37 @@ describe('blockParameterRitualModel', () => {
     }
     expect(entriesDoc.entries).toEqual([{ key: '0xdeadbeef', target: 'ValueVector3' }])
     expect(entriesDoc.slots.out).toContain('ValueVector3')
+  })
+
+  it('map[hash,embed] com path no ritual gera JSON alinhado ao catálogo Main/entries', () => {
+    const pathKey = 'Characters/Brand/Skins/Skin0/Particles/Brand_Base_E_Conflagration_buf'
+    const ritual = `
+#PROP_text
+type: string = "PROP"
+version: u32 = 3
+entries: map[hash,embed] = {
+  "${pathKey}" = VfxSystemDefinitionData {
+  }
+}
+`
+    const schema = schemaFromRitual(ritual, 'Main')
+    const docs = buildParameterDocumentsFromRitualSchema({
+      blockName: 'Main',
+      nodeId: 'main',
+      schema,
+    })
+
+    const entriesDoc = docs.find((doc) => doc.parameterName === 'entries')
+    expect(entriesDoc?.type).toBe('mapHashEmbed')
+    if (entriesDoc?.type !== 'mapHashEmbed') {
+      return
+    }
+    expect(entriesDoc).toMatchObject({
+      id: 'entries_entries_mapHashEmbed',
+      parameterName: 'entries',
+      mapKind: 'mapHashEmbed',
+      entries: [{ key: pathKey, target: 'VfxSystemDefinitionData' }],
+      slots: { out: ['VfxSystemDefinitionData'] },
+    })
   })
 })

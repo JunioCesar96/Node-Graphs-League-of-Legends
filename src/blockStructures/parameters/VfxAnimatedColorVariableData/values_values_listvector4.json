@@ -5,7 +5,7 @@
   "name": "values",
   "source": {
     "kind": "parameter",
-    "parameterId": "vfx-animated-color-variable-data__entries-{particlePath}-complex-emitter-definition-data--slot--0-color-dynamics_parameter_values"
+    "parameterId": "vfx-animated-color-variable-data__main-characters/brand/skins/skin0/particles/brand-base-e-conflagration-buf-complex-emitter-definition-data--slot--0-color-dynamics_parameter_values"
   },
   "type": "listVector4",
   "items": [

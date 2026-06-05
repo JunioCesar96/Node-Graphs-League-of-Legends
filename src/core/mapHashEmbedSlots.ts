@@ -1,4 +1,4 @@
-import type { CanvasNode } from '@/core/canvasScene'
+import type { CanvasConnection, CanvasNode } from '@/core/canvasScene'
 import type {
   InternalStructureDefinition,
   NodeParameterDefinition,
@@ -18,6 +18,27 @@ import { parseMapHashEmbedString, type MapHashEmbedEntry } from '@/core/mapHashE
 const hasMapHashEmbedStructure = hasMapHashStructure
 
 export const MAP_HASH_EMBED_SLOT_INFIX = '__map_embed__'
+
+/** Prefixo em `fromInternalStructureId` de ligações criadas por `applyBlockSlotConnectionToScene`. */
+export const BLOCK_INTERNAL_STRUCTURE_PREFIX = '__block__:'
+
+export function stripBlockInternalStructurePrefix(slotId: string): string {
+  return slotId.startsWith(BLOCK_INTERNAL_STRUCTURE_PREFIX)
+    ? slotId.slice(BLOCK_INTERNAL_STRUCTURE_PREFIX.length)
+    : slotId
+}
+
+/** Resolve o slot mapHashEmbed a partir de uma ligação (block card ou elemento). */
+export function resolveMapHashEmbedSlotIdFromConnection(
+  connection: Pick<CanvasConnection, 'fromBlockSlotId' | 'fromInternalStructureId'>,
+): string | null {
+  const raw = connection.fromBlockSlotId?.trim() || connection.fromInternalStructureId?.trim() || ''
+  if (!raw) {
+    return null
+  }
+  const slotId = stripBlockInternalStructurePrefix(raw)
+  return isMapHashEmbedSlotId(slotId) ? slotId : null
+}
 
 export function mapHashEmbedSlotId(parameterId: string, key: string): string {
   const normalizedKey = key.trim().replace(/\s+/g, '_')

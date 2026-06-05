@@ -6,7 +6,7 @@
   "name": "VfxTextureMultDefinitionData",
   "source": {
     "kind": "block",
-    "nodeId": "vfx-texture-mult-definition-data__entries-{particlePath}-complex-emitter-definition-data--slot--7-texture-mult"
+    "nodeId": "vfx-texture-mult-definition-data__main-characters/brand/skins/skin0/particles/brand-base-e-conflagration-buf-complex-emitter-definition-data--slot--7-texture-mult"
   },
   "color": "#40ff56",
   "headerSlots": [
@@ -14,8 +14,8 @@
     "out[VfxTextureMultDefinitionDataPreview]"
   ],
   "parameters": [
-    "texAddressModeMult",
     "textureMult",
+    "texAddressModeMult",
     "uvScrollClampMult",
     "uvScaleMult",
     "ParticleIntegratedUvScrollMult",

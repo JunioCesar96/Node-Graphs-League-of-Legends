@@ -93,11 +93,10 @@ function resolveSchemaIdFromStructureReferences(
     return schemaRegistry[id] ? id : null
   }
 
-  for (const pointer of parentSchema.pointer ?? []) {
-    if (pointer.title.trim() !== paramKey) {
-      continue
-    }
-    for (const structure of pointer.internalStructures ?? []) {
+  const matchStructures = (
+    structures: Array<{ name: string; schemaId?: string }> | undefined,
+  ): string | null => {
+    for (const structure of structures ?? []) {
       if (structure.name.trim() === childTarget) {
         const resolved = tryStructure(structure.schemaId)
         if (resolved) {
@@ -105,35 +104,65 @@ function resolveSchemaIdFromStructureReferences(
         }
       }
     }
-    for (const slot of pointer.slots ?? []) {
-      if (slot.name.trim() === childTarget) {
-        const resolved = tryStructure(slot.schemaId)
-        if (resolved) {
-          return resolved
-        }
-      }
+    return null
+  }
+
+  const fieldTitle = (entry: { title?: string; field?: string }): string =>
+    (entry.title ?? entry.field ?? '').trim()
+
+  for (const pointer of parentSchema.pointer ?? []) {
+    if (fieldTitle(pointer) !== paramKey) {
+      continue
+    }
+    const fromStructures = matchStructures(pointer.internalStructures)
+    if (fromStructures) {
+      return fromStructures
+    }
+    const fromSlots = matchStructures(pointer.slots)
+    if (fromSlots) {
+      return fromSlots
     }
   }
 
   for (const embed of parentSchema.embed ?? []) {
-    if (embed.title.trim() !== paramKey) {
+    if (fieldTitle(embed) !== paramKey) {
       continue
     }
-    for (const structure of embed.internalStructures ?? []) {
-      if (structure.name.trim() === childTarget) {
-        const resolved = tryStructure(structure.schemaId)
-        if (resolved) {
-          return resolved
-        }
-      }
+    const fromStructures = matchStructures(embed.internalStructures)
+    if (fromStructures) {
+      return fromStructures
     }
-    for (const slot of embed.slots ?? []) {
-      if (slot.name.trim() === childTarget) {
-        const resolved = tryStructure(slot.schemaId)
-        if (resolved) {
-          return resolved
-        }
-      }
+    const fromSlots = matchStructures(embed.slots)
+    if (fromSlots) {
+      return fromSlots
+    }
+  }
+
+  for (const listPointer of parentSchema.listPointer ?? []) {
+    if (listPointer.title.trim() !== paramKey) {
+      continue
+    }
+    const fromStructures = matchStructures(listPointer.internalStructures)
+    if (fromStructures) {
+      return fromStructures
+    }
+    const fromSlots = matchStructures(listPointer.slots)
+    if (fromSlots) {
+      return fromSlots
+    }
+  }
+
+  for (const listEmbed of parentSchema.listEmbed ?? []) {
+    if (listEmbed.title.trim() !== paramKey) {
+      continue
+    }
+    const fromStructures = matchStructures(listEmbed.internalStructures)
+    if (fromStructures) {
+      return fromStructures
+    }
+    const fromSlots = matchStructures(listEmbed.slots)
+    if (fromSlots) {
+      return fromSlots
     }
   }
 

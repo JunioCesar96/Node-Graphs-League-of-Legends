@@ -9,51 +9,80 @@
   pointer-events: auto;
 }
 
-.menuTrigger {
-  padding: 6px 12px;
+.floatingLayerDragging {
+  user-select: none;
+}
+
+.toolbar {
+  display: flex;
+  gap: var(--space-1);
+  align-items: center;
+}
+
+.iconButton {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
   border: 1px solid rgb(255 255 255 / 12%);
   border-radius: 6px;
   background: var(--block-surface);
   color: var(--block-text);
-  font-family: var(--font-data);
-  font-size: 0.72rem;
-  font-weight: 600;
   cursor: pointer;
+  transition:
+    border-color 140ms ease,
+    background 140ms ease,
+    color 140ms ease;
 }
 
-.menuTrigger:hover {
-  border-color: rgb(255 255 255 / 22%);
-}
-
-.submenu {
-  display: grid;
-  gap: 2px;
-  min-width: 160px;
-  padding: var(--space-1);
-  background: var(--block-surface-dark);
-  border: 1px solid rgb(0 0 0 / 40%);
-  border-radius: 8px;
-  box-shadow: 0 12px 32px rgb(0 0 0 / 45%);
-}
-
-.submenuItem {
-  padding: 8px 10px;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--block-text);
-  font-size: 0.72rem;
-  text-align: left;
-  cursor: pointer;
-}
-
-.submenuItem:hover {
+.iconButton:hover:not(:disabled) {
+  border-color: rgb(255 255 255 / 24%);
   background: rgb(255 255 255 / 8%);
+  color: #fff;
 }
 
-.submenuItem:disabled {
-  opacity: 0.45;
+.iconButton:disabled {
+  opacity: 0.4;
   cursor: not-allowed;
+}
+
+.iconGlyph {
+  width: 16px;
+  height: 16px;
+  background-color: currentColor;
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+}
+
+.iconGlyphSlotTools {
+  mask-image: url('../../assets/SVG/slot%20tools.svg');
+  -webkit-mask-image: url('../../assets/SVG/slot%20tools.svg');
+}
+
+.iconButtonActive {
+  border-color: color-mix(in srgb, var(--syntax-property, #64b5f6) 55%, transparent);
+  background: rgb(100 181 246 / 12%);
+  color: var(--syntax-property, #64b5f6);
+}
+
+.iconGlyphEdit {
+  mask-image: url('../../assets/SVG/edite%20parametro.svg');
+  -webkit-mask-image: url('../../assets/SVG/edite%20parametro.svg');
+}
+
+.iconGlyphAdd {
+  mask-image: url('../../assets/SVG/add%20parametro.svg');
+  -webkit-mask-image: url('../../assets/SVG/add%20parametro.svg');
+}
+
+.iconGlyphRemove {
+  mask-image: url('../../assets/SVG/remove%20parametro_1.svg');
+  -webkit-mask-image: url('../../assets/SVG/remove%20parametro_1.svg');
 }
 
 .listPanel {

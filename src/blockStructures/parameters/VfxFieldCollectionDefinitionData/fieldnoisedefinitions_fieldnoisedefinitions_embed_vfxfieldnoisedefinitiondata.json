@@ -8,6 +8,7 @@
     "parameterId": "vfx-field-collection-definition-data__main-characters/brand/skins/skin0/particles/brand-base-joke-complex-emitter-definition-data--slot--0-field-collection-definition-field-noise-definitions"
   },
   "type": "embed",
+  "list": true,
   "embed": "VfxFieldNoiseDefinitionData",
   "slots": {
     "out": [

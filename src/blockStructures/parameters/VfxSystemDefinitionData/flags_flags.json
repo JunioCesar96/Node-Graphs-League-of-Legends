@@ -5,7 +5,7 @@
   "name": "flags",
   "source": {
     "kind": "parameter",
-    "parameterId": "vfx-system-definition-data__entries-{particlePath}_parameter_flags"
+    "parameterId": "vfx-system-definition-data__main-characters/brand/skins/skin0/particles/brand-base-e-conflagration-buf_parameter_flags"
   },
   "type": "u16",
   "value": "198",

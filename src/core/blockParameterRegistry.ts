@@ -91,6 +91,10 @@ export function validateBlockParameterDocument(
     errors.push(`${sourceLabel}: tipo não suportado: ${String(raw.type)}`)
   }
 
+  if ('list' in raw && typeof raw.list !== 'boolean') {
+    errors.push(`${sourceLabel}: list deve ser boolean`)
+  }
+
   if (errors.length > 0) {
     return { ok: false, errors }
   }

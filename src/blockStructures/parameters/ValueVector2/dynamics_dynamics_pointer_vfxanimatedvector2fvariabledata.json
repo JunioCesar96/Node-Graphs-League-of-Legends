@@ -5,7 +5,7 @@
   "name": "dynamics",
   "source": {
     "kind": "parameter",
-    "parameterId": "value-vector2__entries-{particlePath}-complex-emitter-definition-data--slot--5-birth-uv-scroll-rate-dynamics"
+    "parameterId": "value-vector2__main-characters/brand/skins/skin0/particles/brand-base-e-conflagration-buf-complex-emitter-definition-data--slot--5-birth-uv-scroll-rate-dynamics"
   },
   "type": "pointer",
   "pointer": "VfxAnimatedVector2fVariableData",

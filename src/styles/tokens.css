@@ -113,11 +113,11 @@ html[data-app-theme='default'] {
   --group-block-field-bg: #282828;
   --group-block-slot-col-min: 0.875rem;
   --group-block-icon-col-min: 1.125rem;
-  /** 5 colunas: slot in | icon | name (max-content) | value (≥30%) | slot out */
+  /** 5 colunas: slot in | icon | name | value (≥30%) | slot out */
   --group-block-body-columns-compact:
     minmax(var(--group-block-slot-col-min), max-content)
     minmax(var(--group-block-icon-col-min), max-content)
-    minmax(max-content, 2fr)
+    minmax(0, 2fr)
     minmax(30%, 1fr)
     minmax(var(--group-block-slot-col-min), max-content);
   --group-block-body-columns-expanded:

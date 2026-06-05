@@ -36,3 +36,13 @@
   color: var(--color-text-muted);
   opacity: 0.72;
 }
+
+.actionDanger {
+  color: #f0a8a8;
+}
+
+.actionDanger:hover {
+  color: #ffc8c8;
+  background: rgb(180 40 40 / 18%);
+  border-color: rgb(200 80 90 / 35%);
+}

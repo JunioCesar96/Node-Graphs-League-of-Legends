@@ -2,6 +2,7 @@ import type { MouseEvent as ReactMouseEvent, PointerEvent, PointerEventHandler }
 import { useMemo } from 'react'
 
 import { BlockParameterRow } from '@/components/molecules/BlockParameterRow'
+import { BlockSlotConnectionPager } from '@/components/molecules/BlockSlotConnectionPager'
 import { StructureCardResizeHandles } from '@/components/molecules/StructureCardResizeHandles'
 import { BlockSlot } from '@/components/atoms/BlockSlot'
 import { BlockTypeDivider } from '@/components/atoms/BlockTypeDivider'
@@ -18,17 +19,20 @@ import {
 } from '@/core/structureCardLayout'
 import { BlockCardParameterMenu } from '@/components/molecules/BlockCardParameterMenu'
 import {
-  blockHeaderSlotOffsetY,
+  blockHeaderPortStackOffsetY,
   expandBlockHeaderSlotPorts,
-  parseBlockHeaderSlotDescriptor,
   resolveBlockHeaderSlotsForStructure,
 } from '@/core/blockCardHeaderSlots'
 import { blockTypeDefinitionById } from '@/core/blockStructureRegistry'
+import type { CanvasContextMenuAnchor } from '@/core/canvasContextMenuTypes'
 import type { BlockParameterJsonDocument } from '@/core/blockParameterJson'
 import type { BlockParameterDef } from '@/core/blockSchema'
 import type { BlockWirelessNodeDisplay, BlockSlotWirelessLink } from '@/core/blockConnectionDisplay'
 import { isBlockSlotPulsing } from '@/core/blockConnectionDisplay'
+import type { BlockSlotPeerActions } from '@/core/blockSlotPeerActions'
+import { BlockSlotPeerToolbar } from '@/components/molecules/BlockSlotPeerToolbar'
 import { readBlockParameterDisplayValue } from '@/core/syncBlockToCode'
+import { findConnectionsForBlockOutputSlot } from '@/core/blockSlotConnections'
 
 import styles from './BlockCard.module.css'
 
@@ -75,7 +79,12 @@ type BlockCardProps = {
   blockWirelessPulseSlotId?: string
   onBlockSlotWirelessHoverStart?: (slotId: string, link: BlockSlotWirelessLink) => void
   onBlockSlotWirelessHoverEnd?: () => void
-  onBlockSlotCycleRouting?: (connectionId: string) => void
+  resolveBlockOutputSlotConnectionIndex?: (slotId: string, connectionCount: number) => number
+  onBlockOutputSlotConnectionIndexChange?: (slotId: string, index: number) => void
+  slotToolsEnabled?: boolean
+  onSlotToolsEnabledChange?: (enabled: boolean) => void
+  blockSlotPeerActions?: BlockSlotPeerActions
+  onMapHashStructureSlotRemoved?: (slotId: string) => void
   canvasScale?: number
   structureCardResizeModifierActive?: boolean
   onStructureCardResize?: (payload: { width: number; positionX: number }) => void
@@ -83,7 +92,11 @@ type BlockCardProps = {
   onStartDrag?: PointerEventHandler<HTMLElement>
   onAddParameterFromCatalog?: (doc: BlockParameterJsonDocument) => void
   onRemoveParameter?: (paramId: string) => void
-  onEditParameter?: (param: BlockParameterDef) => void
+  onEditParameter?: (param: BlockParameterDef, screenAnchor?: CanvasContextMenuAnchor) => void
+  parameterPanelRequest?: 'add' | 'edit' | 'remove' | null
+  parameterPanelScreenAnchor?: CanvasContextMenuAnchor | null
+  onParameterPanelRequestHandled?: () => void
+  onParameterPanelDismiss?: () => void
   wirelessHighlighted?: boolean
 }
 
@@ -105,7 +118,12 @@ export function BlockCard({
   blockWirelessPulseSlotId,
   onBlockSlotWirelessHoverStart,
   onBlockSlotWirelessHoverEnd,
-  onBlockSlotCycleRouting,
+  resolveBlockOutputSlotConnectionIndex,
+  onBlockOutputSlotConnectionIndexChange,
+  slotToolsEnabled = false,
+  onSlotToolsEnabledChange,
+  blockSlotPeerActions,
+  onMapHashStructureSlotRemoved,
   canvasScale = 1,
   structureCardResizeModifierActive = false,
   onStructureCardResize,
@@ -114,6 +132,10 @@ export function BlockCard({
   onAddParameterFromCatalog,
   onRemoveParameter,
   onEditParameter,
+  parameterPanelRequest = null,
+  parameterPanelScreenAnchor = null,
+  onParameterPanelRequestHandled,
+  onParameterPanelDismiss,
   wirelessHighlighted = false,
 }: BlockCardProps) {
   const structure = canvasNode.blockStructure
@@ -156,17 +178,21 @@ export function BlockCard({
   }
   const headerInputPorts = headerPorts.filter((port) => port.direction === 'input')
   const headerOutputPorts = headerPorts.filter((port) => port.direction === 'output')
+  const headerOutputPortsWithPagerBelow = slotToolsEnabled
+    ? headerOutputPorts.filter(
+        (port) =>
+          findConnectionsForBlockOutputSlot(scene, canvasNode.id, port.slotId).length > 1,
+      )
+    : []
 
-  const headerPortOffsetY = (port: (typeof headerPorts)[number]): number => {
-    const parsed = parseBlockHeaderSlotDescriptor(headerSlots[port.slotIndex] ?? '')
-    const typeCount = parsed?.types.length ?? 1
-    if (typeCount <= 1) {
-      return 0
+  const headerPortOffsetY = (port: (typeof headerPorts)[number]): number =>
+    blockHeaderPortStackOffsetY(headerPorts, port)
+
+  const headerSlotTypeLabel = (port: (typeof headerPorts)[number]): string => {
+    if (port.types.length <= 1) {
+      return port.types[0] ?? port.direction
     }
-    const fieldIndex = port.fieldKey
-      ? parsed!.types.findIndex((type) => type === port.fieldKey)
-      : 0
-    return blockHeaderSlotOffsetY(typeCount, fieldIndex >= 0 ? fieldIndex : 0)
+    return `${String(port.types.length)} tipos (${port.types.join(', ')})`
   }
 
   return (
@@ -205,42 +231,68 @@ export function BlockCard({
         width={cardWidth}
         onResize={(payload) => onStructureCardResize?.(payload)}
       />
-      <header className={styles.header}>
+      <header
+        className={styles.header}
+        data-slot-tools={slotToolsEnabled ? '1' : '0'}
+        data-slot-pager-below={headerOutputPortsWithPagerBelow.length > 0 ? '1' : '0'}
+      >
         <div className={styles.headerSlotColumn}>
           {headerInputPorts.length > 0 ? (
-            headerInputPorts.map((port) => (
+            headerInputPorts.map((port) => {
+              const headerInputLink = blockWirelessDisplay?.slots.get(port.slotId)
+              const headerInputPeerState =
+                slotToolsEnabled && headerInputLink && blockSlotPeerActions
+                  ? blockSlotPeerActions.getPeerState(port.slotId, 'input')
+                  : undefined
+
+              return (
               <div
                 key={port.slotId}
                 className={styles.headerSlotStackItem}
                 style={{ transform: `translateY(${String(headerPortOffsetY(port))}px)` }}
               >
-                <BlockSlot
-                  variant="in"
-                  ariaLabel={`Entrada do bloco (${port.fieldKey ?? port.types[0] ?? 'in'})`}
-                  disabled={interactionLocked}
-                  linked={Boolean(blockWirelessDisplay?.slots.get(port.slotId))}
-                  wireless={blockWirelessDisplay?.slots.get(port.slotId)?.routing === 'wireless'}
-                  forced={blockWirelessDisplay?.slots.get(port.slotId)?.forced === true}
-                  pulsing={isBlockSlotPulsing(
-                    blockWirelessPulseSlotId
-                      ? { nodeId: canvasNode.id, slotId: blockWirelessPulseSlotId }
-                      : null,
-                    canvasNode.id,
-                    port.slotId,
-                  )}
-                  slotId={port.slotId}
-                  nodeId={canvasNode.id}
-                  onPointerUp={(event) => onBlockHeaderInputPointerUp?.(port.slotId, event)}
-                  onPointerEnter={() => {
-                    const link = blockWirelessDisplay?.slots.get(port.slotId)
-                    if (link) {
-                      onBlockSlotWirelessHoverStart?.(port.slotId, link)
-                    }
-                  }}
-                  onPointerLeave={onBlockSlotWirelessHoverEnd}
-                />
+                <div className={styles.headerSlotOutStack}>
+                  <BlockSlot
+                    variant="in"
+                    ariaLabel={`Entrada do bloco (${headerSlotTypeLabel(port)})`}
+                    disabled={interactionLocked}
+                    linked={Boolean(headerInputLink)}
+                    wireless={headerInputLink?.routing === 'wireless'}
+                    forced={headerInputLink?.forced === true}
+                    pulsing={isBlockSlotPulsing(
+                      blockWirelessPulseSlotId
+                        ? { nodeId: canvasNode.id, slotId: blockWirelessPulseSlotId }
+                        : null,
+                      canvasNode.id,
+                      port.slotId,
+                    )}
+                    slotId={port.slotId}
+                    nodeId={canvasNode.id}
+                    onPointerUp={(event) => onBlockHeaderInputPointerUp?.(port.slotId, event)}
+                    onPointerEnter={() => {
+                      if (headerInputLink) {
+                        onBlockSlotWirelessHoverStart?.(port.slotId, headerInputLink)
+                      }
+                    }}
+                    onPointerLeave={onBlockSlotWirelessHoverEnd}
+                  />
+                  {headerInputPeerState ? (
+                    <BlockSlotPeerToolbar
+                      peer={headerInputPeerState}
+                      onFocusPeer={() => blockSlotPeerActions!.onFocusPeer(port.slotId, 'input')}
+                      onRemoveConnection={() =>
+                        blockSlotPeerActions!.onRemoveConnection(port.slotId, 'input')
+                      }
+                      onToggleLock={() => blockSlotPeerActions!.onToggleLock(port.slotId, 'input')}
+                      onToggleVisibility={() =>
+                        blockSlotPeerActions!.onToggleVisibility(port.slotId, 'input')
+                      }
+                    />
+                  ) : null}
+                </div>
               </div>
-            ))
+              )
+            })
           ) : (
             <span />
           )}
@@ -250,47 +302,135 @@ export function BlockCard({
         </div>
         <div className={styles.headerSlotColumn}>
           {headerOutputPorts.length > 0 ? (
-            headerOutputPorts.map((port) => (
+            headerOutputPorts.map((port) => {
+              const outputConnectionCount = findConnectionsForBlockOutputSlot(
+                scene,
+                canvasNode.id,
+                port.slotId,
+              ).length
+              const outputConnectionIndex =
+                resolveBlockOutputSlotConnectionIndex?.(port.slotId, outputConnectionCount) ?? 0
+              const headerSlotLink = blockWirelessDisplay?.slots.get(port.slotId)
+              const headerPeerState =
+                slotToolsEnabled && headerSlotLink && blockSlotPeerActions
+                  ? blockSlotPeerActions.getPeerState(
+                      port.slotId,
+                      'output',
+                      outputConnectionIndex,
+                    )
+                  : undefined
+
+              return (
               <div
                 key={port.slotId}
                 className={styles.headerSlotStackItem}
                 style={{ transform: `translateY(${String(headerPortOffsetY(port))}px)` }}
               >
-                <BlockSlot
-                  variant="out"
-                  ariaLabel={`Saída do bloco (${port.fieldKey ?? port.types[0] ?? 'out'})`}
-                  disabled={interactionLocked}
-                  active={activeBlockSlotId === port.slotId}
-                  linked={Boolean(blockWirelessDisplay?.slots.get(port.slotId))}
-                  wireless={blockWirelessDisplay?.slots.get(port.slotId)?.routing === 'wireless'}
-                  forced={blockWirelessDisplay?.slots.get(port.slotId)?.forced === true}
-                  pulsing={isBlockSlotPulsing(
-                    blockWirelessPulseSlotId
-                      ? { nodeId: canvasNode.id, slotId: blockWirelessPulseSlotId }
-                      : null,
-                    canvasNode.id,
-                    port.slotId,
-                  )}
-                  slotId={port.slotId}
-                  nodeId={canvasNode.id}
-                  onPointerDown={(event) =>
-                    onBlockHeaderOutputPointerDown?.(port.slotId, event)
-                  }
-                  onPointerUp={(event) => onBlockHeaderOutputPointerUp?.(port.slotId, event)}
-                  onPointerEnter={() => {
-                    const link = blockWirelessDisplay?.slots.get(port.slotId)
-                    if (link) {
-                      onBlockSlotWirelessHoverStart?.(port.slotId, link)
+                <div className={styles.headerSlotOutStack}>
+                  {!slotToolsEnabled ? (
+                    <BlockSlotConnectionPager
+                      onSelectedIndexChange={(index) =>
+                        onBlockOutputSlotConnectionIndexChange?.(port.slotId, index)
+                      }
+                      selectedIndex={outputConnectionIndex}
+                      total={outputConnectionCount}
+                    />
+                  ) : null}
+                  <BlockSlot
+                    variant="out"
+                    ariaLabel={`Saída do bloco (${headerSlotTypeLabel(port)})`}
+                    disabled={interactionLocked}
+                    active={activeBlockSlotId === port.slotId}
+                    linked={Boolean(blockWirelessDisplay?.slots.get(port.slotId))}
+                    wireless={blockWirelessDisplay?.slots.get(port.slotId)?.routing === 'wireless'}
+                    forced={blockWirelessDisplay?.slots.get(port.slotId)?.forced === true}
+                    pulsing={isBlockSlotPulsing(
+                      blockWirelessPulseSlotId
+                        ? { nodeId: canvasNode.id, slotId: blockWirelessPulseSlotId }
+                        : null,
+                      canvasNode.id,
+                      port.slotId,
+                    )}
+                    slotId={port.slotId}
+                    nodeId={canvasNode.id}
+                    onPointerDown={(event) =>
+                      onBlockHeaderOutputPointerDown?.(port.slotId, event)
                     }
-                  }}
-                  onPointerLeave={onBlockSlotWirelessHoverEnd}
-                />
+                    onPointerUp={(event) => onBlockHeaderOutputPointerUp?.(port.slotId, event)}
+                    onPointerEnter={() => {
+                      const link = blockWirelessDisplay?.slots.get(port.slotId)
+                      if (link) {
+                        onBlockSlotWirelessHoverStart?.(port.slotId, link)
+                      }
+                    }}
+                    onPointerLeave={onBlockSlotWirelessHoverEnd}
+                  />
+                  {headerPeerState ? (
+                    <BlockSlotPeerToolbar
+                      peer={headerPeerState}
+                      onFocusPeer={() =>
+                        blockSlotPeerActions!.onFocusPeer(
+                          port.slotId,
+                          'output',
+                          outputConnectionIndex,
+                        )
+                      }
+                      onRemoveConnection={() =>
+                        blockSlotPeerActions!.onRemoveConnection(
+                          port.slotId,
+                          'output',
+                          outputConnectionIndex,
+                        )
+                      }
+                      onToggleLock={() =>
+                        blockSlotPeerActions!.onToggleLock(
+                          port.slotId,
+                          'output',
+                          outputConnectionIndex,
+                        )
+                      }
+                      onToggleVisibility={() =>
+                        blockSlotPeerActions!.onToggleVisibility(
+                          port.slotId,
+                          'output',
+                          outputConnectionIndex,
+                        )
+                      }
+                    />
+                  ) : null}
+                </div>
               </div>
-            ))
+              )
+            })
           ) : (
             <span />
           )}
         </div>
+        {headerOutputPortsWithPagerBelow.length > 0 ? (
+          <div className={styles.headerSlotPagerBelow}>
+            {headerOutputPortsWithPagerBelow.map((port) => {
+              const outputConnectionCount = findConnectionsForBlockOutputSlot(
+                scene,
+                canvasNode.id,
+                port.slotId,
+              ).length
+              const outputConnectionIndex =
+                resolveBlockOutputSlotConnectionIndex?.(port.slotId, outputConnectionCount) ?? 0
+
+              return (
+                <BlockSlotConnectionPager
+                  key={port.slotId}
+                  layout="below"
+                  onSelectedIndexChange={(index) =>
+                    onBlockOutputSlotConnectionIndexChange?.(port.slotId, index)
+                  }
+                  selectedIndex={outputConnectionIndex}
+                  total={outputConnectionCount}
+                />
+              )
+            })}
+          </div>
+        ) : null}
       </header>
 
       <BlockTypeDivider color={typeDef?.color ?? '#40ff56'} />
@@ -306,6 +446,13 @@ export function BlockCard({
 
           const outputSlotId = blockParameterSlotId(parameter.idParameter, 'output')
           const inputSlotId = blockParameterSlotId(parameter.idParameter, 'input')
+          const outputConnectionCount = findConnectionsForBlockOutputSlot(
+            scene,
+            canvasNode.id,
+            outputSlotId,
+          ).length
+          const outputConnectionIndex =
+            resolveBlockOutputSlotConnectionIndex?.(outputSlotId, outputConnectionCount) ?? 0
 
           return (
             <BlockParameterRow
@@ -319,6 +466,14 @@ export function BlockCard({
               activeSlotId={activeBlockSlotId}
               inputSlotLink={blockWirelessDisplay?.slots.get(inputSlotId)}
               outputSlotLink={blockWirelessDisplay?.slots.get(outputSlotId)}
+              outputConnectionCount={outputConnectionCount}
+              outputConnectionIndex={outputConnectionIndex}
+              onOutputConnectionIndexChange={(index) =>
+                onBlockOutputSlotConnectionIndexChange?.(outputSlotId, index)
+              }
+              slotToolsEnabled={slotToolsEnabled}
+              blockSlotPeerActions={blockSlotPeerActions}
+              blockWirelessSlots={blockWirelessDisplay?.slots}
               pulseSlotId={blockWirelessPulseSlotId}
               canvasNodeId={canvasNode.id}
               onCommitValue={(next) => onUpdateBlockParameter(parameter.idParameter, next)}
@@ -350,22 +505,40 @@ export function BlockCard({
                   event,
                 )
               }
+              onMapHashOutputPointerDown={(slotId, event) =>
+                onBlockOutputPointerDown?.(parameter.idParameter, slotId, event)
+              }
+              onMapHashOutputPointerUp={(_slotId, event) => {
+                onBlockOutputPointerUp?.(parameter.idParameter, _slotId, event)
+              }}
+              onMapHashOutputPointerMove={(_slotId, event) => {
+                onBlockOutputPointerMove?.(parameter.idParameter, _slotId, event)
+              }}
+              onMapHashStructureSlotRemoved={onMapHashStructureSlotRemoved}
               onSlotWirelessHoverStart={onBlockSlotWirelessHoverStart}
               onSlotWirelessHoverEnd={onBlockSlotWirelessHoverEnd}
-              onSlotCycleRouting={onBlockSlotCycleRouting}
             />
           )
         })}
       </div>
 
-      {onAddParameterFromCatalog || onRemoveParameter || onEditParameter ? (
+      {onAddParameterFromCatalog ||
+      onRemoveParameter ||
+      onEditParameter ||
+      onSlotToolsEnabledChange ? (
         <footer className={styles.footer}>
           <BlockCardParameterMenu
             blockType={structure.blockType}
             parameters={structure.parameters}
+            slotToolsEnabled={slotToolsEnabled}
+            onSlotToolsEnabledChange={onSlotToolsEnabledChange}
             onAddParameter={onAddParameterFromCatalog}
             onEditParameter={onEditParameter}
             onRemoveParameter={onRemoveParameter}
+            externalPanelRequest={parameterPanelRequest}
+            externalScreenAnchor={parameterPanelScreenAnchor}
+            onExternalPanelRequestHandled={onParameterPanelRequestHandled}
+            onPanelDismiss={onParameterPanelDismiss}
           />
         </footer>
       ) : null}

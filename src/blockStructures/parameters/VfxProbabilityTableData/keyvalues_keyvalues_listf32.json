@@ -5,7 +5,7 @@
   "name": "keyValues",
   "source": {
     "kind": "parameter",
-    "parameterId": "vfx-probability-table-data__entries-{particlePath}-complex-emitter-definition-data--slot--0-particle-lifetime-dynamics-probability-tables--slot--0_parameter_keyValues"
+    "parameterId": "vfx-probability-table-data__main-characters/brand/skins/skin0/particles/brand-base-e-conflagration-buf-complex-emitter-definition-data--slot--0-particle-lifetime-dynamics-probability-tables--slot--0_parameter_keyValues"
   },
   "type": "listF32",
   "items": [

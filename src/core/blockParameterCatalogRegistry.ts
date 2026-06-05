@@ -1,5 +1,24 @@
 import type { BlockParameterJsonDocument } from './blockParameterJson'
+import { isSimpleBlockParameterDocument } from './blockParameterJson'
 import { validateBlockParameterDocument } from './blockParameterRegistry'
+
+function isMapDocumentWithEntries(doc: BlockParameterJsonDocument): boolean {
+  return (
+    !isSimpleBlockParameterDocument(doc) &&
+    (doc.type === 'mapHashEmbed' || doc.type === 'mapHashPointer' || doc.type === 'mapU64Pointer') &&
+    doc.entries.length > 0
+  )
+}
+
+function pickPreferredParameterDocument(
+  docs: readonly BlockParameterJsonDocument[],
+): BlockParameterJsonDocument {
+  const mapWithEntries = docs.filter(isMapDocumentWithEntries)
+  if (mapWithEntries.length > 0) {
+    return [...mapWithEntries].sort((a, b) => b.entries.length - a.entries.length || a.id.localeCompare(b.id))[0]!
+  }
+  return [...docs].sort((a, b) => a.id.localeCompare(b.id))[0]!
+}
 
 const modules = import.meta.glob<{ default: unknown }>('../blockStructures/parameters/**/*.json', {
   eager: true,
@@ -55,7 +74,7 @@ export function blockParameterCatalogByName(
   if (!docs || docs.length === 0) {
     return undefined
   }
-  return [...docs].sort((a, b) => a.id.localeCompare(b.id))[0]
+  return pickPreferredParameterDocument(docs)
 }
 
 /** Regista parâmetro após gravação em disco (o glob eager não recarrega sozinho). */

@@ -8,7 +8,7 @@
     "parameterId": "vfx-emitter-audio__main-characters/brand/skins/skin0/particles/brand-base-w-pof-tar-red-complex-emitter-definition-data--slot--1-audio_parameter_SoundOnCreate"
   },
   "type": "string",
-  "value": "Play_sfx_Zac_ZacE_hit",
+  "value": "Play_sfx_Brand_BrandW_buffactivate",
   "slots": {
     "in": [
       "string"

@@ -5,7 +5,7 @@
   "name": "emitOffset",
   "source": {
     "kind": "parameter",
-    "parameterId": "vfx-emitter-definition-data__entries-{particlePath}-complex-emitter-definition-data--slot--10_parameter_emitOffset"
+    "parameterId": "vfx-emitter-definition-data__main-characters/brand/skins/skin0/particles/brand-base-e-conflagration-buf-complex-emitter-definition-data--slot--10_parameter_emitOffset"
   },
   "type": "vec3",
   "value": "0, 5, 0",

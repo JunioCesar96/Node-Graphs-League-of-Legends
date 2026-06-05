@@ -5,7 +5,7 @@
   "name": "emitOffset",
   "source": {
     "kind": "parameter",
-    "parameterId": "vfx-shape-legacy__main-characters/brand/skins/skin0/particles/brand-base-p-fire-mark3-complex-emitter-definition-data--slot--2-spawn-shape_parameter_emitOffset"
+    "parameterId": "vfx-shape-legacy__main-characters/brand/skins/skin0/particles/brand-base-p-fire-mark3-complex-emitter-definition-data--slot--2-spawn-shape-emit-offset"
   },
   "type": "embed",
   "embed": "ValueVector3",

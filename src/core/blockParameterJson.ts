@@ -37,6 +37,8 @@ export type BlockParameterJsonDocumentBase = {
   parameterName: string
   name: string
   source: BlockParameterJsonSource
+  /** `true` quando o campo ritual é `list[pointer]` / `list[embed]` (fan-out na saída). */
+  list?: boolean
 }
 
 export type BlockParameterJsonDocumentSimple = BlockParameterJsonDocumentBase & {
@@ -100,6 +102,10 @@ export function isSimpleBlockParameterDocument(
   doc: BlockParameterJsonDocument,
 ): doc is BlockParameterJsonDocumentSimple {
   return 'value' in doc
+}
+
+export function blockParameterDocumentIsList(doc: BlockParameterJsonDocument): boolean {
+  return doc.list === true
 }
 
 /** Separa camelCase/PascalCase em palavras com espaço (ex.: blendMode → blend Mode). */

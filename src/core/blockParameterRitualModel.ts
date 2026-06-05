@@ -24,10 +24,7 @@ import {
 } from './blockParameterClassification'
 import { blockParameterSourceId } from './blockParameterSynthesis'
 import type { MutableClassGroupSchema } from './classGroupRitualStackParser'
-import { parseMapHashEmbedString } from './mapHashEmbedValue'
-import { parseMapHashPointerString } from './mapHashPointerValue'
-import { parseMapU64PointerString } from './mapU64PointerValue'
-import type { MapHashStructureEntry } from './mapHashStructureValue'
+import { buildMapParameterJsonDocument } from './blockParameterMapDocument'
 import type { NodeDataType } from './nodeSchema'
 
 export type RitualParameterCategory = 'simple' | 'compound' | 'class'
@@ -149,6 +146,7 @@ function buildClassPointerDocument(
   ctx: RitualParameterBuildContext,
   parameterName: string,
   className: string,
+  options?: { list?: boolean },
 ): BlockParameterJsonDocument {
   const name = parameterName.trim()
   const pointer = className.trim()
@@ -162,6 +160,7 @@ function buildClassPointerDocument(
       parameterId: blockParameterSourceId(ctx.nodeId, name, 'pointer'),
     },
     type: 'pointer',
+    ...(options?.list ? { list: true } : {}),
     pointer,
     slots: { out: ritualClassOutSlots(pointer) },
   }
@@ -171,6 +170,7 @@ function buildClassEmbedDocument(
   ctx: RitualParameterBuildContext,
   parameterName: string,
   className: string,
+  options?: { list?: boolean },
 ): BlockParameterJsonDocument {
   const name = parameterName.trim()
   const embed = className.trim()
@@ -184,25 +184,10 @@ function buildClassEmbedDocument(
       parameterId: blockParameterSourceId(ctx.nodeId, name, 'pointer'),
     },
     type: 'embed',
+    ...(options?.list ? { list: true } : {}),
     embed,
     slots: { out: ritualClassOutSlots(embed) },
   }
-}
-
-function mapHashStructureEntryTarget(entry: MapHashStructureEntry): string {
-  return (entry.typeName || entry.schemaId || '').trim()
-}
-
-function buildMapParameterEntries(
-  rawValue: string,
-  parse: (raw: string) => MapHashStructureEntry[],
-): Array<{ key: string; target: string }> {
-  return parse(rawValue)
-    .map((entry) => ({
-      key: entry.key.trim(),
-      target: mapHashStructureEntryTarget(entry),
-    }))
-    .filter((entry) => entry.key.length > 0 && entry.target.length > 0)
 }
 
 function buildCompoundMapDocument(
@@ -211,31 +196,13 @@ function buildCompoundMapDocument(
   mapKind: 'mapHashPointer' | 'mapHashEmbed' | 'mapU64Pointer',
   rawValue: string,
 ): BlockParameterJsonDocument {
-  const entries =
-    mapKind === 'mapHashEmbed'
-      ? buildMapParameterEntries(rawValue, parseMapHashEmbedString)
-      : mapKind === 'mapU64Pointer'
-        ? buildMapParameterEntries(rawValue, parseMapU64PointerString)
-        : buildMapParameterEntries(rawValue, parseMapHashPointerString)
-
-  const classTargets = [...new Set(entries.map((entry) => entry.target))]
-
-  return {
-    id: buildBlockParameterDocumentId(parameterName, `${parameterName}_${mapKind}`),
-    block: ctx.blockName,
+  return buildMapParameterJsonDocument({
+    blockName: ctx.blockName,
     parameterName,
-    name: parameterName,
-    source: {
-      kind: 'parameter',
-      parameterId: blockParameterSourceId(ctx.nodeId, parameterName, 'scalar'),
-    },
-    type: mapKind,
+    parameterId: blockParameterSourceId(ctx.nodeId, parameterName, 'scalar'),
     mapKind,
-    entries,
-    slots: {
-      out: classTargets.length > 0 ? classTargets : [mapKind],
-    },
-  }
+    rawValue,
+  })
 }
 
 function buildCompoundListOrOptionDocument(
@@ -347,7 +314,7 @@ export function buildParameterDocumentsFromRitualSchema(
     const fieldName = (listEmbed.parameterName ?? listEmbed.title).trim()
     const className = structuralTargetName(listEmbed)
     if (fieldName && className) {
-      push(buildClassEmbedDocument(ctx, fieldName, className))
+      push(buildClassEmbedDocument(ctx, fieldName, className, { list: true }))
     }
   }
 
@@ -355,7 +322,7 @@ export function buildParameterDocumentsFromRitualSchema(
     const fieldName = listPointer.title.trim()
     const className = structuralTargetName(listPointer)
     if (fieldName && className) {
-      push(buildClassPointerDocument(ctx, fieldName, className))
+      push(buildClassPointerDocument(ctx, fieldName, className, { list: true }))
     }
   }
 

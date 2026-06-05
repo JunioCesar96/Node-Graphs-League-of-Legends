@@ -13,6 +13,7 @@ import { blockDefinitionByBlockName } from './blockDefinitionRegistry'
 import { addParameterToBlockStructure } from './blockCatalogMutations'
 import { blockParameterCatalogByName } from './blockParameterCatalogRegistry'
 import type { BlockParameterJsonDocument } from './blockParameterJson'
+import { mapParameterEntryTargets } from './blockParameterMapDocument'
 import {
   deriveChildBlockNodeId,
   retargetParameterDocumentForBlock,
@@ -73,6 +74,12 @@ export function structuralChildBlockType(doc: BlockParameterJsonDocument): strin
     return doc.embed.trim() || null
   }
   return null
+}
+
+function isMapParameterDocument(
+  doc: BlockParameterJsonDocument,
+): doc is Extract<BlockParameterJsonDocument, { entries: unknown }> {
+  return doc.type === 'mapHashEmbed' || doc.type === 'mapHashPointer' || doc.type === 'mapU64Pointer'
 }
 
 export function childBlockDefinitionForParameter(
@@ -183,19 +190,44 @@ export function collectParameterDocumentsForDefinitionTree(
     }
     documents.push(doc)
 
-    const childDef = childBlockDefinitionForParameter(definition, doc, schemaLookup, {
-      sceneNodes: context?.sceneNodes,
-      parentBlockName: definition.blockName,
-      parentParameterName: parameterName,
-    })
-    if (childDef) {
-      documents.push(
-        ...collectParameterDocumentsForDefinitionTree(childDef, schemaLookup, visitedDefinitionInstances, {
+    if (isMapParameterDocument(doc)) {
+      for (const target of mapParameterEntryTargets(doc)) {
+        const embedLike: BlockParameterJsonDocument = {
+          ...doc,
+          type: 'embed',
+          embed: target,
+          slots: { out: [target] },
+        }
+        const childDef = childBlockDefinitionForParameter(definition, embedLike, schemaLookup, {
           sceneNodes: context?.sceneNodes,
           parentBlockName: definition.blockName,
           parentParameterName: parameterName,
-        }),
-      )
+        })
+        if (childDef) {
+          documents.push(
+            ...collectParameterDocumentsForDefinitionTree(childDef, schemaLookup, visitedDefinitionInstances, {
+              sceneNodes: context?.sceneNodes,
+              parentBlockName: definition.blockName,
+              parentParameterName: parameterName,
+            }),
+          )
+        }
+      }
+    } else {
+      const childDef = childBlockDefinitionForParameter(definition, doc, schemaLookup, {
+        sceneNodes: context?.sceneNodes,
+        parentBlockName: definition.blockName,
+        parentParameterName: parameterName,
+      })
+      if (childDef) {
+        documents.push(
+          ...collectParameterDocumentsForDefinitionTree(childDef, schemaLookup, visitedDefinitionInstances, {
+            sceneNodes: context?.sceneNodes,
+            parentBlockName: definition.blockName,
+            parentParameterName: parameterName,
+          }),
+        )
+      }
     }
   }
 

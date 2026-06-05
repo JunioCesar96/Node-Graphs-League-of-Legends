@@ -34,6 +34,7 @@ type ParameterValueInputProps = {
   type: NodeDataType
   value: string
   fieldTitle?: string
+  readOnly?: boolean
   onCommit: (value: string) => void
   /** Chamado quando o campo ganha ou perde foco (layout do card pode reagir). */
   onFocusChange?: (focused: boolean) => void
@@ -45,6 +46,7 @@ export function ParameterValueInput({
   type: dataType,
   value,
   fieldTitle,
+  readOnly = false,
   onCommit,
   onFocusChange,
 }: ParameterValueInputProps) {
@@ -292,16 +294,28 @@ export function ParameterValueInput({
       aria-label={ariaLabel}
       className={className}
       data-parameter-type={dataType}
-      title={nativeTitle}
+      title={readOnly ? 'Slot ligado no grafo — edição bloqueada' : nativeTitle}
+      readOnly={readOnly}
+      data-block-wired={readOnly ? '1' : '0'}
       inputMode={
         usesDecimalInputMode(dataType) ? 'decimal' : usesNumericInputMode(dataType) ? 'numeric' : undefined
       }
       onBlur={() => {
+        if (readOnly) {
+          return
+        }
         onFocusChange?.(false)
         applyValue(local)
       }}
-      onFocus={() => onFocusChange?.(true)}
+      onFocus={() => {
+        if (!readOnly) {
+          onFocusChange?.(true)
+        }
+      }}
       onChange={(event) => {
+        if (readOnly) {
+          return
+        }
         if (composingRef.current) {
           setLocal(event.target.value)
           return

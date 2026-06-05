@@ -5,9 +5,10 @@
   "name": "probabilityTables",
   "source": {
     "kind": "parameter",
-    "parameterId": "vfx-animated-float-variable-data__entries-{particlePath}-complex-emitter-definition-data--slot--0-particle-lifetime-dynamics-probability-tables"
+    "parameterId": "vfx-animated-float-variable-data__main-characters/brand/skins/skin0/particles/brand-base-e-conflagration-buf-complex-emitter-definition-data--slot--0-particle-lifetime-dynamics-probability-tables"
   },
   "type": "pointer",
+  "list": true,
   "pointer": "VfxProbabilityTableData",
   "slots": {
     "out": [

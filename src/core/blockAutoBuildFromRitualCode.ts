@@ -40,6 +40,12 @@ export type RitualBlockInstanceContext = {
   displayName: string
   nodeId: string
   parentContext: BlockParentContext
+  /** Nó pai na hierarquia ritual (null = raiz). */
+  parentNodeId: string | null
+  /** Campo usado em `deriveChildBlockNodeId` (ex.: chave map ou `field__slot__0`). */
+  linkFieldName: string | null
+  /** Nome do parâmetro no bloco pai que contém este filho. */
+  parentParameterName: string | null
 }
 
 export type RitualBlockCatalogSlice = {
@@ -111,11 +117,23 @@ export function blockFieldNameFromChildLink(link: ChildLink): string {
   }
 }
 
+export function parentParameterNameFromChildLink(link: ChildLink): string {
+  switch (link.kind) {
+    case 'mapHashEmbed':
+    case 'mapHashPointer':
+    case 'mapU64Pointer':
+      return link.parameterName.trim()
+    default:
+      return link.fieldName.trim()
+  }
+}
+
 type BlockInstanceWalkSeed = {
   schemaId: string
   parentContext: BlockParentContext
   parentNodeId: string | null
   fieldName: string | null
+  parentParameterName: string | null
   displayName: string
   rootTemplateNodeId: string
 }
@@ -167,6 +185,9 @@ function collectBlockInstancesByWalkingLinks(
       displayName: item.displayName,
       nodeId,
       parentContext: item.parentContext,
+      parentNodeId: item.parentNodeId,
+      linkFieldName: item.fieldName,
+      parentParameterName: item.parentParameterName,
     })
 
     for (const link of collectChildLinks(schema)) {
@@ -180,6 +201,7 @@ function collectBlockInstancesByWalkingLinks(
         parentContext: blockParentContextFromChildLink(link),
         parentNodeId: nodeId,
         fieldName: blockFieldNameFromChildLink(link),
+        parentParameterName: parentParameterNameFromChildLink(link),
         displayName: childSchema.title.trim() || link.childParsedId,
         rootTemplateNodeId: item.rootTemplateNodeId,
       })
@@ -234,6 +256,7 @@ export function collectBlockInstancesFromRitualCode(
     parentContext: { block: rootSchema.title.trim(), type: 'standalone' },
     parentNodeId: null,
     fieldName: null,
+    parentParameterName: null,
     displayName: rootDisplay,
     rootTemplateNodeId: rootSchema.id.trim(),
   })
@@ -253,6 +276,7 @@ export function collectBlockInstancesFromRitualParse(
     parentContext: resolveBlockParentContext(scene, canvasNode, rootSchema.title),
     parentNodeId: null,
     fieldName: null,
+    parentParameterName: null,
     displayName: rootDisplay,
     rootTemplateNodeId: canvasNode.node.schema.id.trim() || rootSchema.id.trim(),
   })
@@ -396,6 +420,26 @@ export function buildBlockCatalogFromRitualInstances(
   }
 
   return { blockDocuments, parameterDocuments, warnings, errors }
+}
+
+/** Catálogo sincronizado — todos os parâmetros do ritual alinhados às definições de bloco. */
+export function buildSyncedBlockCatalogFromRitualInstances(
+  instances: readonly RitualBlockInstanceContext[],
+  extraWarnings: readonly string[] = [],
+): RitualBlockCatalogSlice {
+  const catalog = buildBlockCatalogFromRitualInstances(instances)
+  const parameterDocuments = synchronizeParameterDocumentsWithBlockDefinitions(
+    catalog.blockDocuments,
+    catalog.parameterDocuments,
+    instances,
+  )
+
+  return {
+    blockDocuments: catalog.blockDocuments,
+    parameterDocuments,
+    warnings: [...extraWarnings, ...catalog.warnings],
+    errors: catalog.errors,
+  }
 }
 
 export function buildBlockCatalogFromViewCodeText(

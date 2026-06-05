@@ -1,23 +1,23 @@
 {
   "id": "VfxSystemDefinitionData_VfxSystemDefinitionData",
-  "block": "VfxSystemDefinitionData",
+  "block": "entries",
   "blockName": "VfxSystemDefinitionData",
-  "type": "standalone",
+  "type": "embed",
   "name": "VfxSystemDefinitionData",
   "source": {
     "kind": "block",
-    "nodeId": "vfx-system-definition-data__entries-{particlePath}"
+    "nodeId": "vfx-system-definition-data__main-characters/brand/skins/skin0/particles/brand-base-e-conflagration-buf"
   },
   "color": "#40ff56",
   "headerSlots": [
-    "in[VfxSystemDefinitionData]",
+    "in[entries]",
     "out[VfxSystemDefinitionDataPreview]"
   ],
   "parameters": [
-    "flags",
     "particleName",
     "particlePath",
     "soundOnCreateDefault",
+    "flags",
     "complexEmitterDefinitionData",
     "soundPersistentDefault",
     "overrideScaleCap",

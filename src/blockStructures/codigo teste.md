@@ -1455,7 +1455,7 @@ entries: map[hash,embed] = {
         complexEmitterDefinitionData: list[pointer] = {
             VfxEmitterDefinitionData {
                 rate: embed = ValueFloat {
-                    constantValue: f32 = 1=
+                    constantValue: f32 = 1
                 }
                 particleLifetime: embed = ValueFloat {
                     constantValue: f32 = 2

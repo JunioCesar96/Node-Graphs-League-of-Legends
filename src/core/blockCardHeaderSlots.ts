@@ -10,7 +10,7 @@ export type BlockHeaderSlotPort = {
   fieldKey?: string
 }
 
-/** Expande `in[a,b,c]` em portas IN distintas (uma ligação por campo). */
+/** Uma entrada `in[a,b,c]` ou `in[number]` no array = uma porta; a lista entre colchetes são tipos suportados. */
 export function expandBlockHeaderSlotPorts(
   blockType: string,
   headerSlots: readonly string[],
@@ -25,26 +25,17 @@ export function expandBlockHeaderSlotPorts(
     }
 
     const direction = parsed.direction === 'input' ? 'input' : 'output'
-    if (parsed.types.length <= 1) {
-      ports.push({
-        slotId: blockHeaderSlotId(blockType, index, parsed.types[0]),
-        direction,
-        types: [...parsed.types],
-        slotIndex: index,
-        fieldKey: parsed.types[0],
-      })
-      return
-    }
-
-    for (const type of parsed.types) {
-      ports.push({
-        slotId: blockHeaderSlotId(blockType, index, type),
-        direction,
-        types: [type],
-        slotIndex: index,
-        fieldKey: type,
-      })
-    }
+    ports.push({
+      slotId: blockHeaderSlotId(
+        blockType,
+        index,
+        parsed.types.length === 1 ? parsed.types[0] : undefined,
+      ),
+      direction,
+      types: [...parsed.types],
+      slotIndex: index,
+      fieldKey: parsed.types.length === 1 ? parsed.types[0] : undefined,
+    })
   })
 
   return ports
@@ -115,6 +106,18 @@ export function blockHeaderSlotOffsetY(totalSlotsInDirection: number, indexInDir
   return (indexInDirection - (totalSlotsInDirection - 1) / 2) * HEADER_SLOT_STACK_SPACING
 }
 
+export function blockHeaderPortStackOffsetY(
+  ports: readonly BlockHeaderSlotPort[],
+  port: BlockHeaderSlotPort,
+): number {
+  const sameDirection = ports.filter((entry) => entry.direction === port.direction)
+  if (sameDirection.length <= 1) {
+    return 0
+  }
+  const indexInDirection = sameDirection.findIndex((entry) => entry.slotId === port.slotId)
+  return blockHeaderSlotOffsetY(sameDirection.length, indexInDirection >= 0 ? indexInDirection : 0)
+}
+
 export type BlockHeaderLinkMatchContext = {
   fromParameterName?: string
   outTypes: readonly string[]
@@ -162,7 +165,7 @@ function firstCanvasHeaderInputIndex(canvasSlots: readonly string[]): number | n
 
 /**
  * Resolve o `slotId` IN de cabeçalho para ligação automática.
- * Com `in[a,b,c]` devolve `block-header:Type:0:b` quando o parâmetro de origem é `b`.
+ * Com `in[a,b,c]` num único descriptor devolve a porta `block-header:Type:0`.
  */
 export function resolveBlockHeaderInputSlotIdForLink(
   blockType: string,
@@ -182,7 +185,7 @@ export function resolveBlockHeaderInputSlotIdForLink(
     const paramPort = ports.find((port) =>
       port.types.some((inType) => normalizeBlockTypeName(inType) === normalizedParam),
     )
-    if (paramPort && headerInputTypesMatchLink(paramPort.types, context)) {
+    if (paramPort) {
       return paramPort.slotId
     }
   }
@@ -213,37 +216,22 @@ export function resolveBlockHeaderInputSlotIndexForLink(
 }
 
 export function normalizeBlockHeaderSlots(headerSlots: readonly string[]): string[] {
-  const inTypes: string[] = []
-  const outTypes: string[] = []
-  const passthrough: string[] = []
-  const pushUnique = (target: string[], value: string) => {
-    if (!target.includes(value)) {
-      target.push(value)
-    }
-  }
+  const normalized: string[] = []
 
   for (const descriptor of headerSlots) {
     const parsed = parseBlockHeaderSlotDescriptor(descriptor)
     if (!parsed) {
-      pushUnique(passthrough, descriptor)
+      const trimmed = descriptor.trim()
+      if (trimmed && !normalized.includes(trimmed)) {
+        normalized.push(trimmed)
+      }
       continue
     }
-    const target = parsed.direction === 'input' ? inTypes : outTypes
-    for (const type of parsed.types) {
-      pushUnique(target, type)
-    }
+
+    const prefix = parsed.direction === 'input' ? 'in' : 'out'
+    normalized.push(`${prefix}[${parsed.types.join(',')}]`)
   }
 
-  const normalized: string[] = []
-  if (inTypes.length > 0) {
-    normalized.push(`in[${inTypes.join(',')}]`)
-  }
-  if (outTypes.length > 0) {
-    normalized.push(`out[${outTypes.join(',')}]`)
-  }
-  for (const descriptor of passthrough) {
-    pushUnique(normalized, descriptor)
-  }
   return normalized
 }
 

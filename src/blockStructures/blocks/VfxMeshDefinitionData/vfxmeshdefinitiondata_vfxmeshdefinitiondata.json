@@ -6,7 +6,7 @@
   "name": "VfxMeshDefinitionData",
   "source": {
     "kind": "block",
-    "nodeId": "vfx-mesh-definition-data__entries-{particlePath}-complex-emitter-definition-data--slot--5-primitive-m-mesh"
+    "nodeId": "vfx-mesh-definition-data__main-characters/brand/skins/skin0/particles/brand-base-e-conflagration-buf-complex-emitter-definition-data--slot--5-primitive-m-mesh"
   },
   "color": "#40ff56",
   "headerSlots": [

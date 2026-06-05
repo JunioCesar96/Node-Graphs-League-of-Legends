@@ -8,7 +8,11 @@ import {
   findAddonSlotEndpoint,
   withoutConnectionsToAddonInputSlot,
 } from '@/core/addonSlotConnections'
-import { findBlockSlotEndpoint } from '@/core/blockSlotConnections'
+import {
+  findBlockSlotEndpoint,
+  isListPointerBlockOutputSlot,
+  withoutConnectionsFromBlockOutputSlot,
+} from '@/core/blockSlotConnections'
 import type { CanvasConnection, CanvasScene } from '@/core/canvasScene'
 
 export type BlockToAddonLinkRequest = {
@@ -76,7 +80,10 @@ export function applyBlockOutputToAddonInput(
     ...(connectionClass.kind === 'forced' ? { forced: true } : {}),
   }
 
-  const connections = withoutConnectionsToAddonInputSlot(scene.connections, toNodeId, toAddonSlotId)
+  const prunedInputs = withoutConnectionsToAddonInputSlot(scene.connections, toNodeId, toAddonSlotId)
+  const connections = isListPointerBlockOutputSlot(fromNode, fromBlockSlotId, fromBlockParameterId)
+    ? prunedInputs
+    : withoutConnectionsFromBlockOutputSlot(prunedInputs, fromNodeId, fromBlockSlotId)
 
   return {
     ...scene,

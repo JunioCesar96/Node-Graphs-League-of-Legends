@@ -6,6 +6,7 @@ import {
 import { addParameterToBlockStructure } from './blockCatalogMutations'
 import { blockDefinitionInstanceKey } from './blockDefinitionSchemaResolve'
 import { applyBlockStructureWithTokens } from './blockCatalogMutations'
+import type { RitualBlockInstanceContext } from './blockAutoBuildFromRitualCode'
 import type { BlockSpawnCatalog } from './blockSpawnCatalog'
 import {
   childBlockDefinitionForParameter,
@@ -14,7 +15,8 @@ import {
 } from './blockStructureFromDefinition'
 import { deriveChildBlockNodeId } from './blockParameterSynthesis'
 import type { BlockParameterJsonDocument } from './blockParameterJson'
-import { blockParameterSlotId, type BlockStructurePayload } from './blockSchema'
+import { blockParameterDocumentIsList } from './blockParameterJson'
+import { blockParameterSlotId, type BlockParameterDef, type BlockStructurePayload } from './blockSchema'
 import { resolveBlockHeaderInputSlotIdForLink } from './blockCardHeaderSlots'
 import {
   canConnectBlockSlots,
@@ -24,6 +26,11 @@ import {
 import type { CanvasConnection, CanvasNode, CanvasPosition, CanvasScene } from './canvasScene'
 import { createUniqueNodeId } from './canvasNodeIds'
 import { defaultNewCanvasNodeLayout } from './nodeCardSections'
+import { listEmbedSlotId } from './listEmbedSlots'
+import { listPointerSlotId } from './listPointerSlots'
+import { mapHashEmbedSlotId } from './mapHashEmbedSlots'
+import { mapHashPointerSlotId } from './mapHashPointerSlots'
+import { mapU64PointerSlotId } from './mapU64PointerSlots'
 import type { NodeSchemaDefinition } from './nodeSchema'
 import { createNodeInstanceFromRegistry } from './nodeStructureRegistry'
 
@@ -34,6 +41,19 @@ export type BlockHierarchySpawnPlan = {
   nodes: CanvasNode[]
   connections: CanvasConnection[]
   rootNodeId: string
+}
+
+export type BlockHierarchySpawnProgress = {
+  index: number
+  total: number
+  blockName: string
+  displayName: string
+}
+
+export type BlockHierarchySpawnHooks = {
+  onInstanceProgress?: (progress: BlockHierarchySpawnProgress) => void
+  yieldUi?: () => Promise<void>
+  shouldCancel?: () => boolean
 }
 
 function headerInputSlotId(
@@ -140,6 +160,22 @@ function allocateNodeId(ctx: SpawnContext, schemaId: string): string {
   return createUniqueNodeId(schemaId, [...ctx.scene.nodes, ...ctx.nodes])
 }
 
+function resolveSpawnNodeId(
+  ctx: SpawnContext,
+  definition: BlockDefinitionJsonDocument,
+  schemaId: string,
+): string {
+  const preferred =
+    definition.source.kind === 'block' ? definition.source.nodeId.trim() : ''
+  if (preferred) {
+    const taken = [...ctx.scene.nodes, ...ctx.nodes].some((node) => node.id === preferred)
+    if (!taken) {
+      return preferred
+    }
+  }
+  return allocateNodeId(ctx, schemaId)
+}
+
 function findParameterDefForDoc(
   structure: BlockStructurePayload,
   paramDoc: BlockParameterJsonDocument,
@@ -153,11 +189,45 @@ function findParameterDefForDoc(
   )
 }
 
+function resolveParentOutputSlotId(
+  parentParam: BlockParameterDef,
+  paramDoc: BlockParameterJsonDocument,
+  linkFieldName: string | null,
+): string | null {
+  if (linkFieldName) {
+    if (paramDoc.type === 'mapHashEmbed') {
+      return mapHashEmbedSlotId(parentParam.idParameter, linkFieldName)
+    }
+    if (paramDoc.type === 'mapHashPointer') {
+      return mapHashPointerSlotId(parentParam.idParameter, linkFieldName)
+    }
+    if (paramDoc.type === 'mapU64Pointer') {
+      return mapU64PointerSlotId(parentParam.idParameter, linkFieldName)
+    }
+
+    const listSlotMatch = /^(.+)__slot__(\d+)$/.exec(linkFieldName)
+    if (listSlotMatch) {
+      const index = Number(listSlotMatch[2])
+      if (Number.isFinite(index)) {
+        if (paramDoc.type === 'pointer' && blockParameterDocumentIsList(paramDoc)) {
+          return listPointerSlotId(parentParam.idParameter, index)
+        }
+        if (paramDoc.type === 'embed' && blockParameterDocumentIsList(paramDoc)) {
+          return listEmbedSlotId(parentParam.idParameter, index)
+        }
+      }
+    }
+  }
+
+  return blockParameterSlotId(parentParam.idParameter, 'output')
+}
+
 function connectParentToChild(
   ctx: SpawnContext,
   parentNodeId: string,
   parentParamDoc: BlockParameterJsonDocument,
   childNodeId: string,
+  linkFieldName: string | null = null,
 ): void {
   const parentNode = ctx.nodes.find((entry) => entry.id === parentNodeId)
   const childNode = ctx.nodes.find((entry) => entry.id === childNodeId)
@@ -170,7 +240,7 @@ function connectParentToChild(
     return
   }
 
-  const fromSlotId = blockParameterSlotId(parentParam.idParameter, 'output')
+  const fromSlotId = resolveParentOutputSlotId(parentParam, parentParamDoc, linkFieldName)
   const toSlotId = headerInputSlotId(childNode.blockStructure, parentParamDoc)
   if (!toSlotId) {
     return
@@ -203,15 +273,13 @@ function connectParentToChild(
   })
 }
 
-function spawnBlockTree(
+function spawnSingleBlockNode(
   ctx: SpawnContext,
   definition: BlockDefinitionJsonDocument,
   schema: NodeSchemaDefinition,
   position: CanvasPosition,
-  parentNodeId?: string,
-  parentParamDoc?: BlockParameterJsonDocument,
 ): string | null {
-  const instanceId = allocateNodeId(ctx, schema.id)
+  const instanceId = resolveSpawnNodeId(ctx, definition, schema.id)
   const nodeInstance = createNodeInstanceFromRegistry(ctx.schemaLookup, schema.id, instanceId)
   if (!nodeInstance) {
     return null
@@ -235,6 +303,339 @@ function spawnBlockTree(
     node: applied.node,
     blockStructure: structure,
   })
+
+  return instanceId
+}
+
+function resolveSpawnSchemaId(
+  instance: RitualBlockInstanceContext,
+  blockName: string,
+  schemaLookup: Record<string, NodeSchemaDefinition>,
+): string | null {
+  const preferred = instance.schemaId.trim()
+  if (preferred && schemaLookup[preferred]) {
+    return preferred
+  }
+  return resolveSchemaIdForBlockDefinition(blockName, schemaLookup)
+}
+
+function buildInstanceSpawnOrder(instances: readonly RitualBlockInstanceContext[]): {
+  order: RitualBlockInstanceContext[]
+  depthByNodeId: Map<string, number>
+} {
+  const root =
+    instances.find((instance) => !instance.parentNodeId) ?? instances[0] ?? null
+  if (!root) {
+    return { order: [], depthByNodeId: new Map() }
+  }
+
+  const childrenByParent = new Map<string, RitualBlockInstanceContext[]>()
+  for (const instance of instances) {
+    if (!instance.parentNodeId) {
+      continue
+    }
+    const siblings = childrenByParent.get(instance.parentNodeId) ?? []
+    siblings.push(instance)
+    childrenByParent.set(instance.parentNodeId, siblings)
+  }
+
+  const order: RitualBlockInstanceContext[] = []
+  const depthByNodeId = new Map<string, number>()
+  const visited = new Set<string>()
+
+  const walk = (instance: RitualBlockInstanceContext, depth: number) => {
+    if (visited.has(instance.nodeId)) {
+      return
+    }
+    visited.add(instance.nodeId)
+    order.push(instance)
+    depthByNodeId.set(instance.nodeId, depth)
+    for (const child of childrenByParent.get(instance.nodeId) ?? []) {
+      walk(child, depth + 1)
+    }
+  }
+
+  walk(root, 0)
+
+  for (const instance of instances) {
+    if (!visited.has(instance.nodeId)) {
+      walk(instance, 0)
+    }
+  }
+
+  return { order, depthByNodeId }
+}
+
+export function planBlockHierarchySpawnFromInstances(
+  instances: readonly RitualBlockInstanceContext[],
+  schemaLookup: Record<string, NodeSchemaDefinition>,
+  scene: CanvasScene,
+  rootPosition: CanvasPosition,
+  spawnCatalog?: BlockSpawnCatalog,
+  hooks?: BlockHierarchySpawnHooks,
+): BlockHierarchySpawnPlan | null {
+  if (instances.length === 0 || !spawnCatalog) {
+    return null
+  }
+
+  const ctx: SpawnContext = {
+    schemaLookup,
+    scene,
+    nodes: [],
+    connections: [],
+    spawnCatalog,
+  }
+
+  const { order, depthByNodeId } = buildInstanceSpawnOrder(instances)
+  if (order.length === 0) {
+    return null
+  }
+
+  let rootNodeId: string | null = null
+  let layoutRow = 0
+  let spawnIndex = 0
+  const instanceByNodeId = new Map(instances.map((instance) => [instance.nodeId, instance]))
+
+  for (const instance of order) {
+    const definition = spawnCatalog.blockByInstanceKey.get(
+      blockDefinitionInstanceKey({
+        blockName: instance.blockName,
+        source: { nodeId: instance.nodeId },
+      }),
+    )
+    if (!definition) {
+      continue
+    }
+
+    const schemaId = resolveSpawnSchemaId(instance, definition.blockName, ctx.schemaLookup)
+    if (!schemaId) {
+      continue
+    }
+    const schema = ctx.schemaLookup[schemaId]
+    if (!schema) {
+      continue
+    }
+
+    const depth = depthByNodeId.get(instance.nodeId) ?? 0
+    const position: CanvasPosition = {
+      x: rootPosition.x + depth * CHILD_OFFSET_X,
+      y: rootPosition.y + layoutRow * CHILD_OFFSET_Y,
+    }
+    layoutRow += 1
+
+    const spawnedId = spawnSingleBlockNode(ctx, definition, schema, position)
+    if (!spawnedId) {
+      continue
+    }
+
+    hooks?.onInstanceProgress?.({
+      index: spawnIndex,
+      total: order.length,
+      blockName: instance.blockName,
+      displayName: instance.displayName,
+    })
+    spawnIndex += 1
+
+    if (!instance.parentNodeId) {
+      rootNodeId = spawnedId
+    } else if (instance.parentParameterName) {
+      const parentInstance = instanceByNodeId.get(instance.parentNodeId)
+      const parentDefinition = spawnCatalog.blockByInstanceKey.get(
+        blockDefinitionInstanceKey({
+          blockName: parentInstance?.blockName ?? '',
+          source: { nodeId: instance.parentNodeId },
+        }),
+      )
+      const parentSchemaId = parentInstance
+        ? resolveSpawnSchemaId(
+            parentInstance,
+            parentDefinition?.blockName ?? parentInstance.blockName,
+            ctx.schemaLookup,
+          )
+        : parentDefinition
+          ? resolveSchemaIdForBlockDefinition(parentDefinition.blockName, ctx.schemaLookup)
+          : null
+      const parentSchema = parentSchemaId ? ctx.schemaLookup[parentSchemaId] : undefined
+      const paramDoc =
+        parentDefinition && parentSchema
+          ? resolveSpawnParameterDocument(
+              parentDefinition,
+              instance.parentParameterName,
+              parentSchema,
+              spawnCatalog,
+            )
+          : spawnCatalog.parameterByBlockAndName.get(
+              `${parentInstance?.blockName.trim() ?? ''}::${instance.parentParameterName.trim()}`,
+            ) ?? null
+
+      if (paramDoc) {
+        connectParentToChild(
+          ctx,
+          instance.parentNodeId,
+          paramDoc,
+          spawnedId,
+          instance.linkFieldName,
+        )
+      }
+    }
+  }
+
+  if (!rootNodeId) {
+    return null
+  }
+
+  return {
+    nodes: ctx.nodes,
+    connections: ctx.connections,
+    rootNodeId,
+  }
+}
+
+export async function planBlockHierarchySpawnFromInstancesAsync(
+  instances: readonly RitualBlockInstanceContext[],
+  schemaLookup: Record<string, NodeSchemaDefinition>,
+  scene: CanvasScene,
+  rootPosition: CanvasPosition,
+  spawnCatalog?: BlockSpawnCatalog,
+  hooks?: BlockHierarchySpawnHooks,
+): Promise<BlockHierarchySpawnPlan | null> {
+  if (instances.length === 0 || !spawnCatalog) {
+    return null
+  }
+
+  const ctx: SpawnContext = {
+    schemaLookup,
+    scene,
+    nodes: [],
+    connections: [],
+    spawnCatalog,
+  }
+
+  const { order, depthByNodeId } = buildInstanceSpawnOrder(instances)
+  if (order.length === 0) {
+    return null
+  }
+
+  let rootNodeId: string | null = null
+  let layoutRow = 0
+  let spawnIndex = 0
+  const instanceByNodeId = new Map(instances.map((instance) => [instance.nodeId, instance]))
+
+  for (const instance of order) {
+    if (hooks?.shouldCancel?.()) {
+      return null
+    }
+
+    const definition = spawnCatalog.blockByInstanceKey.get(
+      blockDefinitionInstanceKey({
+        blockName: instance.blockName,
+        source: { nodeId: instance.nodeId },
+      }),
+    )
+    if (!definition) {
+      continue
+    }
+
+    const schemaId = resolveSpawnSchemaId(instance, definition.blockName, ctx.schemaLookup)
+    if (!schemaId) {
+      continue
+    }
+    const schema = ctx.schemaLookup[schemaId]
+    if (!schema) {
+      continue
+    }
+
+    const depth = depthByNodeId.get(instance.nodeId) ?? 0
+    const position: CanvasPosition = {
+      x: rootPosition.x + depth * CHILD_OFFSET_X,
+      y: rootPosition.y + layoutRow * CHILD_OFFSET_Y,
+    }
+    layoutRow += 1
+
+    const spawnedId = spawnSingleBlockNode(ctx, definition, schema, position)
+    if (!spawnedId) {
+      continue
+    }
+
+    hooks?.onInstanceProgress?.({
+      index: spawnIndex,
+      total: order.length,
+      blockName: instance.blockName,
+      displayName: instance.displayName,
+    })
+    spawnIndex += 1
+
+    if (!instance.parentNodeId) {
+      rootNodeId = spawnedId
+    } else if (instance.parentParameterName) {
+      const parentInstance = instanceByNodeId.get(instance.parentNodeId)
+      const parentDefinition = spawnCatalog.blockByInstanceKey.get(
+        blockDefinitionInstanceKey({
+          blockName: parentInstance?.blockName ?? '',
+          source: { nodeId: instance.parentNodeId },
+        }),
+      )
+      const parentSchemaId = parentInstance
+        ? resolveSpawnSchemaId(
+            parentInstance,
+            parentDefinition?.blockName ?? parentInstance.blockName,
+            ctx.schemaLookup,
+          )
+        : parentDefinition
+          ? resolveSchemaIdForBlockDefinition(parentDefinition.blockName, ctx.schemaLookup)
+          : null
+      const parentSchema = parentSchemaId ? ctx.schemaLookup[parentSchemaId] : undefined
+      const paramDoc =
+        parentDefinition && parentSchema
+          ? resolveSpawnParameterDocument(
+              parentDefinition,
+              instance.parentParameterName,
+              parentSchema,
+              spawnCatalog,
+            )
+          : spawnCatalog.parameterByBlockAndName.get(
+              `${parentInstance?.blockName.trim() ?? ''}::${instance.parentParameterName.trim()}`,
+            ) ?? null
+
+      if (paramDoc) {
+        connectParentToChild(
+          ctx,
+          instance.parentNodeId,
+          paramDoc,
+          spawnedId,
+          instance.linkFieldName,
+        )
+      }
+    }
+
+    if (hooks?.yieldUi) {
+      await hooks.yieldUi()
+    }
+  }
+
+  if (!rootNodeId) {
+    return null
+  }
+
+  return {
+    nodes: ctx.nodes,
+    connections: ctx.connections,
+    rootNodeId,
+  }
+}
+
+function spawnBlockTree(
+  ctx: SpawnContext,
+  definition: BlockDefinitionJsonDocument,
+  schema: NodeSchemaDefinition,
+  position: CanvasPosition,
+  parentNodeId?: string,
+  parentParamDoc?: BlockParameterJsonDocument,
+): string | null {
+  const instanceId = spawnSingleBlockNode(ctx, definition, schema, position)
+  if (!instanceId) {
+    return null
+  }
 
   if (parentNodeId && parentParamDoc) {
     connectParentToChild(ctx, parentNodeId, parentParamDoc, instanceId)

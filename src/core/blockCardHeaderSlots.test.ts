@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   expandBlockHeaderSlotPorts,
+  normalizeBlockHeaderSlots,
   resolveBlockHeaderInputSlotIdForLink,
   resolveBlockHeaderInputSlotIndexForLink,
 } from './blockCardHeaderSlots'
@@ -17,8 +18,24 @@ const VALUE_VECTOR3_HEADER_SLOTS = [
   'in[birthRotationalVelocity0]',
 ] as const
 
+describe('normalizeBlockHeaderSlots', () => {
+  it('preserva entradas in[] separadas no array', () => {
+    expect(
+      normalizeBlockHeaderSlots([
+        'in[birthVelocity,birthDrag]',
+        'in[number]',
+        'out[ValueVector3Preview]',
+      ]),
+    ).toEqual([
+      'in[birthVelocity,birthDrag]',
+      'in[number]',
+      'out[ValueVector3Preview]',
+    ])
+  })
+})
+
 describe('resolveBlockHeaderInputSlotIndexForLink', () => {
-  it('resolve slot IN do canvas (normalizado) para birthRotationalVelocity0, não só o primeiro in[]', () => {
+  it('resolve índice do descriptor in[] legado para birthRotationalVelocity0', () => {
     const index = resolveBlockHeaderInputSlotIndexForLink(VALUE_VECTOR3_HEADER_SLOTS, {
       fromParameterName: 'birthRotationalVelocity0',
       outTypes: ['ValueVector3'],
@@ -26,7 +43,7 @@ describe('resolveBlockHeaderInputSlotIndexForLink', () => {
       targetDisplayName: 'ValueVector3',
     })
 
-    expect(index).toBe(0)
+    expect(index).toBe(7)
   })
 
   it('resolve slot IN para birthVelocity quando o parâmetro de origem é birthVelocity', () => {
@@ -46,7 +63,7 @@ describe('resolveBlockHeaderInputSlotIndexForLink', () => {
       targetBlockName: 'ValueVector3',
     })
 
-    expect(index).toBe(0)
+    expect(index).toBe(2)
   })
 })
 
@@ -55,20 +72,43 @@ const VALUE_FLOAT_COMBINED_IN = [
   'out[ValueFloatPreview]',
 ] as const
 
+const VALUE_VECTOR3_MULTI_IN = [
+  'in[birthVelocity,birthDrag,EmitterPosition,birthRotation0,birthScale0,scale0,birthRotationalVelocity0]',
+  'in[number]',
+  'out[ValueVector3Preview]',
+] as const
+
 describe('expandBlockHeaderSlotPorts / resolveBlockHeaderInputSlotIdForLink', () => {
-  it('expande in[a,b,c] em portas IN separadas', () => {
+  it('in[a,b,c] num único descriptor gera uma porta IN com vários tipos', () => {
     const ports = expandBlockHeaderSlotPorts('ValueFloat', VALUE_FLOAT_COMBINED_IN)
     const inputs = ports.filter((port) => port.direction === 'input')
-    expect(inputs).toHaveLength(3)
-    expect(inputs.map((port) => port.fieldKey)).toEqual(['rate', 'particleLifetime', 'bindWeight'])
+    expect(inputs).toHaveLength(1)
+    expect(inputs[0]?.types).toEqual(['rate', 'particleLifetime', 'bindWeight'])
+    expect(inputs[0]?.slotId).toBe('block-header:ValueFloat:0')
   })
 
-  it('resolve slotId específico para particleLifetime', () => {
+  it('resolve slotId da porta multi-tipo para particleLifetime', () => {
     const slotId = resolveBlockHeaderInputSlotIdForLink('ValueFloat', VALUE_FLOAT_COMBINED_IN, {
       fromParameterName: 'particleLifetime',
       outTypes: ['ValueFloat'],
       targetBlockName: 'ValueFloat',
     })
-    expect(slotId).toBe('block-header:ValueFloat:0:particleLifetime')
+    expect(slotId).toBe('block-header:ValueFloat:0')
+  })
+
+  it('dois descriptors in[] distintos geram duas portas IN', () => {
+    const ports = expandBlockHeaderSlotPorts('ValueVector3', VALUE_VECTOR3_MULTI_IN)
+    const inputs = ports.filter((port) => port.direction === 'input')
+    expect(inputs).toHaveLength(2)
+    expect(inputs[0]?.types).toEqual([
+      'birthVelocity',
+      'birthDrag',
+      'EmitterPosition',
+      'birthRotation0',
+      'birthScale0',
+      'scale0',
+      'birthRotationalVelocity0',
+    ])
+    expect(inputs[1]?.types).toEqual(['number'])
   })
 })

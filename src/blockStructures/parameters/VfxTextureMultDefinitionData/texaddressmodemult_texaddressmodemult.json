@@ -5,7 +5,7 @@
   "name": "texAddressModeMult",
   "source": {
     "kind": "parameter",
-    "parameterId": "vfx-texture-mult-definition-data__entries-{particlePath}-complex-emitter-definition-data--slot--7-texture-mult_parameter_texAddressModeMult"
+    "parameterId": "vfx-texture-mult-definition-data__main-characters/brand/skins/skin0/particles/brand-base-e-conflagration-buf-complex-emitter-definition-data--slot--7-texture-mult_parameter_texAddressModeMult"
   },
   "type": "u8",
   "value": "2",

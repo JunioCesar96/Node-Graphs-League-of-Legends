@@ -5,7 +5,7 @@
   "name": "scaleEmitOffsetByBoundObjectSize",
   "source": {
     "kind": "parameter",
-    "parameterId": "vfx-flex-shape-definition-data__entries-{particlePath}-complex-emitter-definition-data--slot--5-flex-shape-definition_parameter_scaleEmitOffsetByBoundObjectSize"
+    "parameterId": "vfx-flex-shape-definition-data__main-characters/brand/skins/skin0/particles/brand-base-basic-attack-tar-complex-emitter-definition-data--slot--4-flex-shape-definition_parameter_scaleEmitOffsetByBoundObjectSize"
   },
   "type": "f32",
   "value": "0.005",

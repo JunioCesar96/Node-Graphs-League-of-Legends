@@ -10,6 +10,12 @@ import {
 } from './blockParameterFromJson'
 import type { CanvasNode, CanvasScene } from './canvasScene'
 
+/** Política por defeito: simples sem slots; estruturais (embed/pointer) só saída. */
+export const DEFAULT_BLOCK_PARAMETER_SLOT_POLICY = {
+  disableSimpleSlotsByDefault: true,
+  complexOutputOnlyByDefault: true,
+} as const
+
 export function identificationCodeForParameter(
   structure: BlockStructurePayload,
   param: BlockParameterDef,
@@ -20,23 +26,27 @@ export function identificationCodeForParameter(
 export function addParameterToBlockStructure(
   structure: BlockStructurePayload,
   doc: BlockParameterJsonDocument,
-  options?: {
-    disableSimpleSlotsByDefault?: boolean
-    complexOutputOnlyByDefault?: boolean
-  },
+  options?: Partial<typeof DEFAULT_BLOCK_PARAMETER_SLOT_POLICY>,
 ): { structure: BlockStructurePayload; error?: string } {
   if (isParameterAlreadyOnBlock(structure.parameters, doc)) {
     return { structure, error: 'Parâmetro já existe no bloco.' }
   }
 
+  const slotPolicy = {
+    disableSimpleSlotsByDefault:
+      options?.disableSimpleSlotsByDefault ?? DEFAULT_BLOCK_PARAMETER_SLOT_POLICY.disableSimpleSlotsByDefault,
+    complexOutputOnlyByDefault:
+      options?.complexOutputOnlyByDefault ?? DEFAULT_BLOCK_PARAMETER_SLOT_POLICY.complexOutputOnlyByDefault,
+  }
+
   const addedParam = blockParameterDefFromJsonDocument(doc, structure.blockName, structure.parameters)
   let param = addedParam
 
-  if (options?.disableSimpleSlotsByDefault && isSimpleBlockParameterDocument(doc)) {
+  if (slotPolicy.disableSimpleSlotsByDefault && isSimpleBlockParameterDocument(doc)) {
     param = { ...param, slotRules: undefined }
   }
 
-  if (options?.complexOutputOnlyByDefault && !isSimpleBlockParameterDocument(doc)) {
+  if (slotPolicy.complexOutputOnlyByDefault && !isSimpleBlockParameterDocument(doc)) {
     const outputs = param.slotRules?.outputs ?? []
     param = {
       ...param,

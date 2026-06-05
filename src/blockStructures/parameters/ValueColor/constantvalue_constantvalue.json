@@ -5,7 +5,7 @@
   "name": "constantValue",
   "source": {
     "kind": "parameter",
-    "parameterId": "value-color__entries-{particlePath}-complex-emitter-definition-data--slot--0-color_parameter_constantValue"
+    "parameterId": "value-color__main-characters/brand/skins/skin0/particles/brand-base-e-conflagration-buf-complex-emitter-definition-data--slot--0-color_parameter_constantValue"
   },
   "type": "vec4",
   "value": "0.282, 0.163, 0.156, 1",

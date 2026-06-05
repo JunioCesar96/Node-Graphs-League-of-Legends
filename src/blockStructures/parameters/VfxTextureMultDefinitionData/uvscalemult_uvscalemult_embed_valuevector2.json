@@ -5,7 +5,7 @@
   "name": "uvScaleMult",
   "source": {
     "kind": "parameter",
-    "parameterId": "vfx-texture-mult-definition-data__entries-{particlePath}-complex-emitter-definition-data--slot--7-texture-mult-uv-scale-mult"
+    "parameterId": "vfx-texture-mult-definition-data__main-characters/brand/skins/skin0/particles/brand-base-e-conflagration-buf-complex-emitter-definition-data--slot--7-texture-mult-uv-scale-mult"
   },
   "type": "embed",
   "embed": "ValueVector2",

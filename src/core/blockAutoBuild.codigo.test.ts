@@ -7,7 +7,7 @@ import { schemaRegistry } from './nodeStructureRegistry'
 import { validateBlockParameterDocument } from './blockParameterRegistry'
 
 describe('blockAutoBuild codigo teste', () => {
-  it('plano completo do codigo teste.md (como Code Build Block + extendSchemaLookup)', () => {
+  it('plano completo do codigo teste.md (como Code Build Block: texto do editor + extendSchemaLookup)', () => {
     const text = readFileSync('src/blockStructures/codigo teste.md', 'utf8')
     const plan = buildBlockAutoBuildPlanFromRitualCode(text, schemaRegistry)
     const items = flattenAutoBuildWorkItems(plan)
