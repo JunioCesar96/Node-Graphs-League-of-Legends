@@ -9,7 +9,7 @@ Arquivo salvo em: `feature_md/feature/feature-block-slot-improvements.md`
 | Nome da Branch | `feature/block-slot-improvements` |
 | Nome das Features | Slot tools no BlockCard; pager de fan-out; preview ritual com listas; editor flutuante de parâmetro; remoção de parâmetro com desligação de conexões; campos mapHash no card |
 | Versão atual | `1.5.0` |
-| Hash do Commit | `f304659` |
+| Hash do Commit | `380bf1d` |
 
 Documentação relacionada: `feature_md/prompet/prompet_sistema_blocos.md`, `feature_md/feature/feature-block-link-palette.md`.
 
