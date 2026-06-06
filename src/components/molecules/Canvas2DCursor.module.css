@@ -1,0 +1,31 @@
+.root {
+  position: absolute;
+  z-index: 6;
+  width: 48px;
+  height: 48px;
+  pointer-events: none;
+  user-select: none;
+}
+
+.svg {
+  display: block;
+  overflow: visible;
+}
+
+.crosshair {
+  stroke: rgb(203 213 225 / 92%);
+  stroke-width: 1;
+}
+
+.ringBase {
+  fill: none;
+  stroke: rgb(255 255 255 / 95%);
+  stroke-width: 2.5;
+}
+
+.ringAccent {
+  fill: none;
+  stroke: #ef4444;
+  stroke-width: 2;
+  stroke-dasharray: 5 5;
+}

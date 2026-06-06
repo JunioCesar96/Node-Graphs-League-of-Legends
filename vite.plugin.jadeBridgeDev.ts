@@ -7,6 +7,13 @@ import type { Plugin } from 'vite'
 
 const PORT = process.env.PORT ?? process.env.JADE_BRIDGE_PORT ?? '8788'
 
+function shouldAutoStartJadeBridge(): boolean {
+  const mode = (process.env.DEV_BIN_BRIDGE ?? 'native').trim().toLowerCase()
+  if (mode === 'jade') return true
+  if (mode === 'native') return false
+  return process.env.DEV_USE_JADE_BRIDGE === 'true'
+}
+
 function resolveRustBridgeExe(projectRoot: string): string | null {
   const base = path.join(projectRoot, '..', 'Jade-League-Bin-Editor', 'src-tauri', 'target', 'release')
   const candidates = process.platform === 'win32'
@@ -38,6 +45,13 @@ export function vitePluginJadeBridgeDev(projectRoot: string): Plugin {
     apply: 'serve',
     configureServer(server) {
       const startBridge = () => {
+        if (!shouldAutoStartJadeBridge()) {
+          console.log(
+            '[jade-bridge-dev] omitido (modo Nativo). Escolhe Bridge Jade em `npm run dev` ou `npm run dev:jade`.',
+          )
+          return
+        }
+
         if (child && !child.killed) {
           return
         }

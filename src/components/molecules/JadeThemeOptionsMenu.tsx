@@ -8,17 +8,19 @@ import appStyles from '@/components/organisms/AppMenuBar.module.css'
 
 function ThemeToggleRows({
   classNamePrefix,
-  onOpenThemes,
-  showOpenThemes,
+  onOpenJadeThemes,
+  onOpenNativeThemes,
 }: {
   classNamePrefix: 'app' | 'jade'
-  onOpenThemes?: () => void
-  showOpenThemes: boolean
+  onOpenJadeThemes?: () => void
+  onOpenNativeThemes?: () => void
 }) {
   const { t } = useLanguage()
-  const { themeEnabled, syntaxEnabled, toggleTheme, toggleSyntax } = useJadeSurfaceTheme()
+  const { themeEnabled, syntaxEnabled, backgroundEnabled, fontsEnabled, toggleTheme, toggleSyntax, toggleBackground, toggleFonts } =
+    useJadeSurfaceTheme()
 
   const rowClass = classNamePrefix === 'app' ? appStyles.menuItemThemeToggle : 'menu-option menu-option-theme-toggle'
+  const showThemePickers = Boolean(onOpenJadeThemes || onOpenNativeThemes)
 
   return (
     <>
@@ -42,72 +44,102 @@ function ThemeToggleRows({
         <span>{t(LangId.CtxApplyJadeSyntax, 'Syntax Color Scheme')}</span>
         <AppToggleCheckbox checked={syntaxEnabled} decorative size="compact" />
       </button>
-      {showOpenThemes && onOpenThemes ? (
+      <button
+        aria-checked={backgroundEnabled}
+        className={rowClass}
+        onClick={() => void toggleBackground()}
+        role="menuitemcheckbox"
+        type="button"
+      >
+        <span>{t(LangId.CtxApplyJadeBackground, 'Background')}</span>
+        <AppToggleCheckbox checked={backgroundEnabled} decorative size="compact" />
+      </button>
+      <button
+        aria-checked={fontsEnabled}
+        className={rowClass}
+        onClick={() => void toggleFonts()}
+        role="menuitemcheckbox"
+        type="button"
+      >
+        <span>{t(LangId.CtxApplyJadeFonts, 'Fonts')}</span>
+        <AppToggleCheckbox checked={fontsEnabled} decorative size="compact" />
+      </button>
+      {showThemePickers ? (
         <>
           <div aria-hidden className={classNamePrefix === 'app' ? appStyles.menuSeparator : 'menu-separator'} />
-          <button
-            className={classNamePrefix === 'app' ? appStyles.menuItem : 'menu-option'}
-            onClick={onOpenThemes}
-            type="button"
-          >
-            {t(LangId.MenuJadeThemesPicker, 'Temas Jade…')}
-          </button>
+          {onOpenJadeThemes ? (
+            <button
+              className={classNamePrefix === 'app' ? appStyles.menuItem : 'menu-option'}
+              onClick={onOpenJadeThemes}
+              type="button"
+            >
+              {t(LangId.MenuJadeThemesPicker, 'Jade Themes…')}
+            </button>
+          ) : null}
+          {onOpenNativeThemes ? (
+            <button
+              className={classNamePrefix === 'app' ? appStyles.menuItem : 'menu-option'}
+              onClick={onOpenNativeThemes}
+              type="button"
+            >
+              {t(LangId.MenuNativeThemesPicker, 'Native Themes…')}
+            </button>
+          ) : null}
         </>
       ) : null}
     </>
   )
 }
 
-/** Estrutura Options → Jade Themes → Theme Options (barra principal da app). */
-export function AppMenuJadeThemeOptions({ onOpenThemes }: { onOpenThemes?: () => void }) {
+/** Options → Theme Options (barra principal da app). */
+export function AppMenuJadeThemeOptions({
+  onOpenJadeThemes,
+  onOpenNativeThemes,
+}: {
+  onOpenJadeThemes?: () => void
+  onOpenNativeThemes?: () => void
+}) {
   const { t } = useLanguage()
 
   return (
     <div className={appStyles.menuItemWithSub}>
       <button className={appStyles.menuItem} type="button">
-        {t(LangId.MenuJadeThemes, 'Jade Themes')}
+        {t(LangId.MenuThemeOptions, 'Theme Options')}
       </button>
       <div className={appStyles.menuSubPanel}>
-        <div className={`${appStyles.menuItemWithSub} ${appStyles.menuItemWithSubNested}`}>
-          <button className={appStyles.menuItem} type="button">
-            {t(LangId.MenuThemeOptions, 'Theme Options')}
-          </button>
-          <div className={appStyles.menuSubPanel}>
-            <ThemeToggleRows classNamePrefix="app" onOpenThemes={onOpenThemes} showOpenThemes />
-          </div>
-        </div>
+        <ThemeToggleRows
+          classNamePrefix="app"
+          onOpenJadeThemes={onOpenJadeThemes}
+          onOpenNativeThemes={onOpenNativeThemes}
+        />
       </div>
     </div>
   )
 }
 
 /** Conteúdo do menu Options no MenuBar Jade (CodeDock). */
-export function JadeMenuBarOptionsMenu({ onOpenThemes }: { onOpenThemes?: () => void }) {
+export function JadeMenuBarOptionsMenu({
+  onOpenJadeThemes,
+  onOpenNativeThemes,
+}: {
+  onOpenJadeThemes?: () => void
+  onOpenNativeThemes?: () => void
+}) {
   const { t } = useLanguage()
 
   return (
-    <>
-      <div className="menu-item-with-submenu">
-        <button className="menu-option" type="button">
-          <span>{t(LangId.MenuJadeThemes, 'Jade Themes')}</span>
-          <span className="submenu-arrow">›</span>
-        </button>
-        <div className="menu-submenu">
-          <div className="menu-item-with-submenu">
-            <button className="menu-option" type="button">
-              <span>{t(LangId.MenuThemeOptions, 'Theme Options')}</span>
-              <span className="submenu-arrow">›</span>
-            </button>
-            <div className="menu-submenu">
-              <ThemeToggleRows
-                classNamePrefix="jade"
-                onOpenThemes={onOpenThemes}
-                showOpenThemes={Boolean(onOpenThemes)}
-              />
-            </div>
-          </div>
-        </div>
+    <div className="menu-item-with-submenu">
+      <button className="menu-option" type="button">
+        <span>{t(LangId.MenuThemeOptions, 'Theme Options')}</span>
+        <span className="submenu-arrow">›</span>
+      </button>
+      <div className="menu-submenu">
+        <ThemeToggleRows
+          classNamePrefix="jade"
+          onOpenJadeThemes={onOpenJadeThemes}
+          onOpenNativeThemes={onOpenNativeThemes}
+        />
       </div>
-    </>
+    </div>
   )
 }

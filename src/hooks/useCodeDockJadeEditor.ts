@@ -60,6 +60,7 @@ export function useCodeDockJadeEditor(
   const [showSettings, setShowSettings] = useState(false)
   const [showPreferences, setShowPreferences] = useState(false)
   const [showThemes, setShowThemes] = useState(false)
+  const [showNativeThemes, setShowNativeThemes] = useState(false)
   const [showAbout, setShowAbout] = useState(false)
 
   const [editorMounted, setEditorMounted] = useState(false)
@@ -89,7 +90,7 @@ export function useCodeDockJadeEditor(
     syntaxCheckingEnabledRef.current =
       (await getPreference('SyntaxChecking', 'True')) !== 'False'
     const font = await getPreference('EditorFont', '')
-    setEditorFontFamily(font)
+    setEditorFontFamily(font ? `"${font}", monospace` : '')
   }, [])
 
   useEffect(() => {
@@ -101,8 +102,18 @@ export function useCodeDockJadeEditor(
       if (!detail) return
       setPerfPrefs((prev) => ({ ...prev, [detail.key]: detail.mode }))
     }
+
+    const onEditorFont = (e: Event) => {
+      const detail = (e as CustomEvent<string>).detail
+      setEditorFontFamily(typeof detail === 'string' ? detail : '')
+    }
+
     window.addEventListener('perf-pref-changed', onPerf)
-    return () => window.removeEventListener('perf-pref-changed', onPerf)
+    window.addEventListener('jade-editor-font-changed', onEditorFont)
+    return () => {
+      window.removeEventListener('perf-pref-changed', onPerf)
+      window.removeEventListener('jade-editor-font-changed', onEditorFont)
+    }
   }, [loadPerfPrefs, loadEditorPrefs])
 
   const updateEmitterNameDecorations = useCallback(
@@ -509,6 +520,8 @@ export function useCodeDockJadeEditor(
     setShowPreferences,
     showThemes,
     setShowThemes,
+    showNativeThemes,
+    setShowNativeThemes,
     showAbout,
     setShowAbout,
     handleBeforeMount,

@@ -3,6 +3,7 @@ import {
   setPreferenceBackend,
   type PreferenceBackend,
 } from '@jade/lib/preferenceStore'
+import { isTauriRuntime } from '@jade/lib/runtimeBridge'
 
 import { computeJadeBridgeBase } from '@/core/jadeBinBridge'
 import { webPreferenceBackend } from './webPreferenceBackend'

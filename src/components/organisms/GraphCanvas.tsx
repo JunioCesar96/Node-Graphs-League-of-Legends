@@ -1,4 +1,5 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { refreshCustomBackgroundLayerHosts } from '@jade/lib/themeApplicator'
 import { createPortal } from 'react-dom'
 import type { CSSProperties, MouseEvent, PointerEvent, ReactNode } from 'react'
 
@@ -6,12 +7,11 @@ import { CanvasContextMenu } from '@/components/molecules/CanvasContextMenu'
 import {
   CanvasGridControlPanel,
   resolveCanvasGridControlState,
-  type CanvasGridControlState,
+  type CanvasGridControlPatch,
 } from '@/components/molecules/CanvasGridControlPanel'
 import {
   DEFAULT_CANVAS_GRID_OPACITY,
-  resolveCanvasGridOpacity,
-  resolveCanvasGridSize,
+  resolveCanvasGridPresentation,
 } from '@/core/canvasGridSettings'
 import { CollectionTypeLinkMenu } from '@/components/molecules/CollectionTypeLinkMenu'
 import { DockTabIcon } from '@/components/atoms/DockTabIcon'
@@ -20,13 +20,18 @@ import { CanvasCameraDockBody } from '@/components/molecules/CanvasCameraDockBod
 import { CanvasToolbarToolSlot } from '@/components/molecules/CanvasToolbarToolSlot'
 import { CanvasZoomDockBody } from '@/components/molecules/CanvasZoomDockBody'
 import { InspectorViewportDockShell } from '@/components/molecules/InspectorViewportDockShell'
-import { AddNodePalette } from '@/components/organisms/AddNodePalette'
+import { AddNodePalette, type PaletteCatalogMode } from '@/components/organisms/AddNodePalette'
+import { SlashCommandPicker } from '@/components/organisms/SlashCommandPicker'
+import { TextInputDialog } from '@/components/molecules/TextInputDialog'
 import type { BlockDefinitionJsonDocument } from '@/core/blockDefinitionJson'
 import type { BlockDefinitionSpawnLinkContext } from '@/core/blockSlotConnections'
 import {
   blockDefinitionMatchesLinkDrop,
   type BlockDropLinkPaletteContext,
 } from '@/core/blockDefinitionLinkPalette'
+import { Canvas2DCursor } from '@/components/molecules/Canvas2DCursor'
+import { SnapMenu, useSnapMenu } from '@/components/molecules/SnapMenu'
+import { renderGraphSnapMenuIcon } from '@/components/molecules/SnapMenu/graphSnapMenuIcons'
 import { RitualNeekoStagingPreview } from '@/components/molecules/RitualNeekoStagingPreview'
 import { NodeCard } from '@/components/organisms/NodeCard'
 import { AddonCardHost } from '@/components/molecules/AddonCardHost'
@@ -37,7 +42,25 @@ import { getAddonManifest } from '@/blockStructures/addonRegistry'
 import { useAddonCanvasLinks } from '@/hooks/useAddonCanvasLinks'
 import { resolveAddonDropFromDataTransfer } from '@/ritualDrag/addonDropHandler'
 import { useRitualDragOptional } from '@/ritualDrag/RitualDragContext'
+import {
+  computePanCenteredOnGraphPoint,
+  DEFAULT_CANVAS_2D_CURSOR_POSITION,
+} from '@/core/canvas2DCursor'
+import {
+  buildGraphSnapMenuActions,
+  GRAPH_NAVIGATION_MENU_TITLE,
+  graphPointAtViewportCenter,
+  isGraphSnapActionDisabled,
+  resolveSelectionPivotCenter,
+  type GraphSnapActionId,
+} from '@/core/graphSnapMenu'
+import { useCanvas2DCursorPlacement } from '@/hooks/useCanvas2DCursorPlacement'
 import { useRitualDragCanvasDrop } from '@/hooks/useRitualDragCanvasDrop'
+import {
+  DEFAULT_CANVAS_INTERACTION_MODE,
+  type CanvasInteractionMode,
+  isCanvasPanCursorMode,
+} from '@/core/canvasInteractionMode'
 import type { CanvasConnection, CanvasNode, CanvasPosition, CanvasScene, SceneCamera } from '@/core/canvasScene'
 import { isCanvasNodeBodyCollapsed } from '@/core/canvasScene'
 import {
@@ -194,8 +217,18 @@ import {
   CANVAS_CONTEXT_NODE_ID_ATTR,
   ELEMENT_MENU_TRIGGER_ATTR,
 } from '@/core/canvasContextMenuAttributes'
-import { buildContextMenuItems } from '@/core/canvasContextMenuItems'
+import {
+  buildContextMenuItems,
+  type CanvasContextMenuBuildContext,
+} from '@/core/canvasContextMenuItems'
+import { contextMenuItemsToSnapActions } from '@/core/snapMenu/contextMenuSnapMenu'
+import {
+  GRAPH_GRID_CONTEXT_MENU_TITLE,
+  SNAP_MENU_BACK_LABEL,
+} from '@/core/language/graphGridSnapMenuLangIds'
 import { LangId } from '@/core/language/languageIds'
+import type { SlashCommandDocument } from '@/core/slashCommandTypes'
+import { refreshSlashCommandRegistryFromDisk } from '@/core/slashCommandStorage'
 import { useLanguage } from '@/language/LanguageProvider'
 import {
   MESSENGER_CONFIRM_ADDON_CONNECTION_FORCED,
@@ -555,6 +588,17 @@ type GraphCanvasProps = {
   memoryPackFolders?: readonly string[]
   /** Grava preset de estados da cena (atalho no menu do card). */
   onExtractSceneNodesStatePreset?: (nodeId: string) => void
+  onSaveBlockSlashCommand?: (
+    nodeId: string,
+    commandName: string,
+  ) => Promise<{ ok: true } | { ok: false; error: string }>
+  onRemoveBlockSlashCommand?: (
+    command: string,
+  ) => Promise<{ ok: true } | { ok: false; error: string }>
+  onApplyBlockSlashCommand?: (
+    command: string,
+    position?: CanvasPosition,
+  ) => { ok: true; rootNodeId: string } | { ok: false; error: string }
   /** Serializa Main → ritual Class Group e abre no CodeDock. */
   onGraphsToCode?: () => void
   /** Pré-visualiza subárvore do nó no CodeDock. */
@@ -579,7 +623,13 @@ type GraphCanvasProps = {
   showCanvasGrid?: boolean
   canvasGridSize?: number
   canvasGridOpacity?: number
-  onCanvasGridChange?: (patch: Partial<CanvasGridControlState>) => void
+  canvasGridLineColorEnabled?: boolean
+  canvasGridHorizontalLineColor?: string
+  canvasGridVerticalLineColor?: string
+  canvasGridCheckerEnabled?: boolean
+  canvasGridCheckerColorA?: string
+  canvasGridCheckerColorB?: string
+  onCanvasGridChange?: (patch: CanvasGridControlPatch) => void
   /** @deprecated Use onCanvasGridChange */
   onShowCanvasGridChange?: (show: boolean) => void
   /** Junta visualmente ao bloco de abas «Cenas de trabalho» (sem borda/cantos no topo). */
@@ -1701,6 +1751,9 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     onPatchNodeSceneOverlay,
     onSceneNodesPanelRequest,
     onExtractSceneNodesStatePreset,
+    onSaveBlockSlashCommand,
+    onRemoveBlockSlashCommand,
+    onApplyBlockSlashCommand,
     onGraphsToCode,
     onViewNodeCode,
     onViewNodeBlockCode,
@@ -1722,6 +1775,12 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     showCanvasGrid = true,
     canvasGridSize,
     canvasGridOpacity,
+    canvasGridLineColorEnabled,
+    canvasGridHorizontalLineColor,
+    canvasGridVerticalLineColor,
+    canvasGridCheckerEnabled,
+    canvasGridCheckerColorA,
+    canvasGridCheckerColorB,
     onCanvasGridChange,
     onShowCanvasGridChange,
     attachedViewport = false,
@@ -1766,6 +1825,12 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     position: CanvasPosition
   } | null>(null)
   const [isPaletteOpen, setIsPaletteOpen] = useState(false)
+  const [isSlashCommandPickerOpen, setIsSlashCommandPickerOpen] = useState(false)
+  const [slashCommandRemovePickerOpen, setSlashCommandRemovePickerOpen] = useState(false)
+  const [slashCommandAddDialog, setSlashCommandAddDialog] = useState<{
+    nodeId: string
+    suggestedName: string
+  } | null>(null)
   const [pan, setPan] = useState<PanPoint>(() => scene.camera?.pan ?? { x: 0, y: 0 })
   const [scale, setScale] = useState(() => scene.camera?.scale ?? 1)
   const nodeDragGesture = useRef<NodeDragGesture | null>(null)
@@ -1781,8 +1846,19 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
   const panGesture = useRef<PanGesture | null>(null)
   const middlePanGestureRef = useRef<PanGesture | null>(null)
   const marqueeGestureRef = useRef<{ additive: boolean; pointerId: number; start: CanvasPosition } | null>(null)
+  const temporarySelectBoxFromTweakRef = useRef(false)
   const viewportRef = useRef<HTMLElement | null>(null)
   const viewportBodyRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    refreshCustomBackgroundLayerHosts()
+  }, [])
+  const { cursor2DPosition, setCursor2DPosition } = useCanvas2DCursorPlacement({
+    canvasRef,
+    viewportBodyRef,
+    scale,
+  })
+  const lastPointerClientRef = useRef({ x: 0, y: 0 })
   const ritualDrag = useRitualDragOptional()
 
   useRitualDragCanvasDrop({
@@ -1811,6 +1887,8 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     null,
   )
   const [glueNodeId, setGlueNodeId] = useState<string | null>(null)
+  const gluePointerOffsetRef = useRef<CanvasPosition | null>(null)
+  const previousGlueNodeIdRef = useRef<string | null>(null)
   const [structureCardResizeModifierActive, setStructureCardResizeModifierActive] = useState(false)
   const [wirelessHighlightNodeId, setWirelessHighlightNodeId] = useState<string | null>(null)
   const [contextMenu, setContextMenu] = useState<{
@@ -1824,12 +1902,37 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
   const [blockParameterScreenAnchor, setBlockParameterScreenAnchor] =
     useState<CanvasContextMenuAnchor | null>(null)
   const [blockParameterAnchorNodeId, setBlockParameterAnchorNodeId] = useState<string | null>(null)
-  const [viewportNavigateMode, setViewportNavigateMode] = useState(false)
+  const [canvasInteractionMode, setCanvasInteractionMode] = useState<CanvasInteractionMode>(
+    DEFAULT_CANVAS_INTERACTION_MODE,
+  )
   const [gridControlAnchor, setGridControlAnchor] = useState<CanvasContextMenuAnchor | null>(null)
-  const resolvedGridSize = resolveCanvasGridSize(canvasGridSize)
-  const resolvedGridOpacity = resolveCanvasGridOpacity(canvasGridOpacity)
-  const gridLineStrength = showCanvasGrid
-    ? Math.min(3, resolvedGridOpacity / DEFAULT_CANVAS_GRID_OPACITY)
+  const gridPresentation = useMemo(
+    () =>
+      resolveCanvasGridPresentation({
+        showCanvasGrid,
+        canvasGridSize,
+        canvasGridOpacity,
+        canvasGridLineColorEnabled,
+        canvasGridHorizontalLineColor,
+        canvasGridVerticalLineColor,
+        canvasGridCheckerEnabled,
+        canvasGridCheckerColorA,
+        canvasGridCheckerColorB,
+      }),
+    [
+      canvasGridCheckerColorA,
+      canvasGridCheckerColorB,
+      canvasGridCheckerEnabled,
+      canvasGridHorizontalLineColor,
+      canvasGridLineColorEnabled,
+      canvasGridOpacity,
+      canvasGridSize,
+      canvasGridVerticalLineColor,
+      showCanvasGrid,
+    ],
+  )
+  const gridLineStrength = gridPresentation.showCanvasGrid
+    ? Math.min(3, gridPresentation.canvasGridOpacity / DEFAULT_CANVAS_GRID_OPACITY)
     : 0
   const [localToolbarVisibility, setLocalToolbarVisibility] = useState<CanvasToolbarVisibility>(
     () => DEFAULT_CANVAS_TOOLBAR_VISIBILITY,
@@ -1848,6 +1951,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     [onToolbarVisibilityChange, toolbarVisibility],
   )
   const [paletteSpawnPosition, setPaletteSpawnPosition] = useState<CanvasPosition | null>(null)
+  const [paletteInitialCatalogMode, setPaletteInitialCatalogMode] = useState<PaletteCatalogMode>('nodes')
   const [paletteScreenAnchor, setPaletteScreenAnchor] = useState<{ left: number; top: number } | null>(
     null,
   )
@@ -1869,8 +1973,12 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
   }, [scale])
 
   useEffect(() => {
-    const nextPan = scene.camera?.pan ?? { x: 0, y: 0 }
-    const nextScale = scene.camera?.scale ?? 1
+    if (scene.camera === undefined) {
+      return
+    }
+
+    const nextPan = scene.camera.pan
+    const nextScale = scene.camera.scale
 
     setPan((current) =>
       current.x === nextPan.x && current.y === nextPan.y ? current : { x: nextPan.x, y: nextPan.y },
@@ -1889,6 +1997,136 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     persistSceneCamera({ pan: panRef.current, scale: scaleRef.current })
   }, [persistSceneCamera])
 
+  const initialCameraOnCursor2DRef = useRef(false)
+
+  const measureCanvasNodeBounds = useCallback(
+    (node: CanvasNode) => ({
+      x: node.position.x,
+      y: node.position.y,
+      width: getCanvasNodeWidth(node),
+      height: getNodeCardHeight(node, scene.connections),
+    }),
+    [scene.connections],
+  )
+
+  const moveSelectionByDelta = useCallback(
+    (delta: CanvasPosition) => {
+      if (delta.x === 0 && delta.y === 0) {
+        return
+      }
+
+      for (const nodeId of selectedNodeIds) {
+        const node = scene.nodes.find((entry) => entry.id === nodeId)
+
+        if (!node || isNodeLocked(node)) {
+          continue
+        }
+
+        onMoveNode(
+          nodeId,
+          {
+            x: node.position.x + delta.x,
+            y: node.position.y + delta.y,
+          },
+          { axisLock: '', snapGrid: false },
+        )
+      }
+    },
+    [onMoveNode, scene.nodes, selectedNodeIds],
+  )
+
+  const graphSnapMenuActions = useMemo(() => buildGraphSnapMenuActions(t), [t])
+  const isPointerOnCanvasGrid = useCallback(() => {
+    const viewport = viewportBodyRef.current
+
+    if (!viewport) {
+      return false
+    }
+
+    const rect = viewport.getBoundingClientRect()
+    const { x, y } = lastPointerClientRef.current
+
+    return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom
+  }, [])
+
+  const graphSnapMenuTitle = useMemo(
+    () => t(GRAPH_NAVIGATION_MENU_TITLE.langId, GRAPH_NAVIGATION_MENU_TITLE.fallback),
+    [t],
+  )
+
+  const centerCameraOnCursor2D = useCallback(
+    (options?: { persist?: boolean; scale?: number }) => {
+      const viewport = viewportBodyRef.current
+
+      if (!viewport) {
+        return false
+      }
+
+      const viewportWidth = viewport.clientWidth
+      const viewportHeight = viewport.clientHeight
+
+      if (viewportWidth <= 0 || viewportHeight <= 0) {
+        return false
+      }
+
+      const targetScale = options?.scale ?? scaleRef.current
+      const nextPan = computePanCenteredOnGraphPoint(
+        cursor2DPosition,
+        viewportWidth,
+        viewportHeight,
+        targetScale,
+      )
+
+      panRef.current = nextPan
+      scaleRef.current = targetScale
+      setPan(nextPan)
+      setScale(targetScale)
+
+      if (options?.persist !== false) {
+        persistSceneCamera({ pan: nextPan, scale: targetScale })
+      }
+
+      return true
+    },
+    [cursor2DPosition, persistSceneCamera],
+  )
+
+  useLayoutEffect(() => {
+    if (initialCameraOnCursor2DRef.current) {
+      return
+    }
+
+    const viewport = viewportBodyRef.current
+
+    if (!viewport) {
+      return
+    }
+
+    const applyInitialCamera = () => {
+      if (initialCameraOnCursor2DRef.current) {
+        return
+      }
+
+      if (scene.camera !== undefined) {
+        initialCameraOnCursor2DRef.current = true
+        return
+      }
+
+      if (centerCameraOnCursor2D({ scale: 1 })) {
+        initialCameraOnCursor2DRef.current = true
+      }
+    }
+
+    applyInitialCamera()
+
+    const observer = new ResizeObserver(applyInitialCamera)
+    observer.observe(viewport)
+
+    return () => {
+      observer.disconnect()
+    }
+  }, [centerCameraOnCursor2D, scene.camera])
+
   useEffect(
     () => () => {
       if (wheelPersistTimerRef.current !== null) {
@@ -1903,12 +2141,81 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
         ? selectedNodeId
         : selectedNodeIds[0]
       : null
+  const glueModeActive = glueNodeId !== null
+
+  const deactivateGlueNode = useCallback(() => {
+    setGlueNodeId(null)
+  }, [])
+
+  const activateGlueNode = useCallback((nodeId: string) => {
+    setGlueNodeId(nodeId)
+  }, [])
+
+  const toggleGlueForNode = useCallback(
+    (nodeId: string) => {
+      if (glueNodeId === nodeId) {
+        deactivateGlueNode()
+        return
+      }
+
+      activateGlueNode(nodeId)
+    },
+    [activateGlueNode, deactivateGlueNode, glueNodeId],
+  )
 
   useEffect(() => {
-    if (selectedNodeIds.length === 0) {
-      setGlueNodeId(null)
+    const previous = previousGlueNodeIdRef.current
+    previousGlueNodeIdRef.current = glueNodeId
+
+    if (!glueNodeId) {
+      gluePointerOffsetRef.current = null
+      return
     }
-  }, [selectedNodeIds.length])
+
+    if (previous === glueNodeId) {
+      return
+    }
+
+    const canvas = canvasRef.current
+    const node = scene.nodes.find((entry) => entry.id === glueNodeId)
+
+    if (!canvas || !node) {
+      gluePointerOffsetRef.current = { x: 0, y: 0 }
+      return
+    }
+
+    const pointer = graphClientToPosition(
+      canvas,
+      scale,
+      lastPointerClientRef.current.x,
+      lastPointerClientRef.current.y,
+    )
+
+    gluePointerOffsetRef.current = {
+      x: pointer.x - node.position.x,
+      y: pointer.y - node.position.y,
+    }
+  }, [glueNodeId, scale, scene.nodes])
+
+  useEffect(() => {
+    if (!glueNodeId) {
+      return
+    }
+
+    if (selectedNodeIds.length === 0 || !selectedNodeIds.includes(glueNodeId)) {
+      deactivateGlueNode()
+    }
+  }, [deactivateGlueNode, glueNodeId, selectedNodeIds])
+
+  useEffect(() => {
+    if (!glueNodeId || blockParameterPanelRequest?.nodeId !== glueNodeId) {
+      return
+    }
+
+    setBlockParameterPanelRequest(null)
+    setBlockParameterScreenAnchor(null)
+    setBlockParameterAnchorNodeId(null)
+  }, [blockParameterPanelRequest?.nodeId, glueNodeId])
 
   const canvasBounds = getCanvasBounds(scene)
   const [portAnchors, setPortAnchors] = useState<PortAnchorMaps>(emptyPortAnchorMaps)
@@ -3209,11 +3516,12 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
   }, [])
 
   const openPalette = useCallback(
-    (spawnPosition?: CanvasPosition) => {
+    (options?: { spawnPosition?: CanvasPosition; catalogMode?: PaletteCatalogMode }) => {
       setLinkDropContext(null)
       setBlockDropLinkContext(null)
-      setPaletteSpawnPosition(spawnPosition ?? null)
-      setPaletteScreenAnchor(spawnPosition ? null : resolveAddNodeToolbarAnchor())
+      setPaletteSpawnPosition(options?.spawnPosition ?? null)
+      setPaletteInitialCatalogMode(options?.catalogMode ?? 'nodes')
+      setPaletteScreenAnchor(options?.spawnPosition ? null : resolveAddNodeToolbarAnchor())
       setIsPaletteOpen(true)
     },
     [resolveAddNodeToolbarAnchor],
@@ -3224,8 +3532,74 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     setLinkDropContext(null)
     setBlockDropLinkContext(null)
     setPaletteSpawnPosition(null)
+    setPaletteInitialCatalogMode('nodes')
     setPaletteScreenAnchor(null)
   }, [])
+
+  const refreshSlashCommandsCatalog = useCallback(() => {
+    void refreshSlashCommandRegistryFromDisk('blocks')
+  }, [])
+
+  useEffect(() => {
+    refreshSlashCommandsCatalog()
+  }, [refreshSlashCommandsCatalog])
+
+  const resolvePaletteSpawnPosition = useCallback((): CanvasPosition => {
+    return paletteSpawnPosition ?? cursor2DPosition
+  }, [cursor2DPosition, paletteSpawnPosition])
+
+  const openSlashCommandPicker = useCallback(() => {
+    refreshSlashCommandsCatalog()
+    setIsSlashCommandPickerOpen(true)
+  }, [refreshSlashCommandsCatalog])
+
+  const closeSlashCommandPicker = useCallback(() => {
+    setIsSlashCommandPickerOpen(false)
+  }, [])
+
+  const handleSlashCommandPick = useCallback(
+    (command: SlashCommandDocument) => {
+      if (command.feature !== 'blocks' || !onApplyBlockSlashCommand) {
+        closeSlashCommandPicker()
+        return
+      }
+
+      const result = onApplyBlockSlashCommand(command.command, cursor2DPosition)
+      closeSlashCommandPicker()
+      setSlashCommandRemovePickerOpen(false)
+
+      if (result.ok) {
+        onSelectNode(result.rootNodeId)
+      } else {
+        window.alert(result.error)
+      }
+    },
+    [
+      closeSlashCommandPicker,
+      cursor2DPosition,
+      onApplyBlockSlashCommand,
+      onSelectNode,
+    ],
+  )
+
+  const handlePaletteSlashCommandPick = useCallback(
+    (command: string) => {
+      if (!onApplyBlockSlashCommand) {
+        closePalette()
+        return
+      }
+
+      const result = onApplyBlockSlashCommand(command, resolvePaletteSpawnPosition())
+      closePalette()
+
+      if (result.ok) {
+        onSelectNode(result.rootNodeId)
+      } else {
+        window.alert(result.error)
+      }
+    },
+    [closePalette, onApplyBlockSlashCommand, onSelectNode, resolvePaletteSpawnPosition],
+  )
 
   const closeContextMenu = useCallback(() => {
     setContextMenu(null)
@@ -3263,7 +3637,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
         return
       }
 
-      onCreateRootNode(schema, paletteSpawnPosition ?? undefined)
+      onCreateRootNode(schema, resolvePaletteSpawnPosition())
       endLinkDraft()
       closePalette()
     },
@@ -3273,7 +3647,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       linkDropContext,
       onCreateChildNode,
       onCreateRootNode,
-      paletteSpawnPosition,
+      resolvePaletteSpawnPosition,
       scene.connections,
       scene.nodes,
     ],
@@ -3294,7 +3668,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
           }
         : undefined
 
-      void onCreateAddonFromCatalog(addonId, paletteSpawnPosition ?? undefined, spawnLink).then(
+      void onCreateAddonFromCatalog(addonId, resolvePaletteSpawnPosition(), spawnLink).then(
         (result) => {
           if (result.ok) {
             onSelectNode(result.nodeId)
@@ -3311,7 +3685,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       closePalette,
       onCreateAddonFromCatalog,
       onSelectNode,
-      paletteSpawnPosition,
+      resolvePaletteSpawnPosition,
     ],
   )
 
@@ -3334,7 +3708,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
         : undefined
       const result = onCreateBlockFromDefinition(
         definition,
-        paletteSpawnPosition ?? undefined,
+        resolvePaletteSpawnPosition(),
         spawnLink,
       )
       if (result.ok) {
@@ -3349,7 +3723,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       closePalette,
       onCreateBlockFromDefinition,
       onSelectNode,
-      paletteSpawnPosition,
+      resolvePaletteSpawnPosition,
     ],
   )
 
@@ -3364,6 +3738,8 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
   )
 
   const handleViewportPointerDown = (event: PointerEvent<HTMLDivElement>) => {
+    lastPointerClientRef.current = { x: event.clientX, y: event.clientY }
+
     if (isParameterPickerOpen()) {
       return
     }
@@ -3409,7 +3785,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       return
     }
 
-    if (viewportNavigateMode) {
+    if (canvasInteractionMode === 'navigate') {
       event.preventDefault()
       navigatePanOriginRef.current = { x: event.clientX, y: event.clientY }
       panGesture.current = {
@@ -3421,7 +3797,12 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       return
     }
 
-    if (event.shiftKey) {
+    const beginViewportMarquee = (temporaryFromTweak: boolean) => {
+      if (temporaryFromTweak) {
+        temporarySelectBoxFromTweakRef.current = true
+        setCanvasInteractionMode('selectBox')
+      }
+
       event.preventDefault()
       const additive = event.ctrlKey || event.metaKey
       const start = graphClientToPosition(canvasEl, scale, event.clientX, event.clientY)
@@ -3434,24 +3815,33 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       })
 
       event.currentTarget.setPointerCapture(event.pointerId)
+    }
+
+    if (canvasInteractionMode === 'selectBox') {
+      beginViewportMarquee(false)
       return
     }
 
-    panGesture.current = {
-      origin: {
-        x: event.clientX,
-        y: event.clientY,
-      },
-      pan,
-      pointerId: event.pointerId,
+    if (canvasInteractionMode === 'tweak') {
+      if (event.shiftKey) {
+        beginViewportMarquee(true)
+        return
+      }
+
+      if (glueNodeId) {
+        deactivateGlueNode()
+      }
+
+      if (selectedNodeIds.length > 0) {
+        onClearSelection?.()
+      }
+      return
     }
-    if (selectedNodeIds.length > 0) {
-      onClearSelection?.()
-    }
-    event.currentTarget.setPointerCapture(event.pointerId)
   }
 
   const handleViewportPointerMove = (event: PointerEvent<HTMLDivElement>) => {
+    lastPointerClientRef.current = { x: event.clientX, y: event.clientY }
+
     if (isParameterPickerOpen()) {
       return
     }
@@ -3527,6 +3917,11 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
 
       setMarqueeOverlay(null)
 
+      if (temporarySelectBoxFromTweakRef.current) {
+        temporarySelectBoxFromTweakRef.current = false
+        setCanvasInteractionMode(DEFAULT_CANVAS_INTERACTION_MODE)
+      }
+
       if (event.currentTarget.hasPointerCapture(event.pointerId)) {
         event.currentTarget.releasePointerCapture(event.pointerId)
       }
@@ -3553,11 +3948,11 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     panGesture.current = null
     navigatePanOriginRef.current = null
 
-    if (viewportNavigateMode && navigateOrigin) {
+    if (canvasInteractionMode === 'navigate' && navigateOrigin) {
       const delta = Math.hypot(event.clientX - navigateOrigin.x, event.clientY - navigateOrigin.y)
 
       if (delta < NAVIGATE_MODE_RELEASE_PX) {
-        setViewportNavigateMode(false)
+        setCanvasInteractionMode(DEFAULT_CANVAS_INTERACTION_MODE)
       }
     }
 
@@ -3575,6 +3970,10 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       document.body.dataset.addonContextMenuActive === '1'
     ) {
       return
+    }
+
+    if (glueNodeId) {
+      deactivateGlueNode()
     }
 
     onSelectNode(canvasNode.id, { additive: event.shiftKey })
@@ -4101,6 +4500,173 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     [persistSceneCamera, scene.nodes],
   )
 
+  const runSnapAction = useCallback(
+    (actionId: GraphSnapActionId) => {
+      const viewport = viewportBodyRef.current
+
+      switch (actionId) {
+        case 'cursorToWorldOrigin':
+          setCursor2DPosition(DEFAULT_CANVAS_2D_CURSOR_POSITION)
+          break
+        case 'cursorToSelected': {
+          const pivot = resolveSelectionPivotCenter(
+            scene.nodes,
+            selectedNodeIds,
+            measureCanvasNodeBounds,
+          )
+
+          if (pivot) {
+            setCursor2DPosition(pivot)
+          }
+          break
+        }
+        case 'cursorToCamera': {
+          if (!viewport) {
+            break
+          }
+
+          setCursor2DPosition(
+            graphPointAtViewportCenter(
+              viewport.clientWidth,
+              viewport.clientHeight,
+              panRef.current,
+              scaleRef.current,
+            ),
+          )
+          break
+        }
+        case 'cameraFocusCursor':
+          centerCameraOnCursor2D()
+          break
+        case 'cameraFocusWorldOrigin': {
+          if (!viewport) {
+            break
+          }
+
+          const viewportWidth = viewport.clientWidth
+          const viewportHeight = viewport.clientHeight
+
+          if (viewportWidth <= 0 || viewportHeight <= 0) {
+            break
+          }
+
+          const targetScale = scaleRef.current
+          const nextPan = computePanCenteredOnGraphPoint(
+            DEFAULT_CANVAS_2D_CURSOR_POSITION,
+            viewportWidth,
+            viewportHeight,
+            targetScale,
+          )
+
+          panRef.current = nextPan
+          scaleRef.current = targetScale
+          setPan(nextPan)
+          setScale(targetScale)
+          persistSceneCamera({ pan: nextPan, scale: targetScale })
+          break
+        }
+        case 'cameraFocusSelection':
+          if (selectedNodeIds.length > 0) {
+            focusSelectionIntoView(selectedNodeIds)
+          }
+          break
+        case 'selectionToCursor': {
+          const pivot = resolveSelectionPivotCenter(
+            scene.nodes,
+            selectedNodeIds,
+            measureCanvasNodeBounds,
+          )
+
+          if (!pivot) {
+            break
+          }
+
+          moveSelectionByDelta({
+            x: cursor2DPosition.x - pivot.x,
+            y: cursor2DPosition.y - pivot.y,
+          })
+          break
+        }
+        case 'selectionToWorldOrigin': {
+          const pivot = resolveSelectionPivotCenter(
+            scene.nodes,
+            selectedNodeIds,
+            measureCanvasNodeBounds,
+          )
+
+          if (!pivot) {
+            break
+          }
+
+          moveSelectionByDelta({
+            x: -pivot.x,
+            y: -pivot.y,
+          })
+          break
+        }
+        case 'selectionToCamera': {
+          const pivot = resolveSelectionPivotCenter(
+            scene.nodes,
+            selectedNodeIds,
+            measureCanvasNodeBounds,
+          )
+
+          if (!pivot || !viewport) {
+            break
+          }
+
+          const cameraCenter = graphPointAtViewportCenter(
+            viewport.clientWidth,
+            viewport.clientHeight,
+            panRef.current,
+            scaleRef.current,
+          )
+
+          moveSelectionByDelta({
+            x: cameraCenter.x - pivot.x,
+            y: cameraCenter.y - pivot.y,
+          })
+          break
+        }
+      }
+
+    },
+    [
+      centerCameraOnCursor2D,
+      cursor2DPosition.x,
+      cursor2DPosition.y,
+      focusSelectionIntoView,
+      measureCanvasNodeBounds,
+      moveSelectionByDelta,
+      persistSceneCamera,
+      scene.nodes,
+      selectedNodeIds,
+      setCursor2DPosition,
+    ],
+  )
+
+  const graphSnapMenu = useSnapMenu<GraphSnapActionId>({
+    actions: graphSnapMenuActions,
+    title: graphSnapMenuTitle,
+    openChord: { key: 's', modifiers: ['shift'] },
+    holdRelease: true,
+    canOpen: isPointerOnCanvasGrid,
+    showPolygonVisual: false,
+    showActiveBar: false,
+    titleUpdatesWithActiveAction: true,
+    resolveAnchor: () => {
+      const viewport = viewportBodyRef.current
+      const fallback = viewport?.getBoundingClientRect()
+
+      return {
+        left: lastPointerClientRef.current.x || (fallback ? fallback.left + fallback.width / 2 : 0),
+        top: lastPointerClientRef.current.y || (fallback ? fallback.top + fallback.height / 2 : 0),
+      }
+    },
+    onSelect: runSnapAction,
+    isActionDisabled: (actionId) => isGraphSnapActionDisabled(actionId, selectedNodeIds),
+  })
+
   useImperativeHandle(ref, () => ({
     focusSelectionIntoView,
     openPalette,
@@ -4112,7 +4678,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     selectedNodeId: null,
     glueTargetId: null,
     glueNodeId: null,
-    viewportNavigateMode: false,
+    canvasInteractionMode: DEFAULT_CANVAS_INTERACTION_MODE,
     scene,
   })
   graphShortcutRefs.current = {
@@ -4121,39 +4687,11 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     selectedNodeId,
     glueTargetId,
     glueNodeId,
-    viewportNavigateMode,
+    canvasInteractionMode,
     scene,
   }
 
-  useGraphCanvasShortcutHandlers({
-    refs: graphShortcutRefs.current,
-    isPaletteOpen,
-    endLinkDraft,
-    openPalette,
-    onClearSelection,
-    onSelectAllNodesShortcut,
-    focusSelectionIntoView,
-    setGlueNodeId,
-    setViewportNavigateMode,
-    onCloseCodePanelShortcut,
-    onNeekoDropCode,
-    setStructureCardResizeModifierActive,
-  })
-
-  const contextMenuItems = useMemo(() => {
-    if (!contextMenu) {
-      return []
-    }
-
-    const stubCatalogNodeId =
-      contextMenu.target.type === 'element' || contextMenu.target.type === 'node'
-        ? contextMenu.target.nodeId
-        : selectedNodeId
-    const stubCatalogSchemaId = scene.nodes.find((node) => node.id === stubCatalogNodeId)?.node.schema.id
-    const contextNode =
-      contextMenu.target.type === 'node'
-        ? scene.nodes.find((node) => node.id === contextMenu.target.nodeId)
-        : undefined
+  const canvasContextMenuBuildContext = useMemo((): CanvasContextMenuBuildContext => {
     const sceneBodyCollapsedFlags = scene.nodes.map((node) =>
       isNodeBodyEffectivelyCollapsed(node, compactElementVisibility),
     )
@@ -4161,23 +4699,17 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       sceneBodyCollapsedFlags.length > 0 && sceneBodyCollapsedFlags.every(Boolean)
     const sceneAnyNodeBodyCollapsed = sceneBodyCollapsedFlags.some(Boolean)
 
-    return buildContextMenuItems(contextMenu.target, {
+    return {
       canRedo,
       canUndo,
       glueNodeId,
       hasSelectAll: scene.nodes.some((node) => isNodeVisibleOnCanvas(node, compactElementVisibility, scene)),
-      isNodeBodyCollapsed: contextNode
-        ? isNodeBodyEffectivelyCollapsed(contextNode, compactElementVisibility)
-        : false,
       onCycleConnectionRouting,
       onSetConnectionRouting,
       onRemoveConnection,
-      parameterStubCatalog: stubCatalogSchemaId
-        ? schemaBaseParameterCatalogBySchemaId?.[stubCatalogSchemaId]
-        : undefined,
       scene,
       selectedNodeIds,
-      viewportNavigateMode,
+      canvasInteractionMode,
       toolbarVisibility,
       hasPendingLink: Boolean(pendingLink),
       hasInspectorSlot: Boolean(viewportControlsSlot),
@@ -4204,11 +4736,24 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
               canRemove: Boolean(onRemoveBlockParameter),
             }
           : undefined,
-    })
+      onRequestBlockSlashCommand:
+        onSaveBlockSlashCommand || onRemoveBlockSlashCommand
+          ? (nodeId, action) => {
+              if (action === 'add') {
+                const canvasNode = scene.nodes.find((node) => node.id === nodeId)
+                const blockName = canvasNode?.blockStructure?.blockName ?? 'Block'
+                setSlashCommandAddDialog({ nodeId, suggestedName: blockName })
+                return
+              }
+
+              refreshSlashCommandsCatalog()
+              setSlashCommandRemovePickerOpen(true)
+            }
+          : undefined,
+    }
   }, [
     canRedo,
     canUndo,
-    contextMenu,
     t,
     glueNodeId,
     compactElementVisibility,
@@ -4216,10 +4761,9 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     onSetConnectionRouting,
     onRemoveConnection,
     scene,
-    schemaBaseParameterCatalogBySchemaId,
     selectedNodeId,
     selectedNodeIds,
-    viewportNavigateMode,
+    canvasInteractionMode,
     toolbarVisibility,
     pendingLink,
     viewportControlsSlot,
@@ -4234,11 +4778,53 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     onAddBlockParameterFromCatalog,
     onRemoveBlockParameter,
     onEditBlockParameter,
+    onSaveBlockSlashCommand,
+    onRemoveBlockSlashCommand,
+    refreshSlashCommandsCatalog,
+  ])
+
+  const contextMenuItems = useMemo(() => {
+    if (!contextMenu) {
+      return []
+    }
+
+    const stubCatalogNodeId =
+      contextMenu.target.type === 'element' || contextMenu.target.type === 'node'
+        ? contextMenu.target.nodeId
+        : selectedNodeId
+    const stubCatalogSchemaId = scene.nodes.find((node) => node.id === stubCatalogNodeId)?.node.schema.id
+    const contextNode =
+      contextMenu.target.type === 'node'
+        ? scene.nodes.find((node) => node.id === contextMenu.target.nodeId)
+        : undefined
+
+    return buildContextMenuItems(contextMenu.target, {
+      ...canvasContextMenuBuildContext,
+      isNodeBodyCollapsed: contextNode
+        ? isNodeBodyEffectivelyCollapsed(contextNode, compactElementVisibility)
+        : false,
+      parameterStubCatalog: stubCatalogSchemaId
+        ? schemaBaseParameterCatalogBySchemaId?.[stubCatalogSchemaId]
+        : undefined,
+    })
+  }, [
+    canvasContextMenuBuildContext,
+    compactElementVisibility,
+    contextMenu,
+    schemaBaseParameterCatalogBySchemaId,
+    scene.nodes,
+    selectedNodeId,
   ])
 
   const runContextMenuAction = useCallback(
-    (actionId: ContextMenuItemId) => {
-      const target = contextMenu?.target
+    (
+      actionId: ContextMenuItemId,
+      execution?: {
+        target?: CanvasContextTarget
+        anchor?: { left: number; top: number }
+      },
+    ) => {
+      const target = execution?.target ?? contextMenu?.target
 
       if (!target) {
         return
@@ -4264,17 +4850,17 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       }
 
       switch (actionId) {
-        case 'canvas.addNode': {
-          const canvasEl = canvasRef.current
-          const anchor = contextMenu?.anchor
-
-          if (canvasEl && anchor) {
-            openPalette(graphClientToPosition(canvasEl, scale, anchor.left, anchor.top))
-          } else {
-            openPalette()
-          }
+        case 'canvas.addNode':
           break
-        }
+        case 'canvas.addNode.node':
+          openPalette({ catalogMode: 'nodes' })
+          break
+        case 'canvas.addNode.block':
+          openPalette({ catalogMode: 'blocks' })
+          break
+        case 'canvas.addNode.addon':
+          openPalette({ catalogMode: 'addons' })
+          break
         case 'canvas.zoomIn':
           zoomIn()
           break
@@ -4314,7 +4900,20 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
           onGraphsToCode?.()
           break
         case 'canvas.toggleNavigateMode':
-          setViewportNavigateMode((active) => !active)
+          setCanvasInteractionMode((current) =>
+            current === 'navigate' ? DEFAULT_CANVAS_INTERACTION_MODE : 'navigate',
+          )
+          break
+        case 'canvas.navegacao':
+          break
+        case 'canvas.setInteractionMode.tweak':
+          setCanvasInteractionMode('tweak')
+          break
+        case 'canvas.setInteractionMode.selectBox':
+          setCanvasInteractionMode('selectBox')
+          break
+        case 'canvas.setInteractionMode.navigate':
+          setCanvasInteractionMode('navigate')
           break
         case 'canvas.toggleLegend':
           setToolbarVisibility((current) => toggleToolbarVisibility(current, 'legend'))
@@ -4347,11 +4946,14 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
           onShowCanvasGridChange?.(!showCanvasGrid)
           onCanvasGridChange?.({ showCanvasGrid: !showCanvasGrid })
           break
-        case 'canvas.openGridControl':
-          if (contextMenu?.anchor) {
-            setGridControlAnchor(contextMenu.anchor)
+        case 'canvas.openGridControl': {
+          const anchor = execution?.anchor ?? contextMenu?.anchor
+
+          if (anchor) {
+            setGridControlAnchor(anchor)
           }
           break
+        }
         case 'canvas.exibir':
           break
         case 'node.toggleBodyCollapse':
@@ -4381,7 +4983,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
           break
         case 'node.glue':
           if (target.type === 'node') {
-            setGlueNodeId((existing) => (existing === target.nodeId ? null : target.nodeId))
+            toggleGlueForNode(target.nodeId)
           }
           break
         case 'node.delete':
@@ -4479,6 +5081,19 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
             setBlockParameterAnchorNodeId(target.nodeId)
             setBlockParameterPanelRequest({ nodeId: target.nodeId, panel: 'remove' })
           }
+          break
+        case 'node.slashCommands':
+          break
+        case 'node.slashCommands.add':
+          if (target.type === 'node') {
+            const canvasNode = scene.nodes.find((node) => node.id === target.nodeId)
+            const blockName = canvasNode?.blockStructure?.blockName ?? 'Block'
+            setSlashCommandAddDialog({ nodeId: target.nodeId, suggestedName: blockName })
+          }
+          break
+        case 'node.slashCommands.remove':
+          refreshSlashCommandsCatalog()
+          setSlashCommandRemovePickerOpen(true)
           break
         case 'node.viewGroupCode':
           if (target.type === 'node') {
@@ -4749,9 +5364,100 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     ],
   )
 
+  const gridContextSnapMenuBackLabel = useMemo(
+    () => t(SNAP_MENU_BACK_LABEL.langId, SNAP_MENU_BACK_LABEL.fallback),
+    [t],
+  )
+  const gridContextSnapMenuTitle = useMemo(
+    () => t(GRAPH_GRID_CONTEXT_MENU_TITLE.langId, GRAPH_GRID_CONTEXT_MENU_TITLE.fallback),
+    [t],
+  )
+  const gridContextSnapMenuActions = useMemo(
+    () =>
+      contextMenuItemsToSnapActions(
+        buildContextMenuItems({ type: 'canvas' }, canvasContextMenuBuildContext),
+        { backLabel: gridContextSnapMenuBackLabel },
+      ),
+    [canvasContextMenuBuildContext, gridContextSnapMenuBackLabel],
+  )
+
+  const gridContextSnapMenu = useSnapMenu<ContextMenuItemId>({
+    actions: gridContextSnapMenuActions,
+    title: gridContextSnapMenuTitle,
+    openChord: { key: 'g', modifiers: ['shift'] },
+    holdRelease: true,
+    canOpen: isPointerOnCanvasGrid,
+    showPolygonVisual: false,
+    showActiveBar: false,
+    titleUpdatesWithActiveAction: false,
+    resolveAnchor: () => {
+      const viewport = viewportBodyRef.current
+      const fallback = viewport?.getBoundingClientRect()
+
+      return {
+        left: lastPointerClientRef.current.x || (fallback ? fallback.left + fallback.width / 2 : 0),
+        top: lastPointerClientRef.current.y || (fallback ? fallback.top + fallback.height / 2 : 0),
+      }
+    },
+    onSelect: (actionId) => {
+      const viewport = viewportBodyRef.current
+      const fallback = viewport?.getBoundingClientRect()
+      const anchor = {
+        left: lastPointerClientRef.current.x || (fallback ? fallback.left + fallback.width / 2 : 0),
+        top: lastPointerClientRef.current.y || (fallback ? fallback.top + fallback.height / 2 : 0),
+      }
+
+      runContextMenuAction(actionId, {
+        target: { type: 'canvas' },
+        anchor,
+      })
+    },
+  })
+
+  useEffect(() => {
+    if (graphSnapMenu.isOpen) {
+      gridContextSnapMenu.close()
+    }
+  }, [graphSnapMenu.isOpen, gridContextSnapMenu.close])
+
+  useEffect(() => {
+    if (gridContextSnapMenu.isOpen) {
+      graphSnapMenu.close()
+    }
+  }, [gridContextSnapMenu.isOpen, graphSnapMenu.close])
+
+  useGraphCanvasShortcutHandlers({
+    refs: graphShortcutRefs.current,
+    isPaletteOpen,
+    isSlashCommandPickerOpen,
+    isSnapMenuOpen: graphSnapMenu.isOpen || gridContextSnapMenu.isOpen,
+    endLinkDraft,
+    openPalette,
+    openSlashCommandPicker,
+    closeSnapMenu: () => {
+      graphSnapMenu.close()
+      gridContextSnapMenu.close()
+    },
+    onClearSelection,
+    onSelectAllNodesShortcut,
+    focusSelectionIntoView,
+    activateGlueNode,
+    deactivateGlueNode,
+    setCanvasInteractionMode,
+    onCloseCodePanelShortcut,
+    onNeekoDropCode,
+    setStructureCardResizeModifierActive,
+  })
+
   const handleContextMenu = useCallback(
     (event: MouseEvent) => {
       if (isParameterPickerOpen()) {
+        return
+      }
+
+      if (event.ctrlKey || event.metaKey) {
+        event.preventDefault()
+        event.stopPropagation()
         return
       }
 
@@ -4884,11 +5590,19 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       }
 
       const projected = graphClientToPosition(canvas, scale, pointerEvent.clientX, pointerEvent.clientY)
+      const offset = gluePointerOffsetRef.current ?? { x: 0, y: 0 }
 
-      onMoveNode(glueNodeId, projected, {
+      onMoveNode(
+        glueNodeId,
+        {
+          x: projected.x - offset.x,
+          y: projected.y - offset.y,
+        },
+        {
         axisLock: '',
-        snapGrid: pointerEvent.ctrlKey || pointerEvent.metaKey,
-      })
+          snapGrid: pointerEvent.ctrlKey || pointerEvent.metaKey,
+        },
+      )
     }
 
     window.addEventListener('pointermove', reposition)
@@ -4904,15 +5618,26 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       className={[
         styles.viewport,
         attachedViewport ? styles.viewportAttached : '',
-        showCanvasGrid ? '' : styles.viewportNoGrid,
+        gridPresentation.showCanvasGrid ? '' : styles.viewportNoGrid,
+        gridPresentation.canvasGridCheckerEnabled ? styles.viewportGridChecker : '',
+        gridPresentation.showCanvasGrid && gridPresentation.canvasGridLineColorEnabled
+          ? styles.viewportGridColoredLines
+          : '',
+        isCanvasPanCursorMode(canvasInteractionMode)
+          ? styles.viewportPanCursor
+          : styles.viewportDefaultCursor,
       ]
         .filter(Boolean)
         .join(' ')}
       ref={viewportRef}
       style={
         {
-          '--canvas-grid-step': `${resolvedGridSize}px`,
+          '--canvas-grid-step': `${gridPresentation.canvasGridSize}px`,
           '--canvas-grid-line-strength': String(gridLineStrength),
+          '--canvas-grid-h-line': gridPresentation.horizontalLinePaint,
+          '--canvas-grid-v-line': gridPresentation.verticalLinePaint,
+          '--canvas-grid-checker-a': gridPresentation.resolvedCheckerColorA,
+          '--canvas-grid-checker-b': gridPresentation.resolvedCheckerColorB,
         } as CSSProperties
       }
     >
@@ -4962,9 +5687,14 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
               {' · '}arrastar à grade vazia adiciona nó · vazio/Esc cancela
             </span>
           ) : null}
-          {!toolbarChromeHost && !toolbarCollapsed && toolbarVisibility.navigateHint && viewportNavigateMode ? (
+          {!toolbarChromeHost && !toolbarCollapsed && toolbarVisibility.navigateHint && canvasInteractionMode === 'navigate' ? (
             <span className={styles.linkStatus}>
-              modo mover na grade · arrastar para deslocar · clique vazio ou Esc para sair
+              modo mover na grade · arrastar para deslocar · W ou Esc para sair
+            </span>
+          ) : null}
+          {!toolbarChromeHost && !toolbarCollapsed && canvasInteractionMode === 'selectBox' ? (
+            <span className={styles.linkStatus}>
+              {t(LangId.GraphHintSelectBoxMode, 'modo select box · arrastar na grade para seleccionar · Esc para sair')}
             </span>
           ) : null}
           {!toolbarCollapsed && toolbarVisibility.addNode ? (
@@ -5165,6 +5895,67 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
         )
       })()}
 
+      <SlashCommandPicker
+        featureFilter="blocks"
+        isOpen={isSlashCommandPickerOpen}
+        onClose={closeSlashCommandPicker}
+        onPick={handleSlashCommandPick}
+      />
+
+      <SlashCommandPicker
+        featureFilter="blocks"
+        isOpen={slashCommandRemovePickerOpen}
+        onClose={() => setSlashCommandRemovePickerOpen(false)}
+        onPick={async (command) => {
+          if (!onRemoveBlockSlashCommand) {
+            setSlashCommandRemovePickerOpen(false)
+            return
+          }
+
+          const confirmed = window.confirm(
+            t(
+              LangId.SlashCommandRemoveConfirmMessage,
+              'Remover o comando /{command} da feature {feature}?',
+              { command: command.command, feature: command.feature },
+            ),
+          )
+          if (!confirmed) {
+            return
+          }
+
+          const result = await onRemoveBlockSlashCommand(command.command)
+          setSlashCommandRemovePickerOpen(false)
+          if (!result.ok) {
+            window.alert(result.error)
+          }
+        }}
+        title={t(LangId.SlashCommandRemovePickerTitle, 'Remover slash command')}
+      />
+
+      <TextInputDialog
+        confirmLabel={t(LangId.BlockCardSlashCommandsAdd, 'Adicionar')}
+        hint={t(LangId.SlashCommandAddDialogHint, 'O nome será o comando (ex.: /MeuPreset).')}
+        initialValue={slashCommandAddDialog?.suggestedName ?? ''}
+        inputLabel={t(LangId.SlashCommandAddDialogTitle, 'Nome do comando')}
+        isOpen={slashCommandAddDialog !== null}
+        onCancel={() => setSlashCommandAddDialog(null)}
+        onConfirm={async (value) => {
+          const request = slashCommandAddDialog
+          setSlashCommandAddDialog(null)
+          if (!request || !onSaveBlockSlashCommand) {
+            return
+          }
+
+          const result = await onSaveBlockSlashCommand(request.nodeId, value)
+          if (result.ok) {
+            refreshSlashCommandsCatalog()
+          } else {
+            window.alert(result.error)
+          }
+        }}
+        title={t(LangId.SlashCommandAddDialogTitle, 'Novo slash command')}
+      />
+
       {isPaletteOpen ? (
         <AddNodePalette
           addonsCatalogEnabled={Boolean(addonDropLinkContext) || (!linkDropContext && !blockDropLinkContext)}
@@ -5177,12 +5968,18 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
               : undefined
           }
           initialCatalogMode={
-            addonDropLinkContext ? 'addons' : blockDropLinkContext ? 'blocks' : 'nodes'
+            addonDropLinkContext
+              ? 'addons'
+              : blockDropLinkContext
+                ? 'blocks'
+                : paletteInitialCatalogMode
           }
           onClose={closePalette}
           onPickAddon={handlePaletteAddonPick}
           onPickBlock={handlePaletteBlockPick}
+          onPickSlashCommand={handlePaletteSlashCommandPick}
           onPickSchema={handlePalettePick}
+          onRefreshSlashCommands={refreshSlashCommandsCatalog}
           onSyncBlockParameterCatalog={onSyncBlockParameterCatalog}
           packFolderBySchemaId={schemaPackFolderBySchemaId}
           jsonRelativePathBySchemaId={schemaJsonRelativePathBySchemaId}
@@ -5253,6 +6050,37 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
         />
       ) : null}
 
+      {graphSnapMenu.isOpen && graphSnapMenu.anchor ? (
+        <SnapMenu
+          actions={graphSnapMenu.actions}
+          anchor={graphSnapMenu.anchor}
+          disabledActionIds={graphSnapMenu.disabledActionIds}
+          onActiveActionChange={graphSnapMenu.setActiveActionId}
+          onClose={graphSnapMenu.close}
+          onSelect={graphSnapMenu.handleSelect}
+          renderIcon={renderGraphSnapMenuIcon}
+          showActiveBar={graphSnapMenu.showActiveBar}
+          showPolygonVisual={graphSnapMenu.showPolygonVisual}
+          title={graphSnapMenu.title}
+          titleUpdatesWithActiveAction={graphSnapMenu.titleUpdatesWithActiveAction}
+        />
+      ) : null}
+
+      {gridContextSnapMenu.isOpen && gridContextSnapMenu.anchor ? (
+        <SnapMenu
+          actions={gridContextSnapMenu.actions}
+          anchor={gridContextSnapMenu.anchor}
+          disabledActionIds={gridContextSnapMenu.disabledActionIds}
+          onActiveActionChange={gridContextSnapMenu.setActiveActionId}
+          onClose={gridContextSnapMenu.close}
+          onSelect={gridContextSnapMenu.handleSelect}
+          showActiveBar={gridContextSnapMenu.showActiveBar}
+          showPolygonVisual={gridContextSnapMenu.showPolygonVisual}
+          title={gridContextSnapMenu.title}
+          titleUpdatesWithActiveAction={gridContextSnapMenu.titleUpdatesWithActiveAction}
+        />
+      ) : null}
+
       {gridControlAnchor ? (
         <CanvasGridControlPanel
           anchor={gridControlAnchor}
@@ -5260,15 +6088,29 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
           onClose={() => setGridControlAnchor(null)}
           state={resolveCanvasGridControlState({
             showCanvasGrid,
-            canvasGridSize: resolvedGridSize,
-            canvasGridOpacity: resolvedGridOpacity,
+            canvasGridSize,
+            canvasGridOpacity,
+            canvasGridLineColorEnabled,
+            canvasGridHorizontalLineColor,
+            canvasGridVerticalLineColor,
+            canvasGridCheckerEnabled,
+            canvasGridCheckerColorA,
+            canvasGridCheckerColorB,
           })}
         />
       ) : null}
 
       <div
         aria-label="Graph viewport navigation area"
-        className={styles.viewportBody}
+        className={[
+          styles.viewportBody,
+          'ngl-canvas-grid-host',
+          isCanvasPanCursorMode(canvasInteractionMode)
+            ? styles.viewportPanCursor
+            : styles.viewportDefaultCursor,
+        ]
+          .filter(Boolean)
+          .join(' ')}
         onContextMenu={handleContextMenu}
         onPointerCancel={handleViewportPointerUp}
         onPointerDown={handleViewportPointerDown}
@@ -5303,6 +6145,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
         {...{ [GRAPH_CANVAS_SCOPE_ATTR]: GRAPH_CANVAS_SCOPE_ID }}
       >
       <div className={styles.canvas} ref={canvasRef} style={canvasStyle}>
+        <Canvas2DCursor position={cursor2DPosition} />
         <RitualNeekoStagingPreview />
         <svg
           className={styles.connections}
@@ -5558,6 +6401,8 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
           }
 
           const nodeLocked = isNodeLocked(canvasNode)
+          const nodeGlueLocked = glueNodeId === canvasNode.id
+          const nodeInteractionLocked = nodeLocked || nodeGlueLocked
           const isSelected = selectedNodeIds.includes(canvasNode.id)
           const cardHandlesSelection =
             (canvasNode.groupViewActive && !!canvasNode.groupStructure) ||
@@ -5618,7 +6463,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
                   canvasNode={canvasNode}
                   scene={scene}
                   selected={isSelected}
-                  interactionLocked={nodeLocked}
+                  interactionLocked={nodeInteractionLocked}
                   activeAddonSlotId={addonLinks.pendingAddonLink?.fromAddonSlotId}
                   onGraphStateMutation={(nodeId, outputs) =>
                     onApplyAddonOutputs?.(nodeId, outputs)
@@ -5681,7 +6526,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
                     onSelectNode(canvasNode.id, { additive: Boolean(event?.shiftKey) })
                   }
                   onStartDrag={
-                    nodeLocked ? undefined : (event) => startNodeDrag(event, canvasNode)
+                    nodeInteractionLocked ? undefined : (event) => startNodeDrag(event, canvasNode)
                   }
                 />
               ) : canvasNode.groupViewActive && canvasNode.groupStructure ? (
@@ -5689,7 +6534,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
                 canvasNode={canvasNode}
                 scene={scene}
                 selected={isSelected}
-                interactionLocked={nodeLocked}
+                interactionLocked={nodeInteractionLocked}
                 activeGroupSlotId={pendingGroupLink?.fromGroupSlotId}
                 blockWirelessDisplay={groupWirelessDisplayByNode.get(canvasNode.id)}
                 blockWirelessPulseSlotId={
@@ -5739,13 +6584,15 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
                 onGroupSlotWirelessHoverEnd={handleGroupSlotWirelessHoverEnd}
                 onGroupSlotCycleRouting={onCycleConnectionRouting}
                 canvasScale={scale}
-                structureCardResizeModifierActive={structureCardResizeModifierActive}
+                structureCardResizeModifierActive={
+                  structureCardResizeModifierActive && !glueModeActive
+                }
                 onStructureCardResize={({ width, positionX }) =>
                   onSetStructureCardWidth?.(canvasNode.id, width, positionX)
                 }
                 onSelect={(event) => onSelectNode(canvasNode.id, { additive: Boolean(event?.shiftKey) })}
                 onStartDrag={
-                  nodeLocked ? undefined : (event) => startNodeDrag(event, canvasNode)
+                  nodeInteractionLocked ? undefined : (event) => startNodeDrag(event, canvasNode)
                 }
               />
             ) : canvasNode.blockViewActive && canvasNode.blockStructure ? (
@@ -5753,7 +6600,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
                 canvasNode={canvasNode}
                 scene={scene}
                 selected={isSelected}
-                interactionLocked={nodeLocked}
+                interactionLocked={nodeInteractionLocked}
                 activeBlockSlotId={pendingBlockLink?.fromBlockSlotId}
                 blockWirelessDisplay={blockWirelessDisplayByNode.get(canvasNode.id)}
                 blockWirelessPulseSlotId={
@@ -5838,7 +6685,9 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
                 onBlockOutputSlotConnectionIndexChange={(slotId, index) =>
                   handleBlockOutputSlotConnectionIndexChange(canvasNode.id, slotId, index)
                 }
-                slotToolsEnabled={blockSlotToolsEnabledNodes.has(canvasNode.id)}
+                slotToolsEnabled={
+                  nodeGlueLocked ? false : blockSlotToolsEnabledNodes.has(canvasNode.id)
+                }
                 onSlotToolsEnabledChange={(enabled) => {
                   setBlockSlotToolsEnabledNodes((current) => {
                     const next = new Set(current)
@@ -5861,16 +6710,18 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
                     : undefined
                 }
                 canvasScale={scale}
-                structureCardResizeModifierActive={structureCardResizeModifierActive}
+                structureCardResizeModifierActive={
+                  structureCardResizeModifierActive && !glueModeActive
+                }
                 onStructureCardResize={({ width, positionX }) =>
                   onSetStructureCardWidth?.(canvasNode.id, width, positionX)
                 }
                 onSelect={(event) => onSelectNode(canvasNode.id, { additive: Boolean(event?.shiftKey) })}
                 onStartDrag={
-                  nodeLocked ? undefined : (event) => startNodeDrag(event, canvasNode)
+                  nodeInteractionLocked ? undefined : (event) => startNodeDrag(event, canvasNode)
                 }
                 onAddParameterFromCatalog={
-                  nodeLocked || !onAddBlockParameterFromCatalog
+                  nodeInteractionLocked || !onAddBlockParameterFromCatalog
                     ? undefined
                     : (doc) => {
                         const result = onAddBlockParameterFromCatalog(canvasNode.id, doc)
@@ -5880,12 +6731,12 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
                       }
                 }
                 onRemoveParameter={
-                  nodeLocked || !onRemoveBlockParameter
+                  nodeInteractionLocked || !onRemoveBlockParameter
                     ? undefined
                     : (paramId) => onRemoveBlockParameter(canvasNode.id, paramId)
                 }
                 onEditParameter={
-                  nodeLocked || !onEditBlockParameter
+                  nodeInteractionLocked || !onEditBlockParameter
                     ? undefined
                     : (param, screenAnchor) => {
                         const anchor = screenAnchor ?? blockParameterScreenAnchor ?? undefined
@@ -6013,7 +6864,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
                 }
                 onSelect={(event) => onSelectNode(canvasNode.id, { additive: Boolean(event?.shiftKey) })}
                 onStartDrag={
-                  nodeLocked ? undefined : (event) => startNodeDrag(event, canvasNode)
+                  nodeInteractionLocked ? undefined : (event) => startNodeDrag(event, canvasNode)
                 }
                 onReorderNodeParameter={
                   onSetNodeParameterOrder
@@ -6094,3 +6945,5 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     </section>
   )
 })
+
+GraphCanvas.displayName = 'GraphCanvas'

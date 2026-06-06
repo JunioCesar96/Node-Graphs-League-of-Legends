@@ -252,6 +252,10 @@ describe('sceneNodesStatePresets', () => {
     expect(isNodeVisibleOnCanvas(childA, compactVisibility)).toBe(true)
   })
 
+  it('parseSceneChrome aceita toolbarCollapsed false', () => {
+    expect(parseSceneChrome({ toolbarCollapsed: false })).toEqual({ toolbarCollapsed: false })
+  })
+
   it('parseSceneChrome round-trip com presets', () => {
     const preset = createSceneNodesStatePreset('Layout A', {
       width: 1120,

@@ -1,3 +1,5 @@
+import { buildThemesDialogLabels } from '@/core/language/themesDialogLabels'
+import { useLanguage } from '@/language/LanguageProvider'
 import SettingsDialog from '@jade/components/SettingsDialog'
 import PreferencesDialog from '@jade/components/PreferencesDialog'
 import ThemesDialog from '@jade/components/ThemesDialog'
@@ -28,6 +30,8 @@ export function CodeDockJadeDialogs({
   primarySelectedNodeId = null,
   onReplaceValueToGraph,
 }: CodeDockJadeDialogsProps) {
+  const { t } = useLanguage()
+  const themesDialogLabels = buildThemesDialogLabels(t)
   const { capabilities, httpBridgeEnabled } = useJadeBridgeCapabilities()
   const bridgeFeatures = httpBridgeEnabled ? capabilities?.features : undefined
 
@@ -110,8 +114,19 @@ export function CodeDockJadeDialogs({
       <ThemesDialog
         hideWorkspaceSection
         isOpen={editor.showThemes}
+        labels={themesDialogLabels}
         onClose={() => editor.setShowThemes(false)}
         onThemeApplied={editor.onThemeApplied}
+        scope="jade"
+      />
+
+      <ThemesDialog
+        hideWorkspaceSection
+        isOpen={editor.showNativeThemes}
+        labels={themesDialogLabels}
+        onClose={() => editor.setShowNativeThemes(false)}
+        onThemeApplied={editor.onThemeApplied}
+        scope="native"
       />
 
       <AboutDialog isOpen={editor.showAbout} onClose={() => editor.setShowAbout(false)} />

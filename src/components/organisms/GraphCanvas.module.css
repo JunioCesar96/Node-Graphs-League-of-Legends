@@ -1,6 +1,14 @@
 .viewport {
   --canvas-grid-step: 32px;
   --canvas-grid-line-strength: 1;
+  --canvas-grid-checker-fill: repeating-conic-gradient(
+    from 90deg at 50% 50%,
+    var(--canvas-grid-checker-a) 0deg 90deg,
+    var(--canvas-grid-checker-b) 90deg 180deg,
+    var(--canvas-grid-checker-a) 180deg 270deg,
+    var(--canvas-grid-checker-b) 270deg 360deg
+  );
+  --canvas-grid-checker-fill-size: calc(var(--canvas-grid-step) * 2) calc(var(--canvas-grid-step) * 2);
 
   position: relative;
   display: flex;
@@ -38,13 +46,90 @@
   border: 1px solid var(--color-border-soft);
   border-radius: 28px;
   box-shadow: inset 0 1px 0 rgb(255 255 255 / 5%);
-  cursor: grab;
   touch-action: none;
   user-select: none;
 }
 
-.viewport:active {
+.viewportDefaultCursor {
+  cursor: default;
+}
+
+.viewportPanCursor {
+  cursor: grab;
+}
+
+.viewportPanCursor:active {
   cursor: grabbing;
+}
+
+.viewportGridChecker {
+  background:
+    linear-gradient(
+        color-mix(
+          in srgb,
+          var(--canvas-grid-line) calc(var(--canvas-grid-line-strength) * 100%),
+          transparent
+        )
+        1px,
+        transparent 1px
+      ),
+    linear-gradient(
+        90deg,
+        color-mix(
+          in srgb,
+          var(--canvas-grid-line) calc(var(--canvas-grid-line-strength) * 100%),
+          transparent
+        )
+        1px,
+        transparent 1px
+      ),
+    var(--canvas-grid-checker-fill);
+  background-size:
+    var(--canvas-grid-step) var(--canvas-grid-step),
+    var(--canvas-grid-step) var(--canvas-grid-step),
+    var(--canvas-grid-checker-fill-size);
+}
+
+.viewportGridColoredLines {
+  background:
+    repeating-linear-gradient(
+      to bottom,
+      var(--canvas-grid-h-line) 0,
+      var(--canvas-grid-h-line) 1px,
+      transparent 1px,
+      transparent var(--canvas-grid-step)
+    ),
+    repeating-linear-gradient(
+      to right,
+      var(--canvas-grid-v-line) 0,
+      var(--canvas-grid-v-line) 1px,
+      transparent 1px,
+      transparent var(--canvas-grid-step)
+    ),
+    var(--canvas-grid-base);
+}
+
+.viewportGridColoredLines.viewportGridChecker {
+  background:
+    repeating-linear-gradient(
+      to bottom,
+      var(--canvas-grid-h-line) 0,
+      var(--canvas-grid-h-line) 1px,
+      transparent 1px,
+      transparent var(--canvas-grid-step)
+    ),
+    repeating-linear-gradient(
+      to right,
+      var(--canvas-grid-v-line) 0,
+      var(--canvas-grid-v-line) 1px,
+      transparent 1px,
+      transparent var(--canvas-grid-step)
+    ),
+    var(--canvas-grid-checker-fill);
+  background-size:
+    auto,
+    auto,
+    var(--canvas-grid-checker-fill-size);
 }
 
 .viewportAttached {
@@ -78,6 +163,76 @@
   border-top: none;
   border-radius: 0;
   box-shadow: none;
+}
+
+.viewportAttached.viewportGridChecker {
+  background:
+    linear-gradient(
+        color-mix(
+          in srgb,
+          var(--canvas-grid-line) calc(var(--canvas-grid-line-strength) * 100%),
+          transparent
+        )
+        1px,
+        transparent 1px
+      ),
+    linear-gradient(
+        90deg,
+        color-mix(
+          in srgb,
+          var(--canvas-grid-line) calc(var(--canvas-grid-line-strength) * 100%),
+          transparent
+        )
+        1px,
+        transparent 1px
+      ),
+    var(--canvas-grid-checker-fill);
+  background-size:
+    var(--canvas-grid-step) var(--canvas-grid-step),
+    var(--canvas-grid-step) var(--canvas-grid-step),
+    var(--canvas-grid-checker-fill-size);
+}
+
+.viewportAttached.viewportGridColoredLines {
+  background:
+    repeating-linear-gradient(
+      to bottom,
+      var(--canvas-grid-h-line) 0,
+      var(--canvas-grid-h-line) 1px,
+      transparent 1px,
+      transparent var(--canvas-grid-step)
+    ),
+    repeating-linear-gradient(
+      to right,
+      var(--canvas-grid-v-line) 0,
+      var(--canvas-grid-v-line) 1px,
+      transparent 1px,
+      transparent var(--canvas-grid-step)
+    ),
+    transparent;
+}
+
+.viewportAttached.viewportGridColoredLines.viewportGridChecker {
+  background:
+    repeating-linear-gradient(
+      to bottom,
+      var(--canvas-grid-h-line) 0,
+      var(--canvas-grid-h-line) 1px,
+      transparent 1px,
+      transparent var(--canvas-grid-step)
+    ),
+    repeating-linear-gradient(
+      to right,
+      var(--canvas-grid-v-line) 0,
+      var(--canvas-grid-v-line) 1px,
+      transparent 1px,
+      transparent var(--canvas-grid-step)
+    ),
+    var(--canvas-grid-checker-fill);
+  background-size:
+    auto,
+    auto,
+    var(--canvas-grid-checker-fill-size);
 }
 
 .canvas {
@@ -515,11 +670,6 @@
   position: relative;
   flex: 1;
   min-height: 540px;
-  cursor: grab;
-}
-
-.viewportBody:active {
-  cursor: grabbing;
 }
 
 .marqueeFrame {

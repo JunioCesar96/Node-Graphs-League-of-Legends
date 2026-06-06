@@ -130,6 +130,9 @@ export function GroupCard({
         if (interactionLocked || !isStructureCardDragTarget(event.target)) {
           return
         }
+        if (onStartDrag) {
+          return
+        }
         onSelect?.(event)
       }}
       onPointerDown={(event) => {

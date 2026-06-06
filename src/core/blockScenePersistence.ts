@@ -1,12 +1,19 @@
 import type { CanvasNode, CanvasScene } from './canvasScene'
+import {
+  normalizeBlockHeaderSlots,
+  resolveBlockHeaderSlotsForStructure,
+} from './blockCardHeaderSlots'
 import type {
   BlockParameterDef,
   BlockParameterSourcePath,
   BlockSlotRules,
+  BlockStructureAppearance,
   BlockStructurePayload,
 } from './blockSchema'
 import { isBlockTokenValue } from './blockSchema'
 import { resolveBlockIconHint } from './blockInspectorUi'
+import { blockDefinitionByBlockName } from './blockDefinitionRegistry'
+import { blockTypeDefinitionById } from './blockStructureRegistry'
 import {
   nodeParameterValue,
   resolveBlockParameterValue,
@@ -27,6 +34,13 @@ export type StoredBlockParameterRef = {
   name?: string
   slots?: { out?: string[]; in?: string[] }
   iconId?: string
+  listParameter?: boolean
+}
+
+export type StoredSceneBlockAppearance = {
+  color?: string
+  headerSlots?: string[]
+  parentBlockField?: string
 }
 
 /** Entrada no array `blocks` do documento de cena v2. */
@@ -35,6 +49,7 @@ export type StoredSceneBlockEntry = {
   type: string
   name: string
   viewActive?: boolean
+  appearance?: StoredSceneBlockAppearance
   parameters: StoredBlockParameterRef[]
 }
 
@@ -101,6 +116,27 @@ function storedSlotsFromRules(slotRules?: BlockSlotRules): StoredBlockParameterR
   }
 }
 
+function slotRulesForStoredParameterRef(
+  ref: StoredBlockParameterRef,
+  ritualName: string,
+): BlockSlotRules | undefined {
+  const fromStored = slotRulesFromStored(ref.slots)
+  if (ref.source.kind !== 'pointerChild') {
+    return fromStored
+  }
+
+  const outputs = fromStored?.outputs
+  const inputs = fromStored?.inputs?.length ? fromStored.inputs : [ref.name ?? ritualName]
+  if (!outputs?.length && inputs.length === 0) {
+    return undefined
+  }
+
+  return {
+    ...(outputs?.length ? { outputs } : {}),
+    inputs,
+  }
+}
+
 function slotRulesFromStored(slots?: StoredBlockParameterRef['slots']): BlockSlotRules | undefined {
   if (!slots?.out?.length && !slots?.in?.length) {
     return undefined
@@ -119,6 +155,130 @@ function runtimeParameterToStored(param: BlockParameterDef): StoredBlockParamete
     ...(param.nameParameter ? { name: param.nameParameter } : {}),
     ...(slots ? { slots } : {}),
     ...(param.iconId ? { iconId: param.iconId } : {}),
+    ...(param.listParameter ? { listParameter: true } : {}),
+  }
+}
+
+function resolveStoredBlockDefinition(
+  entry: Pick<StoredSceneBlockEntry, 'type' | 'name'>,
+): ReturnType<typeof blockDefinitionByBlockName> {
+  return blockDefinitionByBlockName(entry.name) ?? blockDefinitionByBlockName(entry.type)
+}
+
+function storedAppearanceFromStructure(
+  structure: BlockStructurePayload,
+): StoredSceneBlockAppearance | undefined {
+  const headerSlots = resolveBlockHeaderSlotsForStructure(structure)
+  const definition =
+    blockDefinitionByBlockName(structure.blockName) ?? blockDefinitionByBlockName(structure.blockType)
+  const registry = blockTypeDefinitionById(structure.blockType)
+  const color =
+    structure.appearance?.color?.trim() || definition?.color?.trim() || registry?.color?.trim()
+  const parentBlockField = structure.appearance?.parentBlockField?.trim()
+
+  if (!headerSlots.length && !color && !parentBlockField) {
+    return undefined
+  }
+
+  return {
+    ...(color ? { color } : {}),
+    ...(headerSlots.length ? { headerSlots } : {}),
+    ...(parentBlockField ? { parentBlockField } : {}),
+  }
+}
+
+function parseStoredSceneBlockAppearance(raw: unknown): StoredSceneBlockAppearance | undefined {
+  if (!isRecord(raw)) {
+    return undefined
+  }
+
+  const color = typeof raw.color === 'string' && raw.color.trim() ? raw.color.trim() : undefined
+  const parentBlockField =
+    typeof raw.parentBlockField === 'string' && raw.parentBlockField.trim()
+      ? raw.parentBlockField.trim()
+      : undefined
+
+  let headerSlots: string[] | undefined
+  if (Array.isArray(raw.headerSlots)) {
+    const parsed = raw.headerSlots
+      .filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+      .map((item) => item.trim())
+    headerSlots = parsed.length > 0 ? parsed : undefined
+  }
+
+  if (!color && !parentBlockField && !headerSlots?.length) {
+    return undefined
+  }
+
+  return {
+    ...(color ? { color } : {}),
+    ...(headerSlots ? { headerSlots } : {}),
+    ...(parentBlockField ? { parentBlockField } : {}),
+  }
+}
+
+function appearancePayloadFromStored(stored: StoredSceneBlockEntry): BlockStructureAppearance | undefined {
+  const definition = resolveStoredBlockDefinition(stored)
+  const registry = blockTypeDefinitionById(stored.type)
+  const headerSlots = stored.appearance?.headerSlots?.length
+    ? normalizeBlockHeaderSlots(stored.appearance.headerSlots)
+    : definition?.headerSlots?.length
+      ? normalizeBlockHeaderSlots(definition.headerSlots)
+      : registry?.headerSlots?.length
+        ? normalizeBlockHeaderSlots(registry.headerSlots)
+        : []
+
+  const color =
+    stored.appearance?.color?.trim() ||
+    definition?.color?.trim() ||
+    registry?.color?.trim() ||
+    '#40ff56'
+  const parentBlockField = stored.appearance?.parentBlockField?.trim()
+
+  if (!headerSlots.length && !stored.appearance) {
+    return undefined
+  }
+
+  return {
+    color,
+    headerSlots,
+    ...(parentBlockField ? { parentBlockField } : {}),
+  }
+}
+
+function mergeRestoredBlockStructure(
+  hydrated: BlockStructurePayload,
+  preserved?: BlockStructurePayload,
+): BlockStructurePayload {
+  if (!preserved) {
+    return hydrated
+  }
+
+  const mergedParameters = hydrated.parameters.map((param) => {
+    const preservedParam = preserved.parameters.find(
+      (entry) => entry.idParameter === param.idParameter,
+    )
+    if (!preservedParam) {
+      return param
+    }
+
+    return {
+      ...param,
+      ...(param.slotRules || preservedParam.slotRules
+        ? { slotRules: param.slotRules ?? preservedParam.slotRules }
+        : {}),
+      ...(param.listParameter || preservedParam.listParameter
+        ? { listParameter: param.listParameter ?? preservedParam.listParameter }
+        : {}),
+    }
+  })
+
+  const appearance = hydrated.appearance ?? preserved.appearance
+
+  return {
+    ...hydrated,
+    parameters: mergedParameters,
+    ...(appearance ? { appearance: structuredClone(appearance) } : {}),
   }
 }
 
@@ -146,14 +306,14 @@ function resolveRitualTypeFromSource(
   source: StoredBlockParameterSource,
 ): string {
   if (source.kind === 'parameter') {
-    const parameter = canvasNode.node.schema.parameters.find((entry) => entry.id === source.parameterId)
-    if (!parameter) {
-      return 'string'
-    }
     const raw = nodeParameterValue(canvasNode.node, source.parameterId)
     const parsed = parseBlockToken(raw)
     if (parsed) {
       return parsed.typeParameter
+    }
+    const parameter = canvasNode.node.schema.parameters.find((entry) => entry.id === source.parameterId)
+    if (!parameter) {
+      return 'string'
     }
     return ritualTypeFromNodeDataType(parameter.type)
   }
@@ -245,6 +405,11 @@ function resolveRitualNameFromSource(
   source: StoredBlockParameterSource,
 ): string {
   if (source.kind === 'parameter') {
+    const raw = nodeParameterValue(canvasNode.node, source.parameterId)
+    const parsed = parseBlockToken(raw)
+    if (parsed?.nameParameter) {
+      return parsed.nameParameter
+    }
     return (
       canvasNode.node.schema.parameters.find((entry) => entry.id === source.parameterId)?.name ??
       source.parameterId
@@ -281,11 +446,21 @@ function sourceExistsOnNode(
   source: StoredBlockParameterSource,
 ): boolean {
   if (source.kind === 'parameter') {
-    return canvasNode.node.schema.parameters.some((entry) => entry.id === source.parameterId)
+    return (
+      canvasNode.node.schema.parameters.some((entry) => entry.id === source.parameterId) ||
+      canvasNode.node.values.some((entry) => entry.parameterId === source.parameterId)
+    )
   }
 
   if (source.kind === 'pointerChild') {
+    if (source.pointerId.startsWith('catalog-ptr-')) {
+      return true
+    }
     return findPointerSlot(canvasNode.node.schema, source.pointerId, source.slotId) !== null
+  }
+
+  if (source.kind === 'embedChild' && source.embedId.startsWith('catalog-embed-')) {
+    return true
   }
 
   const embed = canvasNode.node.schema.embed?.find((entry) => entry.id === source.embedId)
@@ -322,11 +497,13 @@ export function extractSceneBlocksFromCanvas(scene: CanvasScene): StoredSceneBlo
     }
 
     const structure = canvasNode.blockStructure
+    const appearance = storedAppearanceFromStructure(structure)
     blocks.push({
       nodeId: canvasNode.id,
       type: structure.blockType,
       name: structure.blockName,
       ...(canvasNode.blockViewActive === false ? { viewActive: false } : {}),
+      ...(appearance ? { appearance } : {}),
       parameters: structure.parameters.map(runtimeParameterToStored),
     })
   }
@@ -413,12 +590,17 @@ function parseStoredBlockParameterRef(raw: unknown): StoredBlockParameterRef | n
     return null
   }
 
+  if (raw.listParameter !== undefined && raw.listParameter !== true) {
+    return null
+  }
+
   return {
     id: raw.id,
     source,
     ...(typeof raw.name === 'string' ? { name: raw.name } : {}),
     ...(slots ? { slots } : {}),
     ...(typeof raw.iconId === 'string' ? { iconId: raw.iconId } : {}),
+    ...(raw.listParameter === true ? { listParameter: true } : {}),
   }
 }
 
@@ -459,11 +641,14 @@ export function parseSceneBlocks(raw: unknown): StoredSceneBlockEntry[] | null {
       parameters.push(param)
     }
 
+    const appearance = parseStoredSceneBlockAppearance(item.appearance)
+
     blocks.push({
       nodeId: item.nodeId,
       type: item.type,
       name: item.name,
       ...(item.viewActive === false ? { viewActive: false } : {}),
+      ...(appearance ? { appearance } : {}),
       parameters,
     })
   }
@@ -489,10 +674,7 @@ export function hydrateBlockStructureFromStored(
     const defaultValue = resolveBlockParameterValue(scene, canvasNode, sourcePath)
     const ritualName = resolveRitualNameFromSource(scene, canvasNode, ref.source)
     const iconId = ref.iconId?.trim() ?? ''
-    const isPointer = ref.source.kind === 'pointerChild'
-    const slotRules = isPointer
-      ? { inputs: [ref.name ?? ritualName] }
-      : slotRulesFromStored(ref.slots)
+    const slotRules = slotRulesForStoredParameterRef(ref, ritualName)
 
     const param: BlockParameterDef = {
       idParameter: ref.id,
@@ -502,6 +684,7 @@ export function hydrateBlockStructureFromStored(
       ...(slotRules ? { slotRules } : {}),
       iconHint: resolveBlockIconHint(iconId),
       ...(iconId ? { iconId } : {}),
+      ...(ref.listParameter ? { listParameter: true } : {}),
       sourcePath,
     }
 
@@ -513,11 +696,14 @@ export function hydrateBlockStructureFromStored(
     )
   }
 
+  const appearance = appearancePayloadFromStored(stored)
+
   return {
     blockType: stored.type,
     blockName: stored.name,
     parameters,
     identification_codes,
+    ...(appearance ? { appearance } : {}),
   }
 }
 
@@ -544,7 +730,11 @@ export function applySceneBlocksToCanvas(
       return canvasNode
     }
 
-    const structure = hydrateBlockStructureFromStored(stored, scene, canvasNode)
+    const hydrated = hydrateBlockStructureFromStored(stored, scene, canvasNode)
+    const structure = hydrated
+      ? mergeRestoredBlockStructure(hydrated, canvasNode.blockStructure)
+      : canvasNode.blockStructure
+
     if (!structure) {
       return canvasNode
     }

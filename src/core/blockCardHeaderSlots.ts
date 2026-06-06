@@ -1,3 +1,4 @@
+import { blockDefinitionByBlockName } from './blockDefinitionRegistry'
 import type { BlockStructurePayload } from './blockSchema'
 import { blockHeaderSlotId, parseBlockHeaderSlotId } from './blockSchema'
 import { blockTypeDefinitionById } from './blockStructureRegistry'
@@ -63,16 +64,24 @@ export function parseBlockHeaderSlotDescriptor(
   return null
 }
 
-/** Slots de cabeçalho do registo antigo ou do JSON de bloco (`appearance`). */
+/** Slots de cabeçalho: `appearance` gravada, JSON de bloco, ou registo legado. */
 export function resolveBlockHeaderSlotsForStructure(structure: BlockStructurePayload): string[] {
-  const fromRegistry = blockTypeDefinitionById(structure.blockType)?.headerSlots
-  if (fromRegistry && fromRegistry.length > 0) {
-    return normalizeBlockHeaderSlots(fromRegistry)
-  }
   if (structure.appearance?.headerSlots?.length) {
     return normalizeBlockHeaderSlots(structure.appearance.headerSlots)
   }
-  return normalizeBlockHeaderSlots([])
+
+  const definition =
+    blockDefinitionByBlockName(structure.blockName) ?? blockDefinitionByBlockName(structure.blockType)
+  if (definition?.headerSlots?.length) {
+    return normalizeBlockHeaderSlots(definition.headerSlots)
+  }
+
+  const fromRegistry = blockTypeDefinitionById(structure.blockType)?.headerSlots
+  if (fromRegistry?.length) {
+    return normalizeBlockHeaderSlots(fromRegistry)
+  }
+
+  return []
 }
 
 /** Índice do slot de cabeçalho IN/OUT (suporta `input[`/`output[` e `in[`/`out[`). */

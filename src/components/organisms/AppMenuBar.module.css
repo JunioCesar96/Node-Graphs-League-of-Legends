@@ -126,13 +126,6 @@
   background: color-mix(in srgb, var(--color-text-primary) 6%, transparent);
 }
 
-.menuItemWithSubNested:hover > .menuSubPanel,
-.menuItemWithSubNested:focus-within > .menuSubPanel {
-  pointer-events: auto;
-  opacity: 1;
-  transform: translateX(0);
-}
-
 .menuCheckbox {
   display: grid;
   flex: 0 0 auto;
@@ -162,8 +155,8 @@
   position: relative;
 }
 
-.menuItemWithSub:hover .menuSubPanel,
-.menuItemWithSub:focus-within .menuSubPanel {
+.menuItemWithSub:hover > .menuSubPanel,
+.menuItemWithSub:focus-within > .menuSubPanel {
   pointer-events: auto;
   opacity: 1;
   transform: translateX(0);
@@ -172,7 +165,7 @@
 .menuSubPanel {
   position: absolute;
   top: 0;
-  left: calc(100% + 4px);
+  left: 100%;
   z-index: 25;
   display: grid;
   gap: 2px;
@@ -187,10 +180,20 @@
   border-radius: 12px;
   box-shadow: 0 16px 40px rgb(0 0 0 / 48%);
   opacity: 0;
+  margin-left: -2px;
   transform: translateX(-4px);
   transition:
     opacity 120ms ease-out,
     transform 120ms ease-out;
+}
+
+.menuSubPanel::before {
+  position: absolute;
+  top: 0;
+  left: -10px;
+  width: 10px;
+  height: 100%;
+  content: '';
 }
 
 .menuItemDisabled {

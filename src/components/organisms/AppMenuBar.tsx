@@ -1,6 +1,5 @@
 import { useRef } from 'react'
 
-import { AppMenuJadeThemeOptions } from '@/components/molecules/JadeThemeOptionsMenu'
 import { LangId } from '@/core/language/languageIds'
 import {
   clearStoredRitobinExePath,
@@ -309,15 +308,6 @@ export function AppMenuBar({
           <button className={styles.menuButton} onClick={onToggleVfxDock} type="button">
             {t(LangId.MenuVfx)}
           </button>
-        </div>
-
-        <div className={styles.menu}>
-          <button className={styles.menuButton} type="button">
-            {t(LangId.MenuOptions)}
-          </button>
-          <div className={styles.menuPanel} role="menu">
-            <AppMenuJadeThemeOptions />
-          </div>
         </div>
 
         <div className={styles.menu}>

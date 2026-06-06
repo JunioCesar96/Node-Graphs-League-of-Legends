@@ -237,6 +237,14 @@ export type SceneChromeState = {
   canvasGridSize?: number
   /** Opacidade das linhas 0–40 (predefinido: 7). */
   canvasGridOpacity?: number
+  /** Colorir linhas horizontais e verticais com cores próprias. */
+  canvasGridLineColorEnabled?: boolean
+  canvasGridHorizontalLineColor?: string
+  canvasGridVerticalLineColor?: string
+  /** Fundo em xadrez alinhado ao passo da grade. */
+  canvasGridCheckerEnabled?: boolean
+  canvasGridCheckerColorA?: string
+  canvasGridCheckerColorB?: string
 }
 
 /** Filtro activo «Mostrar apenas nós ligados» (reavaliado ao mudar índice / modo compacto). */

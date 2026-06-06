@@ -13,7 +13,6 @@ import {
   CodeDock,
   CODE_DOCK_DEFAULT_WIDTH,
   CODE_DOCK_MIN_WIDTH,
-  type CodeDockFileBridge,
 } from '@/components/organisms/CodeDock'
 import {
   VfxDock,
@@ -23,7 +22,7 @@ import {
 import { getPreference } from '@jade/lib/preferenceStore'
 import { initAppTheme } from '@/core/appTheme'
 import { refreshJadeSurfaceTheme } from '@/core/jadeSurfaceTheme'
-import { pushCodeRecentFile, readCodeRecentFiles } from '@/jade/codeRecentFiles'
+import { pushCodeRecentFile } from '@/jade/codeRecentFiles'
 import {
   NodeInstanceStringPicker,
   type NodeInstanceStringCandidate,
@@ -75,8 +74,6 @@ import {
 } from '@/core/canvasNodePresentation'
 import { stubBinStructureDocument } from '@/core/binImportStub'
 import { binTreeJsonToCanvasScene } from '@/core/ltkBinTreeScene'
-import { getStoredRitobinExePath } from '@/core/ritobinExePreference'
-import { convertBinViaRitobinExeBridge } from '@/core/ritobinInvokeBridge'
 import type { ConvertRitobinToStructuresResult } from '@/core/convertRitobinTextToNodeStructures'
 import {
   buildNodeInstanceId,
@@ -154,15 +151,14 @@ import {
 import { STORAGE_LAST_STRUCTURE_META, triggerJsonDownload } from '@/core/workspaceStorage'
 import { workspaceService } from '@/services/workspaceService'
 import {
-  CODE_DOCK_FILE_INPUT_ACCEPT,
   defaultContentForNewFile,
-  getFileExtension,
   isRitobinEditorPath,
   needsBinConversionOnOpen,
-  needsBinConversionOnSave,
   normalizeCodeDockFileName,
   sanitizeCodeDockBaseName,
 } from '@/core/codeDockFileTypes'
+import { openBinFileForCodeDock } from '@/core/codeDock/codeDockBinPipeline'
+import { bindCodeDockFileHandleToTab } from '@/core/codeDock/openCodeDockFile'
 import { applyRitualSnippetScalarsToNode } from '@/core/applyRitualSnippetScalarsToNode'
 import {
   emitNodeRitualViewCodeText,
@@ -183,13 +179,17 @@ import { useAppShortcutHandlers } from '@/shortcuts/useAppShortcutHandlers'
 import {
   ensureJadeHashesLoaded,
   getJadeEditorResolveStatus,
-  resolveBinFileForEditor,
   resolveRitualTextForEditor,
   type JadeEditorResolveStatus,
 } from '@/core/jadeEditorTextResolve'
+import {
+  prepareRitualEditorText,
+  shouldUseNativeRitualBinCodec,
+} from '@/core/ritualBin'
 import { ritualContainsVfxSystem } from '@/core/vfx/ritualParseVfx'
 import { resolveVfxRitualText } from '@/core/vfx/resolveVfxRitualText'
 import { useCodeDockTabs } from '@/hooks/useCodeDockTabs'
+import { useCodeDockFileBridge } from '@/hooks/useCodeDockFileBridge'
 import { useNeekoTransform } from '@/hooks/useNeekoTransform'
 import { RitualDragOverlay } from '@/components/molecules/RitualDragOverlay'
 import { LangId } from '@/core/language/languageIds'
@@ -454,6 +454,9 @@ function App() {
     revertBlockView,
     updateBlockParameter,
     createBlockNodeFromDefinition,
+    saveBlockSlashCommand,
+    removeBlockSlashCommand,
+    applyBlockSlashCommand,
     createAddonNode,
     applyAddonOutputsToScene,
     connectAddonSlots,
@@ -651,12 +654,10 @@ function App() {
     closeTab: closeCodeDockTab,
     codeDockFileName,
     codeText,
-    markActiveTabSaved,
-    openInTab: openCodeDockTab,
+  markTabSaved,
+  openInTab: openCodeDockTab,
     openNewTab: openNewCodeDockTab,
     renameTab: renameCodeDockTab,
-    saveTab: saveCodeDockTab,
-    setCodeDockFileName,
     setCodeText,
     tabBarItems: codeDockTabBarItems,
     tabs: codeDockTabs,
@@ -664,8 +665,6 @@ function App() {
 
   const [tabRenameTarget, setTabRenameTarget] = useState<TabRenameTarget | null>(null)
   const [newCodeFileDialogOpen, setNewCodeFileDialogOpen] = useState(false)
-  const [codeRecentFiles, setCodeRecentFiles] = useState<string[]>(() => readCodeRecentFiles())
-  const codeDockFileInputRef = useRef<HTMLInputElement>(null)
   const [nodeConfigurationMode, setNodeConfigurationMode] = useState(false)
   const [classGroupPackFolderDialogOpen, setClassGroupPackFolderDialogOpen] = useState(false)
   const [classGroupPackFolderDialogMode, setClassGroupPackFolderDialogMode] = useState<
@@ -1860,30 +1859,87 @@ function App() {
       text: string,
       fileName: string,
       via: string,
-      options?: { fullText?: boolean; suppressConvertedOpenAlert?: boolean },
+      options?: {
+        fullText?: boolean
+        suppressConvertedOpenAlert?: boolean
+        fileHandle?: FileSystemFileHandle | null
+      },
     ) => {
       const maxPreview = 500_000
       const raw =
         options?.fullText || text.length <= maxPreview
           ? text
           : `${text.slice(0, maxPreview)}\n…`
-      const status = await refreshJadeResolveStatus()
-      const unhashed = await resolveRitualTextForEditor(raw)
-      const content = unhashed.text
+
+      let content = raw
+      let resolveVia: string = via
+
+      if (shouldUseNativeRitualBinCodec()) {
+        const prepared = await prepareRitualEditorText(raw)
+        content = prepared.text
+        if (prepared.via === 'fnv-lexicon') {
+          resolveVia = `${via} + léxico FNV`
+        } else if (prepared.via === 'native-unhash') {
+          resolveVia = `${via} + unhash nativo`
+        }
+        setCodeDockJadeBanner(
+          prepared.notice
+            ? { tone: prepared.via === 'native-unhash' ? 'jade' : 'fnv', message: prepared.notice }
+            : prepared.via === 'native-unhash'
+              ? { tone: 'jade', message: 'Hashes resolvidos via motor nativo.' }
+              : null,
+        )
+      } else {
+        const status = await refreshJadeResolveStatus()
+        const unhashed = await resolveRitualTextForEditor(raw)
+        content = unhashed.text
+        applyCodeDockJadeBanner(unhashed.via, status)
+        if (unhashed.changed && unhashed.via === 'fnv-fallback' && unhashed.warning) {
+          console.warn('[ritualBin] fallback FNV:', unhashed.warning)
+        }
+      }
+
       const normalized = normalizeCodeDockFileName(fileName)
-      openCodeDockTab(content, normalized)
+      const tabId = openCodeDockTab(content, normalized)
+      if (options?.fileHandle && tabId) {
+        bindCodeDockFileHandleToTab(tabId, options.fileHandle)
+      }
       pushCodeRecentFile(normalized)
-      setCodeRecentFiles(readCodeRecentFiles())
       setCodeDockOpen(true)
-      applyCodeDockJadeBanner(unhashed.via, status)
 
       if (needsBinConversionOnOpen(normalized) && !options?.suppressConvertedOpenAlert) {
-        window.alert(`«${normalized}» convertido e aberto no painel Código (${via}).`)
-      } else if (unhashed.changed && unhashed.via === 'fnv-fallback' && unhashed.warning) {
-        console.warn('[jadeEditorTextResolve] fallback FNV:', unhashed.warning)
+        window.alert(`«${normalized}» convertido e aberto no painel Código (${resolveVia}).`)
       }
     },
     [applyCodeDockJadeBanner, openCodeDockTab, refreshJadeResolveStatus],
+  )
+
+  const {
+    CODE_DOCK_FILE_INPUT_ACCEPT,
+    fileBridge: codeDockFileBridge,
+    fileInputRef: codeDockFileInputRef,
+    onTabClosed: onCodeDockTabClosed,
+    openFromInput: handleCodeDockImportFile,
+    saveTabById: saveCodeDockTabById,
+  } = useCodeDockFileBridge({
+    activeTabId: activeCodeDockTabId,
+    activeContent: codeText,
+    tabs: codeDockTabs,
+    loadTextIntoCodeDock,
+    markTabSaved,
+    renameCodeDockTab,
+    onRequestNewFile: () => {
+      setNewCodeFileDialogOpen(true)
+      setCodeDockOpen(true)
+    },
+  })
+
+  const handleCloseCodeDockTab = useCallback(
+    (tabId: string) => {
+      onCodeDockTabClosed(tabId)
+      closeCodeDockTab(tabId)
+    },
+    [closeCodeDockTab, onCodeDockTabClosed],
   )
 
   const handleGraphsToCode = useCallback(async () => {
@@ -2294,174 +2350,6 @@ function App() {
     ],
   )
 
-  const saveCodeDockTabById = useCallback(
-    async (tabId: string) => {
-      const tab = codeDockTabs.find((entry) => entry.id === tabId)
-
-      if (!tab) {
-        return
-      }
-
-      const content = tabId === activeCodeDockTabId ? codeText : tab.content
-      const suggested = tab.fileName
-
-      if (needsBinConversionOnSave(suggested)) {
-        const { base64ToUint8Array, convertTextToBinViaBridge, downloadBytesAsFile } =
-          await import('@/core/jadeBridgeApi')
-        const result = await convertTextToBinViaBridge(content)
-
-        if (result.branch !== 'success') {
-          const hint =
-            result.branch === 'not_configured'
-              ? 'Gravar .bin requer jade-http-bridge (reinicia npm run dev com Rust compilado).'
-              : result.branch === 'network_error'
-                ? result.message
-                : result.message
-          window.alert(`Não foi possível converter para .bin: ${hint}`)
-          return
-        }
-
-        const normalized = normalizeCodeDockFileName(suggested)
-        const fileName = normalized.toLowerCase().endsWith('.bin') ? normalized : `${normalized.replace(/\.py$/i, '')}.bin`
-
-        if (typeof window.showSaveFilePicker === 'function') {
-          try {
-            const handle = await window.showSaveFilePicker({
-              suggestedName: fileName,
-              types: [{ description: 'Binário ritual', accept: { 'application/octet-stream': ['.bin'] } }],
-            })
-            const writable = await handle.createWritable()
-            await writable.write(base64ToUint8Array(result.bytesBase64))
-            await writable.close()
-            const savedName = handle.name || fileName
-            renameCodeDockTab(tabId, savedName)
-            if (tabId === activeCodeDockTabId) {
-              markActiveTabSaved(savedName)
-            }
-            pushCodeRecentFile(savedName)
-            setCodeRecentFiles(readCodeRecentFiles())
-            return
-          } catch (error) {
-            if (error instanceof DOMException && error.name === 'AbortError') {
-              return
-            }
-          }
-        }
-
-        downloadBytesAsFile(base64ToUint8Array(result.bytesBase64), fileName)
-        renameCodeDockTab(tabId, fileName)
-        if (tabId === activeCodeDockTabId) {
-          markActiveTabSaved(fileName)
-        }
-        pushCodeRecentFile(fileName)
-        setCodeRecentFiles(readCodeRecentFiles())
-        return
-      }
-
-      const saveResult = await saveCodeDockTab(
-        tabId,
-        tabId === activeCodeDockTabId ? codeText : undefined,
-      )
-
-      if (!saveResult.cancelled) {
-        pushCodeRecentFile(saveResult.fileName)
-        setCodeRecentFiles(readCodeRecentFiles())
-      }
-    },
-    [
-      activeCodeDockTabId,
-      codeDockTabs,
-      codeText,
-      markActiveTabSaved,
-      renameCodeDockTab,
-      saveCodeDockTab,
-    ],
-  )
-
-  const saveCodeDockFile = useCallback(
-    async () => {
-      if (!activeCodeDockTabId) {
-        return
-      }
-
-      await saveCodeDockTabById(activeCodeDockTabId)
-    },
-    [activeCodeDockTabId, saveCodeDockTabById],
-  )
-
-  const convertBinForCodeDock = useCallback(async (file: File): Promise<boolean> => {
-    const engine = (await getPreference('ConverterEngine', 'jade')).toLowerCase()
-    const jadeFirst = engine !== 'ltk'
-    const exeConfigured = getStoredRitobinExePath()
-
-    const tryRitobin = async () => {
-      if (!exeConfigured) return false
-      const rit = await convertBinViaRitobinExeBridge(file, exeConfigured)
-      if (rit.branch === 'success') {
-        loadTextIntoCodeDock(rit.text, file.name, 'ponte ritobin + executável local')
-        return true
-      }
-      return false
-    }
-
-    const tryJadeBridge = async () => {
-      const bridge = await resolveBinFileForEditor(file)
-      if (bridge.ok) {
-        loadTextIntoCodeDock(bridge.text, file.name, 'Jade bridge /convert')
-        return true
-      }
-      if (bridge.branch === 'not_configured') {
-        window.alert(
-          'Jade bridge não configurado.\n\n' +
-            'Em dev: reinicia `npm run dev` (arranca a ponte em 127.0.0.1:8788 automaticamente).\n' +
-            'Ou define `VITE_JADE_BIN_BRIDGE=http://127.0.0.1:8788` / `VITE_JADE_USE_PROXY=true` no `.env`.',
-        )
-      } else if (bridge.branch === 'network_error') {
-        window.alert(
-          `Não foi possível contactar o Jade bridge (${bridge.message}).\n\n` +
-            'Em dev: confirma que `npm run dev` está a correr (inicia a ponte automaticamente).\n' +
-            'Manual: `npm run jade:http-bridge` ou `npm run jade:http-bridge:build` + `npm run dev`.\n' +
-            'Conversão real .bin exige `jade-http-bridge` Rust (não o mock Node).',
-        )
-      } else if (bridge.branch === 'bridge_error') {
-        window.alert(
-          `Jade bridge respondeu com erro.\n${bridge.status !== undefined ? String(bridge.status) : ''} — ${bridge.message}`,
-        )
-      }
-      return false
-    }
-
-    if (jadeFirst) {
-      if (await tryJadeBridge()) return true
-      return tryRitobin()
-    }
-    if (await tryRitobin()) return true
-    return tryJadeBridge()
-  }, [loadTextIntoCodeDock])
-
-  const handleCodeDockImportFile = useCallback(
-    async (file: File) => {
-      if (needsBinConversionOnOpen(file.name)) {
-        await convertBinForCodeDock(file)
-        return
-      }
-
-      const text = await file.text()
-      const ext = getFileExtension(file.name)
-      const via =
-        ext === 'py'
-          ? 'ritobin (.py)'
-          : ext === 'json'
-            ? 'JSON'
-            : ext === 'md' || ext === 'markdown'
-              ? 'Markdown'
-              : 'texto'
-
-      loadTextIntoCodeDock(text, file.name, via)
-    },
-    [convertBinForCodeDock, loadTextIntoCodeDock],
-  )
-
   const handleCreateCodeDockFile = useCallback(
     (fileName: string) => {
       const normalized = normalizeCodeDockFileName(fileName)
@@ -2470,26 +2358,6 @@ function App() {
       setNewCodeFileDialogOpen(false)
     },
     [openNewCodeDockTab],
-  )
-
-  const codeDockFileBridge = useMemo<CodeDockFileBridge>(
-    () => ({
-      onOpenFile: () => codeDockFileInputRef.current?.click(),
-      onNewFile: () => {
-        setNewCodeFileDialogOpen(true)
-        setCodeDockOpen(true)
-      },
-      onSaveFile: () => void saveCodeDockFile(),
-      onSaveFileAs: () => void saveCodeDockFile(),
-      onOpenLog: () => {
-        window.alert('Open Log File: disponível no Jade desktop ou ponte Tauri (Fase 2).')
-      },
-      recentFiles: codeRecentFiles,
-      onOpenRecentFile: (path) => {
-        window.alert(`Recente «${path}»: reabre com File → Open… (caminho completo não guardado no browser).`)
-      },
-    }),
-    [codeRecentFiles, saveCodeDockFile],
   )
 
   const handleSceneTabAction = useCallback(
@@ -2573,7 +2441,12 @@ function App() {
 
   const handleImportWorkspaceFile = async (file: File) => {
     if (file.name.toLowerCase().endsWith('.bin')) {
-      await convertBinForCodeDock(file)
+      const bin = await openBinFileForCodeDock(file)
+      if (bin.branch === 'success') {
+        await loadTextIntoCodeDock(bin.text, file.name, bin.via, { fullText: true })
+      } else if (bin.branch === 'error') {
+        window.alert(bin.message)
+      }
       return
     }
 
@@ -4334,6 +4207,7 @@ function App() {
   }
 
   return (
+    <div className="app-container">
     <main className={styles.shell}>
       {bootConsoleTestStamp !== null ? (
         <ConsoleNotificationCapsule
@@ -4501,11 +4375,20 @@ function App() {
             showCanvasGrid={scene.sceneChrome?.showCanvasGrid !== false}
             canvasGridSize={scene.sceneChrome?.canvasGridSize}
             canvasGridOpacity={scene.sceneChrome?.canvasGridOpacity}
+            canvasGridLineColorEnabled={scene.sceneChrome?.canvasGridLineColorEnabled}
+            canvasGridHorizontalLineColor={scene.sceneChrome?.canvasGridHorizontalLineColor}
+            canvasGridVerticalLineColor={scene.sceneChrome?.canvasGridVerticalLineColor}
+            canvasGridCheckerEnabled={scene.sceneChrome?.canvasGridCheckerEnabled}
+            canvasGridCheckerColorA={scene.sceneChrome?.canvasGridCheckerColorA}
+            canvasGridCheckerColorB={scene.sceneChrome?.canvasGridCheckerColorB}
             onCanvasGridChange={(patch) => patchSceneChrome(patch)}
             onNodeLockedInteraction={() => showToastByCatalogId(MESSENGER_TOAST_NODE_LOCKED)}
             onPatchNodeSceneOverlay={patchNodeSceneOverlay}
             onSceneNodesPanelRequest={expandSceneNodesPanel}
             onExtractSceneNodesStatePreset={handleExtractSceneNodesStateFromNode}
+            onSaveBlockSlashCommand={saveBlockSlashCommand}
+            onRemoveBlockSlashCommand={removeBlockSlashCommand}
+            onApplyBlockSlashCommand={applyBlockSlashCommand}
             onGraphsToCode={() => void handleGraphsToCode()}
             onViewNodeCode={handleViewNodeCode}
             onViewNodeBlockCode={handleViewNodeBlockCode}
@@ -4816,7 +4699,7 @@ function App() {
               onActivateTab={activateCodeDockTab}
               onChange={setCodeText}
               onClose={handleCloseCodeDock}
-              onCloseTab={closeCodeDockTab}
+              onCloseTab={handleCloseCodeDockTab}
               onDockedWidthChange={setCodeDockWidth}
               onFloatingRectChange={setCodeDockFloatingRect}
               onNewTab={() => openNewCodeDockTab()}
@@ -5051,6 +4934,7 @@ function App() {
         }
       />
     </main>
+    </div>
   )
 }
 

@@ -1,0 +1,96 @@
+/**
+ * Wallpaper Jade — camada DOM (.ngl-custom-background-layer) + fallbacks CSS.
+ */
+:root {
+  --custom-bg-image: none;
+  --custom-bg-blur: 0px;
+  --custom-bg-scale: 1;
+  --custom-bg-brightness: 1;
+  --custom-bg-saturation: 1;
+  --custom-bg-opacity: 1;
+  --custom-bg-vignette: 0;
+  --custom-bg-size: cover;
+  --custom-bg-color: transparent;
+}
+
+.ngl-custom-background-layer {
+  position: fixed;
+  inset: -2%;
+  z-index: 0;
+  pointer-events: none;
+  background-repeat: no-repeat;
+  will-change: transform, opacity, filter;
+}
+
+.ngl-custom-background-layer-scoped {
+  position: absolute;
+  inset: -2%;
+  z-index: 0;
+  pointer-events: none;
+  background-repeat: no-repeat;
+  will-change: transform, opacity, filter;
+}
+
+.ngl-canvas-grid-host.ngl-has-custom-bg,
+.ngl-code-editor-bg-host.ngl-has-custom-bg {
+  position: relative;
+  overflow: hidden;
+}
+
+.ngl-canvas-grid-host.ngl-has-custom-bg > :not(.ngl-custom-background-layer-scoped),
+.ngl-code-editor-bg-host.ngl-has-custom-bg > :not(.ngl-custom-background-layer-scoped) {
+  position: relative;
+  z-index: 1;
+}
+
+html[data-custom-bg-target-app='true'] {
+  background: transparent !important;
+}
+
+html[data-custom-bg-target-app='true'] body {
+  position: relative;
+  z-index: 1;
+  background: transparent !important;
+}
+
+html[data-custom-bg-target-app='true'] #root,
+html[data-custom-bg-target-app='true'] .app-container,
+html[data-custom-bg-target-app='true'] .app-container > * {
+  background-color: transparent;
+}
+
+html[data-custom-bg-target-app='true'] .shell {
+  background: transparent;
+}
+
+.app-container {
+  position: relative;
+  width: 100%;
+  min-height: 100vh;
+}
+
+html[data-custom-bg-target-app='true']::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, transparent 40%, rgb(0 0 0 / var(--custom-bg-vignette)));
+}
+
+html[data-custom-bg-target-code='true'] .codeDockJadeScope .monaco-editor,
+html[data-custom-bg-target-code='true'] .codeDockJadeScope .monaco-editor .overflow-guard,
+html[data-custom-bg-target-code='true'] .codeDockJadeScope .monaco-editor .monaco-editor-background,
+html[data-custom-bg-target-code='true'] .codeDockJadeScope .monaco-editor .lines-content,
+html[data-custom-bg-target-code='true'] .codeDockJadeScope .monaco-editor .margin {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+html[data-custom-bg-target-code='true'] .codeDockJadeScope .monaco-scrollable-element > .scrollbar.vertical,
+html[data-custom-bg-target-code='true'] .codeDockJadeScope .monaco-scrollable-element > .scrollbar.horizontal,
+html[data-custom-bg-target-code='true'] .codeDockJadeScope .monaco-editor .decorations-overview-ruler {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+

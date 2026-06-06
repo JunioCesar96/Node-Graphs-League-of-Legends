@@ -1,21 +1,39 @@
 import type { Monaco } from '@monaco-editor/react'
 import { getPreference, setPreference } from '@jade/lib/preferenceStore'
-import { registerRitobinTheme, RITOBIN_THEME_ID } from '@jade/lib/ritobinLanguage'
 import {
+  applyCustomBackground,
   applyMonacoTheme,
+  applyModernUI,
+  applyRoundedCorners,
+  applyStructureSurfacesForTheme,
   applySyntaxColorsCss,
   applyTheme,
+  applyUIFont,
+  loadSavedBackgroundFromPreferences,
+  loadSavedFontsFromPreferences,
+  refreshCustomBackgroundLayerHosts,
+  readCustomBackgroundTargets,
   resolveActiveSyntaxThemeId,
   type CustomSyntaxOptions,
 } from '@jade/lib/themeApplicator'
 import type { BracketColors, SyntaxColors } from '@jade/lib/themes'
+import { normalizeNativeThemeId, normalizeJadeThemeId } from '@jade/lib/themes'
 
 import { initAppTheme } from './appTheme'
+
+export const DEFAULT_JADE_THEME_ID = 'Default'
+export const DEFAULT_JADE_SYNTAX_ID = 'Default'
+
+/** Preferências quando Tema/Syntax estão desactivados (stack nativa Node Graphs). */
+export const NATIVE_THEME_PREF = 'NodeGraphsNativeTheme'
+export const NATIVE_SYNTAX_PREF = 'NodeGraphsNativeSyntaxTheme'
 
 export const JADE_DYNAMIC_MONACO_THEME = 'jade-dynamic'
 
 export const JADE_THEME_PREF = 'NodeGraphsApplyJadeTheme'
 export const JADE_SYNTAX_PREF = 'NodeGraphsApplyJadeSyntax'
+export const JADE_BACKGROUND_PREF = 'NodeGraphsApplyJadeBackground'
+export const JADE_FONTS_PREF = 'NodeGraphsApplyJadeFonts'
 /** @deprecated Prefer JADE_THEME_PREF + JADE_SYNTAX_PREF */
 export const JADE_SURFACE_THEME_PREF = 'NodeGraphsApplyJadeThemeSyntax'
 export const JADE_SURFACE_THEME_CHANGED = 'jade-surface-theme-changed'
@@ -23,6 +41,8 @@ export const JADE_SURFACE_THEME_CHANGED = 'jade-surface-theme-changed'
 export type JadeSurfaceThemeState = {
   themeEnabled: boolean
   syntaxEnabled: boolean
+  backgroundEnabled: boolean
+  fontsEnabled: boolean
 }
 
 const STRUCTURE_SURFACE_VARS = [
@@ -96,12 +116,16 @@ async function resolveSavedThemeContext(): Promise<{
   activeSyntaxTheme: string
   customSyntaxOpts: CustomSyntaxOptions | undefined
 }> {
-  const syntaxTheme = await getPreference('SyntaxTheme', 'Default')
+  const syntaxThemeRaw = await getPreference('SyntaxTheme', 'DarkBlue')
   const useCustomSyntax = await getPreference('UseCustomSyntaxTheme', 'false')
   const useCustomTheme = await getPreference('UseCustomTheme', 'false')
+  const themeRaw = await getPreference('Theme', 'DarkBlue')
   const activeThemeId =
-    useCustomTheme === 'true' ? 'Custom' : await getPreference('Theme', 'Default')
+    useCustomTheme === 'true' ? 'Custom' : normalizeJadeThemeId(themeRaw)
   const customSyntaxOpts = await loadCustomSyntaxOptions()
+  const syntaxTheme = useCustomSyntax === 'true'
+    ? syntaxThemeRaw
+    : normalizeJadeThemeId(syntaxThemeRaw)
   const activeSyntaxTheme = resolveActiveSyntaxThemeId(
     syntaxTheme,
     activeThemeId,
@@ -109,6 +133,18 @@ async function resolveSavedThemeContext(): Promise<{
   )
 
   return { activeThemeId, activeSyntaxTheme, customSyntaxOpts }
+}
+
+async function resolveNativeThemeContext(): Promise<{
+  activeThemeId: string
+  activeSyntaxTheme: string
+}> {
+  const themeId = normalizeNativeThemeId(await getPreference(NATIVE_THEME_PREF, DEFAULT_JADE_THEME_ID))
+  const syntaxRaw = await getPreference(NATIVE_SYNTAX_PREF, DEFAULT_JADE_SYNTAX_ID)
+  const syntaxTheme = normalizeNativeThemeId(syntaxRaw)
+  const activeSyntaxTheme = resolveActiveSyntaxThemeId(syntaxTheme, themeId, false)
+
+  return { activeThemeId: themeId, activeSyntaxTheme }
 }
 
 async function applyJadeAppTheme(): Promise<void> {
@@ -129,27 +165,8 @@ async function applyJadeAppTheme(): Promise<void> {
   applyTheme(await getPreference('Theme', 'Default'))
 }
 
-function readCssVar(name: string): string {
-  return getComputedStyle(document.documentElement).getPropertyValue(name).trim()
-}
-
-export function applyStructureSurfacesFromJadeTheme(): void {
-  const editorBg = readCssVar('--editor-bg') || '#1e1e1e'
-  const tabBg = readCssVar('--tab-bg') || '#252526'
-  const text = readCssVar('--text-color') || '#d4d4d4'
-  const root = document.documentElement
-
-  root.style.setProperty('--group-surface', tabBg)
-  root.style.setProperty('--group-surface-dark', editorBg)
-  root.style.setProperty('--block-surface', tabBg)
-  root.style.setProperty('--block-surface-dark', editorBg)
-  root.style.setProperty('--group-text', text)
-  root.style.setProperty('--block-text', text)
-  root.style.setProperty(
-    '--group-block-field-bg',
-    `color-mix(in srgb, ${editorBg} 82%, rgb(0 0 0))`,
-  )
-  root.dataset.jadeSurfaceTheme = 'on'
+export function applyStructureSurfacesFromJadeTheme(themeId = 'Default'): void {
+  applyStructureSurfacesForTheme(themeId)
 }
 
 export function revertStructureSurfacesToDefaults(): void {
@@ -175,41 +192,111 @@ export function revertSyntaxColorsCss(): void {
   }
 }
 
+function revertCustomBackground(): void {
+  applyCustomBackground({ enabled: false, imageDataUrl: '', blur: 0 })
+}
+
+function revertUIFontAndEditorFont(): void {
+  applyUIFont('')
+  window.dispatchEvent(new CustomEvent('jade-editor-font-changed', { detail: '' }))
+}
+
+async function applyChromePreferences(
+  activeThemeId: string,
+  backgroundEnabled: boolean,
+  fontsEnabled: boolean,
+): Promise<void> {
+  const roundedCorners = await getPreference('RoundedCorners', 'true')
+  const modernUI = await getPreference('ModernUI', 'true')
+  applyRoundedCorners(roundedCorners === 'true')
+  applyModernUI(modernUI !== 'false')
+
+  if (backgroundEnabled) {
+    await loadSavedBackgroundFromPreferences(activeThemeId)
+    refreshCustomBackgroundLayerHosts()
+  } else {
+    revertCustomBackground()
+  }
+
+  if (fontsEnabled) {
+    await loadSavedFontsFromPreferences()
+  } else {
+    revertUIFontAndEditorFont()
+  }
+}
+
 function dispatchSurfaceThemeChanged(state: JadeSurfaceThemeState): void {
   window.dispatchEvent(new CustomEvent(JADE_SURFACE_THEME_CHANGED, { detail: state }))
 }
 
-async function readPref(key: string, defaultValue = 'true'): Promise<boolean> {
-  return (await getPreference(key, defaultValue)) !== 'false'
+function isStoredTriState(value: string): value is 'true' | 'false' {
+  return value === 'true' || value === 'false'
+}
+
+/** Preferências antigas (toggle único) bloqueavam Tema/Syntax independentes. */
+async function clearLegacySurfaceThemePref(): Promise<void> {
+  await setPreference(JADE_SURFACE_THEME_PREF, '')
+}
+
+async function readSplitPref(key: string, fallback = true): Promise<boolean> {
+  const raw = await getPreference(key, '')
+  if (!isStoredTriState(raw)) {
+    return fallback
+  }
+  return raw === 'true'
 }
 
 export async function getJadeSurfaceThemeState(): Promise<JadeSurfaceThemeState> {
-  const legacy = await getPreference(JADE_SURFACE_THEME_PREF, '')
-  if (legacy === 'true' || legacy === 'false') {
-    const enabled = legacy === 'true'
-    return { themeEnabled: enabled, syntaxEnabled: enabled }
+  const themeRaw = await getPreference(JADE_THEME_PREF, '')
+  const syntaxRaw = await getPreference(JADE_SYNTAX_PREF, '')
+  const hasSplitPrefs = isStoredTriState(themeRaw) || isStoredTriState(syntaxRaw)
+
+  let themeEnabled = true
+  let syntaxEnabled = true
+
+  if (hasSplitPrefs) {
+    themeEnabled = await readSplitPref(JADE_THEME_PREF)
+    syntaxEnabled = await readSplitPref(JADE_SYNTAX_PREF)
+  } else {
+    const legacy = await getPreference(JADE_SURFACE_THEME_PREF, '')
+    if (isStoredTriState(legacy)) {
+      const enabled = legacy === 'true'
+      await setPreference(JADE_THEME_PREF, legacy)
+      await setPreference(JADE_SYNTAX_PREF, legacy)
+      await clearLegacySurfaceThemePref()
+      themeEnabled = enabled
+      syntaxEnabled = enabled
+    }
   }
 
   return {
-    themeEnabled: await readPref(JADE_THEME_PREF),
-    syntaxEnabled: await readPref(JADE_SYNTAX_PREF),
+    themeEnabled,
+    syntaxEnabled,
+    backgroundEnabled: await readSplitPref(JADE_BACKGROUND_PREF),
+    fontsEnabled: await readSplitPref(JADE_FONTS_PREF),
   }
 }
 
 export async function setJadeThemeEnabled(enabled: boolean): Promise<void> {
+  await clearLegacySurfaceThemePref()
   await setPreference(JADE_THEME_PREF, enabled ? 'true' : 'false')
-  dispatchSurfaceThemeChanged({
-    themeEnabled: enabled,
-    syntaxEnabled: await readPref(JADE_SYNTAX_PREF),
-  })
+  dispatchSurfaceThemeChanged(await getJadeSurfaceThemeState())
 }
 
 export async function setJadeSyntaxEnabled(enabled: boolean): Promise<void> {
+  await clearLegacySurfaceThemePref()
   await setPreference(JADE_SYNTAX_PREF, enabled ? 'true' : 'false')
-  dispatchSurfaceThemeChanged({
-    themeEnabled: await readPref(JADE_THEME_PREF),
-    syntaxEnabled: enabled,
-  })
+  dispatchSurfaceThemeChanged(await getJadeSurfaceThemeState())
+}
+
+export async function setJadeBackgroundEnabled(enabled: boolean): Promise<void> {
+  await setPreference(JADE_BACKGROUND_PREF, enabled ? 'true' : 'false')
+  dispatchSurfaceThemeChanged(await getJadeSurfaceThemeState())
+}
+
+export async function setJadeFontsEnabled(enabled: boolean): Promise<void> {
+  await setPreference(JADE_FONTS_PREF, enabled ? 'true' : 'false')
+  dispatchSurfaceThemeChanged(await getJadeSurfaceThemeState())
 }
 
 export async function toggleJadeThemeEnabled(): Promise<boolean> {
@@ -226,71 +313,81 @@ export async function toggleJadeSyntaxEnabled(): Promise<boolean> {
   return next
 }
 
-function applyDefaultMonacoTheme(monaco: Monaco): void {
-  registerRitobinTheme(monaco)
-  monaco.editor.setTheme(RITOBIN_THEME_ID)
+export async function toggleJadeBackgroundEnabled(): Promise<boolean> {
+  const state = await getJadeSurfaceThemeState()
+  const next = !state.backgroundEnabled
+  await setJadeBackgroundEnabled(next)
+  return next
+}
+
+export async function toggleJadeFontsEnabled(): Promise<boolean> {
+  const state = await getJadeSurfaceThemeState()
+  const next = !state.fontsEnabled
+  await setJadeFontsEnabled(next)
+  return next
 }
 
 /**
  * Aplica Tema Jade e/ou Syntax Color Scheme no editor, inspetores e cards grupo/bloco.
+ * Com toggle desactivado, usa sempre o tema / esquema Default (design system).
  */
 export async function refreshJadeSurfaceTheme(monaco?: Monaco | null): Promise<string | null> {
-  const { themeEnabled, syntaxEnabled } = await getJadeSurfaceThemeState()
-
-  if (!themeEnabled && !syntaxEnabled) {
-    revertStructureSurfacesToDefaults()
-    revertJadeAppTheme()
-    revertSyntaxColorsCss()
-    await initAppTheme()
-    if (monaco) {
-      applyDefaultMonacoTheme(monaco)
-    }
-    return RITOBIN_THEME_ID
-  }
+  const { themeEnabled, syntaxEnabled, backgroundEnabled, fontsEnabled } =
+    await getJadeSurfaceThemeState()
 
   try {
-    const { activeThemeId, activeSyntaxTheme, customSyntaxOpts } = await resolveSavedThemeContext()
+    const jadeContext = await resolveSavedThemeContext()
+    const nativeContext = await resolveNativeThemeContext()
+
+    const effectiveThemeId = themeEnabled ? jadeContext.activeThemeId : nativeContext.activeThemeId
+    const effectiveSyntaxId = themeEnabled ? jadeContext.activeSyntaxTheme : nativeContext.activeSyntaxTheme
 
     if (themeEnabled) {
       await applyJadeAppTheme()
-      applyStructureSurfacesFromJadeTheme()
     } else {
-      revertStructureSurfacesToDefaults()
-      revertJadeAppTheme()
+      applyTheme(nativeContext.activeThemeId)
       await initAppTheme()
     }
 
+    applyStructureSurfacesForTheme(effectiveThemeId)
+
     if (syntaxEnabled) {
-      applySyntaxColorsCss(activeSyntaxTheme, customSyntaxOpts)
+      applySyntaxColorsCss(jadeContext.activeSyntaxTheme, jadeContext.customSyntaxOpts)
     } else {
-      revertSyntaxColorsCss()
+      applySyntaxColorsCss(nativeContext.activeSyntaxTheme)
+    }
+
+    await applyChromePreferences(effectiveThemeId, backgroundEnabled, fontsEnabled)
+
+    if (monaco) {
+      applyMonacoTheme(
+        monaco,
+        effectiveThemeId,
+        effectiveSyntaxId,
+        syntaxEnabled ? jadeContext.customSyntaxOpts : undefined,
+      )
     }
 
     if (!monaco) {
       return null
     }
 
-    if (!themeEnabled && !syntaxEnabled) {
-      applyDefaultMonacoTheme(monaco)
-      return RITOBIN_THEME_ID
-    }
-
-    applyMonacoTheme(
-      monaco,
-      themeEnabled ? activeThemeId : 'Default',
-      syntaxEnabled ? activeSyntaxTheme : 'Default',
-      syntaxEnabled ? customSyntaxOpts : undefined,
-    )
     return JADE_DYNAMIC_MONACO_THEME
   } catch (error) {
     console.warn('[JadeSurfaceTheme] Failed to apply theme:', error)
-    revertStructureSurfacesToDefaults()
-    revertJadeAppTheme()
-    revertSyntaxColorsCss()
+    const fallbackState = await getJadeSurfaceThemeState()
+    applyTheme(DEFAULT_JADE_THEME_ID)
+    applyStructureSurfacesForTheme(DEFAULT_JADE_THEME_ID)
+    applySyntaxColorsCss(DEFAULT_JADE_SYNTAX_ID)
     await initAppTheme()
+    await applyChromePreferences(
+      DEFAULT_JADE_THEME_ID,
+      fallbackState.backgroundEnabled,
+      fallbackState.fontsEnabled,
+    )
     if (monaco) {
-      applyDefaultMonacoTheme(monaco)
+      applyMonacoTheme(monaco, DEFAULT_JADE_THEME_ID, DEFAULT_JADE_SYNTAX_ID)
     }
-    return RITOBIN_THEME_ID
+    return JADE_DYNAMIC_MONACO_THEME
   }
 }
