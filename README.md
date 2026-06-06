@@ -9,7 +9,7 @@ Arquivo salvo em: `feature_md/feature/feature-canvas-snap-menu-slash-commands.md
 | Nome da Branch | `feature/canvas-snap-menu-slash-commands` |
 | Nome das Features | Snap Menu radial (navegação Shift+S e contexto de grade Shift+G); Cursor 2D do canvas; modos de interacção (tweak / selectBox / navigate); Block Slash Commands (presets de subgrafo); grid temático avançado; slots de cabeçalho `in[]`/`out[]`; pipeline RitualBin/CodeDock e launcher dev |
 | Versão atual | `1.5.0` |
-| Hash do Commit | _(preencher com `git rev-parse HEAD` na branch de entrega)_ |
+| Hash do Commit | `0669e47` |
 
 Documentação relacionada: `feature_md/prompet/prompet_sistema_blocos.md`, `feature_md/feature/feature-block-link-palette.md`, `feature_md/feature/feature-block-slot-improvements.md`.
 
