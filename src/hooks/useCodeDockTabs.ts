@@ -154,27 +154,21 @@ export function useCodeDockTabs() {
 
 
 
-  const markActiveTabSaved = useCallback((fileName?: string) => {
-
+  const markTabSaved = useCallback((tabId: string, fileName?: string) => {
     setTabs((prev) =>
-
       prev.map((t) =>
-
-        t.id === activeTabId
-
-          ? { ...t, dirty: false, ...(fileName ? { fileName } : {}) }
-
-          : t,
-
+        t.id === tabId ? { ...t, dirty: false, ...(fileName ? { fileName } : {}) } : t,
       ),
-
     )
+  }, [])
 
-  }, [activeTabId])
+  const markActiveTabSaved = useCallback((fileName?: string) => {
+    markTabSaved(activeTabId, fileName)
+  }, [activeTabId, markTabSaved])
 
 
 
-  const openInTab = useCallback((content: string, fileName: string) => {
+  const openInTab = useCallback((content: string, fileName: string): string => {
     const normalized = normalizeCodeDockFileName(fileName)
     let activateId = ''
 
@@ -200,6 +194,8 @@ export function useCodeDockTabs() {
     if (activateId) {
       setActiveTabId(activateId)
     }
+
+    return activateId
   }, [])
 
 
@@ -380,6 +376,7 @@ export function useCodeDockTabs() {
     codeText,
 
     markActiveTabSaved,
+    markTabSaved,
 
     openInTab,
 

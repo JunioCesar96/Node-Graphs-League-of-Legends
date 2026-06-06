@@ -6,6 +6,7 @@ import { PaletteAddAddonOption } from '@/components/molecules/PaletteAddAddonOpt
 import { PaletteAddonInstallZone } from '@/components/molecules/PaletteAddonInstallZone'
 import { PaletteAddBlockOption } from '@/components/molecules/PaletteAddBlockOption'
 import { PaletteAddNodeOption } from '@/components/molecules/PaletteAddNodeOption'
+import { PaletteSlashCommandOption } from '@/components/molecules/PaletteSlashCommandOption'
 import {
   fetchAddonsFromDisk,
   listAddonManifests,
@@ -21,6 +22,12 @@ import {
   type BlockDropLinkPaletteContext,
 } from '@/core/blockDefinitionLinkPalette'
 import { fetchBlockDefinitionsFromDisk } from '@/core/blockDefinitionDiskLoader'
+import {
+  matchesSlashCommandQuery,
+  slashCommandsList,
+} from '@/core/slashCommandRegistry'
+import { fetchSlashCommandsFromDisk } from '@/core/slashCommandStorage'
+import type { SlashCommandDocument } from '@/core/slashCommandTypes'
 import type { BlockDefinitionJsonDocument } from '@/core/blockDefinitionJson'
 import {
   fetchNodeStructurePackFoldersFromDisk,
@@ -48,7 +55,7 @@ const MAX_SCROLL_SPEED = 28
 const EXPAND_CAPSULE_LIFETIME_SECONDS = 5
 
 type PaletteScrollDirection = 'down' | 'idle' | 'up'
-type PaletteCatalogMode = 'nodes' | 'blocks' | 'addons'
+export type PaletteCatalogMode = 'nodes' | 'blocks' | 'addons'
 
 /** Teste: m/n controlam expandir/retrair (m = expandir, n = retrair), com hover na linha ou atalho global quando o foco não está no campo de pesquisa. */
 type PaletteExpandOverride = 'compact' | 'default' | 'expanded'
@@ -102,7 +109,9 @@ type AddNodePaletteProps = {
   onClose: () => void
   onPickAddon?: (addonId: string) => void
   onPickBlock?: (definition: BlockDefinitionJsonDocument) => void
+  onPickSlashCommand?: (command: string) => void
   onPickSchema: (schema: NodeSchemaDefinition) => void
+  onRefreshSlashCommands?: () => void
   addonsCatalogEnabled?: boolean
   onSyncBlockParameterCatalog?: (
     definitions: readonly BlockDefinitionJsonDocument[],
@@ -134,7 +143,9 @@ export function AddNodePalette({
   onClose,
   onPickAddon,
   onPickBlock,
+  onPickSlashCommand,
   onPickSchema,
+  onRefreshSlashCommands,
   onSyncBlockParameterCatalog,
   packFolderBySchemaId,
   jsonRelativePathBySchemaId,
@@ -163,6 +174,10 @@ export function AddNodePalette({
   )
   const [diskBlockDefinitionsLoading, setDiskBlockDefinitionsLoading] = useState(false)
   const [diskBlockDefinitionsError, setDiskBlockDefinitionsError] = useState<string | null>(null)
+  const [diskSlashCommands, setDiskSlashCommands] = useState<SlashCommandDocument[]>(() =>
+    slashCommandsList('blocks'),
+  )
+  const [diskSlashCommandsLoading, setDiskSlashCommandsLoading] = useState(false)
   const [diskAddonManifests, setDiskAddonManifests] = useState(() => [...listAddonManifests()])
   const [diskAddonsLoading, setDiskAddonsLoading] = useState(false)
   const [diskAddonsError, setDiskAddonsError] = useState<string | null>(null)
@@ -266,6 +281,20 @@ export function AddNodePalette({
       setDiskBlockDefinitionsError(result.error)
     })
   }, [onSyncBlockParameterCatalog])
+
+  const refreshSlashCommandsCatalog = useCallback(() => {
+    setDiskSlashCommandsLoading(true)
+    onRefreshSlashCommands?.()
+
+    void fetchSlashCommandsFromDisk('blocks').then((result) => {
+      setDiskSlashCommandsLoading(false)
+      if (result.ok) {
+        setDiskSlashCommands(result.commands)
+        return
+      }
+      setDiskSlashCommands(slashCommandsList('blocks'))
+    })
+  }, [onRefreshSlashCommands])
 
   const palettePackFolders = useMemo(
     () =>
@@ -444,12 +473,29 @@ export function AddNodePalette({
     return sortBlockDefinitionsForLinkDrop(matched, blockDropLinkContext)
   }, [blockDefinitionFilter, blockDefinitions, blockDropLinkContext, paletteQuery])
 
+  const isSlashCommandsMode =
+    blocksCatalogEnabled &&
+    paletteCatalogMode === 'blocks' &&
+    paletteQuery.trim().startsWith('/') &&
+    !blockDropLinkContext
+
+  const slashCommandQuery = useMemo(() => {
+    const trimmed = paletteQuery.trim()
+    return trimmed.startsWith('/') ? trimmed.slice(1) : trimmed
+  }, [paletteQuery])
+
+  const filteredSlashCommands = useMemo(() => {
+    return diskSlashCommands.filter((entry) => matchesSlashCommandQuery(entry, slashCommandQuery))
+  }, [diskSlashCommands, slashCommandQuery])
+
   const isAddonsMode = addonsCatalogEnabled && paletteCatalogMode === 'addons'
   const isBlocksMode = blocksCatalogEnabled && paletteCatalogMode === 'blocks'
   const paletteResultCount = isAddonsMode
     ? filteredAddons.length
     : isBlocksMode
-      ? filteredBlocks.length
+      ? isSlashCommandsMode
+        ? filteredSlashCommands.length
+        : filteredBlocks.length
       : filteredSchemas.length
 
   useEffect(() => {
@@ -673,7 +719,9 @@ export function AddNodePalette({
     const activeListLength = isAddonsMode
       ? filteredAddons.length
       : isBlocksMode
-        ? filteredBlocks.length
+        ? isSlashCommandsMode
+          ? filteredSlashCommands.length
+          : filteredBlocks.length
         : filteredSchemas.length
 
     if (event.key === 'Escape') {
@@ -719,6 +767,15 @@ export function AddNodePalette({
       }
 
       if (isBlocksMode) {
+        if (isSlashCommandsMode) {
+          const activeCommand = filteredSlashCommands[activeSchemaIndex]
+          if (activeCommand && onPickSlashCommand) {
+            event.preventDefault()
+            onPickSlashCommand(activeCommand.command)
+          }
+          return
+        }
+
         const activeBlock = filteredBlocks[activeSchemaIndex]
         if (activeBlock && onPickBlock) {
           event.preventDefault()
@@ -944,6 +1001,7 @@ export function AddNodePalette({
                     setPaletteHoveredOptionIndex(null)
                     setPaletteExpandOverride('default')
                     refreshBlocksCatalog()
+                    refreshSlashCommandsCatalog()
                   }}
                 >
                   {t(LangId.NodePaletteCatalogBlocks)}
@@ -971,7 +1029,9 @@ export function AddNodePalette({
               isAddonsMode
                 ? filteredAddons[activeSchemaIndex]?.id
                 : isBlocksMode
-                  ? filteredBlocks[activeSchemaIndex]?.id
+                  ? isSlashCommandsMode
+                    ? filteredSlashCommands[activeSchemaIndex]?.command
+                    : filteredBlocks[activeSchemaIndex]?.id
                   : filteredSchemas[activeSchemaIndex]?.id
             }
             aria-controls="node-schema-results"
@@ -1239,7 +1299,9 @@ export function AddNodePalette({
                     (isAddonsMode
                       ? filteredAddons.length
                       : isBlocksMode
-                        ? filteredBlocks.length
+                        ? isSlashCommandsMode
+                          ? filteredSlashCommands.length
+                          : filteredBlocks.length
                         : filteredSchemas.length) - 4,
                     0,
                   ),
@@ -1252,7 +1314,9 @@ export function AddNodePalette({
                     isAddonsMode
                       ? filteredAddons.length
                       : isBlocksMode
-                        ? filteredBlocks.length
+                        ? isSlashCommandsMode
+                          ? filteredSlashCommands.length
+                          : filteredBlocks.length
                         : filteredSchemas.length,
                     1,
                   ),
@@ -1288,7 +1352,30 @@ export function AddNodePalette({
                 <div className={styles.empty}>{t(LangId.NodePaletteAddonsEmpty)}</div>
               )
             ) : isBlocksMode ? (
-              filteredBlocks.length > 0 ? (
+              isSlashCommandsMode ? (
+                diskSlashCommandsLoading ? (
+                  <div className={styles.empty}>{t(LangId.SlashCommandPickerEmpty, 'A carregar…')}</div>
+                ) : filteredSlashCommands.length > 0 ? (
+                  filteredSlashCommands.map((command, index) => (
+                    <PaletteSlashCommandOption
+                      key={`${command.feature}::${command.command}`}
+                      command={command}
+                      expanded={paletteOptionExpanded(index)}
+                      highlighted={index === activeSchemaIndex}
+                      onClick={() => onPickSlashCommand?.(command.command)}
+                      onPointerEnter={() => {
+                        setHighlightedSchemaIndex(index)
+                        setPaletteHoveredOptionIndex(index)
+                      }}
+                      onPointerLeave={() => {
+                        setPaletteHoveredOptionIndex(null)
+                      }}
+                    />
+                  ))
+                ) : (
+                  <div className={styles.empty}>{t(LangId.SlashCommandPickerEmpty, 'Nenhum slash command encontrado.')}</div>
+                )
+              ) : filteredBlocks.length > 0 ? (
                 filteredBlocks.map((definition, index) => (
                   <PaletteAddBlockOption
                     definition={definition}

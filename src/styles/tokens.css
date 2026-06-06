@@ -35,9 +35,11 @@ html[data-app-theme='default'] {
   --port-parent: #4caf50;
   --port-child: #ffc107;
 
+  /** Acento studio (painéis flutuantes, sliders, toggles). */
+  --app-studio-accent: var(--port-child);
   /** Toggle / range / checkbox — tema default (studio, docks, painéis flutuantes). */
-  --app-control-accent: #4ec8e8;
-  --app-control-toggle-on: var(--port-parent);
+  --app-control-accent: var(--app-studio-accent);
+  --app-control-toggle-on: var(--app-studio-accent);
   --app-control-toggle-off: color-mix(in srgb, var(--color-canvas) 65%, rgb(255 255 255 / 10%));
   --app-control-toggle-off-border: color-mix(in srgb, var(--color-border) 75%, rgb(255 255 255 / 12%));
   --app-control-toggle-thumb: #fff;
@@ -46,8 +48,8 @@ html[data-app-theme='default'] {
   --app-control-range-fill: var(--app-control-accent);
   --app-control-range-thumb: var(--app-control-accent);
   --app-studio-panel-bg: color-mix(in srgb, var(--color-canvas) 86%, rgb(0 0 0));
-  --app-studio-panel-border: color-mix(in srgb, var(--port-child) 22%, transparent);
-  --app-studio-eyebrow: color-mix(in srgb, var(--port-child) 72%, var(--color-text-muted));
+  --app-studio-panel-border: color-mix(in srgb, var(--app-studio-accent) 22%, transparent);
+  --app-studio-eyebrow: color-mix(in srgb, var(--app-studio-accent) 72%, var(--color-text-muted));
 
   --font-ui: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-data: "Fira Code", "Cascadia Code", "SFMono-Regular", Consolas, monospace;
@@ -151,6 +153,9 @@ html[data-app-theme='default'] {
 
   --canvas-grid-line: rgb(255 255 255 / 4%);
   --canvas-grid-base: rgb(0 0 0 / 16%);
+  --canvas-grid-theme-line: var(--color-text-primary);
+  --canvas-grid-theme-checker-a: var(--vfx-checker-base);
+  --canvas-grid-theme-checker-b: var(--vfx-checker-tile);
   --scrollbar-thumb: color-mix(in srgb, var(--color-text-primary) 28%, transparent);
   --scrollbar-thumb-hover: color-mix(in srgb, var(--color-text-primary) 42%, transparent);
   --scrollbar-track: color-mix(in srgb, var(--color-canvas) 88%, rgb(0 0 0));
@@ -172,6 +177,10 @@ html[data-app-theme='default'] {
   --app-subtle-surface-hover: rgb(255 255 255 / 6%);
   --app-inset-surface: rgb(0 0 0 / 16%);
   --app-inset-surface-strong: rgb(0 0 0 / 18%);
+
+  /** Menu Snap (Shift+S) — acento e anel do cursor 2D nos ícones. */
+  --snap-menu-accent: var(--syntax-keyword);
+  --snap-cursor-ring-accent: #ef4444;
 
   --vfx-accent: rgb(126 212 255);
   --vfx-shell-bg: rgb(11 13 17 / 98%);
@@ -240,6 +249,9 @@ html[data-jade-surface-theme='on'] {
 
   --canvas-grid-line: color-mix(in srgb, var(--text-color, #fff) 7%, transparent);
   --canvas-grid-base: color-mix(in srgb, var(--editor-bg, #1e1e1e) 84%, rgb(0 0 0));
+  --canvas-grid-theme-line: var(--text-color, #f4f4f5);
+  --canvas-grid-theme-checker-a: var(--vfx-checker-base);
+  --canvas-grid-theme-checker-b: var(--vfx-checker-tile);
   --scrollbar-track: color-mix(in srgb, var(--editor-bg, #1e1e1e) 88%, rgb(0 0 0));
 
   --app-menu-bg: color-mix(in srgb, var(--window-bg, #1e1e1e) 72%, rgb(0 0 0));
@@ -280,6 +292,9 @@ html[data-jade-surface-theme='on'] {
   --app-subtle-surface-hover: color-mix(in srgb, var(--text-color, #fff) 6%, transparent);
   --app-inset-surface: color-mix(in srgb, var(--editor-bg, #000) 16%, transparent);
   --app-inset-surface-strong: color-mix(in srgb, var(--editor-bg, #000) 18%, transparent);
+
+  --snap-menu-accent: var(--jade-accent, var(--selected-tab-bg, #007acc));
+  --snap-cursor-ring-accent: color-mix(in srgb, var(--port-child) 72%, #ef4444);
 
   --vfx-accent: var(--jade-accent, var(--selected-tab-bg, #007acc));
   --vfx-shell-bg: color-mix(in srgb, var(--window-bg, #0b0d11) 98%, rgb(0 0 0));
@@ -344,4 +359,14 @@ html[data-jade-surface-theme='on'] {
   --vfx-checker-base: color-mix(in srgb, var(--editor-bg, #1c2028) 92%, rgb(0 0 0));
   --vfx-control-accent: var(--jade-accent, var(--selected-tab-bg, #007acc));
   --vfx-range-track: color-mix(in srgb, var(--text-muted, #fff) 28%, var(--editor-bg, #000));
+
+  --app-studio-accent: var(--jade-accent, var(--selected-tab-bg, #007acc));
+  --app-control-accent: var(--app-studio-accent);
+  --app-control-toggle-on: var(--app-studio-accent);
+  --app-control-range-fill: var(--app-control-accent);
+  --app-control-range-thumb: var(--app-control-accent);
+  --app-control-range-track: color-mix(in srgb, var(--text-muted, #fff) 28%, var(--editor-bg, #000));
+  --app-control-range-track-border: color-mix(in srgb, var(--border-color, #343536) 90%, transparent);
+  --app-studio-panel-border: color-mix(in srgb, var(--app-studio-accent) 22%, transparent);
+  --app-studio-eyebrow: color-mix(in srgb, var(--app-studio-accent) 72%, var(--color-text-muted));
 }

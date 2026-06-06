@@ -2,6 +2,7 @@
 @import './appFormControls.css';
 @import './syntaxParameterInputColors.css';
 @import './vfxFormControls.css';
+@import './jadeCustomBackground.css';
 @import '@jade/styles/regionalThemes.css';
 
 @import './inspectorScrollbars.css';
@@ -14,11 +15,15 @@ html {
   background: var(--color-canvas);
 }
 
+html[data-custom-bg-target-app='true'] {
+  background: transparent !important;
+}
+
 body {
   min-width: 320px;
   min-height: 100vh;
   margin: 0;
-  font-family: var(--font-ui);
+  font-family: var(--ui-font, var(--font-ui));
   color: var(--color-text-primary);
   background:
     radial-gradient(circle at 20% 20%, rgb(86 156 214 / 10%), transparent 28rem),

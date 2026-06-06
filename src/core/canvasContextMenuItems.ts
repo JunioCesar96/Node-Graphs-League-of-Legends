@@ -49,6 +49,10 @@ import {
 import { CANVAS_TOOLBAR_LANG_IDS } from '@/core/language/canvasToolbarLangIds'
 import { listRemovableNodeElements, type NodeElementListItem } from '@/core/listNodeElements'
 import type { NodeParameterDefinition } from '@/core/nodeSchema'
+import {
+  DEFAULT_CANVAS_INTERACTION_MODE,
+  type CanvasInteractionMode,
+} from '@/core/canvasInteractionMode'
 import { LangId } from '@/core/language/languageIds'
 
 export type CanvasContextMenuBuildContext = {
@@ -63,7 +67,7 @@ export type CanvasContextMenuBuildContext = {
   parameterStubCatalog?: readonly NodeParameterDefinition[]
   scene: CanvasScene
   selectedNodeIds: string[]
-  viewportNavigateMode: boolean
+  canvasInteractionMode?: CanvasInteractionMode
   toolbarVisibility: CanvasToolbarVisibility
   hasPendingLink: boolean
   hasInspectorSlot: boolean
@@ -104,6 +108,8 @@ export type CanvasContextMenuBuildContext = {
     canEdit: boolean
     canRemove: boolean
   }
+  /** Slash commands do card de bloco (adicionar / remover preset). */
+  onRequestBlockSlashCommand?: (nodeId: string, action: 'add' | 'remove') => void
 }
 
 function trLabel(
@@ -217,26 +223,68 @@ function buildExibirSubmenuItems(ctx: CanvasContextMenuBuildContext): ContextMen
     toolbarVisibilityItem('inspector', ctx, { contextLimited: !ctx.hasInspectorSlot }),
     toolbarVisibilityItem('sceneNodes', ctx),
     toolbarVisibilityItem('legend', ctx),
+    toolbarVisibilityItem('linkStatus', ctx, { contextLimited: !ctx.hasPendingLink }),
+    toolbarVisibilityItem('navigateHint', ctx, {
+      contextLimited: (ctx.canvasInteractionMode ?? DEFAULT_CANVAS_INTERACTION_MODE) !== 'navigate',
+    }),
     {
       id: 'canvas.openGridControl',
-      label: `${trLabel(ctx, LangId.CtxCanvasGrid, 'Grade')} ›`,
+      label: trLabel(ctx, LangId.CtxCanvasGrid, 'Grade'),
     },
-    toolbarVisibilityItem('linkStatus', ctx, { contextLimited: !ctx.hasPendingLink }),
-    toolbarVisibilityItem('navigateHint', ctx, { contextLimited: !ctx.viewportNavigateMode }),
+  ]
+}
+
+function buildAddNodeSubmenuItems(ctx: CanvasContextMenuBuildContext): ContextMenuItem[] {
+  return [
+    {
+      id: 'canvas.addNode.node',
+      label: trLabel(ctx, LangId.NodePaletteCatalogNodes, 'Nodes'),
+    },
+    {
+      id: 'canvas.addNode.block',
+      label: trLabel(ctx, LangId.NodePaletteCatalogBlocks, 'Blocks'),
+    },
+    {
+      id: 'canvas.addNode.addon',
+      label: trLabel(ctx, LangId.NodePaletteCatalogAddons, 'Addons'),
+    },
+  ]
+}
+
+function buildNavegacaoSubmenuItems(ctx: CanvasContextMenuBuildContext): ContextMenuItem[] {
+  const mode = ctx.canvasInteractionMode ?? DEFAULT_CANVAS_INTERACTION_MODE
+
+  return [
+    {
+      id: 'canvas.setInteractionMode.tweak',
+      label: trLabel(ctx, LangId.CtxInteractionTweak, 'Tweak'),
+      selected: mode === 'tweak',
+      shortcut: 'W',
+    },
+    {
+      id: 'canvas.setInteractionMode.selectBox',
+      label: trLabel(ctx, LangId.CtxInteractionSelectBox, 'Select box'),
+      selected: mode === 'selectBox',
+      shortcut: 'Shift+arrastar',
+    },
+    {
+      id: 'canvas.setInteractionMode.navigate',
+      label: trLabel(ctx, LangId.CtxNavigateEnter, 'Mover na grade'),
+      selected: mode === 'navigate',
+      shortcut: 'G',
+    },
   ]
 }
 
 function buildCanvasItems(ctx: CanvasContextMenuBuildContext): ContextMenuItem[] {
   const hasSelection = ctx.selectedNodeIds.length > 0
-  const navigateLabel = ctx.viewportNavigateMode
-    ? trLabel(ctx, LangId.CtxNavigateExit, 'Sair do modo mover na grade')
-    : trLabel(ctx, LangId.CtxNavigateEnter, 'Mover na grade')
 
   const items: ContextMenuItem[] = [
     {
       id: 'canvas.addNode',
       label: trLabel(ctx, LangId.GraphCtxAddNode, 'Adicionar nó'),
       shortcut: 'Ctrl+K',
+      children: buildAddNodeSubmenuItems(ctx),
     },
     ...(ctx.onGraphsToCode
       ? [
@@ -303,7 +351,12 @@ function buildCanvasItems(ctx: CanvasContextMenuBuildContext): ContextMenuItem[]
           },
         ]
       : []),
-    { id: 'canvas.toggleNavigateMode', label: navigateLabel, separatorBefore: true },
+    {
+      id: 'canvas.navegacao',
+      label: trLabel(ctx, LangId.CtxNavegacao, 'Navegação'),
+      separatorBefore: true,
+      children: buildNavegacaoSubmenuItems(ctx),
+    },
     {
       id: 'canvas.exibir',
       label: trLabel(ctx, LangId.CtxExibir, 'Exibir'),
@@ -356,7 +409,7 @@ function buildStructureCardItems(
         label: isGlued
           ? trLabel(ctx, LangId.CtxGlueDisable, 'Desactivar modo cola')
           : trLabel(ctx, LangId.CtxGlueEnable, 'Modo cola (glue)'),
-        shortcut: 'G',
+        shortcut: 'L',
       },
       ...(ctx.onRequestBlockParameterPanel && ctx.blockParameterMenu
         ? [
@@ -400,6 +453,26 @@ function buildStructureCardItems(
                 {
                   id: 'node.codigoPreviewBlock' as const,
                   label: trLabel(ctx, LangId.GraphCtxBlockCodePreview, 'Código Preview Block'),
+                },
+              ],
+            },
+          ]
+        : []),
+      ...(ctx.onRequestBlockSlashCommand
+        ? [
+            {
+              id: 'node.slashCommands' as const,
+              label: trLabel(ctx, LangId.BlockCardSlashCommandsMenu, 'Slash Commands'),
+              separatorBefore: true,
+              children: [
+                {
+                  id: 'node.slashCommands.add' as const,
+                  label: trLabel(ctx, LangId.BlockCardSlashCommandsAdd, 'Adicionar'),
+                  disabled: nodeLocked,
+                },
+                {
+                  id: 'node.slashCommands.remove' as const,
+                  label: trLabel(ctx, LangId.BlockCardSlashCommandsRemove, 'Remover'),
                 },
               ],
             },
@@ -496,7 +569,7 @@ function buildStructureCardItems(
       label: isGlued
         ? trLabel(ctx, LangId.CtxGlueDisable, 'Desactivar modo cola')
         : trLabel(ctx, LangId.CtxGlueEnable, 'Modo cola (glue)'),
-      shortcut: 'G',
+      shortcut: 'L',
       separatorBefore: true,
     },
     {
@@ -661,7 +734,7 @@ function buildNodeItems(
       label: isGlued
         ? trLabel(ctx, LangId.CtxGlueDisable, 'Desactivar modo cola')
         : trLabel(ctx, LangId.CtxGlueEnable, 'Modo cola (glue)'),
-      shortcut: 'G',
+      shortcut: 'L',
       separatorBefore: true,
     },
     {

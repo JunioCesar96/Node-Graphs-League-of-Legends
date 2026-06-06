@@ -1,17 +1,17 @@
-# Documentação de Implementação — Melhorias de slots do BlockCard
+# Documentação de Implementação — Snap Menu, Cursor 2D e Block Slash Commands
 
-Arquivo salvo em: `feature_md/feature/feature-block-slot-improvements.md`
+Arquivo salvo em: `feature_md/feature/feature-canvas-snap-menu-slash-commands.md`
 
 ## 1. Cabeçalho
 
 | Campo | Valor |
 | --- | --- |
-| Nome da Branch | `feature/block-slot-improvements` |
-| Nome das Features | Slot tools no BlockCard; pager de fan-out; preview ritual com listas; editor flutuante de parâmetro; remoção de parâmetro com desligação de conexões; campos mapHash no card |
+| Nome da Branch | `feature/canvas-snap-menu-slash-commands` |
+| Nome das Features | Snap Menu radial (navegação Shift+S e contexto de grade Shift+G); Cursor 2D do canvas; modos de interacção (tweak / selectBox / navigate); Block Slash Commands (presets de subgrafo); grid temático avançado; slots de cabeçalho `in[]`/`out[]`; pipeline RitualBin/CodeDock e launcher dev |
 | Versão atual | `1.5.0` |
-| Hash do Commit | `380bf1d` |
+| Hash do Commit | `0669e47` |
 
-Documentação relacionada: `feature_md/prompet/prompet_sistema_blocos.md`, `feature_md/feature/feature-block-link-palette.md`.
+Documentação relacionada: `feature_md/prompet/prompet_sistema_blocos.md`, `feature_md/feature/feature-block-link-palette.md`, `feature_md/feature/feature-block-slot-improvements.md`.
 
 ---
 
@@ -19,8 +19,8 @@ Documentação relacionada: `feature_md/prompet/prompet_sistema_blocos.md`, `fea
 
 | Tag | Definição |
 | --- | --- |
-| `[NOVO]` | Novo módulo, componente, hook ou fluxo criado nesta entrega. |
-| `[ATUALIZADO]` | Componente ou função existente alterada para suportar slot tools, pager, preview ou editor. |
+| `[NOVO]` | Novo módulo, componente, hook, endpoint dev ou fluxo criado nesta entrega. |
+| `[ATUALIZADO]` | Componente ou função existente alterada para suportar snap menu, cursor 2D, slash commands ou grid temático. |
 | `[REMOVIDO]` | Comportamento ou API removida. |
 
 Tags presentes nesta implementação:
@@ -36,31 +36,30 @@ Não houve itens classificados como `[REMOVIDO]`.
 
 ```mermaid
 graph TD
-  subgraph card [BlockCard]
-    A[Rodapé BlockCardParameterMenu] --> B{Slot tools activas?}
-    B -->|Sim| C[Mostrar BlockSlotPeerToolbar nos slots ligados]
-    B -->|Não| D[Só slots sem barra de ferramentas]
-    C --> E{Fan-out > 1 ligação?}
-    E -->|Sim| F[BlockSlotConnectionPager abaixo da linha]
-    E -->|Não| G[Slot + toolbar inline]
-  end
+  A[Utilizador no GraphCanvas] --> B{Tipo de input}
+  B -->|Shift+S hold-release| C[Graph Snap Menu — 9 acções]
+  B -->|Shift+G hold-release| D[Grid Context Snap Menu]
+  B -->|Ctrl+clique direito| E[Posicionar Cursor 2D]
+  B -->|Ctrl+K / paleta| F[Slash Command Picker]
+  B -->|Menu contexto bloco| G[Adicionar / remover slash command]
+  B -->|Atalhos navigate/tweak| H[canvasInteractionMode]
 
-  subgraph edit [Editar parâmetro]
-    H[Botão Editar / menu contexto] --> I[StructureListPanel ou directo]
-    I --> J[onEditBlockParameter + screenAnchor]
-    J --> K[BlockCardMenuFloatingLayer draggable]
-    K --> L[BlockParameterInspector]
-  end
+  C --> I[runSnapAction]
+  I --> J[Cursor 2D / câmera / selecção / origem]
 
-  subgraph preview [Block Code Preview]
-    M[canvasToClassGroupRitual] --> N{classifica ligação list vs simples}
-    N --> O[Emite list embed/pointer no ritual]
-  end
+  D --> K[runContextMenuAction]
+  K --> L[Ações do menu de contexto da grade]
 
-  subgraph remove [Remover parâmetro]
-    P[removeBlockParameter] --> Q[Filtra conexões do paramId e slots]
-    Q --> R[removeParameterFromBlockStructure]
-  end
+  G -->|Add| M[extractBlockSlashCommandFragment]
+  M --> N[writeSlashCommandDocument → disco]
+  N --> O[registerSlashCommand]
+
+  F -->|Pick| P[applyBlockSlashCommand]
+  P --> Q[applyBlockSlashCommandToScene + remap IDs]
+
+  E --> R{Hold ≥ 2s?}
+  R -->|Sim| S[Repõe cursor em 0,0]
+  R -->|Não| T[Grava posição no grafo]
 ```
 
 ---
@@ -70,33 +69,36 @@ graph TD
 ```mermaid
 sequenceDiagram
   actor U as Utilizador
-  participant Menu as BlockCardParameterMenu
   participant GC as GraphCanvas
-  participant Layer as BlockCardMenuFloatingLayer
-  participant Insp as BlockParameterInspector
-  participant Hist as useSceneHistory
-  participant Core as blockSlotConnections
+  participant USM as useSnapMenu
+  participant SM as SnapMenu
+  participant H as useSceneHistory
+  participant BSC as blockSlashCommand
+  participant ST as slashCommandStorage
 
-  U->>Menu: Activa slot tools
-  Menu->>GC: onSlotToolsEnabledChange
-  GC->>GC: blockSlotToolsEnabledNodes Set
+  Note over U,ST: Snap Menu navegação (Shift+S)
+  U->>GC: keydown Shift+S
+  GC->>USM: matchesSnapMenuOpenChord
+  USM->>SM: open(anchor viewport)
+  U->>SM: pointermove / tecla 1-9
+  U->>GC: keyup Shift
+  USM->>USM: commitHoldRelease
+  USM->>GC: runSnapAction(actionId)
 
-  U->>Menu: Editar parâmetro
-  Menu->>GC: onEditParameter param, screenAnchor
-  GC->>Hist: setBlockParameterInspectorTarget
-  Hist-->>Layer: screenAnchor + draggable
-  Layer->>Insp: dragHandleProps via contexto
-  U->>Insp: Arrasta cabeçalho
-  Insp->>Layer: manualPosition clamped
+  Note over U,ST: Slash command — criar preset
+  U->>GC: contexto bloco → Adicionar slash command
+  GC->>H: saveBlockSlashCommand(nodeId, name)
+  H->>BSC: extractBlockSlashCommandFragment
+  H->>ST: writeSlashCommandDocument
+  ST->>ST: POST /api/slash-commands-write
+  H->>H: registerSlashCommand
 
-  U->>Menu: Remover parâmetro confirmado
-  Menu->>Hist: removeBlockParameter nodeId, paramId
-  Hist->>Core: filter connections by paramId/slotIds
-  Hist->>Hist: removeParameterFromBlockStructure
-
-  U->>GC: Pager ‹ 0 / N ›
-  GC->>GC: blockOutputSlotConnectionIndexByKey
-  GC->>Core: resolveBlockOutputSlotConnectionIndex
+  Note over U,ST: Slash command — aplicar preset
+  U->>GC: paleta / Ctrl+K → pick preset
+  GC->>H: applyBlockSlashCommand(command, position)
+  H->>BSC: applyBlockSlashCommandToScene
+  BSC->>BSC: remapWorkspaceBundleIds + mergeWorkspaceToScene
+  H-->>GC: updateScene(hydrateScene)
 ```
 
 ---
@@ -105,92 +107,118 @@ sequenceDiagram
 
 | Status | Nome | Feature | Descrição Técnica | Parâmetros / Retorno |
 | --- | --- | --- | --- | --- |
-| `[NOVO]` | `BlockSlotPeerToolbar.tsx` | Slot tools | Barra lock/focus/eye/unlink no slot ligado. | Props `peer`, callbacks de acção. |
-| `[NOVO]` | `BlockSlotConnectionPager.tsx` | Fan-out | Pager compacto `‹ i / n ›` para várias ligações na mesma saída. | `selectedIndex`, `total`, `layout: inline \| below`. |
-| `[NOVO]` | `blockSlotPeerState.ts` / `blockSlotPeerActions.ts` | Slot tools | Estado e acções sobre o nó peer ligado ao slot. | `getPeerState`, `onToggleLock`, etc. |
-| `[NOVO]` | `BlockCardMenuFloatingLayer.tsx` | Editor flutuante | Portal fixo com quadrante de ecrã, drag pelo cabeçalho. | `draggable`, `screenAnchor`, `useBlockCardMenuFloatingLayerDragHandle`. |
-| `[NOVO]` | `screenAnchoredPanelPlacement.ts` | Posicionamento | `buildFrozenScreenAnchoredStyle` com quadrante e maxHeight corrigido. | `anchor`, `size` → `CSSProperties`. |
-| `[NOVO]` | `StructureListPanel.tsx` | Menus card | Lista flutuante Editar/Remover/Adicionar parâmetro. | `screenAnchor`, `onPickItem`. |
-| `[NOVO]` | `BlockMapHash*Field.tsx` | mapHash | Campos embed/pointer/u64 no corpo do BlockCard. | Props de slot, lista, commit. |
-| `[ATUALIZADO]` | `BlockCard.tsx` | Slot tools / pager | Header e linhas com toolbar; pager abaixo quando tools activas. | `slotToolsEnabled`, `blockSlotPeerActions`. |
-| `[ATUALIZADO]` | `BlockParameterRow.tsx` | Layout | `data-slot-tools`, pager below, truncamento de label. | Props fan-out + slot tools. |
-| `[ATUALIZADO]` | `GroupBlockParameterRow.module.css` | CSS | Grid compacto, ellipsis, segunda linha para pager. | Regras `data-slot-pager-below`. |
-| `[ATUALIZADO]` | `BlockCardParameterMenu.tsx` | CRUD param | Toggle slot tools; lista editar; fix âncora Mouse/Pointer. | `onEditParameter`, `externalPanelRequest`. |
-| `[ATUALIZADO]` | `BlockParameterInspector.tsx` | Editor | Inspetor flutuante com drag handle do layer. | `target`, `onApply`. |
-| `[ATUALIZADO]` | `InspectorFloatingPanelShell.tsx` | Drag | Arrasto só na zona do título (não no botão ×). | `dragHandleProps` em `dockedHeaderMain`. |
-| `[ATUALIZADO]` | `canvasToClassGroupRitual.ts` | Preview | Merge embed→listEmbed; emite `list[pointer]`/`list[embed]`. | Testes `complexEmitterDefinitionData`, `erosionDriveCurve`. |
-| `[ATUALIZADO]` | `blockSlotConnections.ts` | Fan-out | `findConnectionsForBlockOutputSlot`, índice seleccionado, menu contexto. | `connectionIndex` opcional. |
-| `[ATUALIZADO]` | `useSceneHistory.removeBlockParameter` | Remoção | Remove todas as conexões do parâmetro antes de actualizar estrutura. | `nodeId`, `paramId`. |
-| `[ATUALIZADO]` | `GraphCanvas.tsx` | Estado global | `blockSlotToolsEnabledNodes`, índices de fan-out, `buildBlockSlotPeerActions`. | Props para BlockCard. |
-| `[ATUALIZADO]` | `tokens.css` | Grid | Coluna nome `minmax(0, 2fr)` para permitir ellipsis. | `--group-block-body-columns-compact`. |
+| `[NOVO]` | `SnapMenu.tsx` / `useSnapMenu.ts` | Snap Menu | Menu radial orbital (portal, slices, hub); acorde hold-release e submenus. | `open`, `commitHoldRelease`, `onSelect`. |
+| `[NOVO]` | `snapMenu.ts` | Geometria snap | `buildSnapMenuLayout`, hit-test por ponteiro e atalho numérico. | Delta ponteiro → item; tecla → item. |
+| `[NOVO]` | `snapMenuChord.ts` | Acordes | `matchesSnapMenuOpenChord`, `isSnapMenuHoldReleaseKey` para Shift+S/G. | Evento teclado → boolean. |
+| `[NOVO]` | `contextMenuSnapMenu.ts` | Contexto grade | Converte `ContextMenuItem[]` em acções snap; navega submenus por `path`. | `resolveSnapMenuFrame`. |
+| `[NOVO]` | `buildGraphSnapMenuActions.ts` | Navegação | 9 acções i18n (cursor↔câmera↔selecção↔origem). | `translate` → `SnapMenuActionDefinition[]`. |
+| `[NOVO]` | `graphSnapMenuGeometry.ts` | Câmera/cursor | `graphPointAtViewportCenter`, `resolveSelectionPivotCenter`. | Scene + viewport → ponto grafo. |
+| `[NOVO]` | `Canvas2DCursor.tsx` | Cursor 2D | Crosshair SVG no espaço do grafo. | `position`, `visible`. |
+| `[NOVO]` | `canvas2DCursor.ts` | Utilitários cursor | `computePanCenteredOnGraphPoint`, `CANVAS_2D_CURSOR_RESET_HOLD_MS`. | Ponto grafo → pan. |
+| `[NOVO]` | `useCanvas2DCursorPlacement.ts` | Posicionar cursor | Ctrl+clique direito; hold ≥2s repõe origem. | Handlers pointer no canvas. |
+| `[NOVO]` | `canvasInteractionMode.ts` | Modos canvas | `tweak` \| `selectBox` \| `navigate`; helpers de pan cursor. | `CanvasInteractionMode`. |
+| `[NOVO]` | `blockSlashCommand.ts` | Slash commands | Extrai/aplica subgrafo de blocos com remap de IDs. | `collectBlockSlashCommandNodeIds`, `applyBlockSlashCommandToScene`. |
+| `[NOVO]` | `slashCommandTypes.ts` | Schema v1 | `SlashCommandDocument`, parse/sanitize de nomes. | JSON ↔ documento tipado. |
+| `[NOVO]` | `slashCommandRegistry.ts` | Registo | `registerSlashCommand`, `slashCommandsList`, pesquisa. | Mapa in-memory por chave. |
+| `[NOVO]` | `slashCommandStorage.ts` | Persistência dev | CRUD via `/api/slash-commands-*` (Vite plugin). | Fetch/write/delete + refresh. |
+| `[NOVO]` | `SlashCommandPicker.tsx` | UI picker | Painel flutuante Ctrl+K para comandos `/nome`. | Lista filtrada + pick. |
+| `[NOVO]` | `PaletteSlashCommandOption.tsx` | Paleta | Item na `AddNodePalette` modo slash. | `command`, `onPick`. |
+| `[NOVO]` | `canvasGridThemeColors.ts` | Grid temático | Cores checker/linhas via CSS vars do tema. | `resolveCanvasGridThemeColors`. |
+| `[NOVO]` | `ritualBin/*` + `codeDock/*` | BIN pipeline | Codec nativo vs sidecar; open/save BIN no CodeDock. | Módulos separados por backend. |
+| `[NOVO]` | `scripts/dev.mjs` | Launcher dev | Escolhe backend Nativo (8791) vs Bridge Jade (8788). | Flags `--native`, `--jade`. |
+| `[ATUALIZADO]` | `GraphCanvas.tsx` | Integração | Snap menus, cursor 2D, slash commands, modos interacção. | +1100 linhas de wiring. |
+| `[ATUALIZADO]` | `useSceneHistory.ts` | Histórico | `saveBlockSlashCommand`, `applyBlockSlashCommand`, `removeBlockSlashCommand`. | Orquestra extract/apply. |
+| `[ATUALIZADO]` | `AddNodePalette.tsx` | Paleta | Modo slash commands; filtro por query `/`. | Props `slashCommandsEnabled`. |
+| `[ATUALIZADO]` | `canvasContextMenuItems.ts` | Menu contexto | Submenu `node.slashCommands.add/remove` em blocos. | Itens i18n. |
+| `[ATUALIZADO]` | `CanvasGridControlPanel.tsx` | Grid UI | Opacidade, cores checker A/B, preview temático. | Settings persistidos. |
+| `[ATUALIZADO]` | `blockCardHeaderSlots.ts` | Header slots | Aliases `in[T]`/`out[T]`; multi-tipo num descriptor. | `parseBlockHeaderSlotDescriptor`. |
+| `[ATUALIZADO]` | `useGraphCanvasShortcutHandlers.ts` | Atalhos | Fecha snap menu; abre slash picker; modos navigate/tweak. | Registry JSON. |
+| `[ATUALIZADO]` | `vite.plugin.blockParametersWrite.ts` | API dev | Endpoints REST slash commands. | GET/POST/DELETE. |
 
 ---
 
 ## 6. Descrição Detalhada de Funcionamento
 
-### Slot tools
+### Snap Menu radial
 
-[NOVO] Toggle no rodapé do `BlockCard` (ícone `slot tools.svg`) activa ferramentas junto a slots **ligados**: travar posição do peer, focar no canvas, ocultar/mostrar na cena e remover ligação. Estado por nó em `blockSlotToolsEnabledNodes`.
+[NOVO] Dois menus snap partilham o componente `SnapMenu` e o hook `useSnapMenu`:
 
-[ATUALIZADO] O menu de contexto e a toolbar respeitam o **índice** do pager quando há fan-out na mesma saída (`list[pointer]`).
+- **Navegação (`Shift+S`):** abre menu orbital com 9 acções (mover câmera para cursor, centrar seleção, pan para origem, etc.). Acções que exigem selecção ficam desactivadas sem nós seleccionados (`isGraphSnapActionDisabled`).
+- **Contexto de grade (`Shift+G`):** espelha o menu de contexto da grade em formato radial; submenus navegam por `path` com acção **Voltar** (`SNAP_MENU_BACK_ACTION_ID`).
 
-### Pager de fan-out
+[NOVO] Seleção por **ponteiro** (ângulo/distância) ou **tecla numérica** (1–9). Commit no **keyup** do acorde (hold-release), evitando activação acidental.
 
-[NOVO] `BlockSlotConnectionPager` mostra `‹ índice / total ›` quando `total > 1`. Com slot tools activas, o pager passa para uma **segunda linha centrada** abaixo da linha do parâmetro ou do header do bloco (`data-slot-pager-below`).
+[ATUALIZADO] Menus snap são **mutuamente exclusivos** — abrir um fecha o outro no `GraphCanvas`.
 
-[ATUALIZADO] `blockOutputSlotConnectionIndexByKey` no `GraphCanvas` persiste o índice seleccionado por slot.
+### Cursor 2D
 
-### Layout e truncamento de nomes
+[NOVO] Crosshair virtual (`Canvas2DCursor`) posicionado com **Ctrl+clique direito** na grade. Serve de referência para acções do snap menu (ex.: centrar câmera no cursor).
 
-[ATUALIZADO] Com slot tools, nomes longos (ex.: `complexEmitterDefinitionData`) usam `text-overflow: ellipsis` e grid com `minmax(0, 2fr)` na coluna do nome para não sobrepor a toolbar.
+[NOVO] Segurar Ctrl+clique direito **≥ 2 segundos** cancela e repõe o cursor na origem `(0, 0)` do grafo.
 
-### Preview ritual (Block Code)
+### Modos de interacção
 
-[ATUALIZADO] `canvasToClassGroupRitual` classifica ligações via schema + `listParameter`, faz merge de stubs `embed` → `listEmbed` em modo block card e emite `list[pointer]` / `list[embed]` / `list2[...]` correctamente no preview.
+[NOVO] `canvasInteractionMode`: `tweak` (comportamento padrão), `selectBox` (rectângulo de selecção), `navigate` (pan prioritário). Atalhos registados em `shortcuts.registry.json`.
 
-### Editor flutuante de parâmetro
+### Block Slash Commands
 
-[NOVO] Ao editar, `BlockCardMenuFloatingLayer` posiciona o inspetor com regra de **quadrante** (`computeContextMenuPlacement`). Correcção de `maxHeight` na metade inferior do ecrã usa `anchor.top` em vez do topo já deslocado do painel.
+[NOVO] Presets de subgrafo de blocos: o utilizador selecciona um bloco raiz, escolhe **Adicionar slash command** no menu de contexto, e o sistema:
 
-[NOVO] Arrastar pelo **cabeçalho** (título + eyebrow) move o painel; botão fechar não inicia drag. Posição manual é reposta ao abrir outro parâmetro ou nova âncora.
+1. Recolhe nós ligados por slots de bloco + nós ritual alcançáveis (`collectBlockSlashCommandNodeIds`).
+2. Serializa fragmento como `SlashCommandDocument` v1.
+3. Grava JSON em `src/blockStructures/slashCommands/blocks/` via API dev.
+4. Regista em memória (`slashCommandRegistry`).
 
-### Remoção de parâmetro
+[NOVO] Aplicar preset (paleta **Slash Commands** ou Ctrl+K): `applyBlockSlashCommandToScene` faz **remap de IDs**, merge no workspace actual e posiciona o root no ponto de spawn.
 
-[ATUALIZADO] `removeBlockParameter` remove conexões onde `fromBlockParameterId` / `toBlockParameterId` ou `fromBlockSlotId` / `toBlockSlotId` correspondem aos slots `input`/`output` do parâmetro, evitando ligações órfãs.
+[ATUALIZADO] Preset de exemplo: `main.json` (subgrafo Main/Zac).
 
-### Campos mapHash
+### Grid temático
 
-[NOVO] Componentes `BlockMapHashEmbedField`, `BlockMapHashPointerField`, `BlockMapU64PointerField` e `BlockMapHashStructureField` integram listas e slots no layout de 5 colunas do card.
+[NOVO] `canvasGridThemeColors` lê variáveis CSS do tema activo para linhas da grade e padrão checker A/B.
+
+[ATUALIZADO] `CanvasGridControlPanel` expõe opacidade, cores e preview ao vivo.
+
+### Slots de cabeçalho `in[]` / `out[]`
+
+[ATUALIZADO] `blockCardHeaderSlots` aceita descriptors `in[T]`/`out[T]` além de `input[T]`/`output[T]`, com suporte a **múltiplos tipos** num único descriptor.
+
+### Pipeline RitualBin / CodeDock
+
+[NOVO] Módulos `ritualBin/` e `codeDock/` separam codec BIN nativo (Ritobin bridge) vs sidecar Jade.
+
+[NOVO] `npm run dev` (`scripts/dev.mjs`) pergunta backend **Nativo** ou **Bridge Jade** e configura proxies Vite.
 
 ### Regras de negócio e erros
 
-- Confirmação de remoção de parâmetro usa diálogo do menu (`confirmRemove`); erros de catálogo em adicionar podem usar `window.alert` legado.
-- `createPortal` importa de **`react-dom`** (não de `react`).
-- Slot tools só mostram toolbar quando existe ligação activa no slot (`outputPeerState` / `inputPeerState`).
+- Snap menus: commit só no keyup do acorde; pointer fora do menu cancela sem acção.
+- Slash commands: nomes sanitizados (`sanitizeSlashCommandStem`); conflito de nome → erro na API write.
+- **Dívida técnica:** remoção de slash command usa `window.confirm` — migrar para Messenger Popup (`showConfirmByCatalogId`) numa entrega futura.
+- Ligações forçadas de blocos/add-ons continuam a usar Messenger (não `window.confirm`).
 
 ---
 
 ## 7. Como utilizar (didático)
 
-### Português
-
-1. Abra um **BlockCard** no canvas (vista bloco activa).
-2. No rodapé, clique no ícone **slot tools** para activar as ferramentas nos slots ligados.
-3. Em saídas com **várias ligações**, use `‹ 0 / N ›` para escolher qual ligação editar no menu ou nas tools; com tools activas o índice aparece **centrado abaixo** da linha.
-4. Use **lock / focus / eye / unlink** à direita (ou esquerda) do slot conforme a direcção.
-5. Para **editar** um parâmetro: botão lápis → escolha na lista → painel flutuante; **arraste pelo título** para reposicionar.
-6. Para **remover** parâmetro: botão remover → confirme; todas as **ligações desse parâmetro são desfeitas** automaticamente.
-7. No **Block Code Preview**, campos `list[pointer]` e `list[embed]` reflectem ligações do card.
-
 ### English
 
-1. Open a **BlockCard** on the canvas (block view enabled).
-2. In the footer, click **slot tools** to show peer actions on connected slots.
-3. For **multiple connections** on one output, use `‹ 0 / N ›`; with tools enabled the pager sits **centered below** the row.
-4. Use **lock / focus / eye / unlink** next to the slot.
-5. To **edit** a parameter: pencil button → pick from list → floating panel; **drag the header** to move it.
-6. To **remove** a parameter: remove button → confirm; all **connections for that parameter are removed** automatically.
-7. **Block Code Preview** shows `list[pointer]` / `list[embed]` fields according to card links.
+1. **Navigation snap menu:** hold **Shift+S**, move the pointer (or press **1–9**), release **Shift** to run the highlighted action (camera, cursor, selection, origin).
+2. **Grid context snap menu:** hold **Shift+G** over the canvas for the radial version of the grid context menu; use **0** to go back in submenus.
+3. **2D cursor:** **Ctrl+right-click** on empty canvas to place the crosshair; hold **≥ 2 s** to reset to graph origin `(0, 0)`.
+4. **Interaction modes:** use shortcuts for **navigate** / **tweak** (see Shortcuts panel).
+5. **Create slash command:** right-click a block → **Add slash command** → enter a name → preset saved under `blockStructures/slashCommands/blocks/`.
+6. **Apply slash command:** open palette (**Ctrl+K**) → **Slash Commands** tab → pick a command → subgraph spawns at cursor/palette position.
+7. **Grid theme:** open grid control panel → adjust line/checker colors and opacity.
+
+### Português
+
+1. **Menu snap de navegação:** segure **Shift+S**, mova o ponteiro (ou tecla **1–9**), solte **Shift** para executar a acção destacada (câmera, cursor, selecção, origem).
+2. **Menu snap de contexto da grade:** segure **Shift+G** sobre o canvas para a versão radial do menu de contexto; use **0** para voltar em submenus.
+3. **Cursor 2D:** **Ctrl+clique direito** na grade vazia posiciona o crosshair; segurar **≥ 2 s** repõe a origem `(0, 0)` do grafo.
+4. **Modos de interacção:** use atalhos **navigate** / **tweak** (painel de atalhos).
+5. **Criar slash command:** clique direito num bloco → **Adicionar slash command** → indique o nome → preset gravado em `blockStructures/slashCommands/blocks/`.
+6. **Aplicar slash command:** abra a paleta (**Ctrl+K**) → separador **Slash Commands** → escolha o comando → subgrafo aparece na posição do cursor/paleta.
+7. **Tema da grade:** painel de controlo da grade → ajuste cores checker/linhas e opacidade.
 
 ---
 

@@ -209,12 +209,282 @@ async function collectJsonFilesRecursive(dir: string): Promise<string[]> {
   return files
 }
 
+function sanitizeSlashCommandFileStem(command: string): string | null {
+  const t = command
+    .normalize('NFKC')
+    .trim()
+    .toLowerCase()
+    .replace(/[\s/\\]+/g, '-')
+    .replace(/[^a-z0-9_-]/g, '')
+
+  if (t === '' || t === '.' || t === '..' || t.length > 120) {
+    return null
+  }
+
+  return t
+}
+
+function sanitizeSlashCommandFeatureFolder(feature: string): string | null {
+  const t = feature
+    .normalize('NFKC')
+    .trim()
+    .toLowerCase()
+    .replace(/[\s/\\]+/g, '-')
+    .replace(/[^a-z0-9_-]/g, '')
+
+  if (t === '' || t === '.' || t === '..' || t.length > 60) {
+    return null
+  }
+
+  return t
+}
+
+function isSlashCommandDocument(raw: unknown): raw is Record<string, unknown> {
+  if (!isRecord(raw)) {
+    return false
+  }
+  if (raw.version !== 1 || raw.kind !== 'slash-command') {
+    return false
+  }
+  if (typeof raw.feature !== 'string' || !raw.feature.trim()) {
+    return false
+  }
+  if (typeof raw.name !== 'string' || !raw.name.trim()) {
+    return false
+  }
+  if (typeof raw.command !== 'string' || !raw.command.trim()) {
+    return false
+  }
+  if (typeof raw.createdAt !== 'string' || !raw.createdAt.trim()) {
+    return false
+  }
+  if (!isRecord(raw.source)) {
+    return false
+  }
+  if (
+    typeof raw.source.rootBlockName !== 'string' ||
+    !raw.source.rootBlockName.trim() ||
+    typeof raw.source.rootNodeId !== 'string' ||
+    !raw.source.rootNodeId.trim()
+  ) {
+    return false
+  }
+  if (!isRecord(raw.payload)) {
+    return false
+  }
+  return true
+}
+
+function slashCommandsRoot(projectRoot: string): string {
+  return path.resolve(projectRoot, 'src', 'blockStructures', 'slashCommands')
+}
+
+function readRequestBody(req: import('http').IncomingMessage): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const chunks: Buffer[] = []
+    req.on('data', (chunk: Buffer) => {
+      chunks.push(chunk)
+    })
+    req.on('end', () => {
+      resolve(Buffer.concat(chunks).toString('utf8'))
+    })
+    req.on('error', reject)
+  })
+}
+
+async function handleSlashCommandsListRequest(
+  projectRoot: string,
+  url: URL,
+  res: import('http').ServerResponse,
+): Promise<void> {
+  try {
+    const featureRaw = url.searchParams.get('feature') ?? ''
+    const featureFolder = featureRaw.trim() ? sanitizeSlashCommandFeatureFolder(featureRaw) : null
+    const root = slashCommandsRoot(projectRoot)
+    await fs.mkdir(root, { recursive: true })
+
+    const commands: Record<string, unknown>[] = []
+    const skipped: string[] = []
+
+    const featureDirs =
+      featureFolder !== null
+        ? [featureFolder]
+        : (await fs.readdir(root, { withFileTypes: true }))
+            .filter((entry) => entry.isDirectory())
+            .map((entry) => entry.name)
+
+    for (const featureDir of featureDirs) {
+      const featurePath = path.resolve(root, featureDir)
+      const relFeature = path.relative(root, featurePath)
+      if (relFeature.startsWith('..') || path.isAbsolute(relFeature)) {
+        continue
+      }
+
+      const jsonFiles = await collectJsonFilesRecursive(featurePath)
+      for (const filePath of jsonFiles) {
+        try {
+          const raw = JSON.parse(await fs.readFile(filePath, 'utf8')) as unknown
+          if (isSlashCommandDocument(raw)) {
+            commands.push(raw)
+          } else {
+            skipped.push(path.relative(featurePath, filePath))
+          }
+        } catch {
+          skipped.push(path.relative(featurePath, filePath))
+        }
+      }
+    }
+
+    res.statusCode = 200
+    res.setHeader('Content-Type', 'application/json; charset=utf-8')
+    res.end(JSON.stringify({ ok: true, commands, skipped }))
+  } catch (err) {
+    res.statusCode = 500
+    res.setHeader('Content-Type', 'application/json; charset=utf-8')
+    res.end(
+      JSON.stringify({
+        ok: false,
+        error: err instanceof Error ? err.message : String(err),
+      }),
+    )
+  }
+}
+
+async function handleSlashCommandsWriteRequest(
+  projectRoot: string,
+  req: import('http').IncomingMessage,
+  res: import('http').ServerResponse,
+): Promise<void> {
+  try {
+    const rawBody = await readRequestBody(req)
+    const parsed: unknown = JSON.parse(rawBody) as unknown
+
+    const document =
+      isRecord(parsed) && isSlashCommandDocument(parsed.document)
+        ? parsed.document
+        : isRecord(parsed) && isSlashCommandDocument(parsed)
+          ? parsed
+          : null
+
+    if (!document) {
+      res.statusCode = 400
+      res.setHeader('Content-Type', 'application/json; charset=utf-8')
+      res.end(JSON.stringify({ ok: false, error: 'Documento inválido' }))
+      return
+    }
+
+    const featureFolder = sanitizeSlashCommandFeatureFolder(document.feature as string)
+    const stem = sanitizeSlashCommandFileStem(document.command as string)
+    if (!featureFolder || !stem) {
+      res.statusCode = 400
+      res.setHeader('Content-Type', 'application/json; charset=utf-8')
+      res.end(JSON.stringify({ ok: false, error: 'Feature ou comando inválido' }))
+      return
+    }
+
+    const root = slashCommandsRoot(projectRoot)
+    const featureDir = path.resolve(root, featureFolder)
+    await fs.mkdir(featureDir, { recursive: true })
+
+    const filePath = path.resolve(featureDir, `${stem}.json`)
+    const relInside = path.relative(root, filePath)
+    if (relInside.startsWith('..') || path.isAbsolute(relInside)) {
+      res.statusCode = 400
+      res.setHeader('Content-Type', 'application/json; charset=utf-8')
+      res.end(JSON.stringify({ ok: false, error: 'Caminho inválido' }))
+      return
+    }
+
+    const existed = await fileExists(filePath)
+    await fs.writeFile(filePath, `${JSON.stringify(document, null, 2)}\n`, 'utf8')
+
+    res.statusCode = 200
+    res.setHeader('Content-Type', 'application/json; charset=utf-8')
+    res.end(
+      JSON.stringify({
+        ok: true,
+        written: `${featureFolder}/${stem}.json`,
+        overwritten: existed,
+      }),
+    )
+  } catch (err) {
+    res.statusCode = 500
+    res.setHeader('Content-Type', 'application/json; charset=utf-8')
+    res.end(
+      JSON.stringify({
+        ok: false,
+        error: err instanceof Error ? err.message : String(err),
+      }),
+    )
+  }
+}
+
+async function handleSlashCommandsDeleteRequest(
+  projectRoot: string,
+  req: import('http').IncomingMessage,
+  res: import('http').ServerResponse,
+): Promise<void> {
+  try {
+    const rawBody = await readRequestBody(req)
+    const parsed: unknown = JSON.parse(rawBody) as unknown
+
+    if (!isRecord(parsed) || typeof parsed.feature !== 'string' || typeof parsed.command !== 'string') {
+      res.statusCode = 400
+      res.setHeader('Content-Type', 'application/json; charset=utf-8')
+      res.end(JSON.stringify({ ok: false, error: 'Corpo inválido' }))
+      return
+    }
+
+    const featureFolder = sanitizeSlashCommandFeatureFolder(parsed.feature)
+    const stem = sanitizeSlashCommandFileStem(parsed.command)
+    if (!featureFolder || !stem) {
+      res.statusCode = 400
+      res.setHeader('Content-Type', 'application/json; charset=utf-8')
+      res.end(JSON.stringify({ ok: false, error: 'Feature ou comando inválido' }))
+      return
+    }
+
+    const filePath = path.resolve(slashCommandsRoot(projectRoot), featureFolder, `${stem}.json`)
+    const relInside = path.relative(slashCommandsRoot(projectRoot), filePath)
+    if (relInside.startsWith('..') || path.isAbsolute(relInside)) {
+      res.statusCode = 400
+      res.setHeader('Content-Type', 'application/json; charset=utf-8')
+      res.end(JSON.stringify({ ok: false, error: 'Caminho inválido' }))
+      return
+    }
+
+    if (!(await fileExists(filePath))) {
+      res.statusCode = 404
+      res.setHeader('Content-Type', 'application/json; charset=utf-8')
+      res.end(JSON.stringify({ ok: false, error: 'Comando não encontrado' }))
+      return
+    }
+
+    await fs.unlink(filePath)
+    res.statusCode = 200
+    res.setHeader('Content-Type', 'application/json; charset=utf-8')
+    res.end(JSON.stringify({ ok: true, deleted: `${featureFolder}/${stem}.json` }))
+  } catch (err) {
+    res.statusCode = 500
+    res.setHeader('Content-Type', 'application/json; charset=utf-8')
+    res.end(
+      JSON.stringify({
+        ok: false,
+        error: err instanceof Error ? err.message : String(err),
+      }),
+    )
+  }
+}
+
 /**
  * Em `npm run dev`:
  * - POST `/api/block-parameters-write` — grava JSON em `src/blockStructures/parameters/{block}/`
  * - POST `/api/block-definitions-write` — grava JSON em `src/blockStructures/blocks/{blockName}/`
  * - GET `/api/block-definitions-list` — lista JSON em `src/blockStructures/blocks/**`
  * - GET `/api/block-parameters-list?block=` — lista JSON em `src/blockStructures/parameters/{block}/`
+ * - GET `/api/slash-commands-list?feature=` — lista JSON em `src/blockStructures/slashCommands/{feature}/`
+ * - POST `/api/slash-commands-write` — grava slash command
+ * - POST `/api/slash-commands-delete` — remove slash command
  */
 export function vitePluginBlockParametersWrite(projectRoot: string): Plugin {
   return {
@@ -236,6 +506,21 @@ export function vitePluginBlockParametersWrite(projectRoot: string): Plugin {
 
         if (pathname === '/api/addons-install' && req.method === 'POST') {
           void handleAddonsInstallRequest(projectRoot, req, res)
+          return
+        }
+
+        if (pathname === '/api/slash-commands-list' && req.method === 'GET') {
+          void handleSlashCommandsListRequest(projectRoot, url, res)
+          return
+        }
+
+        if (pathname === '/api/slash-commands-write' && req.method === 'POST') {
+          void handleSlashCommandsWriteRequest(projectRoot, req, res)
+          return
+        }
+
+        if (pathname === '/api/slash-commands-delete' && req.method === 'POST') {
+          void handleSlashCommandsDeleteRequest(projectRoot, req, res)
           return
         }
 

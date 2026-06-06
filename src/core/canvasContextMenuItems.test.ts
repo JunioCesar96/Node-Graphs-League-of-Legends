@@ -46,7 +46,7 @@ describe('buildContextMenuItems element retracted', () => {
     hasSelectAll: false,
     scene: demoCanvasScene,
     selectedNodeIds: [],
-    viewportNavigateMode: false,
+    canvasInteractionMode: 'tweak' as const,
     toolbarVisibility: DEFAULT_CANVAS_TOOLBAR_VISIBILITY,
     hasPendingLink: false,
     hasInspectorSlot: false,
@@ -108,7 +108,7 @@ describe('buildContextMenuItems node hide linked children', () => {
     canUndo: false,
     glueNodeId: null,
     hasSelectAll: false,
-    viewportNavigateMode: false,
+    canvasInteractionMode: 'tweak' as const,
     toolbarVisibility: DEFAULT_CANVAS_TOOLBAR_VISIBILITY,
     hasPendingLink: false,
     hasInspectorSlot: false,
@@ -142,7 +142,7 @@ describe('buildContextMenuItems block card node menu', () => {
     canUndo: false,
     glueNodeId: null,
     hasSelectAll: false,
-    viewportNavigateMode: false,
+    canvasInteractionMode: 'tweak' as const,
     toolbarVisibility: DEFAULT_CANVAS_TOOLBAR_VISIBILITY,
     hasPendingLink: false,
     hasInspectorSlot: false,
@@ -184,6 +184,40 @@ describe('buildContextMenuItems block card node menu', () => {
     ])
     expect(items[1]?.label).toBe('Já seleccionado')
     expect(items[3]?.children?.map((item) => item.id)).toEqual(['node.codigoPreviewBlock'])
+  })
+
+  it('mostra submenu Slash Commands com adicionar e remover', () => {
+    const blockStructure: BlockStructurePayload = {
+      blockType: 'IntegratedValueVector3',
+      blockName: 'IntegratedValueVector3',
+      parameters: [],
+      identification_codes: [],
+    }
+
+    const blockNode: CanvasNode = {
+      ...stubNode('block-node'),
+      blockViewActive: true,
+      blockStructure,
+    }
+
+    const scene: CanvasScene = {
+      nodes: [blockNode],
+      connections: [],
+    }
+
+    const target: CanvasContextTarget = { type: 'node', nodeId: 'block-node' }
+    const items = buildContextMenuItems(target, {
+      ...baseCtx,
+      scene,
+      selectedNodeIds: ['block-node'],
+      onRequestBlockSlashCommand: () => {},
+    })
+
+    const slashMenu = items.find((item) => item.id === 'node.slashCommands')
+    expect(slashMenu?.children?.map((item) => item.id)).toEqual([
+      'node.slashCommands.add',
+      'node.slashCommands.remove',
+    ])
   })
 
   it('mostra submenu Parâmetros com adicionar, editar e remover', () => {
@@ -279,7 +313,7 @@ describe('buildContextMenuItems block slot', () => {
     canUndo: false,
     glueNodeId: null,
     hasSelectAll: false,
-    viewportNavigateMode: false,
+    canvasInteractionMode: 'tweak' as const,
     toolbarVisibility: DEFAULT_CANVAS_TOOLBAR_VISIBILITY,
     hasPendingLink: false,
     hasInspectorSlot: false,
@@ -351,5 +385,71 @@ describe('buildContextMenuItems block slot', () => {
       'slot.connectionRoutingMenu',
     ])
     expect(items[1]?.label).toBe('Focar no slot de saída')
+  })
+})
+
+describe('buildContextMenuItems canvas navegacao', () => {
+  const baseCtx = {
+    canRedo: false,
+    canUndo: false,
+    glueNodeId: null,
+    hasSelectAll: true,
+    toolbarVisibility: DEFAULT_CANVAS_TOOLBAR_VISIBILITY,
+    hasPendingLink: false,
+    hasInspectorSlot: false,
+    scene: demoCanvasScene,
+    selectedNodeIds: [] as string[],
+  }
+
+  it('agrupa Tweak, Select box e Mover na grade no submenu Navegação', () => {
+    const items = buildContextMenuItems({ type: 'canvas' }, {
+      ...baseCtx,
+      canvasInteractionMode: 'tweak',
+    })
+
+    const navegacao = items.find((item) => item.id === 'canvas.navegacao')
+    expect(navegacao?.label).toBe('Navegação')
+    expect(navegacao?.children?.map((item) => item.id)).toEqual([
+      'canvas.setInteractionMode.tweak',
+      'canvas.setInteractionMode.selectBox',
+      'canvas.setInteractionMode.navigate',
+    ])
+    expect(navegacao?.children?.find((item) => item.id === 'canvas.setInteractionMode.tweak')?.selected).toBe(
+      true,
+    )
+    expect(items.some((item) => item.id === 'canvas.toggleNavigateMode')).toBe(false)
+  })
+
+  it('marca Select box como activo no submenu', () => {
+    const items = buildContextMenuItems({ type: 'canvas' }, {
+      ...baseCtx,
+      canvasInteractionMode: 'selectBox',
+    })
+
+    const navegacao = items.find((item) => item.id === 'canvas.navegacao')
+    expect(
+      navegacao?.children?.find((item) => item.id === 'canvas.setInteractionMode.selectBox')?.selected,
+    ).toBe(true)
+  })
+})
+
+describe('buildContextMenuItems canvas exibir', () => {
+  const baseCtx = {
+    canRedo: false,
+    canUndo: false,
+    glueNodeId: null,
+    hasSelectAll: true,
+    toolbarVisibility: DEFAULT_CANVAS_TOOLBAR_VISIBILITY,
+    hasPendingLink: false,
+    hasInspectorSlot: false,
+    scene: demoCanvasScene,
+    selectedNodeIds: [] as string[],
+  }
+
+  it('inclui Grade no submenu Exibir', () => {
+    const items = buildContextMenuItems({ type: 'canvas' }, baseCtx)
+    const exibir = items.find((item) => item.id === 'canvas.exibir')
+
+    expect(exibir?.children?.some((item) => item.id === 'canvas.openGridControl')).toBe(true)
   })
 })

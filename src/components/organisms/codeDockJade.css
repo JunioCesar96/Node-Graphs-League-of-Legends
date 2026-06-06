@@ -81,3 +81,27 @@ body.ritualLinkDragging * {
   text-transform: uppercase;
   color: var(--vscode-menu-foreground, #cccccc);
 }
+
+.codeDockJadeScope .menu-option--static {
+  cursor: default;
+  opacity: 0.92;
+}
+
+.codeDockJadeScope .menu-option--static:hover {
+  background: transparent;
+}
+
+.codeDockJadeScope .menu-option-meta {
+  margin-left: auto;
+  padding-left: 12px;
+  font-size: 11px;
+  opacity: 0.75;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.codeDockJadeScope .menu-option--checked {
+  font-weight: 600;
+}

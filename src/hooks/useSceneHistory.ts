@@ -121,7 +121,20 @@ import {
   defaultSceneNodesStatePresetName,
   type SceneNodesStatePreset,
 } from '@/core/sceneNodesStatePresets'
+import {
+  applyBlockSlashCommandToScene,
+  extractBlockSlashCommandFragment,
+} from '@/core/blockSlashCommand'
 import { createUniqueNodeId } from '@/core/canvasNodeIds'
+import {
+  registerSlashCommand,
+  slashCommandByKey,
+  unregisterSlashCommand,
+} from '@/core/slashCommandRegistry'
+import {
+  deleteSlashCommandDocument,
+  writeSlashCommandDocument,
+} from '@/core/slashCommandStorage'
 import {
   emptyCanvasScene,
   hydrateScene,
@@ -907,48 +920,35 @@ export function useSceneHistory(options?: {
   const patchSceneChrome = useCallback(
     (patch: {
       sceneNodes?: Partial<SceneNodesChrome>
-      toolbarCollapsed?: boolean
-      toolbarVisibility?: SceneChromeState['toolbarVisibility']
-      showCanvasGrid?: boolean
-      canvasGridSize?: number
-      canvasGridOpacity?: number
-    }) => {
+    } & Partial<{ [K in keyof SceneChromeState]: SceneChromeState[K] | null }>) => {
       setSceneHistory((currentHistory) => {
         const present = currentHistory.present
         const prev = present.sceneChrome ?? {}
+        const { sceneNodes: sceneNodesPatch, ...chromePatch } = patch
         const nextSceneNodes =
-          patch.sceneNodes !== undefined
-            ? { ...prev.sceneNodes, ...patch.sceneNodes }
-            : prev.sceneNodes
-        const nextToolbarCollapsed =
-          patch.toolbarCollapsed !== undefined ? patch.toolbarCollapsed : prev.toolbarCollapsed
-        const nextToolbar =
-          patch.toolbarVisibility !== undefined ? patch.toolbarVisibility : prev.toolbarVisibility
-        const nextShowCanvasGrid =
-          patch.showCanvasGrid !== undefined ? patch.showCanvasGrid : prev.showCanvasGrid
-        const nextGridSize =
-          patch.canvasGridSize !== undefined ? patch.canvasGridSize : prev.canvasGridSize
-        const nextGridOpacity =
-          patch.canvasGridOpacity !== undefined ? patch.canvasGridOpacity : prev.canvasGridOpacity
-
-        if (
-          sceneNodesChromeEqual(prev.sceneNodes, nextSceneNodes) &&
-          prev.toolbarCollapsed === nextToolbarCollapsed &&
-          prev.toolbarVisibility === nextToolbar &&
-          prev.showCanvasGrid === nextShowCanvasGrid &&
-          prev.canvasGridSize === nextGridSize &&
-          prev.canvasGridOpacity === nextGridOpacity
-        ) {
-          return currentHistory
+          sceneNodesPatch !== undefined ? { ...prev.sceneNodes, ...sceneNodesPatch } : prev.sceneNodes
+        const nextChrome: SceneChromeState = {
+          ...prev,
+          ...(sceneNodesPatch !== undefined ? { sceneNodes: nextSceneNodes } : {}),
         }
 
-        const nextChrome: SceneChromeState = {
-          ...(nextSceneNodes !== undefined ? { sceneNodes: nextSceneNodes } : {}),
-          ...(nextToolbarCollapsed !== undefined ? { toolbarCollapsed: nextToolbarCollapsed } : {}),
-          ...(nextToolbar !== undefined ? { toolbarVisibility: nextToolbar } : {}),
-          ...(nextShowCanvasGrid !== undefined ? { showCanvasGrid: nextShowCanvasGrid } : {}),
-          ...(nextGridSize !== undefined ? { canvasGridSize: nextGridSize } : {}),
-          ...(nextGridOpacity !== undefined ? { canvasGridOpacity: nextGridOpacity } : {}),
+        for (const [key, value] of Object.entries(chromePatch)) {
+          if (key === 'sceneNodes') {
+            continue
+          }
+
+          if (value === null) {
+            delete nextChrome[key as keyof SceneChromeState]
+            continue
+          }
+
+          if (value !== undefined) {
+            nextChrome[key as keyof SceneChromeState] = value as SceneChromeState[keyof SceneChromeState]
+          }
+        }
+
+        if (JSON.stringify(prev) === JSON.stringify(nextChrome)) {
+          return currentHistory
         }
 
         return {
@@ -957,7 +957,7 @@ export function useSceneHistory(options?: {
         }
       })
     },
-    [sceneNodesChromeEqual],
+    [],
   )
 
   const readSceneNodesStatePresets = useCallback((): SceneNodesStatePreset[] => {
@@ -1595,6 +1595,84 @@ export function useSceneHistory(options?: {
       return { ok: true, nodeId: createdId }
     },
     [updateScene, schemaLookup],
+  )
+
+  const saveBlockSlashCommand = useCallback(
+    async (
+      nodeId: string,
+      commandName: string,
+    ): Promise<{ ok: true } | { ok: false; error: string }> => {
+      const extracted = extractBlockSlashCommandFragment(scene, nodeId, commandName)
+      if (!extracted.ok) {
+        return extracted
+      }
+
+      const writeResult = await writeSlashCommandDocument(extracted.document)
+      if (!writeResult.ok) {
+        return { ok: false, error: writeResult.error }
+      }
+
+      registerSlashCommand(extracted.document)
+      return { ok: true }
+    },
+    [scene],
+  )
+
+  const removeBlockSlashCommand = useCallback(
+    async (command: string): Promise<{ ok: true } | { ok: false; error: string }> => {
+      const deleteResult = await deleteSlashCommandDocument('blocks', command)
+      if (!deleteResult.ok) {
+        return deleteResult
+      }
+
+      unregisterSlashCommand('blocks', command)
+      return { ok: true }
+    },
+    [],
+  )
+
+  const applyBlockSlashCommand = useCallback(
+    (
+      command: string,
+      position?: CanvasPosition,
+    ): { ok: true; rootNodeId: string } | { ok: false; error: string } => {
+      const document = slashCommandByKey('blocks', command)
+      if (!document) {
+        return { ok: false, error: `Slash command "/${command}" não encontrado.` }
+      }
+
+      let rootNodeId: string | null = null
+      let applyError: string | null = null
+
+      updateScene((currentScene) => {
+        const spawnPosition = position ?? getNextDetachedNodePosition(currentScene)
+        const result = applyBlockSlashCommandToScene(currentScene, document, spawnPosition)
+        if (!result.ok) {
+          applyError = result.error
+          return currentScene
+        }
+
+        rootNodeId = result.rootNodeId
+        queueMicrotask(() =>
+          setSelectionState({
+            ids: [result.rootNodeId],
+            primaryId: result.rootNodeId,
+          }),
+        )
+        return result.scene
+      })
+
+      if (applyError) {
+        return { ok: false, error: applyError }
+      }
+
+      if (!rootNodeId) {
+        return { ok: false, error: 'Não foi possível aplicar o slash command.' }
+      }
+
+      return { ok: true, rootNodeId }
+    },
+    [updateScene],
   )
 
   const createAddonNode = useCallback(
@@ -4037,6 +4115,9 @@ export function useSceneHistory(options?: {
     createChildNode,
     createRootNode,
     createBlockNodeFromDefinition,
+    saveBlockSlashCommand,
+    removeBlockSlashCommand,
+    applyBlockSlashCommand,
     createAddonNode,
     applyAddonOutputsToScene,
     connectAddonSlots,

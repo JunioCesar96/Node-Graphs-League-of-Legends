@@ -1,9 +1,17 @@
 import { useEffect, useRef, type Dispatch, type SetStateAction } from 'react'
 
+import {
+  DEFAULT_CANVAS_INTERACTION_MODE,
+  type CanvasInteractionMode,
+} from '@/core/canvasInteractionMode'
 import type { CanvasScene } from '@/core/canvasScene'
 import { isNodeLocked } from '@/core/canvasNodePresentation'
 import { isNeekoSchemaId } from '@/core/neekoNodeTransform'
-import { SHORTCUT_DOCK_NODE_PALETTE, SHORTCUT_SCOPE_GRAPH_CANVAS } from '@/core/shortcuts/shortcutScopes'
+import {
+  SHORTCUT_DOCK_NODE_PALETTE,
+  SHORTCUT_DOCK_SNAP_MENU,
+  SHORTCUT_SCOPE_GRAPH_CANVAS,
+} from '@/core/shortcuts/shortcutScopes'
 import { SHORTCUT_SCOPE_ATTR } from '@/core/shortcuts/shortcutScopes'
 
 import { useShortcutScope } from './ShortcutScopeProvider'
@@ -14,20 +22,25 @@ export type GraphCanvasShortcutRefs = {
   selectedNodeId: string | null
   glueTargetId: string | null
   glueNodeId: string | null
-  viewportNavigateMode: boolean
+  canvasInteractionMode: CanvasInteractionMode
   scene: CanvasScene
 }
 
 export function useGraphCanvasShortcutHandlers(options: {
   refs: GraphCanvasShortcutRefs
   isPaletteOpen: boolean
+  isSlashCommandPickerOpen?: boolean
+  isSnapMenuOpen?: boolean
   endLinkDraft: () => void
   openPalette: () => void
+  openSlashCommandPicker?: () => void
+  closeSnapMenu?: () => void
   onClearSelection?: () => void
   onSelectAllNodesShortcut?: () => void
   focusSelectionIntoView: (nodeIds: readonly string[]) => void
-  setGlueNodeId: Dispatch<SetStateAction<string | null>>
-  setViewportNavigateMode: Dispatch<SetStateAction<boolean>>
+  activateGlueNode: (nodeId: string) => void
+  deactivateGlueNode: () => void
+  setCanvasInteractionMode: Dispatch<SetStateAction<CanvasInteractionMode>>
   onCloseCodePanelShortcut?: () => void
   onNeekoDropCode?: (nodeId: string, text: string) => void
   setStructureCardResizeModifierActive?: Dispatch<SetStateAction<boolean>>
@@ -37,8 +50,12 @@ export function useGraphCanvasShortcutHandlers(options: {
   refs.current = options.refs
 
   useEffect(() => {
-    setOpenDocks({ [SHORTCUT_DOCK_NODE_PALETTE]: options.isPaletteOpen })
-  }, [options.isPaletteOpen, setOpenDocks])
+    setOpenDocks({
+      [SHORTCUT_DOCK_NODE_PALETTE]:
+        options.isPaletteOpen || options.isSlashCommandPickerOpen === true,
+      [SHORTCUT_DOCK_SNAP_MENU]: options.isSnapMenuOpen === true,
+    })
+  }, [options.isPaletteOpen, options.isSlashCommandPickerOpen, options.isSnapMenuOpen, setOpenDocks])
 
   useEffect(() => {
     const setModifier = options.setStructureCardResizeModifierActive
@@ -47,6 +64,12 @@ export function useGraphCanvasShortcutHandlers(options: {
         return false
       }
       if (!setModifier) {
+        return false
+      }
+      if (refs.current.glueNodeId !== null) {
+        if (event.type === 'keyup') {
+          setModifier(false)
+        }
         return false
       }
       if (event.type === 'keydown' && event.repeat) {
@@ -63,6 +86,10 @@ export function useGraphCanvasShortcutHandlers(options: {
         options.openPalette()
         return true
       },
+      'graph-open-slash-commands': () => {
+        options.openSlashCommandPicker?.()
+        return true
+      },
       'graph-select-all-toggle': () => {
         const { selectedNodeIds } = refs.current
         if (selectedNodeIds.length > 0) {
@@ -77,24 +104,44 @@ export function useGraphCanvasShortcutHandlers(options: {
         return true
       },
       'graph-glue-toggle': () => {
-        const { glueTargetId } = refs.current
-        options.setGlueNodeId((existingGlue) =>
-          glueTargetId === null ? null : existingGlue === glueTargetId ? null : glueTargetId,
-        )
+        const { glueTargetId, glueNodeId } = refs.current
+        if (glueNodeId !== null) {
+          options.deactivateGlueNode()
+          return true
+        }
+        if (glueTargetId === null) {
+          return false
+        }
+        options.activateGlueNode(glueTargetId)
+        return true
+      },
+      'graph-set-interaction-navigate': () => {
+        options.setCanvasInteractionMode('navigate')
+        return true
+      },
+      'graph-set-interaction-tweak': () => {
+        options.setCanvasInteractionMode(DEFAULT_CANVAS_INTERACTION_MODE)
         return true
       },
       'graph-escape': () => {
         const state = refs.current
+        if (options.isSnapMenuOpen) {
+          options.closeSnapMenu?.()
+          return true
+        }
         if (state.pendingLink) {
           options.endLinkDraft()
           return true
         }
-        if (state.viewportNavigateMode) {
-          options.setViewportNavigateMode(false)
+        if (state.glueNodeId !== null) {
+          options.deactivateGlueNode()
+          return true
+        }
+        if (state.canvasInteractionMode !== DEFAULT_CANVAS_INTERACTION_MODE) {
+          options.setCanvasInteractionMode(DEFAULT_CANVAS_INTERACTION_MODE)
           return true
         }
         options.onCloseCodePanelShortcut?.()
-        options.setGlueNodeId(null)
         return true
       },
       'graph-neeko-paste': async () => {
@@ -124,9 +171,13 @@ export function useGraphCanvasShortcutHandlers(options: {
     options.onCloseCodePanelShortcut,
     options.onNeekoDropCode,
     options.onSelectAllNodesShortcut,
+    options.closeSnapMenu,
+    options.isSnapMenuOpen,
     options.openPalette,
-    options.setGlueNodeId,
-    options.setViewportNavigateMode,
+    options.openSlashCommandPicker,
+    options.activateGlueNode,
+    options.deactivateGlueNode,
+    options.setCanvasInteractionMode,
     options.setStructureCardResizeModifierActive,
     registerShortcutHandlers,
   ])

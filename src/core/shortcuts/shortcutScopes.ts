@@ -18,10 +18,12 @@ export const SHORTCUT_SCOPE_ATTR = 'data-shortcut-scope'
 export const SHORTCUT_DOCK_VFX = 'vfx-dock' as const
 export const SHORTCUT_DOCK_CODE = 'code-dock' as const
 export const SHORTCUT_DOCK_NODE_PALETTE = 'node-palette' as const
+export const SHORTCUT_DOCK_SNAP_MENU = 'snap-menu' as const
 
 export type ShortcutDockId =
   | typeof SHORTCUT_DOCK_VFX
   | typeof SHORTCUT_DOCK_CODE
   | typeof SHORTCUT_DOCK_NODE_PALETTE
+  | typeof SHORTCUT_DOCK_SNAP_MENU
 
 export const DEFAULT_SHORTCUT_SCOPE: ShortcutScopeId = SHORTCUT_SCOPE_GRAPH_CANVAS

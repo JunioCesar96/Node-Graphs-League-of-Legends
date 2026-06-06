@@ -20,12 +20,7 @@ import {
   type CanvasToolbarVisibility,
 } from '@/core/canvasToolbarVisibility'
 import type { NodeInstance } from '@/core/nodeSchema'
-import {
-  DEFAULT_CANVAS_GRID_OPACITY,
-  DEFAULT_CANVAS_GRID_SIZE,
-  resolveCanvasGridOpacity,
-  resolveCanvasGridSize,
-} from '@/core/canvasGridSettings'
+import { parseCanvasGridChrome } from '@/core/canvasGridSettings'
 import { parseSceneNodesStatePresets } from '@/core/sceneNodesStatePresets'
 import type { SceneNodesSortMode } from '@/core/sceneNodesListSort'
 
@@ -143,24 +138,9 @@ export function parseSceneChrome(raw: unknown): SceneChromeState | undefined {
   const toolbarVisibility = parseToolbarVisibility(raw.toolbarVisibility)
   const toolbarCollapsed =
     raw.toolbarCollapsed === true ? true : raw.toolbarCollapsed === false ? false : undefined
-  const showCanvasGrid = raw.showCanvasGrid === false ? false : undefined
-  const canvasGridSize =
-    raw.canvasGridSize !== undefined ? resolveCanvasGridSize(raw.canvasGridSize) : undefined
-  const canvasGridOpacity =
-    raw.canvasGridOpacity !== undefined ? resolveCanvasGridOpacity(raw.canvasGridOpacity) : undefined
+  const gridChrome = parseCanvasGridChrome(raw)
 
-  const hasGridSize = canvasGridSize !== undefined && canvasGridSize !== DEFAULT_CANVAS_GRID_SIZE
-  const hasGridOpacity =
-    canvasGridOpacity !== undefined && canvasGridOpacity !== DEFAULT_CANVAS_GRID_OPACITY
-
-  if (
-    !sceneNodes &&
-    !toolbarVisibility &&
-    !toolbarCollapsed &&
-    showCanvasGrid === undefined &&
-    !hasGridSize &&
-    !hasGridOpacity
-  ) {
+  if (!sceneNodes && !toolbarVisibility && toolbarCollapsed === undefined && !gridChrome) {
     return undefined
   }
 
@@ -168,9 +148,7 @@ export function parseSceneChrome(raw: unknown): SceneChromeState | undefined {
     ...(sceneNodes ? { sceneNodes } : {}),
     ...(toolbarCollapsed !== undefined ? { toolbarCollapsed } : {}),
     ...(toolbarVisibility ? { toolbarVisibility } : {}),
-    ...(showCanvasGrid === false ? { showCanvasGrid: false } : {}),
-    ...(hasGridSize ? { canvasGridSize } : {}),
-    ...(hasGridOpacity ? { canvasGridOpacity } : {}),
+    ...(gridChrome ?? {}),
   }
 }
 
@@ -190,10 +168,8 @@ export function applySceneChromeToScene(
     (Object.keys(chrome).length === 0 &&
       !chrome.sceneNodes &&
       !chrome.toolbarVisibility &&
-      !chrome.toolbarCollapsed &&
-      chrome.showCanvasGrid === undefined &&
-      chrome.canvasGridSize === undefined &&
-      chrome.canvasGridOpacity === undefined)
+      chrome.toolbarCollapsed === undefined &&
+      parseCanvasGridChrome(chrome) === undefined)
   ) {
     const { sceneChrome: _removed, ...rest } = scene
     return rest

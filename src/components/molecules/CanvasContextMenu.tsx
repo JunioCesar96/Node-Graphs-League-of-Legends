@@ -270,7 +270,10 @@ function ContextMenuSubmenuRow({
         role="menuitem"
         type="button"
       >
-        <span className={styles.itemLabel}>{item.label}</span>
+        <span className={styles.itemMain}>
+          <span className={styles.itemLabel}>{item.label}</span>
+        </span>
+        {item.shortcut ? <small>{item.shortcut}</small> : null}
         <span aria-hidden className={styles.submenuCaret}>
           ›
         </span>

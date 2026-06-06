@@ -20,6 +20,18 @@ export function buildSurfaceThemeMenuItems(
       selected: state.syntaxEnabled,
       toggleCheckbox: true,
     },
+    {
+      id: 'surface.toggleJadeBackground',
+      label: tr(LangId.CtxApplyJadeBackground, 'Background'),
+      selected: state.backgroundEnabled,
+      toggleCheckbox: true,
+    },
+    {
+      id: 'surface.toggleJadeFonts',
+      label: tr(LangId.CtxApplyJadeFonts, 'Fonts'),
+      selected: state.fontsEnabled,
+      toggleCheckbox: true,
+    },
   ]
 }
 

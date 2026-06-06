@@ -1,3 +1,4 @@
+import { refreshCustomBackgroundLayerHosts } from '@jade/lib/themeApplicator'
 import {
   type CSSProperties,
   type PointerEvent as ReactPointerEvent,
@@ -10,6 +11,9 @@ import {
 import { createPortal } from 'react-dom'
 import Editor from '@monaco-editor/react'
 import MenuBar from '@jade/components/MenuBar'
+import { CodeDockBridgeMenu } from '@/components/molecules/CodeDockBridgeMenu'
+import { CodeDockNativeMenu, codeDockConverterMenuLabel } from '@/components/molecules/CodeDockNativeMenu'
+import { isNativeRitualBinDevMode } from '@/core/ritualBin'
 import { getMonacoLanguageForFileName } from '@/core/codeDockFileTypes'
 import { useCodeDockJadeEditor } from '@/hooks/useCodeDockJadeEditor'
 import {
@@ -166,9 +170,29 @@ export function CodeDock({
 }: CodeDockProps) {
   const { t } = useLanguage()
   const menuBarLabels = useMemo(() => buildJadeMenuBarLabels(t), [t])
+  const bridgeExtraMenus = useMemo(
+    () => [
+      {
+        id: 'converter',
+        label: codeDockConverterMenuLabel(t),
+        content: ({ closeMenu }: { closeMenu: () => void }) =>
+          isNativeRitualBinDevMode() ? (
+            <CodeDockNativeMenu onCloseMenu={closeMenu} />
+          ) : (
+            <CodeDockBridgeMenu onCloseMenu={closeMenu} />
+          ),
+      },
+    ],
+    [t],
+  )
   const monacoModelPath = `/workspace/code-dock/${activeTabId}/${activeFileName}`
   const editorLanguage = getMonacoLanguageForFileName(activeFileName)
   const jade = useCodeDockJadeEditor(value, onChange, editorLanguage)
+
+  useEffect(() => {
+    refreshCustomBackgroundLayerHosts()
+  }, [])
+
   const ritualDrag = useRitualDragOptional()
   const ritualDragPhase = ritualDrag?.phase ?? 'idle'
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
@@ -812,6 +836,7 @@ export function CodeDock({
       >
         <MenuBar
           labels={menuBarLabels}
+          extraMenus={bridgeExtraMenus}
           findActive={jade.findActive}
           interactionsDisabled={floatingActive && floatDragging}
           generalEditActive={jade.generalEditActive}
@@ -823,7 +848,10 @@ export function CodeDock({
           toolsExtraContent={nodeGraphTools}
           hideThemesInTools
           optionsMenuContent={
-            <JadeMenuBarOptionsMenu onOpenThemes={() => jade.setShowThemes(true)} />
+            <JadeMenuBarOptionsMenu
+              onOpenJadeThemes={() => jade.setShowThemes(true)}
+              onOpenNativeThemes={() => jade.setShowNativeThemes(true)}
+            />
           }
           onAbout={() => jade.setShowAbout(true)}
           onCompareFiles={jade.handleCompareFiles}
@@ -1186,7 +1214,7 @@ export function CodeDock({
           </div>
         </div>
       ) : null}
-      <div className={`${styles.editorHost} codeDockJadeScope`}>
+      <div className={`${styles.editorHost} codeDockJadeScope ngl-code-editor-bg-host`}>
         {tabs.length === 0 ? (
           <p className={styles.emptyEditor}>
             {t(LangId.CodeEmptyEditor)}

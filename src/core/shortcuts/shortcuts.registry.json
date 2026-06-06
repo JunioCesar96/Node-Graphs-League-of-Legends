@@ -50,6 +50,13 @@
       "priority": 8
     },
     {
+      "id": "graph-open-slash-commands",
+      "scopeId": "graph-canvas",
+      "key": "/",
+      "modifiers": ["ctrl"],
+      "priority": 8
+    },
+    {
       "id": "graph-select-all-toggle",
       "scopeId": "graph-canvas",
       "key": "a",
@@ -64,7 +71,19 @@
     {
       "id": "graph-glue-toggle",
       "scopeId": "graph-canvas",
+      "key": "l",
+      "modifiers": []
+    },
+    {
+      "id": "graph-set-interaction-navigate",
+      "scopeId": "graph-canvas",
       "key": "g",
+      "modifiers": []
+    },
+    {
+      "id": "graph-set-interaction-tweak",
+      "scopeId": "graph-canvas",
+      "key": "w",
       "modifiers": []
     },
     {

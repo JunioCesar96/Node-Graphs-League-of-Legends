@@ -257,7 +257,14 @@ function layoutEntryFromPresentation(
 }
 
 function logicNodeFromCanvasNode(canvasNode: CanvasScene['nodes'][number]): WorkspaceLogicNodePayload {
-  return logicNodeFromInstance(canvasNode.node)
+  const logicNode = logicNodeFromInstance(canvasNode.node)
+  if (!canvasNode.blockStructure) {
+    return logicNode
+  }
+  return {
+    ...logicNode,
+    blockStructure: structuredClone(canvasNode.blockStructure),
+  }
 }
 
 function isValidLayoutNodeEntry(raw: unknown): raw is WorkspaceLayoutNodeEntry {
