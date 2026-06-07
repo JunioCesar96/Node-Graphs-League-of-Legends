@@ -13,6 +13,10 @@
     {
       "key": "Characters/Brand/Skins/Skin0/Particles/Brand_Base_E_Conflagration_buf",
       "target": "VfxSystemDefinitionData"
+    },
+    {
+      "key": "Characters/Brand/Skins/Skin0/Particles/Brand_Base_I_Fire_Hand_extension",
+      "target": "VfxSystemDefinitionData"
     }
   ],
   "slots": {

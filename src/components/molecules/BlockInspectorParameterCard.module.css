@@ -1,10 +1,11 @@
 .card {
   display: grid;
-  gap: var(--space-2);
-  padding: var(--space-2);
-  background: var(--block-surface);
-  border: 1px solid rgb(255 255 255 / 8%);
-  border-radius: 10px;
+  gap: var(--space-1);
+  padding: var(--space-2) 0;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid color-mix(in srgb, var(--ctx-menu-border, #454545) 55%, transparent);
+  border-radius: 0;
 }
 
 .card[data-exposed='0'] {
@@ -19,33 +20,72 @@
 }
 
 .exposeToggle {
+  display: inline-grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 26px;
+  height: 26px;
   padding: 0;
-  border: none;
-  background: transparent;
+  color: var(--ctx-menu-fg, var(--block-text));
   cursor: pointer;
+  background: transparent;
+  border: 1px solid var(--ctx-menu-border, #454545);
+  border-radius: var(--ctx-menu-radius, 4px);
+  transition:
+    color 100ms ease,
+    background 100ms ease,
+    border-color 100ms ease;
 }
 
-.iconPreview {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  background: rgb(255 255 255 / 92%);
-  border-radius: 4px;
+.exposeToggle:hover,
+.exposeToggle[data-exposed='1'] {
+  color: var(--ctx-menu-hover-fg, #fff);
+  background: var(--ctx-menu-hover-bg, #007acc);
+  border-color: var(--ctx-menu-hover-bg, #007acc);
+  box-shadow: none;
+}
+
+.pinIcon {
+  font-size: 0.82rem;
+  line-height: 1;
+  transition: transform 160ms ease, opacity 160ms ease;
+}
+
+.exposeToggle[data-exposed='0'] .pinIcon {
+  opacity: 0.58;
+  transform: rotate(45deg);
+}
+
+.exposeToggle[data-exposed='1'] .pinIcon {
+  opacity: 1;
+  transform: rotate(0deg);
 }
 
 .titleBlock {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
   min-width: 0;
+}
+
+.paramIconPreview {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  background: rgb(255 255 255 / 92%);
+  border-radius: 4px;
 }
 
 .paramTitle {
   display: block;
   overflow: hidden;
-  color: var(--block-slot);
-  font-family: var(--font-data);
-  font-size: 0.82rem;
-  font-weight: 700;
+  color: var(--block-slot, var(--ctx-menu-fg));
+  font: inherit;
+  font-size: var(--ctx-menu-shortcut-font-size, 11.5px);
+  font-weight: 600;
   letter-spacing: 0.04em;
   text-overflow: ellipsis;
   text-transform: uppercase;
@@ -77,13 +117,13 @@
 
 .textInput {
   width: 100%;
-  padding: 6px 8px;
-  border: 1px solid rgb(255 255 255 / 12%);
-  border-radius: 6px;
-  background: var(--block-surface-dark);
-  color: var(--block-text);
-  font-family: var(--font-data);
-  font-size: 0.74rem;
+  padding: 4px 8px;
+  color: var(--ctx-menu-fg, var(--block-text));
+  font: inherit;
+  font-size: var(--ctx-menu-font-size, 12.5px);
+  background: rgb(0 0 0 / 18%);
+  border: 1px solid var(--ctx-menu-border, #454545);
+  border-radius: var(--ctx-menu-radius, 4px);
 }
 
 .slotRow {
@@ -95,22 +135,23 @@
 
 .directionToggle {
   min-width: 44px;
-  height: 32px;
+  height: 26px;
   padding: 0 8px;
-  border: 1px solid rgb(255 255 255 / 14%);
-  border-radius: 6px;
-  background: var(--block-surface-dark);
-  color: var(--block-text);
-  font-family: var(--font-data);
-  font-size: 0.68rem;
+  color: var(--ctx-menu-fg, var(--block-text));
+  font: inherit;
+  font-size: var(--ctx-menu-section-font-size, 10px);
   font-weight: 700;
   letter-spacing: 0.06em;
   cursor: pointer;
+  background: transparent;
+  border: 1px solid var(--ctx-menu-border, #454545);
+  border-radius: var(--ctx-menu-radius, 4px);
 }
 
 .directionToggle:hover {
-  border-color: var(--block-slot);
-  color: var(--block-slot);
+  color: var(--ctx-menu-hover-fg, #fff);
+  background: var(--ctx-menu-hover-bg, #007acc);
+  border-color: var(--ctx-menu-hover-bg, #007acc);
 }
 
 .tagList {
@@ -123,20 +164,21 @@
 }
 
 .tag {
-  padding: 3px 10px;
-  border: 1px solid rgb(255 255 255 / 18%);
-  border-radius: 999px;
-  background: rgb(0 0 0 / 18%);
-  color: rgb(196 196 196 / 55%);
-  font-family: var(--font-data);
-  font-size: 0.68rem;
+  padding: 3px 8px;
+  color: var(--ctx-menu-muted, rgb(196 196 196 / 55%));
+  font: inherit;
+  font-size: var(--ctx-menu-section-font-size, 10px);
   cursor: pointer;
+  background: rgb(0 0 0 / 18%);
+  border: 1px solid var(--ctx-menu-border, #454545);
+  border-radius: var(--ctx-menu-radius, 4px);
 }
 
 .tag[data-active='1'] {
-  border-color: rgb(255 255 255 / 55%);
-  color: var(--block-text);
-  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 8%);
+  color: var(--ctx-menu-hover-fg, #fff);
+  background: var(--ctx-menu-hover-bg, #007acc);
+  border-color: var(--ctx-menu-hover-bg, #007acc);
+  box-shadow: none;
 }
 
 .ritualHint {

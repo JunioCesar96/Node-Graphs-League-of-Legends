@@ -13,6 +13,8 @@ export type BlockingProgressDialogProps = {
   cancelLabel?: string
   closeLabel?: string
   completed: number
+  /** Segundos decorridos (feedback quando o progresso demora a actualizar). */
+  elapsedSeconds?: number
   onCancelConfirm?: () => void
   onCancelDismiss?: () => void
   onCancelRequest?: () => void
@@ -34,6 +36,7 @@ export function BlockingProgressDialog({
   cancelLabel = 'Cancelar',
   closeLabel = 'OK',
   completed,
+  elapsedSeconds,
   onCancelConfirm,
   onCancelDismiss,
   onCancelRequest,
@@ -115,7 +118,12 @@ export function BlockingProgressDialog({
           {title}
         </h2>
         <div className={styles.progress}>
-          <p className={styles.progressMeta}>{progressCountLabel ?? `${clampedCompleted}/${total}`}</p>
+          <p className={styles.progressMeta}>
+            {progressCountLabel ?? `${clampedCompleted}/${total}`}
+            {phase === 'running' && elapsedSeconds !== undefined && elapsedSeconds > 0
+              ? ` · ${String(elapsedSeconds)}s`
+              : ''}
+          </p>
           <div
             aria-valuemax={100}
             aria-valuemin={0}
@@ -126,7 +134,9 @@ export function BlockingProgressDialog({
             <div className={styles.progressFill} style={{ width: `${String(percent)}%` }} />
           </div>
         </div>
-        {statusLabel ? <p className={styles.statusLabel}>{statusLabel}</p> : null}
+        <div className={styles.statusShell} title={statusLabel || undefined}>
+          {statusLabel ? <p className={styles.statusLabel}>{statusLabel}</p> : null}
+        </div>
         <div className={styles.actions}>
           <button className={styles.secondaryButton} type="button" onClick={onCancelRequest}>
             {cancelLabel}

@@ -1,6 +1,7 @@
 import type { WirelessPortLink } from './connectionDisplay'
 import type { CanvasConnection, CanvasNode, ConnectionRouting } from './canvasScene'
 import { connectionInvolvesAddon } from './addonSlotConnections'
+import { blockParameterSlotId, isBlockListPointerParameter } from './blockSchema'
 import {
   findConnectionsForBlockOutputSlot,
   isBlockSlotConnection,
@@ -111,6 +112,28 @@ export function buildBlockWirelessDisplayByNode(
         peerPulsePortKind: 'input',
       })
 
+      if (connection.fromBlockParameterId) {
+        const fromNode = nodes.find((node) => node.id === connection.fromNodeId)
+        const param = fromNode?.blockStructure?.parameters.find(
+          (entry) => entry.idParameter === connection.fromBlockParameterId,
+        )
+        if (param && isBlockListPointerParameter(param)) {
+          const canonicalOutputSlotId = blockParameterSlotId(param.idParameter, 'output')
+          if (canonicalOutputSlotId !== connection.fromBlockSlotId) {
+            setBlockSlotLink(fromDisplay, canonicalOutputSlotId, {
+              connectionId: connection.id,
+              routing,
+              forced,
+              peerNodeId: connection.toNodeId,
+              peerTitle: nodeTitle(nodes, connection.toNodeId),
+              peerBlockName: blockName(nodes, connection.toNodeId),
+              peerSlotId: connection.toBlockSlotId,
+              peerPulsePortKind: 'input',
+            })
+          }
+        }
+      }
+
       setBlockSlotLink(toDisplay, connection.toBlockSlotId, {
         connectionId: connection.id,
         routing,
@@ -174,7 +197,11 @@ export function applyBlockOutputSlotConnectionSelection(
     let changed = false
 
     for (const [slotId, link] of display.slots) {
-      const outputConnections = findConnectionsForBlockOutputSlot({ connections }, nodeId, slotId)
+      const outputConnections = findConnectionsForBlockOutputSlot(
+        { connections, nodes },
+        nodeId,
+        slotId,
+      )
       if (outputConnections.length <= 1) {
         continue
       }

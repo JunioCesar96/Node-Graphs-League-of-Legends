@@ -17,6 +17,7 @@ import {
   type ChildLink,
 } from '@/core/codeToCanvasScene'
 import type { NodeSchemaDefinition } from '@/core/nodeSchema'
+import { applyHideLinkedChildrenForVfxEmitterNodes } from '@/core/vfxEmitterLinkedChildrenVisibility'
 
 export type { ChildLink }
 
@@ -255,7 +256,9 @@ export function buildSceneThroughSteps(
 }
 
 export function finalizeCodeToCanvasScene(scene: CanvasScene): CanvasScene {
-  return syncSceneCollapsedBodyWireless(hydrateScene(scene))
+  return applyHideLinkedChildrenForVfxEmitterNodes(
+    syncSceneCollapsedBodyWireless(hydrateScene(scene)),
+  )
 }
 
 export function formatStepLabel(step: CodeToCanvasStep): string {

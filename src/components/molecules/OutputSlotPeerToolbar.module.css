@@ -12,23 +12,26 @@
   width: 26px;
   height: 26px;
   padding: 0;
-  color: var(--color-text-secondary);
+  color: var(--ctx-menu-fg, var(--color-text-secondary));
   cursor: pointer;
   background: transparent;
-  border: 1px solid transparent;
-  border-radius: var(--radius-control);
-  opacity: 0.82;
+  border: 1px solid var(--ctx-menu-border, #454545);
+  border-radius: var(--ctx-menu-radius, 4px);
+  opacity: 0.85;
+  transition: color 100ms ease, background 100ms ease, border-color 100ms ease, opacity 100ms ease;
 }
 
-.action:hover {
-  color: var(--color-text-primary);
-  background: rgb(255 255 255 / 6%);
-  border-color: var(--color-border-soft);
+.action:hover:not(:disabled) {
+  color: var(--ctx-menu-hover-fg, #fff);
+  background: var(--ctx-menu-hover-bg, #007acc);
+  border-color: var(--ctx-menu-hover-bg, #007acc);
   opacity: 1;
 }
 
 .actionActive {
-  color: var(--syntax-keyword);
+  color: var(--ctx-menu-hover-fg, #fff);
+    background: var(--ctx-menu-hover-bg, #007acc);
+    border-color: var(--ctx-menu-hover-bg, #007acc);
   opacity: 1;
 }
 
@@ -41,8 +44,8 @@
   color: #f0a8a8;
 }
 
-.actionDanger:hover {
-  color: #ffc8c8;
-  background: rgb(180 40 40 / 18%);
-  border-color: rgb(200 80 90 / 35%);
+.actionDanger:hover:not(:disabled) {
+  color: #fff;
+  background: rgb(180 40 40 / 88%);
+  border-color: rgb(180 40 40 / 88%);
 }

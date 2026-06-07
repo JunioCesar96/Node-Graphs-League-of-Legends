@@ -40,8 +40,10 @@
   border-radius: 8px 8px 0 0;
 }
 
-.head:hover {
-  background: var(--vfx-resize-handle-bg);
+.head:hover:not(:disabled) {
+  color: var(--ctx-menu-hover-fg, #fff);
+  background: var(--ctx-menu-hover-bg, #007acc);
+  border-color: var(--ctx-menu-hover-bg, #007acc);
 }
 
 .chevron {

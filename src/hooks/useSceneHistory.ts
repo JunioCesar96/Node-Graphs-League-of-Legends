@@ -43,17 +43,26 @@ import {
 } from '@/core/nodeCardSections'
 import {
   isNodeSelectableOnCanvas,
+  isNodeLocked,
+  countVisibleCanvasNodes,
   type NodeVisibilitySceneContext,
 } from '@/core/canvasNodePresentation'
-import { createCompactElementCanvasVisibility } from '@/core/compactElementBranchVisibility'
-import type { BlockInspectorDraft } from '@/core/blockSchema'
+import { useCompactElementVisibility } from '@/hooks/useCompactElementVisibility'
+import {
+  blockElementViewKeyForSlot,
+  getBlockElementViewState,
+  patchBlockElementSelectedIndex,
+  patchBlockElementViewMode,
+  type BlockElementViewKey,
+  type BlockElementViewMode,
+} from '@/core/blockElementViewState'
 import { mandatoryPointerSlotTags, slotRulesToTags } from '@/core/blockInspectorUi'
 import { BLOCK_CARD_WIDTH, blockParameterSlotId, isBlockPointerSourcePath } from '@/core/blockSchema'
 import {
   buildBlockInspectorDraftFromNode,
   generateBlockStructureFromDraft,
 } from '@/core/blockTokenCodegen'
-import { buildBlockRevertViaNeekoScene } from '@/core/blockRevertToNodeViaNeeko'
+import { buildBlockRevertViaNeekoScene, collectBlockLinkedChildNodeIds } from '@/core/blockRevertToNodeViaNeeko'
 import { syncBlockParameterEdit, applyBlockStructureToNodeValues } from '@/core/syncBlockToCode'
 import type { BlockDefinitionJsonDocument } from '@/core/blockDefinitionJson'
 import {
@@ -125,6 +134,14 @@ import {
   applyBlockSlashCommandToScene,
   extractBlockSlashCommandFragment,
 } from '@/core/blockSlashCommand'
+import {
+  applyBlockOrganizationToScene,
+  isBlockCanvasNode,
+  type BlockOrganizationOperation,
+} from '@/core/blockOrganizationLayout'
+import {
+  collectInactiveBlockIndexBranchNodeIds,
+} from '@/core/blockCompactBranchVisibility'
 import { createUniqueNodeId } from '@/core/canvasNodeIds'
 import {
   registerSlashCommand,
@@ -335,13 +352,13 @@ export function useSceneHistory(options?: {
   const applyLightModeIfEnabled = useCallback(
     (
       scene: CanvasScene,
-      options?: { initMainEntriesVfxIndex?: boolean },
+      options?: { initMainEntriesVfxIndex?: boolean; initBlockIndices?: boolean },
     ) => (lightModeEnabled ? applyLightModeToScene(scene, options) : scene),
     [lightModeEnabled],
   )
 
   const hydratePresentScene = useCallback(
-    (raw: CanvasScene, options?: { initMainEntriesVfxIndex?: boolean }) =>
+    (raw: CanvasScene, options?: { initMainEntriesVfxIndex?: boolean; initBlockIndices?: boolean }) =>
       applyLightModeIfEnabled(syncSceneCollapsedBodyWireless(hydrateScene(raw)), options),
     [applyLightModeIfEnabled],
   )
@@ -353,7 +370,7 @@ export function useSceneHistory(options?: {
         past: initialTabSnapshot.past.map((s) => structuredClone(s)),
         present: applyLightModeIfEnabled(
           syncSceneCollapsedBodyWireless(hydrateScene(initialTabSnapshot.present)),
-          { initMainEntriesVfxIndex: true },
+          { initMainEntriesVfxIndex: true, initBlockIndices: true },
         ),
       }
     }
@@ -363,17 +380,14 @@ export function useSceneHistory(options?: {
       past: [] as CanvasScene[],
       present: applyLightModeIfEnabled(
         syncSceneCollapsedBodyWireless(hydrateScene(emptyCanvasScene)),
-        { initMainEntriesVfxIndex: true },
+        { initMainEntriesVfxIndex: true, initBlockIndices: true },
       ),
     }
   })
 
   const scene = sceneHistory.present
 
-  const compactVisibilityForSelection = useMemo(
-    () => createCompactElementCanvasVisibility(scene),
-    [scene],
-  )
+  const compactVisibilityForSelection = useCompactElementVisibility(scene, lightModeEnabled)
 
   const nodeVisibilityContext = useMemo(
     (): NodeVisibilitySceneContext => ({
@@ -390,6 +404,15 @@ export function useSceneHistory(options?: {
     [compactVisibilityForSelection, nodeVisibilityContext],
   )
 
+  const visibleNodeCount = useMemo(
+    () =>
+      countVisibleCanvasNodes(
+        { ...nodeVisibilityContext, nodes: scene.nodes },
+        compactVisibilityForSelection,
+      ),
+    [compactVisibilityForSelection, nodeVisibilityContext, scene.nodes],
+  )
+
   const [selectionState, setSelectionState] = useState(() => {
     if (initialTabSnapshot) {
       return selectionFromSnapshot(initialTabSnapshot)
@@ -397,6 +420,8 @@ export function useSceneHistory(options?: {
 
     return { ids: [] as string[], primaryId: '' }
   })
+
+  const nodeIdentityKey = scene.nodes.map((node) => node.id).join('\0')
 
   useEffect(() => {
     const validIds = scene.nodes.map((node) => node.id)
@@ -430,7 +455,7 @@ export function useSceneHistory(options?: {
         primaryId: primaryCandidate,
       }
     })
-  }, [scene])
+  }, [nodeIdentityKey, scene.nodes.length])
 
   const mirrorLegacySceneStorage = initialTabSnapshot === undefined
 
@@ -517,9 +542,8 @@ export function useSceneHistory(options?: {
       nextNodes[nodeIndex] = { ...canvasNode, node: nextNode }
 
       return {
-        past: [...history.past, history.present],
+        ...history,
         present: { ...present, nodes: nextNodes },
-        future: [],
       }
     })
   }, [primarySelectedId, schemaLookup])
@@ -531,6 +555,16 @@ export function useSceneHistory(options?: {
 
   const clearSelection = useCallback(() => {
     setSelectionState({ ids: [], primaryId: '' })
+  }, [])
+
+  const nodeDragHistoryOpenRef = useRef(false)
+
+  const beginNodeDrag = useCallback(() => {
+    nodeDragHistoryOpenRef.current = false
+  }, [])
+
+  const endNodeDrag = useCallback(() => {
+    nodeDragHistoryOpenRef.current = false
   }, [])
 
   const updateScene = useCallback(
@@ -560,6 +594,7 @@ export function useSceneHistory(options?: {
     setSceneHistory((currentHistory) => {
       const nextPresent = applyLightModeToScene(currentHistory.present, {
         initMainEntriesVfxIndex: true,
+        initBlockIndices: true,
       })
       if (nextPresent === currentHistory.present) {
         return currentHistory
@@ -571,7 +606,10 @@ export function useSceneHistory(options?: {
 
   const replaceScene = useCallback(
     (nextScene: CanvasScene, storageMeta?: Record<string, string>) => {
-    const hydrated = hydratePresentScene(nextScene, { initMainEntriesVfxIndex: true })
+    const hydrated = hydratePresentScene(nextScene, {
+      initMainEntriesVfxIndex: true,
+      initBlockIndices: true,
+    })
     const fallbackId = hydrated.nodes[0]?.id ?? ''
 
     setSceneHistory({
@@ -607,29 +645,50 @@ export function useSceneHistory(options?: {
   )
 
   const applyTabSnapshot = useCallback(
-    (snapshot: SceneTabSnapshot, options?: { initMainEntriesVfxIndex?: boolean }) => {
-    const hydrated = hydratePresentScene(snapshot.present, options)
-    const validIds = new Set(hydrated.nodes.map((node) => node.id))
-    let nextIds = snapshot.selection.ids.filter((id) => validIds.has(id))
-    let primaryId = snapshot.selection.primaryId
+    (
+      snapshot: SceneTabSnapshot,
+      options?: {
+        initMainEntriesVfxIndex?: boolean
+        initBlockIndices?: boolean
+        /** Presente já hidratado (ex.: Code To Node Block) — evita reprocessar toda a cena. */
+        presentPrepared?: boolean
+      },
+    ) => {
+      const hydrateStack = (stack: CanvasScene[]) => {
+        if (options?.presentPrepared && stack.length === 0) {
+          return []
+        }
 
-    if (hydrated.nodes.length === 0) {
-      nextIds = []
-      primaryId = ''
-    } else if (!validIds.has(primaryId) || !nextIds.includes(primaryId)) {
-      primaryId = nextIds[0] ?? hydrated.nodes[0]?.id ?? ''
-      if (primaryId && !nextIds.includes(primaryId)) {
-        nextIds = [primaryId]
+        return stack.map((scene) => hydratePresentScene(scene))
       }
-    }
 
-    setSceneHistory({
-      past: snapshot.past.map((s) => hydratePresentScene(s)),
-      present: hydrated,
-      future: snapshot.future.map((s) => hydratePresentScene(s)),
-    })
-    setSelectionState({ ids: nextIds, primaryId })
-  },
+      const hydrated = options?.presentPrepared
+        ? snapshot.present
+        : hydratePresentScene(snapshot.present, {
+            initMainEntriesVfxIndex: options?.initMainEntriesVfxIndex,
+            initBlockIndices: options?.initBlockIndices,
+          })
+      const validIds = new Set(hydrated.nodes.map((node) => node.id))
+      let nextIds = snapshot.selection.ids.filter((id) => validIds.has(id))
+      let primaryId = snapshot.selection.primaryId
+
+      if (hydrated.nodes.length === 0) {
+        nextIds = []
+        primaryId = ''
+      } else if (!validIds.has(primaryId) || !nextIds.includes(primaryId)) {
+        primaryId = nextIds[0] ?? hydrated.nodes[0]?.id ?? ''
+        if (primaryId && !nextIds.includes(primaryId)) {
+          nextIds = [primaryId]
+        }
+      }
+
+      setSceneHistory({
+        past: hydrateStack(snapshot.past),
+        present: hydrated,
+        future: hydrateStack(snapshot.future),
+      })
+      setSelectionState({ ids: nextIds, primaryId })
+    },
     [hydratePresentScene],
   )
 
@@ -743,8 +802,12 @@ export function useSceneHistory(options?: {
   }, [isCanvasNodeSelectable, scene.nodes])
 
   const moveNode = useCallback(
-    (nodeId: string, position: CanvasPosition, _modifiers?: { axisLock: string; snapGrid: boolean }) => {
-      updateScene((currentScene) => {
+    (
+      nodeId: string,
+      position: CanvasPosition,
+      modifiers?: { axisLock: string; snapGrid: boolean; transient?: boolean },
+    ) => {
+      const applyPosition = (currentScene: CanvasScene) => {
         const currentNode = currentScene.nodes.find((node) => node.id === nodeId)
 
         if (
@@ -760,7 +823,33 @@ export function useSceneHistory(options?: {
             node.id === nodeId ? { ...node, position } : node,
           ),
         }
-      })
+      }
+
+      if (modifiers?.transient) {
+        setSceneHistory((currentHistory) => {
+          const nextScene = applyPosition(currentHistory.present)
+
+          if (nextScene === currentHistory.present) {
+            return currentHistory
+          }
+
+          let past = currentHistory.past
+          if (!nodeDragHistoryOpenRef.current) {
+            past = [...past, currentHistory.present]
+            nodeDragHistoryOpenRef.current = true
+          }
+
+          return {
+            future: [],
+            past,
+            present: nextScene,
+          }
+        })
+        return
+      }
+
+      nodeDragHistoryOpenRef.current = false
+      updateScene(applyPosition)
     },
     [updateScene],
   )
@@ -856,12 +945,63 @@ export function useSceneHistory(options?: {
   const hideLinkedChildNodes = useCallback(
     (parentNodeId: string) => {
       updateScene((currentScene) => {
-        const childIds = collectLinkedChildNodeIds(currentScene, parentNodeId)
+        const parentNode = currentScene.nodes.find((node) => node.id === parentNodeId)
+        const childIds =
+          parentNode?.blockViewActive && parentNode.blockStructure
+            ? collectBlockLinkedChildNodeIds(currentScene, parentNodeId)
+            : collectLinkedChildNodeIds(currentScene, parentNodeId)
 
         return applySceneHiddenToNodeIds(currentScene, childIds, true)
       })
     },
     [updateScene],
+  )
+
+  const showLinkedChildNodes = useCallback(
+    (parentNodeId: string) => {
+      updateScene((currentScene) => {
+        const parentNode = currentScene.nodes.find((node) => node.id === parentNodeId)
+        const childIds =
+          parentNode?.blockViewActive && parentNode.blockStructure
+            ? collectBlockLinkedChildNodeIds(currentScene, parentNodeId)
+            : collectLinkedChildNodeIds(currentScene, parentNodeId)
+
+        return applySceneHiddenToNodeIds(currentScene, childIds, false)
+      })
+    },
+    [updateScene],
+  )
+
+  const hideInactiveBlockIndexBranches = useCallback(
+    (blockNodeId: string) => {
+      updateScene((currentScene) => {
+        const blockNode = currentScene.nodes.find((node) => node.id === blockNodeId)
+        if (!blockNode?.blockViewActive || !blockNode.blockStructure) {
+          return currentScene
+        }
+
+        const branchIds = collectInactiveBlockIndexBranchNodeIds(currentScene, blockNode, {
+          ignoreCompactMode: true,
+        })
+
+        return applySceneHiddenToNodeIds(currentScene, branchIds, true)
+      })
+    },
+    [updateScene],
+  )
+
+  const applyBlockOrganization = useCallback(
+    (operation: BlockOrganizationOperation) => {
+      updateScene((currentScene) => {
+        const targetIds = orderedSelectionUnique.filter((nodeId) => {
+          const node = currentScene.nodes.find((entry) => entry.id === nodeId)
+          return isBlockCanvasNode(node) && !isNodeLocked(node)
+        })
+
+        return applyBlockOrganizationToScene(currentScene, targetIds, operation)
+      })
+    },
+    [orderedSelectionUnique, updateScene],
   )
 
   const setAllNodesLocked = useCallback(
@@ -1304,6 +1444,52 @@ export function useSceneHistory(options?: {
       })
     },
     [updateScene],
+  )
+
+  const setBlockElementViewMode = useCallback(
+    (canvasNodeId: string, elementKey: BlockElementViewKey, mode: BlockElementViewMode) => {
+      if (lightModeEnabled && mode === 'list') {
+        return
+      }
+
+      updateScene((currentScene) => ({
+        ...currentScene,
+        nodes: currentScene.nodes.map((canvasNode) => {
+          if (canvasNode.id !== canvasNodeId) {
+            return canvasNode
+          }
+          const state = getBlockElementViewState(canvasNode, elementKey)
+          return patchBlockElementViewMode(canvasNode, elementKey, mode, state.selectedIndex ?? 0)
+        }),
+      }))
+    },
+    [lightModeEnabled, updateScene],
+  )
+
+  const setBlockElementSelectedIndex = useCallback(
+    (canvasNodeId: string, elementKey: BlockElementViewKey, selectedIndex: number) => {
+      updateScene((currentScene) => ({
+        ...currentScene,
+        nodes: currentScene.nodes.map((canvasNode) => {
+          if (canvasNode.id !== canvasNodeId) {
+            return canvasNode
+          }
+          return patchBlockElementSelectedIndex(canvasNode, elementKey, selectedIndex)
+        }),
+      }))
+    },
+    [updateScene],
+  )
+
+  const setBlockOutputSlotConnectionIndex = useCallback(
+    (canvasNodeId: string, slotId: string, selectedIndex: number) => {
+      setBlockElementSelectedIndex(
+        canvasNodeId,
+        blockElementViewKeyForSlot(slotId),
+        selectedIndex,
+      )
+    },
+    [setBlockElementSelectedIndex],
   )
 
   const createChildNode = useCallback(
@@ -4085,10 +4271,15 @@ export function useSceneHistory(options?: {
     setElementRetracted,
     setAllNodeElementsRetracted,
     setElementSelectedIndex,
+    setBlockElementViewMode,
+    setBlockElementSelectedIndex,
+    setBlockOutputSlotConnectionIndex,
     redoScene,
     resetScene,
     sceneHistory,
     moveNode,
+    beginNodeDrag,
+    endNodeDrag,
     setSceneCamera,
     patchSceneChrome,
     saveSceneNodesStatePreset,
@@ -4104,6 +4295,9 @@ export function useSceneHistory(options?: {
     showOnlySlotSubtree,
     showOnlyIncomingSlotBranch,
     hideLinkedChildNodes,
+    showLinkedChildNodes,
+    hideInactiveBlockIndexBranches,
+    applyBlockOrganization,
     setAllNodesLocked,
     resetNodePosition,
     connectNodes,
@@ -4163,6 +4357,7 @@ export function useSceneHistory(options?: {
     removeListPointerSlot,
     removeListPointerBlock,
     scene,
+    visibleNodeCount,
     selectedNodeIds: orderedSelectionUnique,
     primarySelectedId,
     commitMarqueeSelection,

@@ -1,90 +1,99 @@
 .section {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
-  gap: var(--space-2);
+  gap: var(--space-1);
   min-height: 0;
 }
 
 .sectionHeader {
   display: grid;
-  gap: var(--space-2);
+  gap: var(--space-1);
+  padding-bottom: var(--space-1);
 }
 
 .sectionTitle {
   margin: 0;
-  color: var(--color-text-muted);
-  font-family: var(--font-data);
-  font-size: 0.68rem;
+  color: var(--ctx-menu-muted, var(--color-text-muted));
+  font: inherit;
+  font-size: var(--ctx-menu-section-font-size, 10px);
+  font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+  text-align: center;
 }
 
 .sectionHint {
   margin: 0;
-  color: var(--color-text-muted);
-  font-size: 0.72rem;
+  color: var(--ctx-menu-muted, var(--color-text-muted));
+  font: inherit;
+  font-size: var(--ctx-menu-shortcut-font-size, 11.5px);
   line-height: 1.4;
+  text-align: center;
 }
 
 .primaryAction {
   width: 100%;
-  padding: var(--space-2) var(--space-3);
-  color: var(--color-text-primary);
-  font-family: var(--font-data);
-  font-size: 0.76rem;
+  padding: var(--ctx-menu-item-padding-block, 5px) var(--space-2);
+  color: var(--ctx-menu-fg, var(--color-text-primary));
+  font: inherit;
   font-weight: 600;
-  text-align: left;
+  text-align: center;
   cursor: pointer;
-  background: color-mix(in srgb, var(--syntax-keyword) 12%, rgb(255 255 255 / 6%));
-  border: 1px solid color-mix(in srgb, var(--syntax-keyword) 28%, var(--color-border-soft));
-  border-radius: var(--radius-control);
+  background: transparent;
+  border: 1px solid var(--ctx-menu-border, #454545);
+  border-radius: var(--ctx-menu-radius, 4px);
   transition:
-    background 140ms ease,
-    border-color 140ms ease;
+    color 100ms ease,
+    background 100ms ease,
+    border-color 100ms ease;
 }
 
 .primaryAction:hover {
-  background: color-mix(in srgb, var(--syntax-keyword) 18%, rgb(255 255 255 / 6%));
-  border-color: var(--syntax-keyword);
+  color: var(--ctx-menu-hover-fg, #fff);
+  background: var(--ctx-menu-hover-bg, #007acc);
+  border-color: var(--ctx-menu-hover-bg, #007acc);
 }
 
 .list {
   display: grid;
-  gap: var(--space-1);
+  gap: 0;
   min-height: 0;
   max-height: min(360px, 48vh);
   padding: 0;
   margin: 0;
   overflow: auto;
   list-style: none;
+  border-top: 1px solid var(--ctx-menu-border, #454545);
+  border-bottom: 1px solid var(--ctx-menu-border, #454545);
 }
 
 .listItem {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: var(--space-1);
+  gap: 0;
   align-items: center;
-  padding: 2px;
-  background: rgb(0 0 0 / 10%);
-  border: 1px solid transparent;
-  border-radius: var(--radius-control);
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid color-mix(in srgb, var(--ctx-menu-border, #454545) 55%, transparent);
+  border-radius: 0;
   transition:
-    background 140ms ease,
-    border-color 140ms ease;
+    color 100ms ease,
+    background 100ms ease;
 }
 
 .listItem:hover {
-  background: rgb(255 255 255 / 4%);
-  border-color: var(--color-border-soft);
+  color: var(--ctx-menu-hover-fg, #fff);
+  background: var(--ctx-menu-hover-bg, #007acc);
 }
 
 .rowName {
   min-width: 0;
-  padding: var(--space-2) var(--space-3);
+  padding: var(--ctx-menu-item-padding-block, 5px) var(--space-2);
   overflow: hidden;
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: var(--color-text-primary);
+  font: inherit;
+  font-weight: 500;
+  color: inherit;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -92,7 +101,7 @@
 .rowActions {
   display: inline-flex;
   flex-shrink: 0;
-  gap: 2px;
+  gap: 0;
   align-items: center;
   padding-right: var(--space-1);
 }
@@ -100,56 +109,59 @@
 .rowAction {
   display: grid;
   place-items: center;
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 26px;
   padding: 0;
-  color: var(--color-text-secondary);
+  color: inherit;
   cursor: pointer;
   background: transparent;
-  border: 1px solid transparent;
-  border-radius: var(--radius-control);
+  border: none;
+  border-radius: 0;
+  opacity: 0.85;
 }
 
 .rowAction:hover {
-  color: var(--color-text-primary);
-  background: rgb(255 255 255 / 6%);
-  border-color: var(--color-border-soft);
+  color: inherit;
+  background: rgb(255 255 255 / 12%);
 }
 
 .rowActionDanger:hover {
-  color: rgb(255 180 180);
-  border-color: rgb(255 140 140);
+  color: #fff;
+  background: rgb(180 40 40 / 88%);
 }
 
 .empty {
   margin: 0;
-  padding: var(--space-4);
-  color: var(--color-text-muted);
-  font-size: 0.78rem;
+  padding: var(--ctx-menu-item-padding-block, 5px) var(--ctx-menu-item-padding-inline, 20px);
+  color: var(--ctx-menu-muted, var(--color-text-muted));
+  font: inherit;
+  font-size: var(--ctx-menu-shortcut-font-size, 11.5px);
   text-align: center;
 }
 
 .footer {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: var(--space-2);
+  gap: var(--space-1);
+  padding-top: var(--space-1);
 }
 
 .footerButton {
-  padding: var(--space-2) var(--space-3);
-  color: var(--color-text-secondary);
-  font-family: var(--font-data);
-  font-size: 0.72rem;
+  padding: var(--ctx-menu-item-padding-block, 5px) 10px;
+  color: var(--ctx-menu-fg, var(--color-text-secondary));
+  font: inherit;
+  font-size: var(--ctx-menu-shortcut-font-size, 11.5px);
   text-align: center;
   cursor: pointer;
-  background: rgb(0 0 0 / 16%);
-  border: 1px solid var(--color-border-soft);
-  border-radius: var(--radius-control);
+  background: transparent;
+  border: 1px solid var(--ctx-menu-border, #454545);
+  border-radius: var(--ctx-menu-radius, 4px);
 }
 
 .footerButton:hover {
-  color: var(--color-text-primary);
-  border-color: var(--port-child);
+  color: var(--ctx-menu-hover-fg, #fff);
+  background: var(--ctx-menu-hover-bg, #007acc);
+  border-color: var(--ctx-menu-hover-bg, #007acc);
 }
 
 .hiddenFileInput {

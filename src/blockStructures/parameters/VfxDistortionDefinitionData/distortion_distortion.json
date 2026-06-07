@@ -5,7 +5,7 @@
   "name": "distortion",
   "source": {
     "kind": "parameter",
-    "parameterId": "vfx-distortion-definition-data__main-characters/brand/skins/skin0/particles/brand-base-q-blaze-mis-complex-emitter-definition-data--slot--13-distortion-definition_parameter_distortion"
+    "parameterId": "vfx-distortion-definition-data__main-entries-complex-emitter-definition-data-distortion-definition_parameter_distortion"
   },
   "type": "f32",
   "value": "0.1",

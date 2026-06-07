@@ -186,6 +186,189 @@ describe('buildContextMenuItems block card node menu', () => {
     expect(items[3]?.children?.map((item) => item.id)).toEqual(['node.codigoPreviewBlock'])
   })
 
+  it('mostra Ocultar todos os blocos filhos quando há ligações de slot de bloco', () => {
+    const blockStructure: BlockStructurePayload = {
+      blockType: 'VfxSystemDefinitionData',
+      blockName: 'System',
+      parameters: [],
+      identification_codes: [],
+    }
+
+    const parent: CanvasNode = {
+      ...stubNode('parent'),
+      blockViewActive: true,
+      blockStructure,
+    }
+
+    const child: CanvasNode = {
+      ...stubNode('child'),
+      blockViewActive: true,
+      blockStructure: {
+        ...blockStructure,
+        blockName: 'Emitter',
+      },
+    }
+
+    const scene: CanvasScene = {
+      nodes: [parent, child],
+      connections: [
+        {
+          id: 'block:parent->child',
+          fromNodeId: 'parent',
+          toNodeId: 'child',
+          fromInternalStructureId: '__block__:out',
+          fromBlockSlotId: 'block-param:p1:output',
+          toBlockSlotId: 'block-header:Emitter:0',
+        },
+      ],
+    }
+
+    const items = buildContextMenuItems(
+      { type: 'node', nodeId: 'parent' },
+      { ...baseCtx, scene, selectedNodeIds: ['parent'] },
+    )
+
+    const hideItem = items.find((item) => item.id === 'node.hideLinkedChildNodes')
+    expect(hideItem?.label).toBe('Ocultar todos os blocos filhos')
+    expect(hideItem?.disabled).toBe(false)
+
+    const showItem = items.find((item) => item.id === 'node.showLinkedChildNodes')
+    expect(showItem?.label).toBe('Mostrar todos os blocos filhos')
+    expect(showItem?.disabled).toBe(false)
+  })
+
+  it('mostra Ocultar todos os índices deseleccionados para list[pointer] com fan-out', () => {
+    const listParamId = 'complexEmitterDefinitionData_list_pointer'
+    const outputSlot = `block-param:${listParamId}:output`
+
+    const parent: CanvasNode = {
+      ...stubNode('system'),
+      blockViewActive: true,
+      blockStructure: {
+        blockType: 'VfxSystemDefinitionData',
+        blockName: 'System',
+        parameters: [
+          {
+            idParameter: listParamId,
+            nameParameter: 'complexEmitterDefinitionData',
+            typeParameter: 'VfxEmitterDefinitionData',
+            defaultValue: '',
+            listParameter: true,
+            sourcePath: {
+              kind: 'pointerChild',
+              pointerId: 'catalog-ptr',
+              slotId: 'catalog-ptr-slot',
+            },
+          },
+        ],
+        identification_codes: [],
+      },
+      blockElementView: {
+        [`slot:${outputSlot}`]: { mode: 'list', selectedIndex: 0 },
+      },
+    }
+
+    const emitterA: CanvasNode = {
+      ...stubNode('emitter-a'),
+      blockViewActive: true,
+      blockStructure: {
+        blockType: 'VfxEmitterDefinitionData',
+        blockName: 'EmitterA',
+        parameters: [],
+        identification_codes: [],
+      },
+    }
+
+    const emitterB: CanvasNode = {
+      ...stubNode('emitter-b'),
+      blockViewActive: true,
+      blockStructure: {
+        blockType: 'VfxEmitterDefinitionData',
+        blockName: 'EmitterB',
+        parameters: [],
+        identification_codes: [],
+      },
+    }
+
+    const scene: CanvasScene = {
+      nodes: [parent, emitterA, emitterB],
+      connections: [
+        {
+          id: 'c0',
+          fromNodeId: 'system',
+          fromInternalStructureId: `__block__:${outputSlot}`,
+          fromBlockSlotId: outputSlot,
+          toNodeId: 'emitter-a',
+          toBlockSlotId: 'block-header:in:0',
+        },
+        {
+          id: 'c1',
+          fromNodeId: 'system',
+          fromInternalStructureId: `__block__:${outputSlot}`,
+          fromBlockSlotId: outputSlot,
+          toNodeId: 'emitter-b',
+          toBlockSlotId: 'block-header:in:0',
+        },
+      ],
+    }
+
+    const items = buildContextMenuItems(
+      { type: 'node', nodeId: 'system' },
+      { ...baseCtx, scene, selectedNodeIds: ['system'] },
+    )
+
+    const hideItem = items.find((item) => item.id === 'node.hideInactiveBlockIndexBranches')
+    expect(hideItem?.label).toBe('Ocultar todos os índices deseleccionados')
+    expect(hideItem?.disabled).toBe(false)
+  })
+
+  it('mostra Organização com Alinhar e Distribuir quando 2+ blocos seleccionados', () => {
+    const blockStructure: BlockStructurePayload = {
+      blockType: 'VfxEmitterDefinitionData',
+      blockName: 'Emitter',
+      parameters: [],
+      identification_codes: [],
+    }
+
+    const parent: CanvasNode = {
+      ...stubNode('block-a'),
+      blockViewActive: true,
+      blockStructure,
+    }
+
+    const sibling: CanvasNode = {
+      ...stubNode('block-b'),
+      blockViewActive: true,
+      blockStructure: { ...blockStructure, blockName: 'EmitterB' },
+    }
+
+    const scene: CanvasScene = {
+      nodes: [parent, sibling],
+      connections: [],
+    }
+
+    const items = buildContextMenuItems(
+      { type: 'node', nodeId: 'block-a' },
+      { ...baseCtx, scene, selectedNodeIds: ['block-a', 'block-b'] },
+    )
+
+    const orgItem = items.find((item) => item.id === 'node.blockOrganization')
+    expect(orgItem?.label).toBe('Organização')
+    expect(orgItem?.children?.map((item) => item.id)).toEqual([
+      'node.blockOrganization.align',
+      'node.blockOrganization.distribute',
+    ])
+    expect(orgItem?.children?.[0]?.children?.map((item) => item.id)).toEqual([
+      'node.blockOrganization.align.left',
+      'node.blockOrganization.align.centerHorizontal',
+      'node.blockOrganization.align.right',
+      'node.blockOrganization.align.top',
+      'node.blockOrganization.align.centerVertical',
+      'node.blockOrganization.align.bottom',
+    ])
+    expect(orgItem?.children?.[1]?.disabled).toBe(true)
+  })
+
   it('mostra submenu Slash Commands com adicionar e remover', () => {
     const blockStructure: BlockStructurePayload = {
       blockType: 'IntegratedValueVector3',

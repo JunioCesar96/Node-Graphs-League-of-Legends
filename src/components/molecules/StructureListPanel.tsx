@@ -522,6 +522,7 @@ export function StructureListPanel({
                   role="option"
                   onMouseDown={(event) => {
                     event.preventDefault()
+                    onSelectIndex(item.index)
                     onPickItem(item)
                   }}
                 >

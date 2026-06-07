@@ -1,10 +1,13 @@
 .zone {
   display: grid;
-  gap: var(--space-2);
-  padding: var(--space-3);
+  gap: var(--space-1);
+  width: 100%;
+  padding: var(--space-2);
+  text-align: center;
+  justify-items: center;
   background: rgb(255 255 255 / 2%);
-  border: 1px dashed rgb(216 235 242 / 42%);
-  border-radius: 14px;
+  border: 1px dashed var(--ctx-menu-border, #454545);
+  border-radius: var(--ctx-menu-radius, 4px);
   transition:
     border-color 160ms ease,
     background 160ms ease,
@@ -12,14 +15,14 @@
 }
 
 .zoneDragging {
-  background: rgb(216 235 242 / 8%);
-  border-color: #d8ebf2;
-  box-shadow: inset 0 0 0 1px rgb(216 235 242 / 18%);
+  background: rgb(0 122 204 / 8%);
+  border-color: var(--ctx-menu-hover-bg, #007acc);
+  box-shadow: inset 0 0 0 1px rgb(0 122 204 / 18%);
 }
 
 .zoneInstalling {
   border-style: solid;
-  border-color: rgb(216 235 242 / 55%);
+  border-color: rgb(0 122 204 / 55%);
 }
 
 .zoneSuccess {
@@ -40,29 +43,30 @@
 }
 
 .title {
-  color: var(--color-text-primary);
-  font-family: var(--font-data);
-  font-size: 0.92rem;
+  color: var(--ctx-menu-fg, var(--color-text-primary));
+  font: inherit;
   font-weight: 600;
   letter-spacing: 0.02em;
 }
 
 .hint {
-  color: var(--color-text-muted);
-  font-size: 0.82rem;
+  color: var(--ctx-menu-muted, var(--color-text-muted));
+  font: inherit;
+  font-size: var(--ctx-menu-shortcut-font-size, 11.5px);
   line-height: 1.35;
 }
 
 .progressBlock {
   display: grid;
-  gap: var(--space-2);
+  gap: var(--space-1);
+  width: 100%;
   margin-top: var(--space-1);
 }
 
 .addonName {
   color: var(--color-text-secondary);
   font-family: var(--font-data);
-  font-size: 0.84rem;
+  font-size: var(--ctx-menu-shortcut-font-size, 11.5px);
   font-weight: 600;
 }
 
@@ -92,6 +96,6 @@
 
 .statusMessage {
   color: var(--color-text-secondary);
-  font-size: 0.78rem;
+  font-size: var(--ctx-menu-shortcut-font-size, 11.5px);
   line-height: 1.35;
 }

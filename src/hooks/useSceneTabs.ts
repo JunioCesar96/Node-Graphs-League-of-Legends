@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from 'react'
 
+import { showAppAlert } from '@/messenger_popup/appMessenger'
 import type { SceneJsonFileContext } from '@/core/sceneJsonFileSave'
 import {
   createDefaultTabSnapshot,
@@ -8,7 +9,8 @@ import {
   loadRecentSceneList,
   loadRecentSceneById,
   pushRecentScene,
-  saveSceneTabsPersistedPresentOnly,
+  schedulePushRecentScene,
+  scheduleSceneTabsPersist,
   snapshotFromScene,
   stripExtension,
   uniqueTabTitle,
@@ -22,6 +24,12 @@ import { saveSceneJsonManual } from '@/core/sceneJsonFileSave'
 import { LangId } from '@/core/language/languageIds'
 import { useSceneHistory } from '@/hooks/useSceneHistory'
 import { useLanguage } from '@/language/LanguageProvider'
+
+export type OpenSceneByTitleOptions = {
+  /** Cena já hidratada / modo leve — evita clones e reprocessamento pesado. */
+  prepared?: boolean
+  addToRecents?: boolean
+}
 
 export type UseSceneTabsOptions = {
   extendSchemaLookup?: Record<string, NodeSchemaDefinition>
@@ -47,7 +55,13 @@ export function useSceneTabs(options?: UseSceneTabsOptions) {
     lightModeEnabled: options?.lightModeEnabled,
   })
 
-  const { getTabSnapshot, applyTabSnapshot, sceneHistory, scene } = sceneHistoryApi
+  const {
+    applyTabSnapshot,
+    sceneHistory,
+    scene,
+    selectedNodeIds,
+    primarySelectedId,
+  } = sceneHistoryApi
 
   const setTabJsonFileContext = useCallback((tabId: string, context: SceneJsonFileContext) => {
     jsonFileContextByTabRef.current.set(tabId, context)
@@ -74,7 +88,7 @@ export function useSceneTabs(options?: UseSceneTabsOptions) {
   )
 
   const flushTabsToLocalStorage = useCallback((data: SceneTabsPersisted) => {
-    saveSceneTabsPersistedPresentOnly(data)
+    scheduleSceneTabsPersist(data)
   }, [])
 
   const refreshRecentList = useCallback(() => {
@@ -87,12 +101,24 @@ export function useSceneTabs(options?: UseSceneTabsOptions) {
         return tabs
       }
 
-      const snap = getTabSnapshot(activeTab.id, activeTab.title)
-      const withFileName = activeTab.jsonFileName ? { ...snap, jsonFileName: activeTab.jsonFileName } : snap
-
-      return tabs.map((tab) => (tab.id === withFileName.id ? withFileName : tab))
+      return tabs.map((tab) =>
+        tab.id === activeTab.id
+          ? {
+              ...tab,
+              title: activeTab.title,
+              past: [...sceneHistory.past],
+              present: sceneHistory.present,
+              future: [...sceneHistory.future],
+              selection: {
+                ids: [...selectedNodeIds],
+                primaryId: primarySelectedId,
+              },
+              ...(activeTab.jsonFileName ? { jsonFileName: activeTab.jsonFileName } : {}),
+            }
+          : tab,
+      )
     },
-    [activeTab, getTabSnapshot],
+    [activeTab, primarySelectedId, sceneHistory, selectedNodeIds],
   )
 
   const activateTab = useCallback(
@@ -146,7 +172,11 @@ export function useSceneTabs(options?: UseSceneTabsOptions) {
     (
       requestedTitle: string,
       nextScene: CanvasScene,
-      options?: { addToRecents?: boolean; sourceFileName?: string },
+      options?: {
+        addToRecents?: boolean
+        sourceFileName?: string
+        prepared?: boolean
+      },
     ): string => {
       const mergedTabs = mergeActiveSnapshotIntoTabs(tabsPersisted.tabs)
       const title = uniqueTabTitle(
@@ -154,18 +184,21 @@ export function useSceneTabs(options?: UseSceneTabsOptions) {
         mergedTabs.map((tab) => tab.title),
       )
       const jsonFileName = options?.sourceFileName?.trim()
-      const newTab = snapshotFromScene(title, nextScene, jsonFileName)
+      const prepared = options?.prepared === true
+      const newTab = snapshotFromScene(title, nextScene, jsonFileName, prepared ? { prepared: true } : undefined)
 
       if (options?.addToRecents !== false) {
-        pushRecentScene(title, nextScene, options?.sourceFileName)
-        refreshRecentList()
+        schedulePushRecentScene(title, nextScene, options?.sourceFileName, refreshRecentList)
       }
 
       if (jsonFileName) {
         jsonFileContextByTabRef.current.set(newTab.id, { fileName: jsonFileName, handle: null })
       }
 
-      applyTabSnapshot(newTab, { initMainEntriesVfxIndex: true })
+      applyTabSnapshot(
+        newTab,
+        prepared ? { presentPrepared: true } : { initMainEntriesVfxIndex: true, initBlockIndices: true },
+      )
       const next: SceneTabsPersisted = {
         activeTabId: newTab.id,
         tabs: [...mergedTabs, newTab],
@@ -184,31 +217,42 @@ export function useSceneTabs(options?: UseSceneTabsOptions) {
   )
 
   const openOrReplaceSceneByTitle = useCallback(
-    (requestedTitle: string, nextScene: CanvasScene): string => {
+    (requestedTitle: string, nextScene: CanvasScene, options?: OpenSceneByTitleOptions): string => {
       const mergedTabs = mergeActiveSnapshotIntoTabs(tabsPersisted.tabs)
       const title = requestedTitle.trim() || 'Cena'
       const existing = mergedTabs.find((tab) => tab.title === title)
+      const prepared = options?.prepared === true
+      const addToRecents = options?.addToRecents !== false
 
       if (existing) {
-        const replacement = snapshotFromScene(title, nextScene, existing.jsonFileName)
+        const replacement = snapshotFromScene(
+          title,
+          nextScene,
+          existing.jsonFileName,
+          prepared ? { prepared: true } : undefined,
+        )
         const updatedTab: SceneTabSnapshot = {
           ...replacement,
           id: existing.id,
         }
 
-        applyTabSnapshot(updatedTab, { initMainEntriesVfxIndex: true })
+        applyTabSnapshot(
+          updatedTab,
+          prepared ? { presentPrepared: true } : { initMainEntriesVfxIndex: true, initBlockIndices: true },
+        )
         const next: SceneTabsPersisted = {
           activeTabId: existing.id,
           tabs: mergedTabs.map((tab) => (tab.id === existing.id ? updatedTab : tab)),
         }
         setTabsPersisted(next)
         flushTabsToLocalStorage(next)
-        pushRecentScene(title, nextScene)
-        refreshRecentList()
+        if (addToRecents) {
+          schedulePushRecentScene(title, nextScene, undefined, refreshRecentList)
+        }
         return existing.id
       }
 
-      return openSceneInNewTab(title, nextScene, { addToRecents: true })
+      return openSceneInNewTab(title, nextScene, { addToRecents, prepared })
     },
     [
       applyTabSnapshot,
@@ -384,7 +428,7 @@ export function useSceneTabs(options?: UseSceneTabsOptions) {
     const trimmed = raw.trim()
 
     if (!trimmed) {
-      window.alert('Indica um nome para a cena.')
+      showAppAlert('Indica um nome para a cena.')
       return
     }
 

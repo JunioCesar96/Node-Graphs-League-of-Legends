@@ -137,7 +137,7 @@ export function VfxScene3dDock({
     <>
       <label className={styles.overlayItem}>
         <input checked={settings.darkScene} onChange={() => toggle('darkScene')} type="checkbox" />
-        {t(LangId.VfxViewportDarkScene)}
+        <span className={styles.overlayLabel}>{t(LangId.VfxViewportDarkScene)}</span>
       </label>
       <label className={styles.overlayItem} title="Alternar com a tecla 5">
         <input
@@ -145,11 +145,11 @@ export function VfxScene3dDock({
           onChange={() => toggleProjectionRef.current?.() ?? onToggleProjection()}
           type="checkbox"
         />
-        {t(LangId.VfxViewportOrthographic)}
+        <span className={styles.overlayLabel}>{t(LangId.VfxViewportOrthographic)}</span>
       </label>
       <label className={styles.overlayItem}>
         <input checked={settings.showGrid} onChange={() => toggle('showGrid')} type="checkbox" />
-        {t(LangId.VfxViewportGrid)}
+        <span className={styles.overlayLabel}>{t(LangId.VfxViewportGrid)}</span>
       </label>
 
       <VfxContextToolRow
@@ -176,7 +176,7 @@ export function VfxScene3dDock({
           onChange={() => toggle('showEmitterShapes')}
           type="checkbox"
         />
-        {t(LangId.VfxViewportWireframe)}
+        <span className={styles.overlayLabel}>{t(LangId.VfxViewportWireframe)}</span>
       </label>
       <label className={styles.overlayItem} title={t(LangId.VfxViewportMeshOnlyTitle)}>
         <input
@@ -184,11 +184,11 @@ export function VfxScene3dDock({
           onChange={() => toggle('meshOnlyEnabled')}
           type="checkbox"
         />
-        {t(LangId.VfxViewportMeshOnly)}
+        <span className={styles.overlayLabel}>{t(LangId.VfxViewportMeshOnly)}</span>
       </label>
       <label className={styles.overlayItem}>
         <input checked={settings.showGizmos} onChange={() => toggle('showGizmos')} type="checkbox" />
-        {t(LangId.VfxViewportOrbit)}
+        <span className={styles.overlayLabel}>{t(LangId.VfxViewportOrbit)}</span>
       </label>
       <label className={styles.overlayItem} title={t(LangId.VfxViewportAutoRebuildTitle)}>
         <input
@@ -196,7 +196,7 @@ export function VfxScene3dDock({
           onChange={() => toggle('vfxAutoRebuildEnabled')}
           type="checkbox"
         />
-        {t(LangId.VfxViewportAutoRebuild)}
+        <span className={styles.overlayLabel}>{t(LangId.VfxViewportAutoRebuild)}</span>
       </label>
 
       <PanelSection
@@ -256,7 +256,7 @@ export function VfxScene3dDock({
           onChange={() => toggle('vfxBirthRotationLoLEnabled')}
           type="checkbox"
         />
-        {t(LangId.VfxViewportBirthRotationLoL)}
+        <span className={styles.overlayLabel}>{t(LangId.VfxViewportBirthRotationLoL)}</span>
       </label>
 
       <VfxContextToolRow
@@ -281,7 +281,7 @@ export function VfxScene3dDock({
           onChange={() => toggle('vfxCamLockEnabled')}
           type="checkbox"
         />
-        {t(LangId.VfxViewportCamLock)}
+        <span className={styles.overlayLabel}>{t(LangId.VfxViewportCamLock)}</span>
       </label>
       <label className={styles.overlayItem} title={t(LangId.VfxViewportLockMotionTitle)}>
         <input
@@ -289,7 +289,7 @@ export function VfxScene3dDock({
           onChange={() => toggle('vfxLockMotionEnabled')}
           type="checkbox"
         />
-        {t(LangId.VfxViewportLockMotion)}
+        <span className={styles.overlayLabel}>{t(LangId.VfxViewportLockMotion)}</span>
       </label>
       <label className={styles.overlayItem} title={t(LangId.VfxViewportTransformDebugTitle)}>
         <input
@@ -297,7 +297,7 @@ export function VfxScene3dDock({
           onChange={() => toggle('showTransformDebug')}
           type="checkbox"
         />
-        {t(LangId.VfxViewportTransformDebug)}
+        <span className={styles.overlayLabel}>{t(LangId.VfxViewportTransformDebug)}</span>
       </label>
       <label className={styles.overlayItem} title={t(LangId.VfxViewportSceneDepthTitle)}>
         <input
@@ -305,7 +305,7 @@ export function VfxScene3dDock({
           onChange={() => toggle('sceneDepthFade')}
           type="checkbox"
         />
-        {t(LangId.VfxViewportSceneDepth)}
+        <span className={styles.overlayLabel}>{t(LangId.VfxViewportSceneDepth)}</span>
       </label>
     </>
   )

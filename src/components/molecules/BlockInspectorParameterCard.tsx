@@ -108,28 +108,29 @@ export function BlockInspectorParameterCard({
           <button
             type="button"
             className={styles.exposeToggle}
+            data-exposed={entry.exposed ? '1' : '0'}
             aria-pressed={entry.exposed}
             aria-label={
               entry.exposed
                 ? t(LangId.InspectorParamUnexposeFromBlock)
                 : t(LangId.InspectorParamExposeInBlock)
             }
+            title={
+              entry.exposed
+                ? t(LangId.InspectorParamUnexposeFromBlock)
+                : t(LangId.InspectorParamExposeInBlock)
+            }
             onClick={() => patch({ exposed: !entry.exposed })}
           >
-            <span className={styles.iconPreview} aria-hidden>
-              {!isPointerEntry && (iconHint || entry.iconId?.trim()) ? (
-                <BlockParameterIcon hint={iconHint} iconId={entry.iconId} />
-              ) : null}
-            </span>
+            <i className={`fa-solid fa-thumbtack ${styles.pinIcon}`} aria-hidden />
           </button>
-        ) : (
-          <span className={styles.iconPreview} aria-hidden>
-            {!isPointerEntry && (iconHint || entry.iconId?.trim()) ? (
-              <BlockParameterIcon hint={iconHint} iconId={entry.iconId} />
-            ) : null}
-          </span>
-        )}
+        ) : null}
         <div className={styles.titleBlock}>
+          {!isPointerEntry && (iconHint || entry.iconId?.trim()) ? (
+            <span className={styles.paramIconPreview} aria-hidden>
+              <BlockParameterIcon hint={iconHint} iconId={entry.iconId} />
+            </span>
+          ) : null}
           <span className={styles.paramTitle}>{entry.nameParameter || entry.ritualName}</span>
         </div>
         <span className={styles.typeBadge}>{isPointerEntry ? 'pointer' : entry.typeParameter}</span>

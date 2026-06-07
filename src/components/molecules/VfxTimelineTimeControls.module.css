@@ -9,31 +9,31 @@
   display: flex;
   align-items: center;
   min-width: 44px;
-  height: 28px;
-  padding: 0 10px;
-  background: var(--vfx-chrome-bg);
-  border: 1px solid var(--vfx-chrome-bg-hover);
-  border-radius: 8px;
+  height: 26px;
+  padding: 0 8px;
+  background: transparent;
+  border: 1px solid var(--ctx-menu-border, #454545);
+  border-radius: var(--ctx-menu-radius, 4px);
 }
 
 .rangeGroup {
   display: flex;
   align-items: stretch;
-  height: 28px;
+  height: 26px;
   overflow: hidden;
-  background: var(--vfx-resize-handle-bg);
-  border: 1px solid var(--vfx-chrome-bg-hover);
-  border-radius: 8px;
+  background: transparent;
+  border: 1px solid var(--ctx-menu-border, #454545);
+  border-radius: var(--ctx-menu-radius, 4px);
 }
 
 .rangeIcon {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
+  width: 26px;
   font-size: 12px;
-  color: var(--vfx-text-muted);
-  border-right: 1px solid var(--vfx-chrome-border);
+  color: var(--ctx-menu-muted, var(--color-text-muted));
+  border-right: 1px solid var(--ctx-menu-border, #454545);
 }
 
 .rangeSegment {
@@ -55,36 +55,37 @@
 
 .rangeDivider {
   width: 1px;
-  background: var(--vfx-chrome-border);
+  background: var(--ctx-menu-border, #454545);
 }
 
 .valueBtn {
-  min-width: 28px;
-  padding: 0;
-  font-size: 12px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  color: var(--vfx-text-strong);
-  text-align: left;
-  cursor: text;
+  padding: var(--ctx-menu-item-padding-block, 5px) 8px;
+  color: var(--ctx-menu-fg, var(--color-text-primary));
+  font: inherit;
+  font-size: var(--ctx-menu-shortcut-font-size, 11.5px);
+  cursor: pointer;
   background: transparent;
-  border: none;
+  border: 1px solid var(--ctx-menu-border, #454545);
+  border-radius: var(--ctx-menu-radius, 4px);
+  transition: color 100ms ease, background 100ms ease, border-color 100ms ease;
 }
 
-.valueBtn:hover {
-  color: var(--vfx-accent-text-strong);
+.valueBtn:hover:not(:disabled) {
+  color: var(--ctx-menu-hover-fg, #fff);
+  background: var(--ctx-menu-hover-bg, #007acc);
+  border-color: var(--ctx-menu-hover-bg, #007acc);
 }
 
 .valueInput {
   width: 48px;
   padding: 2px 4px;
-  font-size: 12px;
+  font-size: var(--ctx-menu-shortcut-font-size, 11.5px);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
-  color: var(--vfx-text-strong);
+  color: var(--ctx-menu-fg, var(--color-text-primary));
   background: var(--vfx-inset-dark);
-  border: 1px solid var(--vfx-accent-border-soft);
-  border-radius: 4px;
+  border: 1px solid var(--ctx-menu-border, #454545);
+  border-radius: var(--ctx-menu-radius, 4px);
 }
 
 .resetHint {

@@ -210,7 +210,7 @@ export function useCodeDockTabs() {
         ? normalizeCodeDockFileName(safeFileName)
         : uniqueUntitledFileName(
             prev.map((tab) => tab.fileName),
-            'txt',
+            'bin',
           )
       const resolvedContent = safeContent ?? defaultContentForNewFile(resolvedName)
       const tab = createTab(resolvedName, resolvedContent)

@@ -19,6 +19,7 @@ import {
   type CanvasToolbarToolId,
   type CanvasToolbarVisibility,
 } from '@/core/canvasToolbarVisibility'
+import { parseBlockElementView, type BlockElementViewKey, type BlockElementViewState } from '@/core/blockElementViewState'
 import type { NodeInstance } from '@/core/nodeSchema'
 import { parseCanvasGridChrome } from '@/core/canvasGridSettings'
 import { parseSceneNodesStatePresets } from '@/core/sceneNodesStatePresets'
@@ -46,6 +47,7 @@ export type CanvasNodePresentationEntry = {
   addonOutputValues?: Record<string, unknown>
   structureCardParamsExpanded?: boolean
   structureCardWidth?: number
+  blockElementView?: Partial<Record<BlockElementViewKey, BlockElementViewState>>
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -210,6 +212,9 @@ export function canvasNodePresentationFromNode(canvasNode: CanvasNode): CanvasNo
     ...(canvasNode.structureCardWidth !== undefined
       ? { structureCardWidth: canvasNode.structureCardWidth }
       : {}),
+    ...(canvasNode.blockElementView && Object.keys(canvasNode.blockElementView).length > 0
+      ? { blockElementView: structuredClone(canvasNode.blockElementView) }
+      : {}),
   }
 }
 
@@ -262,6 +267,9 @@ export function canvasNodeOverlayFromPresentation(
       : {}),
     ...(entry.structureCardParamsExpanded ? { structureCardParamsExpanded: true } : {}),
     ...(entry.structureCardWidth !== undefined ? { structureCardWidth: entry.structureCardWidth } : {}),
+    ...(entry.blockElementView && Object.keys(entry.blockElementView).length > 0
+      ? { blockElementView: structuredClone(entry.blockElementView) }
+      : {}),
   }
 }
 
@@ -313,6 +321,9 @@ export function isValidPresentationEntry(raw: unknown): raw is CanvasNodePresent
   if (raw.structureCardWidth !== undefined && typeof raw.structureCardWidth !== 'number') {
     return false
   }
+  if (raw.blockElementView !== undefined && parseBlockElementView(raw.blockElementView) === undefined) {
+    return false
+  }
   return true
 }
 
@@ -349,6 +360,9 @@ export function presentationEntryFromRawLayout(raw: unknown): CanvasNodePresenta
       ...(raw.groupViewActive === true ? { groupViewActive: true } : {}),
       ...(raw.structureCardParamsExpanded === true ? { structureCardParamsExpanded: true } : {}),
       ...(typeof raw.structureCardWidth === 'number' ? { structureCardWidth: raw.structureCardWidth } : {}),
+      ...(parseBlockElementView(raw.blockElementView)
+        ? { blockElementView: parseBlockElementView(raw.blockElementView) }
+        : {}),
     }
   }
   return {

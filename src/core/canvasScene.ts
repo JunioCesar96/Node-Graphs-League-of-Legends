@@ -7,6 +7,7 @@ import type {
   NodeCardSectionId,
 } from './nodeCardSections'
 import type { NewNodeMaterializePhase } from './codeToNewNodeGraph'
+import type { BlockElementViewKey, BlockElementViewState } from './blockElementViewState'
 import type { BlockStructurePayload } from './blockSchema'
 import type { GroupStructurePayload } from './groupSchema'
 import type {
@@ -27,7 +28,10 @@ import {
 } from './nodeStructureRegistry'
 
 import { applyEmbedSlotsToSchema } from './embedSlots'
-import { applyListPointerSlotsToSchema } from './listPointerSlots'
+import {
+  applyListPointerSlotsToSchema,
+  migrateSceneListPointerConnections,
+} from './listPointerSlots'
 import { applyPointerSlotsToSchema } from './pointerSlots'
 import { applyList2EmbedInstancesToSchema } from './list2EmbedSlots'
 import { applyList2PointerInstancesToSchema } from './list2PointerSlots'
@@ -112,6 +116,8 @@ export type CanvasNode = {
   blockStructure?: BlockStructurePayload
   /** Quando true, renderiza BlockCard em vez de NodeCard. */
   blockViewActive?: boolean
+  /** Vista compacta/lista e índice por parâmetro map* ou slot fan-out do bloco. */
+  blockElementView?: Partial<Record<BlockElementViewKey, BlockElementViewState>>
   /** Metadados do sistema Grupo (GroupNodes). */
   groupStructure?: GroupStructurePayload
   /** Quando true, renderiza GroupCard em vez de NodeCard. */
@@ -329,13 +335,16 @@ export function hydrateScene(scene: CanvasScene): CanvasScene {
     ...(scene.compactRoutingBackups && Object.keys(scene.compactRoutingBackups).length > 0
       ? { compactRoutingBackups: structuredClone(scene.compactRoutingBackups) }
       : {}),
-    connections: migrateSceneListEmbedConnections(
+    connections: migrateSceneListPointerConnections(
       nodes,
-      scene.connections.map((c) =>
-        migrateConnection({
-          ...c,
-          ...(c.routing ? { routing: c.routing } : {}),
-        }),
+      migrateSceneListEmbedConnections(
+        nodes,
+        scene.connections.map((c) =>
+          migrateConnection({
+            ...c,
+            ...(c.routing ? { routing: c.routing } : {}),
+          }),
+        ),
       ),
     ),
     nodes,

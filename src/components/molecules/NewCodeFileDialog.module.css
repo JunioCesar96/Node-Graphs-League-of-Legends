@@ -63,25 +63,27 @@
 }
 
 .quickBtn {
-  padding: var(--space-1) var(--space-2);
-  color: var(--color-text-secondary);
-  font-size: 0.68rem;
-  font-family: var(--font-data);
+  padding: var(--ctx-menu-item-padding-block, 5px) 8px;
+  color: var(--ctx-menu-fg, var(--color-text-secondary));
+  font: inherit;
+  font-size: var(--ctx-menu-shortcut-font-size, 11.5px);
   cursor: pointer;
-  background: rgb(255 255 255 / 6%);
-  border: 1px solid var(--color-border-soft);
-  border-radius: 6px;
+  background: transparent;
+  border: 1px solid var(--ctx-menu-border, #454545);
+  border-radius: var(--ctx-menu-radius, 4px);
+  transition: color 100ms ease, background 100ms ease, border-color 100ms ease;
 }
 
-.quickBtn:hover {
-  color: var(--color-text-primary);
-  background: rgb(255 255 255 / 10%);
+.quickBtn:hover:not(:disabled) {
+  color: var(--ctx-menu-hover-fg, #fff);
+  background: var(--ctx-menu-hover-bg, #007acc);
+  border-color: var(--ctx-menu-hover-bg, #007acc);
 }
 
 .quickBtnActive {
-  color: var(--color-text-primary);
-  background: rgb(40 88 140 / 35%);
-  border-color: rgb(90 150 210 / 45%);
+  color: var(--ctx-menu-hover-fg, #fff);
+  background: var(--ctx-menu-hover-bg, #007acc);
+  border-color: var(--ctx-menu-hover-bg, #007acc);
 }
 
 .preview {
@@ -106,21 +108,41 @@
 }
 
 .ghostButton {
-  padding: var(--space-1) var(--space-2);
-  color: var(--color-text-primary);
-  font-size: 0.72rem;
+  padding: var(--ctx-menu-item-padding-block, 5px) 12px;
+  color: var(--ctx-menu-fg, var(--color-text-primary));
+  font: inherit;
+  font-size: var(--ctx-menu-shortcut-font-size, 11.5px);
   cursor: pointer;
-  background: rgb(255 255 255 / 6%);
-  border: 1px solid var(--color-border-soft);
-  border-radius: 8px;
+  background: transparent;
+  border: 1px solid var(--ctx-menu-border, #454545);
+  border-radius: var(--ctx-menu-radius, 4px);
+  transition: color 100ms ease, background 100ms ease, border-color 100ms ease;
+}
+
+.ghostButton:hover:not(:disabled) {
+  color: var(--ctx-menu-hover-fg, #fff);
+  background: var(--ctx-menu-hover-bg, #007acc);
+  border-color: var(--ctx-menu-hover-bg, #007acc);
 }
 
 .primaryButton {
-  padding: var(--space-1) var(--space-2);
-  color: rgb(236 248 255);
-  font-size: 0.72rem;
+  padding: var(--ctx-menu-item-padding-block, 5px) 12px;
+  color: var(--ctx-menu-hover-fg, #fff);
+  font: inherit;
+  font-size: var(--ctx-menu-shortcut-font-size, 11.5px);
+  font-weight: 600;
   cursor: pointer;
-  background: rgb(40 88 140 / 90%);
-  border: 1px solid rgb(90 150 210 / 45%);
-  border-radius: 8px;
+  background: var(--ctx-menu-hover-bg, #007acc);
+  border: 1px solid var(--ctx-menu-hover-bg, #007acc);
+  border-radius: var(--ctx-menu-radius, 4px);
+  transition: filter 100ms ease, opacity 100ms ease;
+}
+
+.primaryButton:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.primaryButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
 }

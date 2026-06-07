@@ -1,3 +1,4 @@
+import { showAppAlert } from '@/messenger_popup/appMessenger'
 import {
   mimeTypeForSave,
   normalizeCodeDockFileName,
@@ -66,7 +67,7 @@ export async function saveCodeDockFileContent(options: {
   if (needsBinConversionOnSave(fileName)) {
     const bin = await saveBinContentForCodeDock(options.content, fileName)
     if (bin.branch === 'error') {
-      window.alert(`Não foi possível converter para .bin: ${bin.message}`)
+      showAppAlert(`Não foi possível converter para .bin: ${bin.message}`)
       return { cancelled: true }
     }
     if (bin.branch === 'cancelled') {

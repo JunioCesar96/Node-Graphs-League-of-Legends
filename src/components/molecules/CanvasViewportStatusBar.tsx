@@ -7,15 +7,24 @@ import styles from './CanvasViewportStatusBar.module.css'
 type CanvasViewportStatusBarProps = {
   pan: CanvasPosition
   scale: number
-  nodeCount: number
+  visibleNodeCount: number
+  totalNodeCount: number
+  selectedNodeCount: number
 }
 
 function formatZoomPercent(scale: number): string {
   return `${Math.round(scale * 100)}%`
 }
 
-export function CanvasViewportStatusBar({ pan, scale, nodeCount }: CanvasViewportStatusBarProps) {
+export function CanvasViewportStatusBar({
+  pan,
+  scale,
+  visibleNodeCount,
+  totalNodeCount,
+  selectedNodeCount,
+}: CanvasViewportStatusBarProps) {
   const { t } = useLanguage()
+  const showingSelection = selectedNodeCount > 0
 
   return (
     <aside
@@ -39,10 +48,24 @@ export function CanvasViewportStatusBar({ pan, scale, nodeCount }: CanvasViewpor
       <span aria-hidden className={styles.separator}>
         ·
       </span>
-      <span className={styles.item} title={t(LangId.CanvasViewportStatusNodes)}>
-        {t(LangId.CanvasViewportStatusNodes, undefined, {
-          count: String(nodeCount),
-        })}
+      <span
+        className={styles.item}
+        title={
+          showingSelection
+            ? t(LangId.CanvasViewportStatusSelectedNodes, undefined, {
+                count: String(selectedNodeCount),
+              })
+            : t(LangId.CanvasViewportStatusNodes)
+        }
+      >
+        {showingSelection
+          ? t(LangId.CanvasViewportStatusSelectedNodes, undefined, {
+              count: String(selectedNodeCount),
+            })
+          : t(LangId.CanvasViewportStatusNodes, undefined, {
+              visible: String(visibleNodeCount),
+              total: String(totalNodeCount),
+            })}
       </span>
     </aside>
   )

@@ -190,7 +190,6 @@ function VfxScene({
 export type VfxViewportProps = {
   emitters: VfxEmitterPreviewEntry[]
   vfxScale?: number
-  particleName?: string
   settings: VfxViewportSettings
   onSettingsChange: (patch: Partial<VfxViewportSettings>) => void
   character?: VfxViewportCharacterProps | null
@@ -200,7 +199,6 @@ export type VfxViewportProps = {
 export function VfxViewport({
   emitters,
   vfxScale = 0.01,
-  particleName,
   settings,
   onSettingsChange,
   character = null,
@@ -283,7 +281,6 @@ export function VfxViewport({
         toggleProjectionRef={toggleProjectionRef}
       />
 
-      {particleName ? <div className={styles.particleLabel}>{particleName}</div> : null}
       <div
         className={styles.projectionBadge}
         title={settings.orthographicProjection ? 'Vista ortográfica (5)' : 'Vista perspectiva (5)'}

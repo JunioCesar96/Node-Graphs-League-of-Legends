@@ -5,7 +5,7 @@
   "name": "soundPersistentDefault",
   "source": {
     "kind": "parameter",
-    "parameterId": "vfx-system-definition-data__main-characters/brand/skins/skin0/particles/brand-base-joke_parameter_soundPersistentDefault"
+    "parameterId": "vfx-system-definition-data__main-entries_parameter_soundPersistentDefault"
   },
   "type": "string",
   "value": "Play_sfx_Brand_Joke3D_buffactivate",

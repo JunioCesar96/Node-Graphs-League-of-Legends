@@ -2,9 +2,10 @@
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: 0;
+  width: 100%;
   min-height: 100vh;
-  padding: clamp(16px, 3vw, 40px);
+  padding: 0;
 }
 
 .sceneTabRow {
@@ -12,24 +13,52 @@
   z-index: 12;
   display: flex;
   flex-shrink: 0;
-  gap: var(--space-3);
+  gap: 0;
   align-items: stretch;
   width: 100%;
   min-width: 0;
-  min-height: 28px;
+  min-height: 36px;
+  padding: 0;
   overflow: visible;
+  color: var(--color-text-secondary);
+  font-family: var(--font-data);
+  font-size: 0.72rem;
+  background: var(--editor-window-header-bg, var(--code-dock-header-bg));
   border-bottom: 1px solid var(--color-border-soft);
+  border-radius: 0;
+}
+
+.sceneEditorTitle {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  align-self: stretch;
+  width: 36px;
+  min-width: 36px;
+  max-width: 36px;
+  height: 100%;
+  padding: 0 var(--space-1);
+  border-right: 1px solid var(--color-border-soft);
 }
 
 .sceneToolbarChrome {
   display: flex;
   flex: 0 0 auto;
-  align-items: center;
+  align-items: stretch;
   align-self: stretch;
-  min-height: 0;
-  margin-right: var(--space-1);
+  min-height: 100%;
   overflow: visible;
   pointer-events: auto;
+  background: color-mix(in srgb, var(--color-canvas) 72%, rgb(0 0 0));
+  border-right: 1px solid var(--color-border-soft);
+}
+
+.sceneToolbarChrome > * {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 100%;
+  min-height: 100%;
 }
 
 .sceneTabBarSlot {
@@ -37,6 +66,7 @@
   flex: 1 1 auto;
   align-items: flex-end;
   min-width: 0;
+  padding: 0 var(--space-2);
 }
 
 .graphColumn {
@@ -46,7 +76,12 @@
   flex-direction: column;
   gap: 0;
   min-width: 0;
-  min-height: 640px;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--editor-window-shell-bg, var(--code-dock-shell-bg));
+  border: var(--editor-window-shell-border, 1px solid var(--color-border-soft));
+  border-radius: var(--editor-window-shell-radius, 0);
+  box-shadow: none;
 }
 
 .graphSurface {
@@ -56,10 +91,10 @@
   min-width: 0;
   min-height: 0;
   overflow: hidden;
-  background: color-mix(in srgb, var(--color-canvas) 84%, rgb(0 0 0));
-  border: 1px solid var(--color-border-soft);
-  border-radius: 12px;
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 5%);
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .graphColumnMain {
@@ -69,14 +104,16 @@
   flex-direction: column;
   min-width: 0;
   min-height: 0;
+  padding: var(--space-2) var(--space-2) var(--space-3);
 }
 
 .workspace {
   display: flex;
   flex: 1;
   flex-direction: row;
-  gap: var(--space-4);
+  gap: 2px;
   align-items: stretch;
+  min-width: 0;
   min-height: 0;
 }
 
@@ -92,6 +129,12 @@
   width: 588px;
   min-width: 446px;
   min-height: 0;
+  overflow: hidden;
+}
+
+.codeDockColumn :global([class*='shell']) {
+  max-width: none;
+  box-shadow: none;
 }
 
 .vfxDockPortalSlot {
@@ -106,6 +149,12 @@
   width: 520px;
   min-width: 400px;
   min-height: 0;
+  overflow: hidden;
+}
+
+.vfxDockColumn :global([class*='shell']) {
+  max-width: none;
+  box-shadow: none;
 }
 
 

@@ -2,19 +2,20 @@
   position: relative;
   z-index: 0;
   display: grid;
-  grid-template-columns: 28px minmax(0, 1fr);
-  gap: var(--space-3);
+  grid-template-columns: 22px minmax(0, 1fr);
+  gap: var(--space-2);
   align-items: start;
   width: 100%;
-  padding: var(--space-3);
+  padding: var(--ctx-menu-item-padding-block, 5px) var(--ctx-menu-item-padding-inline, 20px);
+  font-size: var(--ctx-menu-font-size, 12.5px);
   text-align: left;
-  background: var(--app-subtle-surface);
-  border: 1px solid rgb(255 255 255 / 6%);
-  border-radius: 12px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid color-mix(in srgb, var(--ctx-menu-border, #454545) 55%, transparent);
+  border-radius: 0;
   transition:
-    background 160ms ease,
-    border-color 160ms ease,
-    box-shadow 160ms ease;
+    color 100ms ease,
+    background 100ms ease;
 }
 
 .option[data-expanded='false'] {
@@ -22,12 +23,13 @@
   align-items: center;
   gap: var(--space-2);
   min-height: var(--palette-block-compact-min-height, 44px);
-  padding: var(--space-2) var(--space-3);
 }
 
 .option[data-expanded='false'] .iconWrap {
   margin-top: 0;
   align-self: center;
+  width: 22px;
+  height: 22px;
 }
 
 .option[data-expanded='false'] .details {
@@ -38,15 +40,23 @@
   display: none;
 }
 
-.option:hover,
-.option.keyboardSelected {
-  background: rgb(255 255 255 / 4%);
-  box-shadow: 0 0 0 1px rgb(255 255 255 / 12%);
+.option[data-expanded='false']:hover,
+.option[data-expanded='false'].keyboardSelected {
+  color: var(--ctx-menu-hover-fg, #fff);
+  background: var(--ctx-menu-hover-bg, #007acc);
+  border-bottom-color: var(--ctx-menu-hover-bg, #007acc);
+  box-shadow: none;
+}
+
+.option[data-expanded='false']:hover .title,
+.option[data-expanded='false'].keyboardSelected .title,
+.option[data-expanded='false']:hover .addonId,
+.option[data-expanded='false'].keyboardSelected .addonId {
+  color: inherit;
 }
 
 .option.keyboardSelected {
   z-index: 1;
-  box-shadow: 0 0 0 1px var(--port-child);
 }
 
 .option[data-expanded='true'] {
@@ -122,9 +132,8 @@
 .title {
   min-width: 0;
   overflow: hidden;
-  color: var(--color-text-primary);
-  font-family: var(--font-body);
-  font-size: 0.92rem;
+  color: var(--ctx-menu-fg, var(--color-text-primary));
+  font: inherit;
   font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -134,9 +143,9 @@
   flex-shrink: 1;
   min-width: 0;
   overflow: hidden;
-  color: var(--color-text-muted);
+  color: var(--ctx-menu-muted, var(--color-text-muted));
   font-family: var(--font-data);
-  font-size: 0.68rem;
+  font-size: var(--ctx-menu-shortcut-font-size, 11.5px);
   text-overflow: ellipsis;
   white-space: nowrap;
 }

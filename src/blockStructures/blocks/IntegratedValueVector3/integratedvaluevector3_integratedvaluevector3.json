@@ -10,7 +10,7 @@
   },
   "color": "#40ff56",
   "headerSlots": [
-    "in[worldAcceleration,rotation0]",
+    "in[worldAcceleration]",
     "out[IntegratedValueVector3Preview]"
   ],
   "parameters": [

@@ -14,6 +14,7 @@ import { useLanguage } from '@/language/LanguageProvider'
 import styles from './VfxEffectTabsBar.module.css'
 
 type VfxEffectTabsBarProps = {
+  attached?: boolean
   activeEffectId: string | null
   compositorMode: boolean
   effects: readonly VfxEffectListItem[]
@@ -25,6 +26,7 @@ type VfxEffectTabsBarProps = {
 }
 
 export function VfxEffectTabsBar({
+  attached = false,
   activeEffectId,
   compositorMode,
   effects,
@@ -56,7 +58,7 @@ export function VfxEffectTabsBar({
   }
 
   return (
-    <div className={styles.bar}>
+    <div className={[styles.bar, attached ? styles.barAttached : ''].filter(Boolean).join(' ')}>
       <div className={styles.controls}>
         <input
           aria-label={t(LangId.VfxEffectTabsSearch)}

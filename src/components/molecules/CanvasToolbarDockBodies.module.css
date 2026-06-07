@@ -1,32 +1,34 @@
 .body {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--space-2);
+  font-size: var(--ctx-menu-font-size, 12.5px);
 }
 
 .cameraFields {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: var(--space-3);
+  gap: var(--space-2);
 }
 
 .resetActions {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
+  display: grid;
+  gap: 0;
+  margin: 0 calc(var(--ctx-menu-item-padding-inline, 20px) * -1);
   padding-top: var(--space-1);
-  border-top: 1px solid var(--color-border-soft);
+  border-top: 1px solid var(--ctx-menu-border, #454545);
 }
 
 .field {
   display: grid;
-  gap: var(--space-1);
+  gap: 2px;
 }
 
 .fieldLabel {
-  color: var(--color-text-muted);
-  font-family: var(--font-data);
-  font-size: 0.62rem;
+  color: var(--ctx-menu-muted, var(--color-text-muted));
+  font: inherit;
+  font-size: var(--ctx-menu-section-font-size, 10px);
+  font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
@@ -34,19 +36,18 @@
 .fieldInput {
   width: 100%;
   min-width: 0;
-  padding: var(--space-2);
+  padding: 4px 8px;
   color: var(--color-text-primary);
-  font-family: var(--font-data);
-  font-size: 0.82rem;
+  font: inherit;
+  font-size: var(--ctx-menu-font-size, 12.5px);
   background: rgb(0 0 0 / 18%);
-  border: 1px solid var(--color-border-soft);
-  border-radius: 8px;
+  border: 1px solid var(--ctx-menu-border, #454545);
+  border-radius: var(--ctx-menu-radius, 4px);
 }
 
 .fieldInput:focus {
-  border-color: var(--syntax-vector2, var(--syntax-property));
+  border-color: var(--syntax-property);
   outline: none;
-  box-shadow: 0 0 0 2px rgb(156 220 254 / 14%);
 }
 
 .zoomRow {
@@ -59,57 +60,61 @@
 .zoomButton {
   display: inline-grid;
   place-items: center;
-  width: 36px;
-  height: 36px;
-  color: var(--color-text-primary);
-  font-size: 1.1rem;
-  font-weight: 600;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  color: var(--ctx-menu-fg, var(--color-text-primary));
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 700;
   cursor: pointer;
-  background: rgb(255 255 255 / 5%);
-  border: 1px solid var(--color-border-soft);
-  border-radius: 999px;
+  background: transparent;
+  border: 1px solid var(--ctx-menu-border, #454545);
+  border-radius: var(--ctx-menu-radius, 4px);
 }
 
-.zoomButton:hover {
-  border-color: var(--port-child);
+.zoomButton:hover:not(:disabled) {
+  color: var(--ctx-menu-hover-fg, #fff);
+  background: var(--ctx-menu-hover-bg, #007acc);
+  border-color: var(--ctx-menu-hover-bg, #007acc);
 }
 
 .zoomButton:disabled {
   cursor: not-allowed;
-  opacity: 0.45;
+  opacity: 0.4;
 }
 
 .zoomValue {
   min-width: 0;
-  color: var(--color-text-primary);
-  font-family: var(--font-data);
-  font-size: 0.95rem;
+  color: var(--ctx-menu-fg, var(--color-text-primary));
+  font: inherit;
+  font-size: var(--ctx-menu-font-size, 12.5px);
   font-weight: 600;
   text-align: center;
 }
 
 .actionButton {
   width: 100%;
-  padding: var(--space-2) var(--space-3);
-  color: var(--color-text-primary);
-  font-family: var(--font-data);
-  font-size: 0.82rem;
+  padding: var(--ctx-menu-item-padding-block, 5px) var(--ctx-menu-item-padding-inline, 20px);
+  color: var(--ctx-menu-fg, var(--color-text-primary));
+  font: inherit;
   text-align: left;
   cursor: pointer;
-  background: rgb(255 255 255 / 5%);
-  border: 1px solid var(--color-border-soft);
-  border-radius: 8px;
+  background: transparent;
+  border: none;
+  border-radius: 0;
 }
 
 .actionButton:hover {
-  border-color: var(--port-child);
+  color: var(--ctx-menu-hover-fg, #fff);
+  background: var(--ctx-menu-hover-bg, #007acc);
 }
 
 .actionButtonDanger {
-  color: rgb(255 180 180);
+  color: rgb(255 140 140);
 }
 
 .actionButtonDanger:hover {
-  background: rgb(180 40 40 / 18%);
-  border-color: rgb(255 140 140 / 45%);
+  color: #fff;
+  background: rgb(180 40 40 / 88%);
 }

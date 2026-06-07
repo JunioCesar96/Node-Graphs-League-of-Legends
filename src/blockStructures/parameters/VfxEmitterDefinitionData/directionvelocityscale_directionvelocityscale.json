@@ -5,7 +5,7 @@
   "name": "directionVelocityScale",
   "source": {
     "kind": "parameter",
-    "parameterId": "vfx-emitter-definition-data__main-characters/brand/skins/skin0/particles/brand-base-joke-complex-emitter-definition-data--slot--0_parameter_directionVelocityScale"
+    "parameterId": "vfx-emitter-definition-data__main-entries-complex-emitter-definition-data_parameter_directionVelocityScale"
   },
   "type": "f32",
   "value": "0.001",

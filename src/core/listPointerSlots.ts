@@ -155,15 +155,45 @@ export function slotMatchesListPointerCatalog(
   return allowed.includes(targetSchemaId)
 }
 
-/** Mapeia id legado de catálogo (pré-LIST_POINTER) para o primeiro slot do bloco. */
+/** Ids possíveis de ligação de saída para um índice de list[pointer] (slot normalizado + aliases). */
+export function listPointerOutputSlotConnectionIds(
+  block: ListPointerDefinition,
+  index: number,
+): string[] {
+  const ids = new Set<string>()
+  ids.add(listPointerSlotId(block.id, index))
+
+  const slots = populatedSlotsForListPointer(block)
+  const slot = slots[index]
+  if (slot) {
+    ids.add(slot.id)
+  }
+
+  const catalog = block.internalStructures[index]
+  if (catalog) {
+    ids.add(catalog.id)
+  }
+
+  return [...ids]
+}
+
+/** Mapeia id legado de catálogo (pré-LIST_POINTER) para o slot indexado correcto. */
 export function migrateLegacyCatalogConnectionId(
   schema: NodeSchemaDefinition,
   fromInternalStructureId: string,
 ): string {
   for (const block of schema.listPointer ?? []) {
-    const catalogHit = block.internalStructures.find((item) => item.id === fromInternalStructureId)
-    if (catalogHit) {
-      return listPointerSlotId(block.id, 0)
+    const catalogIndex = block.internalStructures.findIndex(
+      (item) => item.id === fromInternalStructureId,
+    )
+    if (catalogIndex >= 0) {
+      return listPointerSlotId(block.id, catalogIndex)
+    }
+
+    const slots = populatedSlotsForListPointer(block)
+    const slotIndex = slots.findIndex((slot) => slot.id === fromInternalStructureId)
+    if (slotIndex >= 0) {
+      return listPointerSlotId(block.id, slotIndex)
     }
   }
   return fromInternalStructureId

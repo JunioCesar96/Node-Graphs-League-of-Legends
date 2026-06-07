@@ -14,7 +14,7 @@ import {
   resolveBlockHeaderSlotsForStructure,
 } from './blockCardHeaderSlots'
 import { blockDefinitionByBlockName } from './blockDefinitionRegistry'
-import { BLOCK_CARD_WIDTH, blockParameterSlotId, isBlockMapStructureType, parseBlockHeaderSlotId } from './blockSchema'
+import { BLOCK_CARD_WIDTH, blockParameterSlotId, isBlockListPointerParameter, isBlockMapStructureType, parseBlockHeaderSlotId } from './blockSchema'
 import {
   blockMapHashEntrySlotCenterY,
   estimateBlockMapHashListRowHeight,
@@ -614,7 +614,7 @@ export function applyBlockSlotConnectionToScene(
   const prunedInputs = withoutConnectionsToBlockInputSlot(scene.connections, toNodeId, toBlockSlotId)
   const connections = isListPointerBlockOutputSlot(fromNode, fromBlockSlotId, fromBlockParameterId)
     ? prunedInputs
-    : withoutConnectionsFromBlockOutputSlot(prunedInputs, fromNodeId, fromBlockSlotId)
+    : withoutConnectionsFromBlockOutputSlot(prunedInputs, fromNodeId, fromBlockSlotId, fromNode)
 
   return {
     ...scene,
@@ -694,24 +694,55 @@ export function blockOutputSlotConnectionKey(nodeId: string, slotId: string): st
 }
 
 export function findConnectionsForBlockOutputSlot(
-  scene: Pick<CanvasScene, 'connections'>,
+  scene: Pick<CanvasScene, 'connections' | 'nodes'>,
   nodeId: string,
   slotId: string,
 ): CanvasConnection[] {
+  const canvasNode = scene.nodes?.find((node) => node.id === nodeId)
   return scene.connections.filter((connection) =>
-    connectionUsesBlockOutputSlot(connection, nodeId, slotId),
+    connectionUsesBlockOutputSlot(connection, nodeId, slotId, canvasNode),
   )
+}
+
+/** Slots de saída a considerar para pager fan-out e ocultação em modo leve. */
+export function collectBlockFanOutPolicyOutputSlotIds(
+  scene: Pick<CanvasScene, 'connections' | 'nodes'>,
+  canvasNode: CanvasNode,
+): string[] {
+  const slotIds = new Set<string>()
+  if (!canvasNode.blockViewActive || !canvasNode.blockStructure) {
+    return []
+  }
+
+  for (const connection of scene.connections) {
+    if (connection.fromNodeId === canvasNode.id && connection.fromBlockSlotId) {
+      slotIds.add(connection.fromBlockSlotId)
+    }
+  }
+
+  for (const param of canvasNode.blockStructure.parameters) {
+    if (!isBlockListPointerParameter(param)) {
+      continue
+    }
+    const aggregatedOutputSlot = blockParameterSlotId(param.idParameter, 'output')
+    if (findConnectionsForBlockOutputSlot(scene, canvasNode.id, aggregatedOutputSlot).length > 1) {
+      slotIds.add(aggregatedOutputSlot)
+    }
+  }
+
+  return [...slotIds]
 }
 
 export function clampBlockOutputSlotConnectionIndex(
   index: number | undefined,
   connectionCount: number,
+  options?: { lightModeDefaultFirst?: boolean },
 ): number {
   if (connectionCount <= 0) {
     return 0
   }
   if (index === undefined) {
-    return connectionCount - 1
+    return options?.lightModeDefaultFirst ? 0 : connectionCount - 1
   }
   return Math.min(Math.max(0, index), connectionCount - 1)
 }
@@ -721,10 +752,12 @@ export function resolveBlockOutputSlotConnectionIndex(
   nodeId: string,
   slotId: string,
   connectionCount: number,
+  options?: { lightModeDefaultFirst?: boolean },
 ): number {
   return clampBlockOutputSlotConnectionIndex(
     indexBySlotKey.get(blockOutputSlotConnectionKey(nodeId, slotId)),
     connectionCount,
+    options,
   )
 }
 
@@ -757,6 +790,7 @@ export function connectionUsesBlockOutputSlot(
   connection: CanvasConnection,
   fromNodeId: string,
   fromBlockSlotId: string,
+  canvasNode?: CanvasNode,
 ): boolean {
   if (connection.fromNodeId !== fromNodeId) {
     return false
@@ -764,7 +798,40 @@ export function connectionUsesBlockOutputSlot(
   if (connection.fromBlockSlotId === fromBlockSlotId) {
     return true
   }
-  return connection.fromInternalStructureId === `__block__:${fromBlockSlotId}`
+  if (connection.fromInternalStructureId === `__block__:${fromBlockSlotId}`) {
+    return true
+  }
+
+  if (!canvasNode?.blockStructure) {
+    return false
+  }
+
+  const structure = canvasNode.blockStructure
+  const paramOutputMatch = /^block-param:([^:]+):output$/.exec(fromBlockSlotId)
+  if (paramOutputMatch) {
+    const param = structure.parameters.find((entry) => entry.idParameter === paramOutputMatch[1])
+    if (param && isBlockListPointerParameter(param)) {
+      const listIndex = parseListPointerSlotIndex(connection.fromBlockSlotId ?? '', param.idParameter)
+      if (listIndex !== null) {
+        return true
+      }
+    }
+  }
+
+  for (const param of structure.parameters) {
+    if (!isBlockListPointerParameter(param)) {
+      continue
+    }
+    const listIndex = parseListPointerSlotIndex(fromBlockSlotId, param.idParameter)
+    if (listIndex === null) {
+      continue
+    }
+    if (connection.fromBlockSlotId === blockParameterSlotId(param.idParameter, 'output')) {
+      return true
+    }
+  }
+
+  return false
 }
 
 /** `list[pointer]` pode ligar a vários destinos a partir da mesma saída (fan-out). */
@@ -802,9 +869,10 @@ export function withoutConnectionsFromBlockOutputSlot(
   connections: readonly CanvasConnection[],
   fromNodeId: string,
   fromBlockSlotId: string,
+  canvasNode?: CanvasNode,
 ): CanvasConnection[] {
   return connections.filter(
-    (connection) => !connectionUsesBlockOutputSlot(connection, fromNodeId, fromBlockSlotId),
+    (connection) => !connectionUsesBlockOutputSlot(connection, fromNodeId, fromBlockSlotId, canvasNode),
   )
 }
 
@@ -999,6 +1067,13 @@ export function getBlockSlotPortYOffset(
       blockParameterSlotId(param.idParameter, 'output') === slotId
     ) {
       return rowCenter
+    }
+
+    if (isBlockListPointerParameter(param)) {
+      const listIndex = parseListPointerSlotIndex(slotId, param.idParameter)
+      if (listIndex !== null) {
+        return rowCenter
+      }
     }
 
     accumulatedHeight += rowHeight

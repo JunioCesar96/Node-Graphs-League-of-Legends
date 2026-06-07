@@ -15,7 +15,8 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
-  width: min(520px, 100%);
+  width: min(560px, calc(100vw - 48px));
+  min-width: min(560px, calc(100vw - 48px));
   max-height: min(80vh, 640px);
   padding: 20px 22px;
   overflow: auto;
@@ -47,7 +48,9 @@
 
 .progressMeta {
   margin: 0;
+  min-height: 1.25em;
   font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
   color: rgb(255 255 255 / 62%);
 }
 
@@ -65,11 +68,41 @@
   transition: width 0.2s ease;
 }
 
+.statusShell {
+  --status-font-size: 0.9375rem;
+  --status-line-height: 1.45;
+  --status-line-count: 5;
+  box-sizing: border-box;
+  display: flex;
+  align-items: flex-start;
+  height: calc(
+    var(--status-font-size) * var(--status-line-height) * var(--status-line-count) + 20px
+  );
+  min-height: calc(
+    var(--status-font-size) * var(--status-line-height) * var(--status-line-count) + 20px
+  );
+  max-height: calc(
+    var(--status-font-size) * var(--status-line-height) * var(--status-line-count) + 20px
+  );
+  padding: 10px 12px;
+  overflow: hidden;
+  background: rgb(255 255 255 / 4%);
+  border: 1px solid rgb(255 255 255 / 8%);
+  border-radius: 10px;
+}
+
 .statusLabel {
   margin: 0;
-  font-size: 0.9375rem;
-  line-height: 1.45;
+  width: 100%;
+  font-size: var(--status-font-size);
+  line-height: var(--status-line-height);
   color: rgb(255 255 255 / 88%);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: var(--status-line-count);
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .summaryBody {
@@ -98,32 +131,62 @@
 .secondaryButton,
 .dangerButton {
   min-width: 6rem;
-  padding: 0.55rem 1rem;
-  font-size: 0.8125rem;
-  border-radius: 10px;
-  cursor: pointer;
 }
 
 .primaryButton {
-  color: #08140f;
-  background: linear-gradient(180deg, #5cb88a, #3d8f6e);
-  border: 1px solid rgb(255 255 255 / 12%);
+  padding: var(--ctx-menu-item-padding-block, 5px) 12px;
+  color: var(--ctx-menu-hover-fg, #fff);
+  font: inherit;
+  font-size: var(--ctx-menu-shortcut-font-size, 11.5px);
+  font-weight: 600;
+  cursor: pointer;
+  background: var(--ctx-menu-hover-bg, #007acc);
+  border: 1px solid var(--ctx-menu-hover-bg, #007acc);
+  border-radius: var(--ctx-menu-radius, 4px);
+  transition: filter 100ms ease, opacity 100ms ease;
+}
+
+.primaryButton:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.primaryButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
 }
 
 .secondaryButton {
-  color: var(--color-text-secondary, #ccc);
-  background: rgb(255 255 255 / 6%);
-  border: 1px solid var(--color-border-soft);
+  padding: var(--ctx-menu-item-padding-block, 5px) 12px;
+  color: var(--ctx-menu-fg, var(--color-text-secondary));
+  font: inherit;
+  font-size: var(--ctx-menu-shortcut-font-size, 11.5px);
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid var(--ctx-menu-border, #454545);
+  border-radius: var(--ctx-menu-radius, 4px);
+  transition: color 100ms ease, background 100ms ease, border-color 100ms ease;
+}
+
+.secondaryButton:hover:not(:disabled) {
+  color: var(--ctx-menu-hover-fg, #fff);
+  background: var(--ctx-menu-hover-bg, #007acc);
+  border-color: var(--ctx-menu-hover-bg, #007acc);
 }
 
 .dangerButton {
-  color: #ffecec;
-  background: rgb(160 48 48 / 88%);
-  border: 1px solid rgb(255 120 120 / 35%);
+  padding: var(--ctx-menu-item-padding-block, 5px) 12px;
+  color: rgb(255 140 140);
+  font: inherit;
+  font-size: var(--ctx-menu-shortcut-font-size, 11.5px);
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid var(--ctx-menu-border, #454545);
+  border-radius: var(--ctx-menu-radius, 4px);
+  transition: color 100ms ease, background 100ms ease, border-color 100ms ease;
 }
 
-.primaryButton:hover,
-.secondaryButton:hover,
-.dangerButton:hover {
-  filter: brightness(1.06);
+.dangerButton:hover:not(:disabled) {
+  color: #fff;
+  background: rgb(180 40 40 / 88%);
+  border-color: rgb(180 40 40 / 88%);
 }

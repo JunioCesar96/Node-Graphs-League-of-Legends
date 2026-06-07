@@ -5,7 +5,7 @@
   "name": "isRotationEnabled",
   "source": {
     "kind": "parameter",
-    "parameterId": "vfx-emitter-definition-data__main-characters/brand/skins/skin0/particles/brand-base-joke-complex-emitter-definition-data--slot--1_parameter_isRotationEnabled"
+    "parameterId": "vfx-emitter-definition-data__main-entries-complex-emitter-definition-data_parameter_isRotationEnabled"
   },
   "type": "flag",
   "value": "true",

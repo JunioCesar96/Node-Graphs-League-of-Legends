@@ -9,6 +9,7 @@ import {
 } from '@/core/canvasScene'
 import { createUniqueNodeId } from '@/core/canvasNodeIds'
 import { syncSceneCollapsedBodyWireless } from '@/core/compactConnectionRouting'
+import { applyHideLinkedChildrenForVfxEmitterNodes } from '@/core/vfxEmitterLinkedChildrenVisibility'
 import { patchInternalStructureSlotForLink } from '@/core/collectionTypeLinking'
 import {
   MAIN_SCHEMA_ID,
@@ -1056,7 +1057,9 @@ export function codeToCanvasScene(
     }
   }
 
-  const scene = syncSceneCollapsedBodyWireless(hydrateScene(builder.buildScene()))
+  const scene = applyHideLinkedChildrenForVfxEmitterNodes(
+    syncSceneCollapsedBodyWireless(hydrateScene(builder.buildScene())),
+  )
 
   return { ok: true, scene, warnings: builder.warnings }
 }

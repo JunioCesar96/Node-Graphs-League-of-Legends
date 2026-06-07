@@ -5,7 +5,7 @@
   "name": "TextureFlipV",
   "source": {
     "kind": "parameter",
-    "parameterId": "vfx-emitter-definition-data__main-characters/brand/skins/skin0/particles/brand-base-w-pof-tar-complex-emitter-definition-data--slot--18_parameter_TextureFlipV"
+    "parameterId": "vfx-emitter-definition-data__main-entries-complex-emitter-definition-data_parameter_TextureFlipV"
   },
   "type": "flag",
   "value": "true",

@@ -13,10 +13,10 @@ import {
 } from '@/core/jadeSurfaceTheme'
 
 const DEFAULT_STATE: JadeSurfaceThemeState = {
-  themeEnabled: true,
-  syntaxEnabled: true,
-  backgroundEnabled: true,
-  fontsEnabled: true,
+  themeEnabled: false,
+  syntaxEnabled: false,
+  backgroundEnabled: false,
+  fontsEnabled: false,
 }
 
 function isSurfaceThemeState(value: unknown): value is JadeSurfaceThemeState {

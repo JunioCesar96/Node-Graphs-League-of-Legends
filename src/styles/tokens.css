@@ -64,6 +64,26 @@ html[data-app-theme='default'] {
   --space-5: 20px;
   --space-6: 24px;
 
+  /** Menus de contexto — alinhados ao EditorContextMenu / Monaco. */
+  --ctx-menu-font-size: 12.5px;
+  --ctx-menu-shortcut-font-size: 11.5px;
+  --ctx-menu-section-font-size: 10px;
+  --ctx-menu-item-padding-block: 5px;
+  --ctx-menu-item-padding-inline: 20px;
+  --ctx-menu-panel-padding-block: 4px;
+  --ctx-menu-panel-padding-inline: 0;
+  --ctx-menu-min-width: 180px;
+  --ctx-menu-radius: 4px;
+  --ctx-menu-border: var(--border-color, #454545);
+  --ctx-menu-bg: var(--window-bg, #1e1e1e);
+  --ctx-menu-fg: var(--text-color, #d4d4d4);
+  --ctx-menu-hover-bg: var(--selected-tab-bg, #007acc);
+  --ctx-menu-hover-fg: #fff;
+  --ctx-menu-muted: var(--text-muted, #888);
+  --ctx-menu-separator-margin-block: 4px;
+  --ctx-menu-separator-margin-inline: 8px;
+  --ctx-menu-shadow: 0 4px 16px rgb(0 0 0 / 40%);
+
   /**
    * Barra compacta dos nodes no grafo (NodeHeader: padding vertical + linha do título / badge).
    * Usado pela paleta «Add node» para `min-height` dos itens em estado não expandido.
@@ -92,14 +112,13 @@ html[data-app-theme='default'] {
   /** Rótulo de Internal_Structure / slot no card (área antes da porta). */
   --node-structure-label-max-width: calc(var(--node-card-section-min-width) - 5.5rem);
 
-  /** Linha compacta na paleta ≈ cabeçalho do node + gap + uma linha de tags (estrutura / tipos). */
-  --palette-add-compact-min-height: calc(var(--node-header-min-block-size) + var(--space-2) + 1.375rem);
-
-  /** Linha compacta de bloco na paleta (swatch + uma linha de título). */
-  --palette-block-compact-min-height: calc(0.82rem * 1.2 + var(--space-2) * 2);
+  /** Linha compacta na paleta — alinhada ao menu do editor (ctx-menu). */
+  --palette-menu-row-height: calc(var(--ctx-menu-item-padding-block, 5px) * 2 + var(--ctx-menu-font-size, 12.5px) * 1.2);
+  --palette-add-compact-min-height: calc(var(--palette-menu-row-height) + 1rem);
+  --palette-block-compact-min-height: var(--palette-menu-row-height);
 
   /** Uma linha da grelha da paleta «Add node» (tarja compacta + gap entre linhas). */
-  --palette-add-row-stride: calc(var(--palette-add-compact-min-height) + var(--space-2));
+  --palette-add-row-stride: calc(var(--palette-add-compact-min-height) + 1px);
 
   /** Distância abaixo do botão «Add node» quando a paleta abre ancorada (`data-shortcut-scope="node-palette"`). */
   --node-palette-anchor-top-gap: 10px;
@@ -166,6 +185,17 @@ html[data-app-theme='default'] {
   --code-dock-resize-grip: linear-gradient(90deg, rgb(255 255 255 / 10%), transparent);
   --code-dock-resize-handle-bg: rgb(255 255 255 / 5%);
   --code-dock-resize-handle-hover: rgb(255 255 255 / 12%);
+
+  /** Chrome de janelas dock (Code / Node / VFX) — shell + header de abas. */
+  --editor-window-shell-bg: var(--code-dock-shell-bg);
+  --editor-window-shell-border: 1px solid var(--color-border-soft);
+  --editor-window-shell-radius: 0;
+  --editor-window-shell-shadow: -16px 0 48px rgb(0 0 0 / 35%);
+  --editor-window-header-bg: var(--code-dock-header-bg);
+  --editor-window-floating-filter: drop-shadow(-12px 12px 40px rgb(0 0 0 / 48%));
+  --editor-window-resize-grip: var(--code-dock-resize-grip);
+  --editor-window-resize-handle-bg: var(--code-dock-resize-handle-bg);
+  --editor-window-resize-handle-hover: var(--code-dock-resize-handle-hover);
 
   --app-panel-bg: rgb(37 37 38 / 90%);
   --app-panel-bg-strong: rgb(37 37 38 / 94%);

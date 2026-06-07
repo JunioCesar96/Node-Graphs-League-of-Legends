@@ -61,23 +61,53 @@ body.ritualLinkDragging * {
   opacity: 0.7;
 }
 
+.codeDockJadeScope .menu-dropdown,
+.codeDockJadeScope .menu-submenu {
+  min-width: var(--ctx-menu-min-width, 180px);
+  padding: var(--ctx-menu-panel-padding-block, 4px) var(--ctx-menu-panel-padding-inline, 0);
+  border-radius: var(--ctx-menu-radius, 4px);
+}
+
+.codeDockJadeScope .menu-option {
+  padding: var(--ctx-menu-item-padding-block, 5px) var(--ctx-menu-item-padding-inline, 20px);
+  font-size: var(--ctx-menu-font-size, 12.5px);
+  border-radius: 0;
+}
+
+.codeDockJadeScope .menu-option:hover:not(:disabled):not(.menu-option--static) {
+  background: var(--ctx-menu-hover-bg, #007acc);
+  color: var(--ctx-menu-hover-fg, #fff);
+}
+
+.codeDockJadeScope .menu-option .shortcut {
+  font-size: var(--ctx-menu-shortcut-font-size, 11.5px);
+}
+
+.codeDockJadeScope .menu-option:hover:not(:disabled):not(.menu-option--static) .shortcut {
+  color: rgb(255 255 255 / 70%);
+}
+
+.codeDockJadeScope .menu-separator {
+  margin: var(--ctx-menu-separator-margin-block, 4px) var(--ctx-menu-separator-margin-inline, 8px);
+}
+
 .codeDockNodeGraphLabel {
   display: block;
-  font-size: 10px;
+  font-size: var(--ctx-menu-section-font-size, 10px);
   font-weight: 600;
   letter-spacing: 0.06em;
   opacity: 0.65;
-  padding: 4px 12px 2px;
+  padding: 4px var(--ctx-menu-item-padding-inline, 20px) 2px;
   text-transform: uppercase;
 }
 
 .codeDockCodeToNodeGraphSectionLabel {
   display: block;
-  font-size: 10px;
+  font-size: var(--ctx-menu-section-font-size, 10px);
   font-weight: 600;
   letter-spacing: 0.06em;
   opacity: 0.85;
-  padding: 8px 12px 2px;
+  padding: 4px var(--ctx-menu-item-padding-inline, 20px) 2px;
   text-transform: uppercase;
   color: var(--vscode-menu-foreground, #cccccc);
 }

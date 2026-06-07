@@ -144,6 +144,24 @@ export function blockParameterSlotId(idParameter: string, direction: 'input' | '
   return `block-param:${idParameter}:${direction}`
 }
 
+/** Campo ritual `list[pointer]` ligado a filhos via slot indexado (`paramId__slot__N`). */
+export function isBlockListPointerParameter(
+  param: Pick<BlockParameterDef, 'listParameter' | 'sourcePath'>,
+): boolean {
+  return param.listParameter === true && param.sourcePath.kind === 'pointerChild'
+}
+
+export function blockListPointerOutputSlotIds(
+  parameterId: string,
+  maxIndex = 0,
+): string[] {
+  const slotIds: string[] = [blockParameterSlotId(parameterId, 'output')]
+  for (let index = 0; index <= maxIndex; index += 1) {
+    slotIds.push(`${parameterId}__slot__${String(index)}`)
+  }
+  return slotIds
+}
+
 export function isBlockMapStructureType(typeParameter: string): boolean {
   return (
     typeParameter === 'mapHashEmbed' ||

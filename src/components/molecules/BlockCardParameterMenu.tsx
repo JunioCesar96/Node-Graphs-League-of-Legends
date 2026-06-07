@@ -8,6 +8,7 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from 'react'
 
+import { showAppAlert } from '@/messenger_popup/appMessenger'
 import {
   StructureListPanel,
   type StructureListPanelItem,
@@ -254,7 +255,7 @@ export function BlockCardParameterMenu({
 
   const openParamList = (mode: 'remove' | 'edit') => {
     if (parameters.length === 0) {
-      window.alert(
+      showAppAlert(
         t(mode === 'edit' ? LangId.BlockParameterSelectToEdit : LangId.BlockParameterSelectToRemove),
       )
       return

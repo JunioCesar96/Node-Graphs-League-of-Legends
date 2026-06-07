@@ -5,7 +5,7 @@
   "name": "mLockMeshToAttachment",
   "source": {
     "kind": "parameter",
-    "parameterId": "vfx-mesh-definition-data__main-characters/brand/skins/skin0/particles/brand-base-p-fire-mark3-complex-emitter-definition-data--slot--0-primitive-m-mesh_parameter_mLockMeshToAttachment"
+    "parameterId": "vfx-mesh-definition-data__main-characters/brand/skins/skin0/particles/brand-base-e-conflagration-buf-complex-emitter-definition-data--slot--5-primitive-m-mesh_parameter_mLockMeshToAttachment"
   },
   "type": "bool",
   "value": "true",

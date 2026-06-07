@@ -10,7 +10,7 @@
   },
   "color": "#40ff56",
   "headerSlots": [
-    "in[rate,particleLifetime,bindWeight,birthFrameRate,birthDrag,uvRotation,erosionDriveCurve,emitRotationAngles,birthScale,Scale,birthRotation,birthRotationalVelocity,radius,Frequency,velocityDelta]",
+    "in[rate,particleLifetime,bindWeight,birthFrameRate,erosionDriveCurve]",
     "out[ValueFloatPreview]"
   ],
   "parameters": [

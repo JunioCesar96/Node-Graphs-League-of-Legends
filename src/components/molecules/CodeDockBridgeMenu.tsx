@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 
+import { showAppAlert } from '@/messenger_popup/appMessenger'
 import { getPreference, setPreference } from '@jade/lib/preferenceStore'
 
 import { LangId } from '@/core/language/languageIds'
@@ -29,7 +30,7 @@ export function CodeDockBridgeMenu({ onCloseMenu }: CodeDockBridgeMenuProps) {
   const runBridgePost = async (path: string) => {
     const base = getJadeBridgeBaseForHost()
     if (!base) {
-      window.alert(t(LangId.CodeBridgeNotConfigured))
+      showAppAlert(t(LangId.CodeBridgeNotConfigured))
       return false
     }
     setBusy(true)
@@ -37,13 +38,13 @@ export function CodeDockBridgeMenu({ onCloseMenu }: CodeDockBridgeMenuProps) {
       const res = await fetch(`${base}${path}`, { method: 'POST' })
       const body = (await res.json().catch(() => null)) as { ok?: boolean; message?: string } | null
       if (!res.ok || body?.ok === false) {
-        window.alert(body?.message ?? `HTTP ${res.status}`)
+        showAppAlert(body?.message ?? `HTTP ${res.status}`)
         return false
       }
       return true
     } catch (caught) {
       const message = caught instanceof Error ? caught.message : 'Falha de rede'
-      window.alert(message)
+      showAppAlert(message)
       return false
     } finally {
       setBusy(false)
@@ -62,7 +63,7 @@ export function CodeDockBridgeMenu({ onCloseMenu }: CodeDockBridgeMenuProps) {
     try {
       const caps = await fetchJadeBridgeCapabilities()
       if (!caps) {
-        window.alert(t(LangId.CodeBridgeNotConfigured))
+        showAppAlert(t(LangId.CodeBridgeNotConfigured))
       }
     } finally {
       setBusy(false)

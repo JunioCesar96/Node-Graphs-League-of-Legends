@@ -703,6 +703,15 @@ describe('blockSlotConnections', () => {
       'emitter-a',
       'emitter-b',
     ])
+
+    const connections = second!.connections
+    expect(
+      findConnectionsForBlockOutputSlot(
+        { connections, nodes: second!.nodes },
+        'system',
+        blockParameterSlotId(listParamId, 'output'),
+      ),
+    ).toHaveLength(2)
   })
 
   it('applyBlockSlotConnectionToScene substitui ligação anterior da mesma saída', () => {
@@ -788,5 +797,11 @@ describe('blockSlotConnections', () => {
     expect(
       resolveBlockOutputSlotConnectionIndex(new Map([['emitter::' + outputSlot, 0]]), 'emitter', outputSlot, 2),
     ).toBe(0)
+    expect(
+      resolveBlockOutputSlotConnectionIndex(new Map(), 'emitter', outputSlot, 2, {
+        lightModeDefaultFirst: true,
+      }),
+    ).toBe(0)
+    expect(resolveBlockOutputSlotConnectionIndex(new Map(), 'emitter', outputSlot, 2)).toBe(1)
   })
 })

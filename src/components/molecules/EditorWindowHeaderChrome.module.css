@@ -1,0 +1,102 @@
+.strip {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: stretch;
+  align-self: stretch;
+  min-height: 100%;
+  overflow: visible;
+  background: color-mix(in srgb, var(--color-canvas) 72%, rgb(0 0 0));
+  border-right: 1px solid var(--color-border-soft);
+}
+
+.btn {
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 6px;
+  align-items: center;
+  justify-content: center;
+  align-self: stretch;
+  box-sizing: border-box;
+  min-width: 28px;
+  height: 100%;
+  min-height: 100%;
+  padding: 0 10px;
+  margin: 0;
+  font: inherit;
+  font-size: var(--ctx-menu-shortcut-font-size, 11.5px);
+  line-height: 1;
+  color: var(--ctx-menu-fg, var(--color-text-primary));
+  white-space: nowrap;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  border-right: 1px solid var(--ctx-menu-border, #454545);
+  border-radius: 0;
+  transition:
+    color 100ms ease,
+    background 100ms ease,
+    border-color 100ms ease;
+}
+
+.btn:last-child {
+  border-right: none;
+}
+
+.btn:hover:not(:disabled) {
+  color: var(--ctx-menu-hover-fg, #fff);
+  background: var(--ctx-menu-hover-bg, #007acc);
+  border-right-color: var(--ctx-menu-hover-bg, #007acc);
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.iconBtn {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  align-self: stretch;
+  box-sizing: border-box;
+  width: 28px;
+  min-width: 28px;
+  height: 100%;
+  min-height: 100%;
+  padding: 0;
+  margin: 0;
+  line-height: 0;
+  color: var(--ctx-menu-fg, var(--color-text-primary));
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  border-right: 1px solid var(--ctx-menu-border, #454545);
+  border-radius: 0;
+  transition:
+    color 100ms ease,
+    background 100ms ease,
+    border-color 100ms ease;
+}
+
+.iconBtn:hover:not(:disabled) {
+  color: var(--ctx-menu-hover-fg, #fff);
+  background: var(--ctx-menu-hover-bg, #007acc);
+  border-right-color: var(--ctx-menu-hover-bg, #007acc);
+}
+
+.iconBtnActive {
+  color: var(--ctx-menu-hover-bg, #007acc);
+  background: color-mix(in srgb, var(--ctx-menu-hover-bg, #007acc) 16%, transparent);
+  border-right-color: var(--ctx-menu-hover-bg, #007acc);
+}
+
+.iconBtnActive:hover:not(:disabled) {
+  color: var(--ctx-menu-hover-fg, #fff);
+  background: var(--ctx-menu-hover-bg, #007acc);
+}
+
+.iconBtn:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}

@@ -18,7 +18,7 @@
 
   border: 1px solid var(--vfx-viewport-border);
 
-  border-radius: 10px;
+  border-radius: 0;
 
 }
 
@@ -112,44 +112,6 @@
   border-radius: 4px;
   transform: translateX(-50%);
 }
-
-.particleLabel {
-
-  position: absolute;
-
-  top: 8px;
-
-  right: 10px;
-
-  z-index: 2;
-
-  max-width: 45%;
-
-  padding: 4px 8px;
-
-  overflow: hidden;
-
-  font-size: 10px;
-
-  font-weight: 600;
-
-  color: var(--vfx-accent-text-readout);
-
-  text-overflow: ellipsis;
-
-  white-space: nowrap;
-
-  pointer-events: none;
-
-  background: var(--vfx-viewport-overlay);
-
-  border: 1px solid var(--vfx-viewport-border);
-
-  border-radius: 6px;
-
-}
-
-
 
 .particleList {
   margin: 0;

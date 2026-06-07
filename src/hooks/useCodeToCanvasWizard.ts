@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from 'react'
 
+import { showAppAlert } from '@/messenger_popup/appMessenger'
 import type { CanvasScene } from '@/core/canvasScene'
 import {
   buildSceneThroughSteps,
@@ -100,7 +101,7 @@ export function useCodeToCanvasWizard({
       )
 
       if (!prepared.ok) {
-        window.alert(prepared.error)
+        showAppAlert(prepared.error)
         return false
       }
 

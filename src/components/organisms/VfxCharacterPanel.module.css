@@ -61,8 +61,10 @@
   border-radius: 4px;
 }
 
-.championBtn:hover {
-  background: var(--vfx-chrome-bg);
+.championBtn:hover:not(:disabled) {
+  color: var(--ctx-menu-hover-fg, #fff);
+  background: var(--ctx-menu-hover-bg, #007acc);
+  border-color: var(--ctx-menu-hover-bg, #007acc);
 }
 
 .championBtnConverted {
@@ -124,14 +126,16 @@
   border-radius: 0;
 }
 
-.poseToggleBtn:hover {
-  color: var(--vfx-text-strong);
-  background: var(--vfx-chrome-bg-mid);
+.poseToggleBtn:hover:not(:disabled) {
+  color: var(--ctx-menu-hover-fg, #fff);
+  background: var(--ctx-menu-hover-bg, #007acc);
+  border-color: var(--ctx-menu-hover-bg, #007acc);
 }
 
 .poseToggleBtnActive {
-  color: rgb(220 240 255 / 98%);
-  background: rgb(50 120 210 / 55%);
+  color: var(--ctx-menu-hover-fg, #fff);
+    background: var(--ctx-menu-hover-bg, #007acc);
+    border-color: var(--ctx-menu-hover-bg, #007acc);
 }
 
 .poseToggleBtn + .poseToggleBtn {

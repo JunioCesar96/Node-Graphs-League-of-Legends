@@ -5,7 +5,7 @@
   "name": "Transform",
   "source": {
     "kind": "parameter",
-    "parameterId": "vfx-system-definition-data__main-characters/brand/skins/skin0/particles/brand-base-p-apoc-detonate-big_parameter_Transform"
+    "parameterId": "vfx-system-definition-data__main-entries_parameter_Transform"
   },
   "type": "mtx44",
   "value": "0.99984765, 0, 0.017452406, 0 0, 0.99999994, 0, 0 -0.017452404, 0, 0.9998476, 0 0, 0, 0, 1",

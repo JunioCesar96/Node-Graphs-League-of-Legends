@@ -5,7 +5,7 @@
   "name": "uvRotation",
   "source": {
     "kind": "parameter",
-    "parameterId": "vfx-emitter-definition-data__main-characters/brand/skins/skin0/particles/brand-base-basic-attack-mis-complex-emitter-definition-data--slot--0-uv-rotation"
+    "parameterId": "vfx-emitter-definition-data__main-entries-complex-emitter-definition-data_parameter_uvRotation"
   },
   "type": "embed",
   "embed": "ValueFloat",

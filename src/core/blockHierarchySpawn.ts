@@ -7,7 +7,9 @@ import { addParameterToBlockStructure } from './blockCatalogMutations'
 import { blockDefinitionInstanceKey } from './blockDefinitionSchemaResolve'
 import { applyBlockStructureWithTokens } from './blockCatalogMutations'
 import type { RitualBlockInstanceContext } from './blockAutoBuildFromRitualCode'
-import type { BlockSpawnCatalog } from './blockSpawnCatalog'
+import type { BlockSpawnCatalog, BlockSpawnParameterLookupHints } from './blockSpawnCatalog'
+import { resolveSpawnCatalogParameterDocument } from './blockSpawnCatalog'
+import { ritualStructuralTargetForParameter } from './blockParameterRitualModel'
 import {
   childBlockDefinitionForParameter,
   resolveBlockParameterDocument,
@@ -33,9 +35,125 @@ import { mapHashPointerSlotId } from './mapHashPointerSlots'
 import { mapU64PointerSlotId } from './mapU64PointerSlots'
 import type { NodeSchemaDefinition } from './nodeSchema'
 import { createNodeInstanceFromRegistry } from './nodeStructureRegistry'
+import { STRUCTURE_CARD_HEADER_HEIGHT } from './structureCardLayout'
 
 const CHILD_OFFSET_X = 420
 const CHILD_OFFSET_Y = 56
+const LIST_SLOT_FIELD_PATTERN = /^(.+)__slot__(\d+)$/
+
+export type BlockSpawnLayoutState = {
+  spawnedPositionByNodeId: Map<string, CanvasPosition>
+  stackAnchorByGroup: Map<string, CanvasPosition>
+  nonListChildCountByParent: Map<string, number>
+  layoutRow: number
+}
+
+export function createBlockSpawnLayoutState(): BlockSpawnLayoutState {
+  return {
+    spawnedPositionByNodeId: new Map(),
+    stackAnchorByGroup: new Map(),
+    nonListChildCountByParent: new Map(),
+    layoutRow: 0,
+  }
+}
+
+function parseListSlotField(
+  linkFieldName: string | null,
+): { fieldBase: string; index: number } | null {
+  if (!linkFieldName) {
+    return null
+  }
+
+  const match = LIST_SLOT_FIELD_PATTERN.exec(linkFieldName.trim())
+  if (!match) {
+    return null
+  }
+
+  const index = Number(match[2])
+  if (!Number.isFinite(index)) {
+    return null
+  }
+
+  return { fieldBase: match[1]!, index }
+}
+
+/** Agrupa irmãos de list[pointer]/list[embed] ou entradas map sob o mesmo parâmetro. */
+export function resolveBlockInstanceStackGroupKey(
+  instance: RitualBlockInstanceContext,
+): string | null {
+  if (!instance.parentNodeId || !instance.parentParameterName) {
+    return null
+  }
+
+  const parameterKey = instance.parentParameterName.trim()
+  const listSlot = parseListSlotField(instance.linkFieldName)
+  if (listSlot) {
+    return `list:${instance.parentNodeId}::${parameterKey}::${listSlot.fieldBase}`
+  }
+
+  if (instance.linkFieldName?.trim()) {
+    return `map:${instance.parentNodeId}::${parameterKey}`
+  }
+
+  return null
+}
+
+export function resolveBlockInstanceSpawnPosition(
+  instance: RitualBlockInstanceContext,
+  depth: number,
+  rootPosition: CanvasPosition,
+  layout: BlockSpawnLayoutState,
+): CanvasPosition {
+  const parentPos = instance.parentNodeId
+    ? layout.spawnedPositionByNodeId.get(instance.parentNodeId)
+    : undefined
+  const stackGroupKey = resolveBlockInstanceStackGroupKey(instance)
+  const previousStack = stackGroupKey ? layout.stackAnchorByGroup.get(stackGroupKey) : undefined
+
+  if (stackGroupKey && previousStack) {
+    return {
+      x: previousStack.x,
+      y: previousStack.y + STRUCTURE_CARD_HEADER_HEIGHT,
+    }
+  }
+
+  if (instance.parentNodeId && parentPos) {
+    if (stackGroupKey) {
+      return {
+        x: parentPos.x + CHILD_OFFSET_X,
+        y: parentPos.y,
+      }
+    }
+
+    const siblingIndex = layout.nonListChildCountByParent.get(instance.parentNodeId) ?? 0
+    layout.nonListChildCountByParent.set(instance.parentNodeId, siblingIndex + 1)
+
+    return {
+      x: parentPos.x + CHILD_OFFSET_X,
+      y: parentPos.y + siblingIndex * CHILD_OFFSET_Y,
+    }
+  }
+
+  return {
+    x: rootPosition.x + depth * CHILD_OFFSET_X,
+    y: rootPosition.y + layout.layoutRow * CHILD_OFFSET_Y,
+  }
+}
+
+export function recordBlockInstanceSpawnPosition(
+  nodeId: string,
+  position: CanvasPosition,
+  instance: RitualBlockInstanceContext,
+  layout: BlockSpawnLayoutState,
+): void {
+  layout.spawnedPositionByNodeId.set(nodeId, position)
+  layout.layoutRow += 1
+
+  const stackGroupKey = resolveBlockInstanceStackGroupKey(instance)
+  if (stackGroupKey) {
+    layout.stackAnchorByGroup.set(stackGroupKey, position)
+  }
+}
 
 export type BlockHierarchySpawnPlan = {
   nodes: CanvasNode[]
@@ -87,19 +205,43 @@ function resolveSpawnParameterDocument(
   parameterName: string,
   schema: NodeSchemaDefinition,
   catalog?: BlockSpawnCatalog,
+  hints?: BlockSpawnParameterLookupHints,
 ): BlockParameterJsonDocument | null {
-  const key = `${definition.blockName.trim()}::${parameterName.trim()}`
-  const fromCatalog = catalog?.parameterByBlockAndName.get(key)
+  const fromCatalog = resolveSpawnCatalogParameterDocument(
+    catalog,
+    definition.blockName,
+    parameterName,
+    hints,
+  )
   if (fromCatalog) {
     return fromCatalog
   }
   return resolveBlockParameterDocument(definition, parameterName, schema)
 }
 
+function spawnParameterLookupHints(
+  instanceSchema: RitualBlockInstanceContext['schema'] | undefined,
+  parameterName: string,
+): BlockSpawnParameterLookupHints | undefined {
+  if (!instanceSchema) {
+    return undefined
+  }
+
+  const structural = ritualStructuralTargetForParameter(instanceSchema, parameterName)
+  if (!structural) {
+    return undefined
+  }
+
+  return structural.kind === 'pointer'
+    ? { pointerType: structural.className }
+    : { embedType: structural.className }
+}
+
 function buildBlockStructureForSpawn(
   definition: BlockDefinitionJsonDocument,
   schema: NodeSchemaDefinition,
   catalog?: BlockSpawnCatalog,
+  instanceSchema?: RitualBlockInstanceContext['schema'],
 ): BlockStructurePayload {
   let structure = buildEmptyBlockStructureFromDefinition(definition)
   const seen = new Set<string>()
@@ -111,7 +253,13 @@ function buildBlockStructureForSpawn(
     }
     seen.add(parameterName)
 
-    const doc = resolveSpawnParameterDocument(definition, parameterName, schema, catalog)
+    const doc = resolveSpawnParameterDocument(
+      definition,
+      parameterName,
+      schema,
+      catalog,
+      spawnParameterLookupHints(instanceSchema, parameterName),
+    )
     if (!doc) {
       continue
     }
@@ -222,6 +370,34 @@ function resolveParentOutputSlotId(
   return blockParameterSlotId(parentParam.idParameter, 'output')
 }
 
+function resolveChildLinkParameterDocument(
+  spawnCatalog: BlockSpawnCatalog,
+  parentDefinition: BlockDefinitionJsonDocument | undefined,
+  parentSchema: NodeSchemaDefinition | undefined,
+  parentBlockName: string,
+  parentParameterName: string,
+  childBlockName: string,
+): BlockParameterJsonDocument | null {
+  const hints = { pointerType: childBlockName, embedType: childBlockName }
+  if (parentDefinition && parentSchema) {
+    return resolveSpawnParameterDocument(
+      parentDefinition,
+      parentParameterName,
+      parentSchema,
+      spawnCatalog,
+      hints,
+    )
+  }
+  return (
+    resolveSpawnCatalogParameterDocument(
+      spawnCatalog,
+      parentBlockName,
+      parentParameterName,
+      hints,
+    ) ?? null
+  )
+}
+
 function connectParentToChild(
   ctx: SpawnContext,
   parentNodeId: string,
@@ -278,6 +454,7 @@ function spawnSingleBlockNode(
   definition: BlockDefinitionJsonDocument,
   schema: NodeSchemaDefinition,
   position: CanvasPosition,
+  instance?: RitualBlockInstanceContext,
 ): string | null {
   const instanceId = resolveSpawnNodeId(ctx, definition, schema.id)
   const nodeInstance = createNodeInstanceFromRegistry(ctx.schemaLookup, schema.id, instanceId)
@@ -285,7 +462,12 @@ function spawnSingleBlockNode(
     return null
   }
 
-  const structure = buildBlockStructureForSpawn(definition, schema, ctx.spawnCatalog)
+  const structure = buildBlockStructureForSpawn(
+    definition,
+    schema,
+    ctx.spawnCatalog,
+    instance?.schema,
+  )
   const canvasNode: CanvasNode = {
     id: instanceId,
     node: nodeInstance,
@@ -392,7 +574,7 @@ export function planBlockHierarchySpawnFromInstances(
   }
 
   let rootNodeId: string | null = null
-  let layoutRow = 0
+  const layout = createBlockSpawnLayoutState()
   let spawnIndex = 0
   const instanceByNodeId = new Map(instances.map((instance) => [instance.nodeId, instance]))
 
@@ -417,16 +599,14 @@ export function planBlockHierarchySpawnFromInstances(
     }
 
     const depth = depthByNodeId.get(instance.nodeId) ?? 0
-    const position: CanvasPosition = {
-      x: rootPosition.x + depth * CHILD_OFFSET_X,
-      y: rootPosition.y + layoutRow * CHILD_OFFSET_Y,
-    }
-    layoutRow += 1
+    const position = resolveBlockInstanceSpawnPosition(instance, depth, rootPosition, layout)
 
-    const spawnedId = spawnSingleBlockNode(ctx, definition, schema, position)
+    const spawnedId = spawnSingleBlockNode(ctx, definition, schema, position, instance)
     if (!spawnedId) {
       continue
     }
+
+    recordBlockInstanceSpawnPosition(spawnedId, position, instance, layout)
 
     hooks?.onInstanceProgress?.({
       index: spawnIndex,
@@ -456,17 +636,14 @@ export function planBlockHierarchySpawnFromInstances(
           ? resolveSchemaIdForBlockDefinition(parentDefinition.blockName, ctx.schemaLookup)
           : null
       const parentSchema = parentSchemaId ? ctx.schemaLookup[parentSchemaId] : undefined
-      const paramDoc =
-        parentDefinition && parentSchema
-          ? resolveSpawnParameterDocument(
-              parentDefinition,
-              instance.parentParameterName,
-              parentSchema,
-              spawnCatalog,
-            )
-          : spawnCatalog.parameterByBlockAndName.get(
-              `${parentInstance?.blockName.trim() ?? ''}::${instance.parentParameterName.trim()}`,
-            ) ?? null
+      const paramDoc = resolveChildLinkParameterDocument(
+        spawnCatalog,
+        parentDefinition,
+        parentSchema,
+        parentInstance?.blockName ?? '',
+        instance.parentParameterName,
+        instance.blockName,
+      )
 
       if (paramDoc) {
         connectParentToChild(
@@ -517,7 +694,7 @@ export async function planBlockHierarchySpawnFromInstancesAsync(
   }
 
   let rootNodeId: string | null = null
-  let layoutRow = 0
+  const layout = createBlockSpawnLayoutState()
   let spawnIndex = 0
   const instanceByNodeId = new Map(instances.map((instance) => [instance.nodeId, instance]))
 
@@ -546,16 +723,14 @@ export async function planBlockHierarchySpawnFromInstancesAsync(
     }
 
     const depth = depthByNodeId.get(instance.nodeId) ?? 0
-    const position: CanvasPosition = {
-      x: rootPosition.x + depth * CHILD_OFFSET_X,
-      y: rootPosition.y + layoutRow * CHILD_OFFSET_Y,
-    }
-    layoutRow += 1
+    const position = resolveBlockInstanceSpawnPosition(instance, depth, rootPosition, layout)
 
-    const spawnedId = spawnSingleBlockNode(ctx, definition, schema, position)
+    const spawnedId = spawnSingleBlockNode(ctx, definition, schema, position, instance)
     if (!spawnedId) {
       continue
     }
+
+    recordBlockInstanceSpawnPosition(spawnedId, position, instance, layout)
 
     hooks?.onInstanceProgress?.({
       index: spawnIndex,
@@ -585,17 +760,14 @@ export async function planBlockHierarchySpawnFromInstancesAsync(
           ? resolveSchemaIdForBlockDefinition(parentDefinition.blockName, ctx.schemaLookup)
           : null
       const parentSchema = parentSchemaId ? ctx.schemaLookup[parentSchemaId] : undefined
-      const paramDoc =
-        parentDefinition && parentSchema
-          ? resolveSpawnParameterDocument(
-              parentDefinition,
-              instance.parentParameterName,
-              parentSchema,
-              spawnCatalog,
-            )
-          : spawnCatalog.parameterByBlockAndName.get(
-              `${parentInstance?.blockName.trim() ?? ''}::${instance.parentParameterName.trim()}`,
-            ) ?? null
+      const paramDoc = resolveChildLinkParameterDocument(
+        spawnCatalog,
+        parentDefinition,
+        parentSchema,
+        parentInstance?.blockName ?? '',
+        instance.parentParameterName,
+        instance.blockName,
+      )
 
       if (paramDoc) {
         connectParentToChild(

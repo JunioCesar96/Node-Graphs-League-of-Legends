@@ -28,6 +28,37 @@ function isBlockPresentationConnection(connection: {
   )
 }
 
+/** Descendentes transitivos ligados por saídas de slot de bloco (exclui o próprio `parentNodeId`). */
+export function collectBlockLinkedChildNodeIds(
+  scene: CanvasScene,
+  parentNodeId: string,
+): Set<string> {
+  const linked = new Set<string>()
+  const queue = [parentNodeId]
+  const visited = new Set<string>([parentNodeId])
+
+  while (queue.length > 0) {
+    const nodeId = queue.shift()!
+
+    for (const connection of scene.connections) {
+      if (!isBlockPresentationConnection(connection) || connection.fromNodeId !== nodeId) {
+        continue
+      }
+
+      const childId = connection.toNodeId
+      if (visited.has(childId)) {
+        continue
+      }
+
+      visited.add(childId)
+      linked.add(childId)
+      queue.push(childId)
+    }
+  }
+
+  return linked
+}
+
 /** Nós ligados apenas pela vista de bloco (filhos de slots do card). */
 export function collectBlockSlotLinkedNodeIds(scene: CanvasScene, rootNodeId: string): Set<string> {
   const linked = new Set<string>()

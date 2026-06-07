@@ -144,12 +144,19 @@ export function createDefaultTabSnapshot(title = 'Cena 1'): SceneTabSnapshot {
   }
 }
 
+export type SnapshotFromSceneOptions = {
+  /** Cena já hidratada / modo leve (ex.: Code To Node Block) — evita passes extra. */
+  prepared?: boolean
+}
+
 export function snapshotFromScene(
   title: string,
   scene: CanvasScene,
   jsonFileName?: string,
+  options?: SnapshotFromSceneOptions,
 ): SceneTabSnapshot {
-  const present = hydrateTabScene(stripNeekoTransientFromScene(scene))
+  const stripped = stripNeekoTransientFromScene(scene)
+  const present = options?.prepared ? stripped : hydrateTabScene(stripped)
   const primaryId =
     present.nodes[0]?.id ?? ''
 
@@ -313,6 +320,73 @@ function buildTabsPersistPayloadLean(data: SceneTabsPersisted): SceneTabsPersist
 
 export function countNodesInTabsPersist(data: SceneTabsPersisted): number {
   return data.tabs.reduce((sum, tab) => sum + tab.present.nodes.length, 0)
+}
+
+export function shouldSkipSceneTabsPersist(data: SceneTabsPersisted): boolean {
+  return data.tabs.length > 0 && countNodesInTabsPersist(data) > SCENE_TABS_PERSIST_MAX_NODES
+}
+
+let tabsPersistScheduled: ReturnType<typeof setTimeout> | undefined
+let tabsPersistPending: SceneTabsPersisted | null = null
+
+/** Adia gravação de abas para não bloquear a UI após cargas grandes. */
+export function scheduleSceneTabsPersist(data: SceneTabsPersisted): void {
+  if (shouldSkipSceneTabsPersist(data)) {
+    warnTabsPersistSkippedOnce()
+
+    try {
+      window.localStorage.removeItem(STORAGE_SCENE_TABS_KEY)
+    } catch {
+      /** ignore */
+    }
+
+    return
+  }
+
+  tabsPersistPending = data
+
+  if (tabsPersistScheduled !== undefined) {
+    return
+  }
+
+  tabsPersistScheduled = globalThis.setTimeout(() => {
+    tabsPersistScheduled = undefined
+    const payload = tabsPersistPending
+    tabsPersistPending = null
+
+    if (payload) {
+      saveSceneTabsPersistedPresentOnly(payload)
+    }
+  }, 0)
+}
+
+let recentScenePushScheduled: ReturnType<typeof setTimeout> | undefined
+let recentScenePushPending: { title: string; scene: CanvasScene; sourceFileName?: string } | null =
+  null
+
+/** Adia «recentes» para fora do caminho crítico de abrir cena. */
+export function schedulePushRecentScene(
+  title: string,
+  scene: CanvasScene,
+  sourceFileName?: string,
+  onDone?: () => void,
+): void {
+  recentScenePushPending = { title, scene, sourceFileName }
+
+  if (recentScenePushScheduled !== undefined) {
+    return
+  }
+
+  recentScenePushScheduled = globalThis.setTimeout(() => {
+    recentScenePushScheduled = undefined
+    const payload = recentScenePushPending
+    recentScenePushPending = null
+
+    if (payload) {
+      pushRecentScene(payload.title, payload.scene, payload.sourceFileName)
+      onDone?.()
+    }
+  }, 0)
 }
 
 function warnTabsPersistSkippedOnce(): void {

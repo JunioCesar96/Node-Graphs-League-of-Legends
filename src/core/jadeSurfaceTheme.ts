@@ -238,7 +238,7 @@ async function clearLegacySurfaceThemePref(): Promise<void> {
   await setPreference(JADE_SURFACE_THEME_PREF, '')
 }
 
-async function readSplitPref(key: string, fallback = true): Promise<boolean> {
+async function readSplitPref(key: string, fallback = false): Promise<boolean> {
   const raw = await getPreference(key, '')
   if (!isStoredTriState(raw)) {
     return fallback
@@ -251,8 +251,8 @@ export async function getJadeSurfaceThemeState(): Promise<JadeSurfaceThemeState>
   const syntaxRaw = await getPreference(JADE_SYNTAX_PREF, '')
   const hasSplitPrefs = isStoredTriState(themeRaw) || isStoredTriState(syntaxRaw)
 
-  let themeEnabled = true
-  let syntaxEnabled = true
+  let themeEnabled = false
+  let syntaxEnabled = false
 
   if (hasSplitPrefs) {
     themeEnabled = await readSplitPref(JADE_THEME_PREF)

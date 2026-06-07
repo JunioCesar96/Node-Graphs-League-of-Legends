@@ -24,6 +24,8 @@ import {
   type MapHashStructureCatalogItem,
   type MapHashStructureEntry,
 } from '@/core/mapHashStructureValue'
+import { StructureIndexPager } from '@/components/molecules/StructureIndexPager'
+import { clampBlockSelectedIndex } from '@/core/blockElementViewState'
 
 import styles from './BlockMapHashStructureField.module.css'
 
@@ -65,6 +67,9 @@ type BlockMapHashStructureFieldProps = BlockMapHashStructureFieldConfig & {
   ) => void
   onSlotWirelessHoverStart?: (slotId: string, link: BlockSlotWirelessLink) => void
   onSlotWirelessHoverEnd?: () => void
+  lightModeEnabled?: boolean
+  persistedSelectedIndex?: number
+  onPersistedSelectedIndexChange?: (index: number) => void
   /** Coluna slotOut da linha — mantém o slot alinhado com as outras linhas do bloco. */
   slotOutRef?: RefObject<HTMLDivElement | null>
 }
@@ -105,6 +110,9 @@ export function BlockMapHashStructureField({
   slotIdForKey,
   slotOutRef,
   value,
+  lightModeEnabled = false,
+  persistedSelectedIndex,
+  onPersistedSelectedIndexChange,
 }: BlockMapHashStructureFieldProps) {
   const entries = useMemo(() => parseEntries(value), [parseEntries, value])
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
@@ -166,7 +174,25 @@ export function BlockMapHashStructureField({
     return entries.findIndex((entry) => entry.key === selectedEntry.key)
   }, [entries, selectedEntry])
 
-  const safeSelectedIndex = selectedIndex >= 0 ? selectedIndex : 0
+  const safeSelectedIndex = clampBlockSelectedIndex(
+    entries.length,
+    persistedSelectedIndex ?? (selectedIndex >= 0 ? selectedIndex : 0),
+  )
+
+  useEffect(() => {
+    if (persistedSelectedIndex === undefined) {
+      return
+    }
+    const entry = entries[clampBlockSelectedIndex(entries.length, persistedSelectedIndex)]
+    if (!entry) {
+      return
+    }
+    if (inputFocusedRef.current) {
+      return
+    }
+    setSelectedKey(entry.key)
+    setInputDraft(entry.key)
+  }, [entries, persistedSelectedIndex])
 
   useEffect(() => {
     if (inputFocusedRef.current) {
@@ -359,11 +385,8 @@ export function BlockMapHashStructureField({
     }
   }
 
-  const pickEntryFromList = (entry: MapHashStructureEntry) => {
-    selectEntry(entry, false)
-  }
-
   const navigateToIndex = (index: number) => {
+    onPersistedSelectedIndexChange?.(index)
     const entry = entries[index]
     if (!entry) {
       return
@@ -500,21 +523,30 @@ export function BlockMapHashStructureField({
         >
           {listOpen ? '▾' : '▸'}
         </button>
-        <span
-          aria-label={
-            entries.length === 0
-              ? 'Sem entradas'
-              : `Índice ${String(safeSelectedIndex)} de ${String(entries.length - 1)}`
-          }
-          className={styles.currentIndex}
-          title={
-            entries.length === 0
-              ? 'Índice'
-              : `Índice ${String(safeSelectedIndex)} / ${String(entries.length - 1)}`
-          }
-        >
-          {entries.length === 0 ? '—' : String(safeSelectedIndex)}
-        </span>
+        {lightModeEnabled && entries.length > 1 ? (
+          <StructureIndexPager
+            className={styles.indexPager}
+            onSelectedIndexChange={navigateToIndex}
+            selectedIndex={safeSelectedIndex}
+            total={entries.length}
+          />
+        ) : (
+          <span
+            aria-label={
+              entries.length === 0
+                ? 'Sem entradas'
+                : `Índice ${String(safeSelectedIndex)} de ${String(entries.length - 1)}`
+            }
+            className={styles.currentIndex}
+            title={
+              entries.length === 0
+                ? 'Índice'
+                : `Índice ${String(safeSelectedIndex)} / ${String(entries.length - 1)}`
+            }
+          >
+            {entries.length === 0 ? '—' : String(safeSelectedIndex)}
+          </span>
+        )}
         <input
           aria-autocomplete="none"
           aria-expanded={false}
@@ -568,10 +600,7 @@ export function BlockMapHashStructureField({
         selectedIndex={safeSelectedIndex}
         onOpenChange={setListOpenState}
         onPickItem={(item) => {
-          const entry = entries[item.index]
-          if (entry) {
-            pickEntryFromList(entry)
-          }
+          navigateToIndex(item.index)
         }}
         onSelectIndex={navigateToIndex}
       />

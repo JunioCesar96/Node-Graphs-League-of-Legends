@@ -4,31 +4,39 @@
   gap: var(--space-2);
   align-items: start;
   width: 100%;
-  padding: var(--space-3);
+  padding: var(--ctx-menu-item-padding-block, 5px) var(--ctx-menu-item-padding-inline, 20px);
+  font-size: var(--ctx-menu-font-size, 12.5px);
   text-align: left;
-  background: var(--app-subtle-surface);
-  border: 1px solid rgb(255 255 255 / 6%);
-  border-radius: 12px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid color-mix(in srgb, var(--ctx-menu-border, #454545) 55%, transparent);
+  border-radius: 0;
   transition:
-    background 160ms ease,
-    border-color 160ms ease,
-    box-shadow 160ms ease;
+    color 100ms ease,
+    background 100ms ease;
 }
 
 .option[data-expanded='false'] {
   align-items: center;
   min-height: var(--palette-block-compact-min-height);
-  padding: var(--space-2) var(--space-3);
 }
 
 .option[data-expanded='false'] .meta {
   display: none;
 }
 
+.option[data-expanded='false']:hover,
+.option[data-expanded='false'].keyboardSelected {
+  color: var(--ctx-menu-hover-fg, #fff);
+  background: var(--ctx-menu-hover-bg, #007acc);
+  border-bottom-color: var(--ctx-menu-hover-bg, #007acc);
+  box-shadow: none;
+}
+
 .prefix {
-  color: var(--color-accent);
+  color: inherit;
   font-family: var(--font-data);
-  font-size: 0.95rem;
+  font-size: inherit;
   font-weight: 600;
 }
 
@@ -42,9 +50,8 @@
 
 .title {
   overflow: hidden;
-  color: var(--color-text);
-  font-family: var(--font-data);
-  font-size: 0.95rem;
+  color: inherit;
+  font: inherit;
   font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -52,26 +59,27 @@
 
 .featureTag {
   flex-shrink: 0;
-  padding: 0.1rem 0.45rem;
-  color: var(--color-text-muted);
-  font-family: var(--font-data);
-  font-size: 0.72rem;
+  padding: 1px 6px;
+  color: inherit;
+  font: inherit;
+  font-size: var(--ctx-menu-shortcut-font-size, 11.5px);
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  background: rgb(255 255 255 / 6%);
-  border: 1px solid rgb(255 255 255 / 8%);
-  border-radius: 999px;
+  background: rgb(255 255 255 / 12%);
+  border: 1px solid rgb(255 255 255 / 20%);
+  border-radius: 3px;
 }
 
 .meta {
   display: block;
-  margin-top: 0.2rem;
-  color: var(--color-text-muted);
+  margin-top: 0.15rem;
+  color: var(--ctx-menu-muted, var(--color-text-muted));
   font-family: var(--font-data);
-  font-size: 0.78rem;
+  font-size: var(--ctx-menu-shortcut-font-size, 11.5px);
 }
 
 .keyboardSelected {
-  border-color: var(--color-accent);
-  box-shadow: 0 0 0 1px rgb(var(--color-accent-rgb) / 35%);
+  color: var(--ctx-menu-hover-fg, #fff);
+  background: var(--ctx-menu-hover-bg, #007acc);
+  border-bottom-color: var(--ctx-menu-hover-bg, #007acc);
 }

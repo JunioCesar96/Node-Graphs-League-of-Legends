@@ -24,6 +24,7 @@ import {
   isTimeInsideActiveWindow,
 } from '@/core/vfx/vfxEmitterTimeline'
 import { useLanguage } from '@/language/LanguageProvider'
+import { useVfxTimelineLayerColumnResize } from '@/hooks/useVfxTimelineLayerColumnResize'
 
 import {
   formatPlaybackSpeed,
@@ -35,7 +36,7 @@ import {
 } from '@/core/vfx/vfxPlayback'
 import type { VfxPlaybackRange } from '@/core/vfx/vfxPlaybackRange'
 
-import { emitterAccentColor } from './VfxDockInspector'
+import { timelineLayerSyntaxAccentVar } from '@/core/vfx/vfxTimelineSyntaxAccent'
 import styles from './VfxDockTimeline.module.css'
 
 export type { VfxTimelineLayer } from '@/core/vfx/vfxTimelineLayers'
@@ -82,6 +83,8 @@ type VfxDockTimelineProps = {
   /** Expande trilhas no layout com altura fixa (split workspace/timeline). */
   tracksExpand?: boolean
   transportRef?: RefObject<HTMLDivElement | null>
+  particleName?: string | null
+  particleNameFallback?: string
 }
 
 function formatTime(seconds: number) {
@@ -144,6 +147,8 @@ export function VfxDockTimeline({
   fillHeight = false,
   tracksExpand = false,
   transportRef,
+  particleName = null,
+  particleNameFallback = '',
 }: VfxDockTimelineProps) {
   const { t } = useLanguage()
   const compositorMode = mode === 'compositor'
@@ -151,6 +156,17 @@ export function VfxDockTimeline({
   const [layerQuery, setLayerQuery] = useState('')
   const [layerSortMode, setLayerSortMode] = useState<VfxTimelineSortMode>('asc')
   const [layersControlsExpanded, setLayersControlsExpanded] = useState(false)
+  const {
+    onLayerColumnResizePointerDown,
+    tracksShellStyle,
+    ensureLayerColumnWidth,
+  } = useVfxTimelineLayerColumnResize()
+
+  useEffect(() => {
+    if (layersControlsExpanded) {
+      ensureLayerColumnWidth(220)
+    }
+  }, [ensureLayerColumnWidth, layersControlsExpanded])
 
   const filteredLayers = useMemo(() => {
     const annotated = annotateTimelineLayers(layers)
@@ -323,10 +339,14 @@ export function VfxDockTimeline({
             onClick={playing ? onPause : onPlay}
             type="button"
           >
-            {playing ? '⏸' : '▶'}
+            <span aria-hidden className={styles.transportBtnIcon}>
+              {playing ? '⏸' : '▶'}
+            </span>
           </button>
           <button aria-label="Reiniciar" className={styles.transportBtn} onClick={onRestart} type="button">
-            ⏮
+            <span aria-hidden className={styles.transportBtnIcon}>
+              ⏮
+            </span>
           </button>
           <button
             aria-label="Loop"
@@ -335,7 +355,9 @@ export function VfxDockTimeline({
             onClick={onToggleLoop}
             type="button"
           >
-            ↻
+            <span aria-hidden className={styles.transportBtnIcon}>
+              <i className="fa-solid fa-arrows-rotate" />
+            </span>
           </button>
           <button
             aria-label={t(LangId.VfxTimelineStepPlayback)}
@@ -350,7 +372,9 @@ export function VfxDockTimeline({
             title={t(LangId.VfxTimelineStepPlayback)}
             type="button"
           >
-            ⏭
+            <span aria-hidden className={styles.transportBtnIcon}>
+              ⏭
+            </span>
           </button>
           {stepPlaybackEnabled ? (
             <div className={styles.stepControls}>
@@ -404,7 +428,9 @@ export function VfxDockTimeline({
             title={t(LangId.VfxTimelineReverse)}
             type="button"
           >
-            ◀▶
+            <span aria-hidden className={styles.transportBtnIcon}>
+              ◀▶
+            </span>
           </button>
           <label className={styles.speedWrap} title="Velocidade de reprodução (0.1x – 2x)">
             <span>{formatPlaybackSpeed(playbackSpeed)}</span>
@@ -459,13 +485,26 @@ export function VfxDockTimeline({
       <div
         className={[
           styles.tracksShell,
-          layersControlsExpanded ? styles.tracksShellExpanded : '',
           fillHeight ? styles.tracksShellFillHeight : '',
           tracksExpand ? styles.tracksShellExpandable : '',
         ]
           .filter(Boolean)
           .join(' ')}
+        style={tracksShellStyle}
       >
+        <div
+          className={[
+            styles.layerRitualBanner,
+            particleName ? '' : styles.layerRitualBannerMuted,
+          ]
+            .filter(Boolean)
+            .join(' ')}
+          title={particleName ?? particleNameFallback}
+        >
+          {particleName ?? particleNameFallback}
+        </div>
+        <div aria-hidden className={styles.layerRitualBannerSpacer} />
+
         <div className={styles.layerColumnHeader}>
           <button
             aria-expanded={layersControlsExpanded}
@@ -519,6 +558,13 @@ export function VfxDockTimeline({
             </div>
           ) : null}
         </div>
+
+        <button
+          aria-label={t(LangId.VfxTimelineLayerColumnResizeAria)}
+          className={styles.layerColumnResizeHandle}
+          onPointerDown={onLayerColumnResizePointerDown}
+          type="button"
+        />
 
         <div className={styles.trackColumnHeader}>
           <div className={styles.ruler}>
@@ -598,7 +644,7 @@ export function VfxDockTimeline({
                 100 - leftPct,
                 ((layer.activeEnd - layer.activeStart) / scrubMax) * 100,
               )
-              const accent = emitterAccentColor(layer.name)
+              const accentVar = timelineLayerSyntaxAccentVar(layer.name)
               return (
                 <div className={styles.trackRow} key={layer.id}>
                   <div
@@ -620,13 +666,10 @@ export function VfxDockTimeline({
                     role={compositorMode ? 'slider' : undefined}
                     aria-label={compositorMode ? `Clip ${layer.name}` : undefined}
                     style={{
+                      '--track-accent': accentVar,
                       left: `${leftPct}%`,
                       width: `${Math.max(widthPct, 0.8)}%`,
-                      background: layer.activeAtPlayhead
-                        ? `linear-gradient(90deg, ${accent}aa, ${accent}44)`
-                        : `linear-gradient(90deg, ${accent}55, ${accent}22)`,
-                      borderColor: layer.activeAtPlayhead ? `${accent}cc` : `${accent}88`,
-                    }}
+                    } as React.CSSProperties}
                   />
                 </div>
               )

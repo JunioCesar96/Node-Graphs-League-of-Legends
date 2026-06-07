@@ -5,7 +5,7 @@
   "name": "falloffTexture",
   "source": {
     "kind": "parameter",
-    "parameterId": "vfx-emitter-definition-data__main-characters/brand/skins/skin0/particles/brand-base-q-blaze-mis-complex-emitter-definition-data--slot--12_parameter_falloffTexture"
+    "parameterId": "vfx-emitter-definition-data__main-entries-complex-emitter-definition-data_parameter_falloffTexture"
   },
   "type": "string",
   "value": "ASSETS/Characters/Brand/Skins/Base/Particles/Brand_Base_I_Shield_Fill.tex",

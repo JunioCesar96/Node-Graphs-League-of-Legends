@@ -113,6 +113,60 @@ function structuralTargetName(block: {
   return block.internalStructures[0]?.name.trim() || block.slots?.[0]?.name.trim() || ''
 }
 
+/** Tipo de bloco filho (pointer/embed) para um campo do schema ritual. */
+export function ritualStructuralTargetForParameter(
+  schema: MutableClassGroupSchema,
+  parameterName: string,
+): { kind: 'pointer' | 'embed'; className: string } | null {
+  const name = parameterName.trim()
+  if (!name) {
+    return null
+  }
+
+  for (const pointer of schema.pointer ?? []) {
+    if (pointer.title.trim() !== name) {
+      continue
+    }
+    const className = structuralTargetName(pointer)
+    if (className) {
+      return { kind: 'pointer', className }
+    }
+  }
+
+  for (const embed of schema.embed ?? []) {
+    if (embed.title.trim() !== name) {
+      continue
+    }
+    const className = structuralTargetName(embed)
+    if (className) {
+      return { kind: 'embed', className }
+    }
+  }
+
+  for (const listPointer of schema.listPointer ?? []) {
+    if (listPointer.title.trim() !== name) {
+      continue
+    }
+    const className = structuralTargetName(listPointer)
+    if (className) {
+      return { kind: 'pointer', className }
+    }
+  }
+
+  for (const listEmbed of schema.listEmbed ?? []) {
+    const fieldName = (listEmbed.parameterName ?? listEmbed.title).trim()
+    if (fieldName !== name) {
+      continue
+    }
+    const className = structuralTargetName(listEmbed)
+    if (className) {
+      return { kind: 'embed', className }
+    }
+  }
+
+  return null
+}
+
 export type RitualParameterBuildContext = {
   blockName: string
   nodeId: string

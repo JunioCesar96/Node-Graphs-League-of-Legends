@@ -93,28 +93,30 @@
 
 .addButton,
 .removeButton {
-  width: 1.75rem;
-  height: 1.75rem;
+  width: 26px;
+  height: 26px;
   padding: 0;
-  color: var(--color-text-secondary);
-  font-size: 1.1rem;
+  color: var(--ctx-menu-fg, var(--color-text-secondary));
+  font: inherit;
+  font-size: 1rem;
   line-height: 1;
   cursor: pointer;
   background: transparent;
-  border: 1px dashed var(--color-border);
-  border-radius: var(--radius-control);
+  border: 1px solid var(--ctx-menu-border, #454545);
+  border-radius: var(--ctx-menu-radius, 4px);
+  transition: color 100ms ease, background 100ms ease, border-color 100ms ease;
 }
 
 .addButton:hover:not(:disabled) {
-  color: var(--color-text-primary);
-  background: rgb(255 255 255 / 4%);
-  border-color: var(--port-child);
+  color: var(--ctx-menu-hover-fg, #fff);
+  background: var(--ctx-menu-hover-bg, #007acc);
+  border-color: var(--ctx-menu-hover-bg, #007acc);
 }
 
 .removeButton:hover:not(:disabled) {
-  color: var(--color-text-primary);
-  background: rgb(255 80 80 / 8%);
-  border-color: rgb(255 120 120 / 45%);
+  color: #fff;
+  background: rgb(180 40 40 / 88%);
+  border-color: rgb(180 40 40 / 88%);
 }
 
 .addButton:disabled,
