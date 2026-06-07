@@ -9,7 +9,7 @@ Arquivo salvo em: `feature_md/feature/feature-editor-chrome-compact-canvas-perf.
 | Nome da Branch | `feature/editor-chrome-compact-canvas-perf` |
 | Nome das Features | Chrome unificado dos editores (Node / Code / VFX); modo compacto de elementos em blocos (modo leve); performance de arrasto no canvas; coluna redimensionável na timeline VFX; Code Dock — aba `+` cria `.bin`; Theme Options desactivados por defeito; Monaco lazy-load; botões de contexto compactos (`ctxAppButtons`) |
 | Versão atual | `1.5.0` |
-| Hash do Commit | _(preenchido após commit de entrega)_ |
+| Hash do Commit | `17b2764` |
 
 Documentação relacionada: `feature_md/feature/feature-jade-surface-theme.md`, `feature_md/feature/feature-compact-structure-view.md`, `feature_md/feature/feature-canvas-snap-menu-slash-commands.md`.
 
