@@ -44,7 +44,8 @@
 }
 
 .toolsToggle:hover {
-  background: var(--vfx-chrome-bg-soft);
+  color: var(--ctx-menu-hover-fg, #fff);
+  background: var(--ctx-menu-hover-bg, #007acc);
 }
 
 .toolsToggleIcon {
@@ -117,13 +118,16 @@
   padding: 8px 4px;
 }
 
-.toolBtn:hover {
-  background: var(--vfx-chrome-bg-soft);
+.toolBtn:hover:not(:disabled) {
+  color: var(--ctx-menu-hover-fg, #fff);
+  background: var(--ctx-menu-hover-bg, #007acc);
+  border-color: var(--ctx-menu-hover-bg, #007acc);
 }
 
 .toolBtnActive {
-  background: var(--vfx-accent-bg-soft);
-  border-left-color: var(--vfx-accent-text-strong);
+  color: var(--ctx-menu-hover-fg, #fff);
+    background: var(--ctx-menu-hover-bg, #007acc);
+    border-color: var(--ctx-menu-hover-bg, #007acc);
 }
 
 .menuCollapsed .toolBtnActive {

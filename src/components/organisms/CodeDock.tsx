@@ -1,4 +1,5 @@
 import { refreshCustomBackgroundLayerHosts } from '@jade/lib/themeApplicator'
+import { showAppAlert } from '@/messenger_popup/appMessenger'
 import {
   type CSSProperties,
   type PointerEvent as ReactPointerEvent,
@@ -29,11 +30,18 @@ import { useLanguage } from '@/language/LanguageProvider'
 
 import { clampFloatingDockRect, type CodeDockFloatingRect } from './codeDockFloatingRect'
 import { CodeDockTabBar } from '@/components/molecules/CodeDockTabBar'
+import {
+  EditorWindowHeaderChrome,
+  EditorWindowHeaderChromeButton,
+  EditorWindowHeaderChromeIconButton,
+} from '@/components/molecules/EditorWindowHeaderChrome'
+import { EditorDockFavicon } from '@/components/atoms/EditorDockFavicon'
 import type { TabContextMenuAction } from '@/components/molecules/TabContextMenu'
 import type { CodeDockTabBarItem } from '@/hooks/useCodeDockTabs'
 
 import { CodeDockJadeDialogs } from './CodeDockJadeDialogs'
 
+import { configureMonacoLoader } from '@/monaco/configureMonacoLoader'
 import '@/monaco/jade-syntax-globals.css'
 import './codeDockJade.css'
 
@@ -186,6 +194,20 @@ export function CodeDock({
     [t],
   )
   const monacoModelPath = `/workspace/code-dock/${activeTabId}/${activeFileName}`
+  const [monacoLoaderReady, setMonacoLoaderReady] = useState(false)
+  const [headerActionsCollapsed, setHeaderActionsCollapsed] = useState(true)
+
+  useEffect(() => {
+    let cancelled = false
+    void configureMonacoLoader().then(() => {
+      if (!cancelled) {
+        setMonacoLoaderReady(true)
+      }
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [])
   const editorLanguage = getMonacoLanguageForFileName(activeFileName)
   const jade = useCodeDockJadeEditor(value, onChange, editorLanguage)
 
@@ -400,11 +422,11 @@ export function CodeDock({
     try {
       const outcome = await nodeActions.deleteFolder(deleteSelected)
       if (!outcome.ok) {
-        window.alert(outcome.error ?? 'Não foi possível eliminar.')
+        showAppAlert(outcome.error ?? 'Não foi possível eliminar.')
         return
       }
       if (outcome.notice) {
-        window.alert(outcome.notice)
+        showAppAlert(outcome.notice)
       }
       closeDeleteDialog()
     } finally {
@@ -880,48 +902,65 @@ export function CodeDock({
       </div>
 
       <header className={styles.header}>
-        <CodeDockTabBar
-          onActivate={onActivateTab}
-          onClose={onCloseTab}
-          onNewTab={onNewTab}
-          onTabAction={onTabAction}
-          tabs={tabs}
-        />
-        <div className={styles.headerActions}>
-          <button
-            className={styles.headerGhostButton}
-            onClick={(e) => {
-              e.stopPropagation()
-              onToggleFloating()
+        <div className={styles.headerTitle}>
+          <EditorDockFavicon kind="code" />
+        </div>
+        <EditorWindowHeaderChrome>
+          <EditorWindowHeaderChromeIconButton
+            active={!headerActionsCollapsed}
+            aria-expanded={!headerActionsCollapsed}
+            aria-label={
+              headerActionsCollapsed ? t(LangId.GraphToolbarExpand) : t(LangId.GraphToolbarCollapse)
+            }
+            onClick={(event) => {
+              event.stopPropagation()
+              setHeaderActionsCollapsed((previous) => !previous)
             }}
-            type="button"
-            title={floatingActive ? t(LangId.CodeTitleDock) : t(LangId.CodeTitleUndock)}
-          >
-            {floatingActive ? t(LangId.CodeBtnDock) : t(LangId.CodeBtnUndock)}
-          </button>
-          {floatingActive ? (
-            <button
-              className={styles.headerGhostButton}
-              onClick={(e) => {
-                e.stopPropagation()
-                onResetFloatingDimensions()
-              }}
-              type="button"
-              title={t(LangId.CodeTitleResetDimensions)}
-            >
-              {t(LangId.CodeBtnResetDimensions)}
-            </button>
+            title={
+              headerActionsCollapsed ? t(LangId.GraphToolbarExpand) : t(LangId.GraphToolbarCollapse)
+            }
+          />
+          {!headerActionsCollapsed ? (
+            <>
+              <EditorWindowHeaderChromeButton
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onToggleFloating()
+                }}
+                title={floatingActive ? t(LangId.CodeTitleDock) : t(LangId.CodeTitleUndock)}
+              >
+                {floatingActive ? t(LangId.CodeBtnDock) : t(LangId.CodeBtnUndock)}
+              </EditorWindowHeaderChromeButton>
+              {floatingActive ? (
+                <EditorWindowHeaderChromeButton
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onResetFloatingDimensions()
+                  }}
+                  title={t(LangId.CodeTitleResetDimensions)}
+                >
+                  {t(LangId.CodeBtnResetDimensions)}
+                </EditorWindowHeaderChromeButton>
+              ) : null}
+              <EditorWindowHeaderChromeButton
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onClose()
+                }}
+              >
+                {t(LangId.CodeBtnClose)}
+              </EditorWindowHeaderChromeButton>
+            </>
           ) : null}
-          <button
-            className={styles.close}
-            onClick={(e) => {
-              e.stopPropagation()
-              onClose()
-            }}
-            type="button"
-          >
-            {t(LangId.CodeBtnClose)}
-          </button>
+        </EditorWindowHeaderChrome>
+        <div className={styles.headerMain}>
+          <CodeDockTabBar
+            onActivate={onActivateTab}
+            onClose={onCloseTab}
+            onNewTab={onNewTab}
+            onTabAction={onTabAction}
+            tabs={tabs}
+          />
         </div>
       </header>
       {jadeEditorBanner ? (
@@ -1219,6 +1258,8 @@ export function CodeDock({
           <p className={styles.emptyEditor}>
             {t(LangId.CodeEmptyEditor)}
           </p>
+        ) : !monacoLoaderReady ? (
+          <span className={styles.loading}>{t(LangId.CodeEditorLoading)}</span>
         ) : (
           <Editor
             key={activeTabId}

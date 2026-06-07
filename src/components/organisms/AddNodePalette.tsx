@@ -974,11 +974,12 @@ export function AddNodePalette({
             <kbd>Ctrl K</kbd>
           </div>
           {blocksCatalogEnabled || addonsCatalogEnabled ? (
-            <div
-              aria-label={t(LangId.NodePaletteCatalogNodes)}
-              className={styles.catalogToggle}
-              role="group"
-            >
+            <div className={styles.catalogToggleRow}>
+              <div
+                aria-label={t(LangId.NodePaletteCatalogNodes)}
+                className={styles.catalogToggle}
+                role="group"
+              >
               <button
                 aria-pressed={paletteCatalogMode === 'nodes'}
                 type="button"
@@ -1022,6 +1023,7 @@ export function AddNodePalette({
                   {t(LangId.NodePaletteCatalogAddons)}
                 </button>
               ) : null}
+              </div>
             </div>
           ) : null}
           <input
@@ -1286,7 +1288,11 @@ export function AddNodePalette({
             ) : null}
           </div>
           ) : null}
-          {isAddonsMode ? <PaletteAddonInstallZone onInstalled={refreshAddonsCatalog} /> : null}
+          {isAddonsMode ? (
+            <div className={styles.addonInstallSlot}>
+              <PaletteAddonInstallZone onInstalled={refreshAddonsCatalog} />
+            </div>
+          ) : null}
           <div
             className={styles.results}
             id="node-schema-results"

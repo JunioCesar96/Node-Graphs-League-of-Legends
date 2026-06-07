@@ -1,30 +1,7 @@
-import {
-  buildSyncedBlockCatalogFromRitualInstances,
-  collectBlockInstancesFromRitualCode,
-  parseRitualCodeToBlockSchemas,
-  resolveBlockBuildRootSchema,
-} from './blockAutoBuildFromRitualCode'
-import { enrichAutoBuildPlanWithCatalogParameters } from './blockAutoBuild'
-import { blockDefinitionInstanceKey } from './blockDefinitionSchemaResolve'
-import { resolveSchemaIdForBlockDefinition } from './blockDefinitionJson'
-import { buildBlockSpawnCatalog } from './blockSpawnCatalog'
-import {
-  planBlockHierarchySpawnFromInstances,
-  planBlockHierarchySpawnFromInstancesAsync,
-  mergeBlockHierarchyIntoScene,
-} from './blockHierarchySpawn'
-import type { ClassGroupStackParseResult } from './classGroupRitualStackParser'
-import {
-  DEFAULT_CANVAS_HEIGHT,
-  DEFAULT_CANVAS_WIDTH,
-  emptyCanvasScene,
-  type CanvasScene,
-} from './canvasScene'
-import type { BlockParameterJsonDocument } from './blockParameterJson'
+import type { CanvasScene } from './canvasScene'
+import { buildCodeToBlockScene, buildCodeToBlockSceneSync } from './codeToBlockSceneBuild'
+import { buildCodeToBlockSceneInWorker } from './sceneComputeWorkerClient'
 import type { NodeSchemaDefinition } from './nodeSchema'
-
-const LAYOUT_ORIGIN_X = 120
-const LAYOUT_ORIGIN_Y = 120
 
 export type CodeToBlockSceneResult =
   | { ok: true; scene: CanvasScene; rootNodeId: string; warnings: string[] }
@@ -49,9 +26,6 @@ export type CodeToBlockSceneOptions = {
   shouldCancel?: () => boolean
 }
 
-const PARAM_PROGRESS_YIELD_BATCH = 25
-const BLOCK_PROGRESS_YIELD_BATCH = 1
-
 function yieldToUi(): Promise<void> {
   return new Promise((resolve) => {
     const scheduler =
@@ -62,56 +36,12 @@ function yieldToUi(): Promise<void> {
   })
 }
 
-function buildProgressSnapshot(input: {
-  completed: number
-  total: number
-  currentLabel: string
-  currentKind: CodeToBlockSceneProgressKind
-  blockTotal: number
-  parameterTotal: number
-  blocksDone: number
-  parametersDone: number
-}): CodeToBlockSceneProgress {
-  return { ...input }
-}
-
-function parameterCatalogKey(doc: BlockParameterJsonDocument): string {
-  return `${doc.block.trim()}::${doc.parameterName.trim()}`
-}
-
-function mergeRitualParseIntoSchemaLookup(
-  parse: ClassGroupStackParseResult,
-  schemaLookup: Record<string, NodeSchemaDefinition>,
-): Record<string, NodeSchemaDefinition> {
-  const merged: Record<string, NodeSchemaDefinition> = { ...schemaLookup }
-  for (const parsed of parse.registry.values()) {
-    const id = parsed.id.trim()
-    if (!id) {
-      continue
-    }
-    merged[id] = parsed
-  }
-  return merged
-}
-
-function resolveInstanceSchemaId(
-  instanceSchemaId: string,
-  blockName: string,
-  schemaLookup: Record<string, NodeSchemaDefinition>,
-): string | null {
-  const preferred = instanceSchemaId.trim()
-  if (preferred && schemaLookup[preferred]) {
-    return preferred
-  }
-  return resolveSchemaIdForBlockDefinition(blockName, schemaLookup)
-}
-
 export function codeToBlockScene(
   ritualText: string,
   schemaLookup: Record<string, NodeSchemaDefinition>,
   options?: Pick<CodeToBlockSceneOptions, 'rootBlockName'>,
 ): CodeToBlockSceneResult {
-  return runCodeToBlockScene(ritualText, schemaLookup, options)
+  return buildCodeToBlockSceneSync(ritualText, schemaLookup, options)
 }
 
 export async function codeToBlockSceneAsync(
@@ -123,399 +53,40 @@ export async function codeToBlockSceneAsync(
     options?.onProgress?.(progress)
   }
 
-  const cancelled = () => options?.shouldCancel?.() ?? false
+  report({
+    completed: 0,
+    total: 1,
+    currentLabel: 'A analisar código ritual…',
+    currentKind: 'phase',
+    blockTotal: 0,
+    parameterTotal: 0,
+    blocksDone: 0,
+    parametersDone: 0,
+  })
 
-  const trimmed = ritualText.trim()
-  if (!trimmed) {
-    return { ok: false, error: 'O editor de código está vazio.' }
-  }
+  const workerPromise = buildCodeToBlockSceneInWorker(ritualText, schemaLookup, options)
 
-  report(
-    buildProgressSnapshot({
-      completed: 0,
-      total: 1,
-      currentLabel: 'A analisar código ritual…',
-      currentKind: 'phase',
-      blockTotal: 0,
-      parameterTotal: 0,
-      blocksDone: 0,
-      parametersDone: 0,
-    }),
-  )
-  await yieldToUi()
-  if (cancelled()) {
-    return { ok: false, error: 'Operação cancelada pelo utilizador.' }
-  }
-
-  const parse = parseRitualCodeToBlockSchemas(trimmed)
-  const rootSchema = resolveBlockBuildRootSchema(parse, options?.rootBlockName)
-  if (!rootSchema) {
-    return {
-      ok: false,
-      error: 'Não foi possível identificar o tipo raiz no ritual (Class Group).',
+  if (workerPromise) {
+    try {
+      return await workerPromise
+    } catch {
+      report({
+        completed: 0,
+        total: 1,
+        currentLabel: 'Worker indisponível — a processar na janela principal…',
+        currentKind: 'phase',
+        blockTotal: 0,
+        parameterTotal: 0,
+        blocksDone: 0,
+        parametersDone: 0,
+      })
     }
   }
 
-  const instances = collectBlockInstancesFromRitualCode(parse, rootSchema)
-  if (instances.length === 0) {
-    return { ok: false, error: 'Nenhum bloco reconhecido no ritual.' }
-  }
-
-  const mergedSchemaLookup = mergeRitualParseIntoSchemaLookup(parse, schemaLookup)
-  let catalog = buildSyncedBlockCatalogFromRitualInstances(instances, parse.warnings)
-  const warnings = [...catalog.warnings]
-
-  if (catalog.errors.length > 0) {
-    return { ok: false, error: catalog.errors.join('\n') }
-  }
-
-  const blockTotal = catalog.blockDocuments.length
-  const parameterTotal = catalog.parameterDocuments.length
-  const instanceTotal = instances.length
-  const total = 1 + parameterTotal + blockTotal + instanceTotal
-  let completed = 1
-  let parametersDone = 0
-  let blocksDone = 0
-
-  report(
-    buildProgressSnapshot({
-      completed,
-      total,
-      currentLabel: 'Código analisado',
-      currentKind: 'phase',
-      blockTotal,
-      parameterTotal,
-      blocksDone,
-      parametersDone,
-    }),
-  )
-  await yieldToUi()
-  if (cancelled()) {
-    return { ok: false, error: 'Operação cancelada pelo utilizador.' }
-  }
-
-  for (let index = 0; index < catalog.parameterDocuments.length; index += 1) {
-    const paramDoc = catalog.parameterDocuments[index]!
-    completed += 1
-    parametersDone += 1
-    report(
-      buildProgressSnapshot({
-        completed,
-        total,
-        currentLabel: `${paramDoc.block.trim()} · ${paramDoc.parameterName.trim()}`,
-        currentKind: 'parameter',
-        blockTotal,
-        parameterTotal,
-        blocksDone,
-        parametersDone,
-      }),
-    )
-    if (index % PARAM_PROGRESS_YIELD_BATCH === 0) {
-      await yieldToUi()
-      if (cancelled()) {
-        return { ok: false, error: 'Operação cancelada pelo utilizador.' }
-      }
-    }
-  }
-
-  for (let index = 0; index < catalog.blockDocuments.length; index += 1) {
-    const blockDoc = catalog.blockDocuments[index]!
-    completed += 1
-    blocksDone += 1
-    report(
-      buildProgressSnapshot({
-        completed,
-        total,
-        currentLabel: `${blockDoc.blockName.trim()} (${blockDoc.name.trim()})`,
-        currentKind: 'block',
-        blockTotal,
-        parameterTotal,
-        blocksDone,
-        parametersDone,
-      }),
-    )
-
-    if (index % BLOCK_PROGRESS_YIELD_BATCH === 0) {
-      await yieldToUi()
-      if (cancelled()) {
-        return { ok: false, error: 'Operação cancelada pelo utilizador.' }
-      }
-    }
-  }
-
-  if (catalog.blockDocuments.length > 0) {
-    const enriched = enrichAutoBuildPlanWithCatalogParameters(
-      catalog.parameterDocuments,
-      catalog.blockDocuments,
-      mergedSchemaLookup,
-    )
-    const existing = new Set(catalog.parameterDocuments.map(parameterCatalogKey))
-    const parameterDocuments = [...catalog.parameterDocuments]
-    for (const doc of enriched.documents) {
-      const key = parameterCatalogKey(doc)
-      if (!existing.has(key)) {
-        existing.add(key)
-        parameterDocuments.push(doc)
-      }
-    }
-    catalog = {
-      ...catalog,
-      parameterDocuments,
-    }
-    if (enriched.errors.length > 0) {
-      warnings.push(...enriched.errors)
-    }
-  }
-
-  const rootInstance = instances[0]!
-  const rootDocument = catalog.blockDocuments.find(
-    (document) =>
-      blockDefinitionInstanceKey(document) ===
-      blockDefinitionInstanceKey({
-        blockName: rootInstance.blockName,
-        source: { nodeId: rootInstance.nodeId },
-      }),
-  )
-
-  if (!rootDocument) {
-    return {
-      ok: false,
-      error: `Definição de bloco não gerada para "${rootInstance.blockName}".`,
-    }
-  }
-
-  const schemaId = resolveInstanceSchemaId(rootInstance.schemaId, rootDocument.blockName, mergedSchemaLookup)
-  if (!schemaId) {
-    return {
-      ok: false,
-      error: `Schema não encontrado para o bloco "${rootDocument.blockName}". Adicione o tipo ao pack de schemas.`,
-    }
-  }
-
-  if (!mergedSchemaLookup[schemaId]) {
-    return { ok: false, error: `Schema "${schemaId}" indisponível no registo.` }
-  }
-
-  const spawnCatalog = buildBlockSpawnCatalog(catalog)
-  const baseScene: CanvasScene = {
-    ...emptyCanvasScene,
-    width: DEFAULT_CANVAS_WIDTH,
-    height: DEFAULT_CANVAS_HEIGHT,
-  }
-
-  let spawnReported = 0
-  const plan = await planBlockHierarchySpawnFromInstancesAsync(
-    instances,
-    mergedSchemaLookup,
-    baseScene,
-    { x: LAYOUT_ORIGIN_X, y: LAYOUT_ORIGIN_Y },
-    spawnCatalog,
-    {
-      shouldCancel: cancelled,
-      yieldUi: yieldToUi,
-      onInstanceProgress: (spawnProgress) => {
-        spawnReported += 1
-        completed = 1 + parameterTotal + blockTotal + spawnReported
-        report(
-          buildProgressSnapshot({
-            completed,
-            total,
-            currentLabel: `${spawnProgress.blockName.trim()} (${spawnProgress.displayName.trim()})`,
-            currentKind: 'block',
-            blockTotal,
-            parameterTotal,
-            blocksDone: blockTotal,
-            parametersDone: parameterTotal,
-          }),
-        )
-      },
-    },
-  )
-
-  if (cancelled()) {
-    return { ok: false, error: 'Operação cancelada pelo utilizador.' }
-  }
-
-  if (!plan) {
-    return { ok: false, error: 'Não foi possível instanciar a hierarquia de blocos na cena.' }
-  }
-
-  const scene = mergeBlockHierarchyIntoScene(baseScene, plan)
-
-  const spawnedBlockIds = new Set(
-    plan.nodes.filter((node) => node.blockViewActive).map((node) => node.id),
-  )
-  const missingBlocks = catalog.blockDocuments.filter(
-    (document) => !spawnedBlockIds.has(document.source.nodeId),
-  )
-  if (missingBlocks.length > 0) {
-    warnings.push(
-      ...missingBlocks.slice(0, 20).map(
-        (document) =>
-          `${document.blockName} (${document.name}): bloco no catálogo mas não instanciado na hierarquia.`,
-      ),
-    )
-    if (missingBlocks.length > 20) {
-      warnings.push(
-        `… e mais ${String(missingBlocks.length - 20)} bloco(s) não instanciado(s) na hierarquia.`,
-      )
-    }
-  }
-
-  report(
-    buildProgressSnapshot({
-      completed: total,
-      total,
-      currentLabel: 'Concluído',
-      currentKind: 'phase',
-      blockTotal,
-      parameterTotal,
-      blocksDone: blockTotal,
-      parametersDone: parameterTotal,
-    }),
-  )
-
-  return {
-    ok: true,
-    scene,
-    rootNodeId: plan.rootNodeId,
-    warnings,
-  }
-}
-
-function runCodeToBlockScene(
-  ritualText: string,
-  schemaLookup: Record<string, NodeSchemaDefinition>,
-  options?: Pick<CodeToBlockSceneOptions, 'rootBlockName'>,
-): CodeToBlockSceneResult {
-  const trimmed = ritualText.trim()
-  if (!trimmed) {
-    return { ok: false, error: 'O editor de código está vazio.' }
-  }
-
-  const parse = parseRitualCodeToBlockSchemas(trimmed)
-
-  const rootSchema = resolveBlockBuildRootSchema(parse, options?.rootBlockName)
-  if (!rootSchema) {
-    return {
-      ok: false,
-      error: 'Não foi possível identificar o tipo raiz no ritual (Class Group).',
-    }
-  }
-
-  const instances = collectBlockInstancesFromRitualCode(parse, rootSchema)
-  if (instances.length === 0) {
-    return { ok: false, error: 'Nenhum bloco reconhecido no ritual.' }
-  }
-
-  const mergedSchemaLookup = mergeRitualParseIntoSchemaLookup(parse, schemaLookup)
-
-  let catalog = buildSyncedBlockCatalogFromRitualInstances(instances, parse.warnings)
-  const warnings = [...catalog.warnings]
-
-  if (catalog.errors.length > 0) {
-    return { ok: false, error: catalog.errors.join('\n') }
-  }
-
-  if (catalog.blockDocuments.length > 0) {
-    const enriched = enrichAutoBuildPlanWithCatalogParameters(
-      catalog.parameterDocuments,
-      catalog.blockDocuments,
-      mergedSchemaLookup,
-    )
-    const existing = new Set(catalog.parameterDocuments.map(parameterCatalogKey))
-    const parameterDocuments = [...catalog.parameterDocuments]
-    for (const doc of enriched.documents) {
-      const key = parameterCatalogKey(doc)
-      if (!existing.has(key)) {
-        existing.add(key)
-        parameterDocuments.push(doc)
-      }
-    }
-    catalog = {
-      ...catalog,
-      parameterDocuments,
-    }
-    if (enriched.errors.length > 0) {
-      warnings.push(...enriched.errors)
-    }
-  }
-
-  const rootInstance = instances[0]!
-  const rootDocument = catalog.blockDocuments.find(
-    (document) =>
-      blockDefinitionInstanceKey(document) ===
-      blockDefinitionInstanceKey({
-        blockName: rootInstance.blockName,
-        source: { nodeId: rootInstance.nodeId },
-      }),
-  )
-
-  if (!rootDocument) {
-    return {
-      ok: false,
-      error: `Definição de bloco não gerada para "${rootInstance.blockName}".`,
-    }
-  }
-
-  const schemaId = resolveInstanceSchemaId(rootInstance.schemaId, rootDocument.blockName, mergedSchemaLookup)
-  if (!schemaId) {
-    return {
-      ok: false,
-      error: `Schema não encontrado para o bloco "${rootDocument.blockName}". Adicione o tipo ao pack de schemas.`,
-    }
-  }
-
-  const schema = mergedSchemaLookup[schemaId]
-  if (!schema) {
-    return { ok: false, error: `Schema "${schemaId}" indisponível no registo.` }
-  }
-
-  const spawnCatalog = buildBlockSpawnCatalog(catalog)
-  const baseScene: CanvasScene = {
-    ...emptyCanvasScene,
-    width: DEFAULT_CANVAS_WIDTH,
-    height: DEFAULT_CANVAS_HEIGHT,
-  }
-
-  const plan = planBlockHierarchySpawnFromInstances(
-    instances,
-    mergedSchemaLookup,
-    baseScene,
-    { x: LAYOUT_ORIGIN_X, y: LAYOUT_ORIGIN_Y },
-    spawnCatalog,
-  )
-
-  if (!plan) {
-    return { ok: false, error: 'Não foi possível instanciar a hierarquia de blocos na cena.' }
-  }
-
-  const scene = mergeBlockHierarchyIntoScene(baseScene, plan)
-
-  const spawnedBlockIds = new Set(
-    plan.nodes.filter((node) => node.blockViewActive).map((node) => node.id),
-  )
-  const missingBlocks = catalog.blockDocuments.filter(
-    (document) => !spawnedBlockIds.has(document.source.nodeId),
-  )
-  if (missingBlocks.length > 0) {
-    warnings.push(
-      ...missingBlocks.slice(0, 20).map(
-        (document) =>
-          `${document.blockName} (${document.name}): bloco no catálogo mas não instanciado na hierarquia.`,
-      ),
-    )
-    if (missingBlocks.length > 20) {
-      warnings.push(
-        `… e mais ${String(missingBlocks.length - 20)} bloco(s) não instanciado(s) na hierarquia.`,
-      )
-    }
-  }
-
-  return {
-    ok: true,
-    scene,
-    rootNodeId: plan.rootNodeId,
-    warnings,
-  }
+  return buildCodeToBlockScene(ritualText, schemaLookup, {
+    rootBlockName: options?.rootBlockName,
+    onProgress: options?.onProgress,
+    shouldCancel: options?.shouldCancel,
+    yieldUi: yieldToUi,
+  })
 }

@@ -73,17 +73,22 @@
   flex-shrink: 0;
   width: calc(var(--group-block-field-min-height) - 4px);
   height: calc(var(--group-block-field-min-height) - 4px);
-  color: var(--color-text-secondary);
+  color: var(--ctx-menu-fg, var(--color-text-secondary));
+  font: inherit;
   font-size: 0.72rem;
   line-height: 1;
-  background: var(--group-block-field-bg);
-  border: 1px solid rgb(0 0 0 / 35%);
-  border-radius: 3px;
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid var(--ctx-menu-border, #454545);
+  border-radius: var(--ctx-menu-radius, 4px);
+  transition: color 100ms ease, background 100ms ease, border-color 100ms ease;
 }
 
 .indexPager > button:first-child:hover:not(:disabled),
 .indexPager > button:last-child:hover:not(:disabled) {
-  color: var(--color-text-primary);
+  color: var(--ctx-menu-hover-fg, #fff);
+  background: var(--ctx-menu-hover-bg, #007acc);
+  border-color: var(--ctx-menu-hover-bg, #007acc);
 }
 
 .indexPager > button:first-child:disabled,
@@ -198,7 +203,9 @@
 }
 
 .toolButton:hover:not(:disabled) {
-  color: var(--color-text-primary);
+  color: var(--ctx-menu-hover-fg, #fff);
+  background: var(--ctx-menu-hover-bg, #007acc);
+  border-color: var(--ctx-menu-hover-bg, #007acc);
 }
 
 .toolButton:disabled {

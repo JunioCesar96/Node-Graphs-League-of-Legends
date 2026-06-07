@@ -12,26 +12,22 @@
   height: 26px;
   padding: 0;
   margin: 0;
-  background: var(--app-panel-chrome-bg, var(--block-surface, rgb(37 37 38 / 88%)));
-  border: 1px solid var(--color-border-soft, rgb(0 0 0 / 35%));
-  border-radius: 999px;
-  box-shadow: 0 2px 8px rgb(0 0 0 / 16%);
-  backdrop-filter: blur(12px);
+  background: var(--ctx-menu-bg, var(--window-bg, #1e1e1e));
+  border: 1px solid var(--ctx-menu-border, #454545);
+  border-radius: var(--ctx-menu-radius, 4px);
+  box-shadow: var(--ctx-menu-shadow, 0 4px 16px rgb(0 0 0 / 40%));
 }
 
 .dockTabActive {
-  border-color: color-mix(in srgb, var(--selected-tab-bg, var(--jade-accent, #007acc)) 65%, transparent);
+  border-color: var(--ctx-menu-hover-bg, #007acc);
   box-shadow:
-    0 6px 20px rgb(0 0 0 / 22%),
-    inset 0 0 0 1px color-mix(in srgb, var(--selected-tab-bg, var(--jade-accent, #007acc)) 35%, transparent);
+    0 0 0 1px var(--ctx-menu-hover-bg, #007acc),
+    var(--ctx-menu-shadow, 0 4px 16px rgb(0 0 0 / 40%));
 }
 
 .dockTab:hover:not(.dockTabActive),
 .dockTab:focus-within:not(.dockTabActive) {
-  border-color: color-mix(in srgb, var(--selected-tab-bg, var(--jade-accent, #007acc)) 65%, transparent);
-  box-shadow:
-    0 6px 20px rgb(0 0 0 / 22%),
-    inset 0 0 0 1px color-mix(in srgb, var(--selected-tab-bg, var(--jade-accent, #007acc)) 20%, transparent);
+  border-color: var(--ctx-menu-hover-bg, #007acc);
 }
 
 .dockTabIconButton {
@@ -49,11 +45,11 @@
   cursor: pointer;
   background: transparent;
   border: none;
-  border-radius: 999px;
+  border-radius: var(--ctx-menu-radius, 4px);
 }
 
 .dockTabIconButton:focus-visible {
-  outline: 2px solid var(--selected-tab-bg, var(--port-child));
+  outline: 2px solid var(--ctx-menu-hover-bg, #007acc);
   outline-offset: 2px;
 }
 
@@ -78,29 +74,50 @@
 }
 
 .dockTabActive .dockTabGlyph {
-  color: var(--selected-tab-bg, var(--jade-accent, #007acc));
+  color: var(--ctx-menu-hover-bg, #007acc);
 }
 
 .dockTabChrome,
 [data-chrome-strip-toolbar] .dockTab {
-  width: 22px;
-  min-width: 22px;
-  max-width: 22px;
-  height: 22px;
-  box-shadow: 0 1px 4px rgb(0 0 0 / 12%);
+  width: 28px;
+  min-width: 28px;
+  max-width: 28px;
+  height: 100%;
+  min-height: 100%;
+  padding: 0;
+  margin: 0;
+  border: none;
+  border-right: 1px solid var(--ctx-menu-border, #454545);
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .dockTabChrome.dockTabActive,
 [data-chrome-strip-toolbar] .dockTabActive {
-  box-shadow:
-    0 1px 4px rgb(0 0 0 / 18%),
-    inset 0 0 0 1px color-mix(in srgb, var(--selected-tab-bg, var(--jade-accent, #007acc)) 35%, transparent);
+  background: color-mix(in srgb, var(--ctx-menu-hover-bg, #007acc) 16%, transparent);
+  border-right-color: var(--ctx-menu-hover-bg, #007acc);
+  box-shadow: none;
+}
+
+.dockTabChrome:hover:not(.dockTabActive),
+.dockTabChrome:focus-within:not(.dockTabActive),
+[data-chrome-strip-toolbar] .dockTab:hover:not(.dockTabActive),
+[data-chrome-strip-toolbar] .dockTab:focus-within:not(.dockTabActive) {
+  background: var(--ctx-menu-hover-bg, #007acc);
+  border-right-color: var(--ctx-menu-hover-bg, #007acc);
+}
+
+.dockTabChrome:hover:not(.dockTabActive) .dockTabGlyph,
+.dockTabChrome:focus-within:not(.dockTabActive) .dockTabGlyph,
+[data-chrome-strip-toolbar] .dockTab:hover:not(.dockTabActive) .dockTabGlyph,
+[data-chrome-strip-toolbar] .dockTab:focus-within:not(.dockTabActive) .dockTabGlyph {
+  color: var(--ctx-menu-hover-fg, #fff);
 }
 
 .dockTabChrome .dockTabGlyph,
 [data-chrome-strip-toolbar] .dockTabGlyph {
-  width: 12px;
-  height: 12px;
+  width: 13px;
+  height: 13px;
 }
 
 .dockTabGlyphBlock {
@@ -156,21 +173,23 @@
 .dockHeaderButton {
   display: inline-grid;
   place-items: center;
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 26px;
   padding: 0;
-  color: var(--color-text-secondary);
-  font-size: 1rem;
+  color: var(--ctx-menu-fg, var(--color-text-primary));
+  font: inherit;
+  font-size: 0.9rem;
   line-height: 1;
   cursor: pointer;
-  background: rgb(255 255 255 / 4%);
-  border: 1px solid var(--color-border-soft);
-  border-radius: 999px;
+  background: transparent;
+  border: 1px solid var(--ctx-menu-border, #454545);
+  border-radius: var(--ctx-menu-radius, 4px);
 }
 
 .dockHeaderButton:hover {
-  color: var(--text-color, var(--color-text-primary));
-  border-color: var(--selected-tab-bg, var(--jade-accent, #007acc));
+  color: var(--ctx-menu-hover-fg, #fff);
+  background: var(--ctx-menu-hover-bg, #007acc);
+  border-color: var(--ctx-menu-hover-bg, #007acc);
 }
 
 .dockTabActions {
@@ -188,13 +207,13 @@
   align-items: center;
   min-width: 0;
   max-width: min(360px, 42vw);
-  height: 42px;
-  padding: 0 var(--space-1) 0 var(--space-2);
-  background: var(--app-panel-chrome-bg, var(--block-surface, rgb(37 37 38 / 88%)));
-  border: 1px solid var(--color-border-soft, rgb(0 0 0 / 35%));
-  border-radius: 999px;
-  box-shadow: 0 8px 28px rgb(0 0 0 / 22%);
-  backdrop-filter: blur(12px);
+  height: 34px;
+  padding: 0 var(--space-1) 0 var(--ctx-menu-item-padding-inline, 20px);
+  font-size: var(--ctx-menu-font-size, 12.5px);
+  background: var(--ctx-menu-bg, var(--window-bg, #1e1e1e));
+  border: 1px solid var(--ctx-menu-border, #454545);
+  border-radius: var(--ctx-menu-radius, 4px);
+  box-shadow: var(--ctx-menu-shadow, 0 4px 16px rgb(0 0 0 / 40%));
 }
 
 .minimizedTabExpand {
@@ -203,16 +222,17 @@
   gap: var(--space-2);
   align-items: center;
   min-width: 0;
-  padding: 0 var(--space-2);
-  color: inherit;
+  padding: 0 var(--space-1);
+  color: var(--ctx-menu-fg, var(--color-text-primary));
+  font: inherit;
   cursor: pointer;
   background: transparent;
   border: none;
-  border-radius: 999px;
+  border-radius: 0;
 }
 
 .minimizedTabExpand:focus-visible {
-  outline: 2px solid var(--port-child, var(--block-slot-out));
+  outline: 2px solid var(--ctx-menu-hover-bg, #007acc);
   outline-offset: 2px;
 }
 
@@ -231,24 +251,22 @@
   min-width: 0;
   max-width: min(380px, calc(100vw - 64px));
   overflow: hidden;
-  background: var(--app-panel-bg, var(--block-surface-dark, rgb(30 30 30 / 96%)));
-  border: 1px solid var(--color-border-soft, rgb(0 0 0 / 40%));
-  border-radius: 16px;
-  box-shadow:
-    0 24px 72px rgb(0 0 0 / 45%),
-    inset 0 1px 0 rgb(255 255 255 / 5%);
-  backdrop-filter: blur(16px);
+  font-size: var(--ctx-menu-font-size, 12.5px);
+  background: var(--ctx-menu-bg, var(--window-bg, #1e1e1e));
+  border: 1px solid var(--ctx-menu-border, #454545);
+  border-radius: var(--ctx-menu-radius, 4px);
+  box-shadow: var(--ctx-menu-shadow, 0 4px 16px rgb(0 0 0 / 40%));
 }
 
 .dockedHeader {
   display: flex;
-  gap: var(--space-3);
+  gap: var(--space-2);
   align-items: center;
   min-width: 0;
-  padding: var(--space-2) var(--space-4);
-  background: var(--app-panel-chrome-bg, var(--block-surface, rgb(40 40 40 / 92%)));
-  border-bottom: 1px solid var(--color-border-soft, rgb(255 255 255 / 8%));
-  border-radius: 16px 16px 0 0;
+  padding: var(--ctx-menu-item-padding-block, 5px) var(--ctx-menu-item-padding-inline, 20px);
+  background: var(--ctx-menu-bg, var(--window-bg, #1e1e1e));
+  border-bottom: 1px solid var(--ctx-menu-border, #454545);
+  border-radius: var(--ctx-menu-radius, 4px) var(--ctx-menu-radius, 4px) 0 0;
 }
 
 .dockedHeaderMain {
@@ -265,8 +283,8 @@
   min-width: 0;
   margin: 0;
   overflow: hidden;
-  color: var(--color-text-primary, var(--block-text));
-  font-size: 0.82rem;
+  color: var(--ctx-menu-fg, var(--color-text-primary, var(--block-text)));
+  font: inherit;
   font-weight: 600;
   line-height: 1.2;
   text-overflow: ellipsis;
@@ -280,9 +298,9 @@
   align-items: center;
   justify-content: space-between;
   min-width: 0;
-  color: var(--syntax-comment, var(--block-slot, var(--port-parent)));
+  color: var(--ctx-menu-muted, var(--color-text-muted));
   font-family: var(--font-data);
-  font-size: 0.72rem;
+  font-size: var(--ctx-menu-shortcut-font-size, 11.5px);
   line-height: 1.25;
 }
 
@@ -313,48 +331,45 @@
 }
 
 .dockedBodyPad {
-  padding: var(--space-4);
+  padding: var(--ctx-menu-panel-padding-block, 4px) var(--ctx-menu-item-padding-inline, 20px) var(--space-2);
 }
 
 .dockedShellBlock {
-  background: var(--block-surface-dark);
-  border-color: rgb(0 0 0 / 40%);
+  background: var(--ctx-menu-bg, var(--window-bg, #1e1e1e));
 }
 
 .dockedShellBlock .dockedHeader {
-  background: var(--block-surface);
+  background: var(--ctx-menu-bg, var(--window-bg, #1e1e1e));
 }
 
 .dockedShellBlock .dockedEyebrow {
-  color: var(--block-slot);
+  color: var(--block-slot, var(--ctx-menu-muted));
 }
 
 .dockedShellBlock .dockedTitle {
-  color: var(--block-text);
+  color: var(--ctx-menu-fg, var(--block-text));
 }
 
 .dockedShellGroup {
-  background: var(--group-surface-dark);
-  border-color: rgb(0 0 0 / 40%);
+  background: var(--ctx-menu-bg, var(--window-bg, #1e1e1e));
 }
 
 .dockedShellGroup .dockedHeader {
-  background: var(--group-surface);
+  background: var(--ctx-menu-bg, var(--window-bg, #1e1e1e));
 }
 
 .dockedShellGroup .dockedEyebrow {
-  color: var(--group-slot);
+  color: var(--group-slot, var(--ctx-menu-muted));
 }
 
 .dockedShellGroup .dockedTitle {
-  color: var(--group-text);
+  color: var(--ctx-menu-fg, var(--group-text));
 }
 
 .dockedShellNode {
-  background: var(--app-panel-bg);
-  border-color: var(--color-border-soft);
+  background: var(--ctx-menu-bg, var(--window-bg, #1e1e1e));
 }
 
 .dockedShellNode .dockedHeader {
-  background: var(--app-panel-chrome-bg);
+  background: var(--ctx-menu-bg, var(--window-bg, #1e1e1e));
 }

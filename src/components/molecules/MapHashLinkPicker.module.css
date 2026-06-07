@@ -85,24 +85,29 @@
 
 .valueLinkButton {
   width: 100%;
-  padding: var(--space-2) var(--space-3);
-  color: var(--syntax-link);
+  padding: var(--ctx-menu-item-padding-block, 5px) 12px;
+  color: var(--ctx-menu-fg, var(--color-text-primary));
   font-family: var(--font-data);
-  font-size: 0.76rem;
+  font-size: var(--ctx-menu-shortcut-font-size, 11.5px);
   text-align: left;
-  background: var(--map-input-bg);
-  border: 1px solid rgb(255 255 255 / 72%);
-  border-radius: 4px;
+  background: transparent;
+  border: 1px solid var(--ctx-menu-border, #454545);
+  border-radius: var(--ctx-menu-radius, 4px);
   cursor: pointer;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  transition:
+    color 100ms ease,
+    background 100ms ease,
+    border-color 100ms ease;
 }
 
 .valueLinkButton:hover,
 .valueLinkButtonSelected {
-  border-color: var(--map-accent-line);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--map-accent) 35%, transparent);
+  color: var(--ctx-menu-hover-fg, #fff);
+  background: var(--ctx-menu-hover-bg, #007acc);
+  border-color: var(--ctx-menu-hover-bg, #007acc);
 }
 
 .valueTextInput {

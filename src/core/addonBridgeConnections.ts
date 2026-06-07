@@ -83,7 +83,7 @@ export function applyBlockOutputToAddonInput(
   const prunedInputs = withoutConnectionsToAddonInputSlot(scene.connections, toNodeId, toAddonSlotId)
   const connections = isListPointerBlockOutputSlot(fromNode, fromBlockSlotId, fromBlockParameterId)
     ? prunedInputs
-    : withoutConnectionsFromBlockOutputSlot(prunedInputs, fromNodeId, fromBlockSlotId)
+    : withoutConnectionsFromBlockOutputSlot(prunedInputs, fromNodeId, fromBlockSlotId, fromNode)
 
   return {
     ...scene,

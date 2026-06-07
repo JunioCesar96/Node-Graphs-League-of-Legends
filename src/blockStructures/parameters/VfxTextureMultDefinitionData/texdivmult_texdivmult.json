@@ -5,7 +5,7 @@
   "name": "texDivMult",
   "source": {
     "kind": "parameter",
-    "parameterId": "vfx-texture-mult-definition-data__main-characters/brand/skins/skin0/particles/brand-base-p-redring-complex-emitter-definition-data--slot--8-texture-mult_parameter_texDivMult"
+    "parameterId": "vfx-texture-mult-definition-data__main-entries-complex-emitter-definition-data-texture-mult_parameter_texDivMult"
   },
   "type": "vec2",
   "value": "0.5, 0.5",

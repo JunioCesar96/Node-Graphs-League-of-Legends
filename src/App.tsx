@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { showAppAlert } from '@/messenger_popup/appMessenger'
 import type { GraphCanvasHandle } from '@/components/organisms/GraphCanvas'
 import type { CSSProperties, PointerEvent } from 'react'
 
 import { ConsoleNotificationCapsule } from '@/components/molecules/ConsoleNotificationCapsule'
 import { CanvasViewportStatusBar } from '@/components/molecules/CanvasViewportStatusBar'
+import { EditorDockFavicon } from '@/components/atoms/EditorDockFavicon'
 import { SceneTabBar } from '@/components/molecules/SceneTabBar'
 import type { TabContextMenuAction } from '@/components/molecules/TabContextMenu'
 import { NewCodeFileDialog } from '@/components/molecules/NewCodeFileDialog'
@@ -360,10 +362,14 @@ function App() {
     setElementRetracted,
     setAllNodeElementsRetracted,
     setElementSelectedIndex,
+    setBlockElementSelectedIndex,
+    setBlockOutputSlotConnectionIndex,
     redoScene,
     resetScene,
     sceneHistory,
     moveNode,
+    beginNodeDrag,
+    endNodeDrag,
     setSceneCamera,
     patchSceneChrome,
     saveSceneNodesStatePreset,
@@ -389,6 +395,9 @@ function App() {
     showOnlySlotSubtree,
     showOnlyIncomingSlotBranch,
     hideLinkedChildNodes,
+    showLinkedChildNodes,
+    hideInactiveBlockIndexBranches,
+    applyBlockOrganization,
     setAllNodesLocked,
     resetNodePosition,
     toggleNodeBodyCollapsed,
@@ -409,6 +418,7 @@ function App() {
     commitMarqueeSelection,
     undoScene,
     scene,
+    visibleNodeCount,
     selectedNodeIds,
     primarySelectedId,
     selectNode,
@@ -613,6 +623,8 @@ function App() {
     summaryTitle?: string
   } | null>(null)
   const codeToNodeBlockCancelRef = useRef(false)
+  const codeToNodeBlockStartedAtRef = useRef(0)
+  const [codeToNodeBlockElapsedSeconds, setCodeToNodeBlockElapsedSeconds] = useState(0)
   const codeToNodeBlockBusy = codeToNodeBlockUi !== null
   const blockInspectorMovedDuringPointer = useRef(false)
   const blockInspectorDragGesture = useRef<InspectorDragGesture | null>(null)
@@ -721,7 +733,7 @@ function App() {
 
       const result = applyRitualSnippetScalarsToNode(canvasNode.node, snippet)
       if (!result.ok) {
-        window.alert(result.error)
+        showAppAlert(result.error)
         return
       }
 
@@ -739,7 +751,7 @@ function App() {
           result.warnings.length > 20
             ? `\n… e mais ${String(result.warnings.length - 20)} aviso(s).`
             : ''
-        window.alert(`[Replace Value to Graph]\n\n${preview}${suffix}`)
+        showAppAlert(`[Replace Value to Graph]\n\n${preview}${suffix}`)
       }
     },
     [scene.nodes, showSaveStatusNotice, updateNodeParameter],
@@ -748,17 +760,17 @@ function App() {
   const handleReplaceValueToGraph = useCallback(
     (snippet: string) => {
       if (!hasOpenSceneTabs) {
-        window.alert('Abra uma cena de trabalho antes de aplicar valores ao grafo.')
+        showAppAlert('Abra uma cena de trabalho antes de aplicar valores ao grafo.')
         return
       }
 
       if (!primarySelectedId) {
-        window.alert('Seleccione um nó no canvas antes de aplicar valores do código.')
+        showAppAlert('Seleccione um nó no canvas antes de aplicar valores do código.')
         return
       }
 
       if (selectedNodeIds.length > 1) {
-        window.alert('Em selecção múltipla, use apenas o nó primário seleccionado.')
+        showAppAlert('Em selecção múltipla, use apenas o nó primário seleccionado.')
         return
       }
 
@@ -781,7 +793,7 @@ function App() {
       },
     ) => {
       if (!activeCodeDockTabId) {
-        window.alert('Abra uma aba no editor de código antes de vincular a área.')
+        showAppAlert('Abra uma aba no editor de código antes de vincular a área.')
         return
       }
 
@@ -1096,7 +1108,7 @@ function App() {
           : ''
 
       if (!options?.silent) {
-        window.alert(
+        showAppAlert(
           `${modeBanner}Pack «${folder}» · ${String(schemas.length)} tipo(s) na paleta (📂 [${folder}]).${diskLine}${warnPreview}`,
         )
       }
@@ -1117,14 +1129,14 @@ function App() {
       const folder = sanitizeStructurePackFolderName(rawName)
 
       if (!folder) {
-        window.alert(
+        showAppAlert(
           'Nome de pasta inválido. Usa letras minúsculas, números, hífen (-) e sublinhado (_), até 48 caracteres.',
         )
         return null
       }
 
       if (folder === 'default') {
-        window.alert('«default» é reservada aos tipos estáticos da app; escolhe outro nome de pasta.')
+        showAppAlert('«default» é reservada aos tipos estáticos da app; escolhe outro nome de pasta.')
         return null
       }
 
@@ -1145,7 +1157,7 @@ function App() {
       const converted = convertFn(codeText)
 
       if (converted.ok === false) {
-        window.alert(converted.error)
+        showAppAlert(converted.error)
         return
       }
 
@@ -1172,7 +1184,7 @@ function App() {
       const converted = convertRitualTextClassGroup(codeText)
 
       if (converted.ok === false) {
-        window.alert(converted.error)
+        showAppAlert(converted.error)
         return
       }
 
@@ -1192,7 +1204,7 @@ function App() {
       const folder = parseClassGroupPackFolderName(raw, { allowDefault: true })
 
       if (!folder) {
-        window.alert(
+        showAppAlert(
           'Nome de pasta inválido. Usa letras minúsculas, números, hífen (-) e sublinhado (_), até 48 caracteres.',
         )
         return
@@ -1289,7 +1301,7 @@ function App() {
       )
 
       if (converted.ok === false) {
-        window.alert(converted.error)
+        showAppAlert(converted.error)
         return false
       }
 
@@ -1302,7 +1314,7 @@ function App() {
           converted.warnings.length > 30
             ? `\n… e mais ${String(converted.warnings.length - 30)} aviso(s).`
             : ''
-        window.alert(`[Code To Node Graph]\n\n${preview}${suffix}`)
+        showAppAlert(`[Code To Node Graph]\n\n${preview}${suffix}`)
       }
 
       setCodeToNodeGraphPackFolder(folder)
@@ -1338,15 +1350,27 @@ function App() {
     [startCodeToCanvasWizard],
   )
 
+  useEffect(() => {
+    if (codeToNodeBlockUi?.phase !== 'running') {
+      setCodeToNodeBlockElapsedSeconds(0)
+      return
+    }
+
+    const tick = () => {
+      setCodeToNodeBlockElapsedSeconds(
+        Math.max(0, Math.floor((Date.now() - codeToNodeBlockStartedAtRef.current) / 1000)),
+      )
+    }
+
+    tick()
+    const intervalId = window.setInterval(tick, 1000)
+    return () => window.clearInterval(intervalId)
+  }, [codeToNodeBlockUi?.phase])
+
   const handleCodeToNodeBlock = useCallback(async () => {
     if (codeToNodeBlockBusy) {
       return false
     }
-
-    const nextFrame = () =>
-      new Promise<void>((resolve) => {
-        window.requestAnimationFrame(() => resolve())
-      })
 
     const formatProgressCountLabel = (input: {
       completed: number
@@ -1361,17 +1385,17 @@ function App() {
     const isCancelled = () => codeToNodeBlockCancelRef.current
 
     codeToNodeBlockCancelRef.current = false
+    codeToNodeBlockStartedAtRef.current = Date.now()
+    setCodeToNodeBlockElapsedSeconds(0)
     setCodeToNodeBlockUi({
       phase: 'running',
       completed: 0,
       total: 1,
-      currentLabel: 'A iniciar…',
+      currentLabel: 'Etapa: A analisar código ritual…',
       progressCountLabel: '0/1 · Blocos 0/0 · Parâmetros 0/0',
     })
 
     try {
-      await nextFrame()
-
       const converted = await codeToBlockSceneAsync(codeText, extendSchemaLookup, {
         shouldCancel: isCancelled,
         onProgress: (progress) => {
@@ -1423,12 +1447,18 @@ function App() {
       }
 
       const sceneTitle = stripExtension(codeDockFileName).trim() || 'Cena'
-      openOrReplaceSceneByTitle(sceneTitle, converted.scene)
-      selectNode(converted.rootNodeId)
-      graphCanvasRef.current?.focusSelectionIntoView([converted.rootNodeId])
+      const rootNodeId = converted.rootNodeId
 
       codeToNodeBlockCancelRef.current = false
       setCodeToNodeBlockUi(null)
+
+      requestAnimationFrame(() => {
+        openOrReplaceSceneByTitle(sceneTitle, converted.scene, { prepared: true })
+        requestAnimationFrame(() => {
+          selectNode(rootNodeId)
+          graphCanvasRef.current?.focusSelectionIntoView([rootNodeId])
+        })
+      })
 
       if (converted.warnings.length > 0) {
         const preview = converted.warnings.slice(0, 30).join('\n')
@@ -1436,7 +1466,7 @@ function App() {
           converted.warnings.length > 30
             ? `\n… e mais ${String(converted.warnings.length - 30)} aviso(s).`
             : ''
-        window.alert(`[Code To Node Block]\n\n${preview}${suffix}`)
+        showAppAlert(`[Code To Node Block]\n\n${preview}${suffix}`)
       }
 
       return true
@@ -1473,7 +1503,7 @@ function App() {
       summary.buildWarnings.length > 30
         ? `\n… e mais ${String(summary.buildWarnings.length - 30)} aviso(s).`
         : ''
-    window.alert(`[Code To Node Graph · passo a passo]\n\n${preview}${suffix}`)
+    showAppAlert(`[Code To Node Graph · passo a passo]\n\n${preview}${suffix}`)
   }, [codeToCanvasWizardController.summary])
 
   const persistPackForNewNodeGraph = useCallback(
@@ -1507,7 +1537,7 @@ function App() {
       try {
         const prepared = prepareCodeToNewNodeGraph(codeText)
         if (!prepared.ok) {
-          window.alert(prepared.error)
+          showAppAlert(prepared.error)
           return false
         }
 
@@ -1527,7 +1557,7 @@ function App() {
 
         const built = codeToNewNodeGraph(codeText)
         if (!built.ok) {
-          window.alert(built.error)
+          showAppAlert(built.error)
           return false
         }
 
@@ -1544,7 +1574,7 @@ function App() {
             built.warnings.length > 30
               ? `\n… e mais ${String(built.warnings.length - 30)} aviso(s).`
               : ''
-          window.alert(`[Code to new node graph]\n\n${preview}${suffix}`)
+          showAppAlert(`[Code to new node graph]\n\n${preview}${suffix}`)
         }
 
         setCodeToNewNodeGraphPackFolder(folder)
@@ -1590,7 +1620,7 @@ function App() {
       summary.buildWarnings.length > 30
         ? `\n… e mais ${String(summary.buildWarnings.length - 30)} aviso(s).`
         : ''
-    window.alert(`[Code to new node graph · passo a passo]\n\n${preview}${suffix}`)
+    showAppAlert(`[Code to new node graph · passo a passo]\n\n${preview}${suffix}`)
   }, [codeToNewNodeGraphWizardController.summary])
 
   const deleteNodeStructurePackFolder = useCallback(async (folder: string) => {
@@ -1646,7 +1676,7 @@ function App() {
     const safe = parseClassGroupPackFolderName(folder, { allowDefault: nodeConfigurationMode })
 
     if (!safe) {
-      window.alert(
+      showAppAlert(
         nodeConfigurationMode
           ? 'Pasta inválida. Usa letras minúsculas, números, hífen (-) e sublinhado (_), até 48 caracteres.'
           : 'Pasta inválida ou reservada (default).',
@@ -1655,7 +1685,7 @@ function App() {
     }
 
     if (!import.meta.env.DEV) {
-      window.alert(
+      showAppAlert(
         'Extração só grava em `src/nodeStructures` com o servidor de desenvolvimento (`npm run dev`).',
       )
       return false
@@ -1681,7 +1711,7 @@ function App() {
           typeof payload === 'object' && payload !== null && typeof Reflect.get(payload, 'error') === 'string'
             ? String(Reflect.get(payload, 'error'))
             : `HTTP ${String(res.status)}`
-        window.alert(`Extração falhou: ${errMsg}`)
+        showAppAlert(`Extração falhou: ${errMsg}`)
         return false
       }
 
@@ -1727,10 +1757,10 @@ function App() {
 
       lines.push('', 'Recarrega (F5) se não vires as pastas de imediato.')
 
-      window.alert(lines.join('\n'))
+      showAppAlert(lines.join('\n'))
       return true
     } catch {
-      window.alert('Servidor dev indisponível ou pedido falhou.')
+      showAppAlert('Servidor dev indisponível ou pedido falhou.')
       return false
     }
   },
@@ -1742,14 +1772,14 @@ function App() {
       const safe = sanitizeStructurePackFolderName(folder)
 
       if (!safe || safe === 'default') {
-        window.alert('Pasta inválida ou reservada (default).')
+        showAppAlert('Pasta inválida ou reservada (default).')
         return false
       }
 
       const pack = dynamicStructurePacks.find((p) => p.folder === safe)
 
       if (!pack) {
-        window.alert(
+        showAppAlert(
           'Pack não encontrado na sessão. Converte o ritual outra vez ou recarrega a app (packs vêm do armazenamento local).',
         )
         return false
@@ -1809,7 +1839,7 @@ function App() {
           ? `\n\n${warnings.slice(0, 18).join('\n')}${warnings.length > 18 ? '\n…' : ''}`
           : ''
 
-      window.alert(
+      showAppAlert(
         `[Aplicar nomeclatura · texto Código]\n\nPack «${safe}» · ${String(appliedCount)} schema(s).${diskLine}${warnPreview}`,
       )
 
@@ -1908,7 +1938,7 @@ function App() {
       setCodeDockOpen(true)
 
       if (needsBinConversionOnOpen(normalized) && !options?.suppressConvertedOpenAlert) {
-        window.alert(`«${normalized}» convertido e aberto no painel Código (${resolveVia}).`)
+        showAppAlert(`«${normalized}» convertido e aberto no painel Código (${resolveVia}).`)
       }
     },
     [applyCodeDockJadeBanner, openCodeDockTab, refreshJadeResolveStatus],
@@ -1944,7 +1974,7 @@ function App() {
 
   const handleGraphsToCode = useCallback(async () => {
     if (!hasOpenSceneTabs) {
-      window.alert('Abra uma cena de trabalho antes de exportar.')
+      showAppAlert('Abra uma cena de trabalho antes de exportar.')
       return
     }
 
@@ -1965,7 +1995,7 @@ function App() {
       )
 
       if (!result.ok) {
-        window.alert(result.error)
+        showAppAlert(result.error)
         return
       }
 
@@ -1977,7 +2007,7 @@ function App() {
           result.warnings.length > 30
             ? `\n… e mais ${String(result.warnings.length - 30)} aviso(s).`
             : ''
-        window.alert(`[Node Graphs to Code]\n\n${preview}${suffix}`)
+        showAppAlert(`[Node Graphs to Code]\n\n${preview}${suffix}`)
       }
     } finally {
       setGraphsToCodeProgress(null)
@@ -1987,7 +2017,7 @@ function App() {
   const handleViewNodeCode = useCallback(
     (nodeId: string) => {
       if (!hasOpenSceneTabs) {
-        window.alert('Abra uma cena de trabalho antes de pré-visualizar código.')
+        showAppAlert('Abra uma cena de trabalho antes de pré-visualizar código.')
         return
       }
 
@@ -2007,7 +2037,7 @@ function App() {
       )
 
       if (!result.ok) {
-        window.alert(result.error)
+        showAppAlert(result.error)
         return
       }
 
@@ -2019,7 +2049,7 @@ function App() {
           result.warnings.length > 30
             ? `\n… e mais ${String(result.warnings.length - 30)} aviso(s).`
             : ''
-        window.alert(`[Ver código League bin]\n\n${preview}${suffix}`)
+        showAppAlert(`[Ver código League bin]\n\n${preview}${suffix}`)
       }
     },
     [extendSchemaLookup, hasOpenSceneTabs, loadTextIntoCodeDock, scene],
@@ -2028,7 +2058,7 @@ function App() {
   const handleViewNodeBlockCode = useCallback(
     (nodeId: string) => {
       if (!hasOpenSceneTabs) {
-        window.alert('Abra uma cena de trabalho antes de pré-visualizar código de bloco.')
+        showAppAlert('Abra uma cena de trabalho antes de pré-visualizar código de bloco.')
         return
       }
 
@@ -2048,7 +2078,7 @@ function App() {
       )
 
       if (!result.ok) {
-        window.alert(result.error)
+        showAppAlert(result.error)
         return
       }
 
@@ -2060,7 +2090,7 @@ function App() {
           result.warnings.length > 30
             ? `\n… e mais ${String(result.warnings.length - 30)} aviso(s).`
             : ''
-        window.alert(`[Ver código de bloco]\n\n${preview}${suffix}`)
+        showAppAlert(`[Ver código de bloco]\n\n${preview}${suffix}`)
       }
     },
     [extendSchemaLookup, hasOpenSceneTabs, loadTextIntoCodeDock, scene],
@@ -2073,7 +2103,7 @@ function App() {
       }
 
       if (!hasOpenSceneTabs) {
-        window.alert('Abra uma cena de trabalho antes de pré-visualizar código de bloco.')
+        showAppAlert('Abra uma cena de trabalho antes de pré-visualizar código de bloco.')
         return
       }
 
@@ -2212,7 +2242,7 @@ function App() {
   const handleViewNodeGroupCode = useCallback(
     (nodeId: string) => {
       if (!hasOpenSceneTabs) {
-        window.alert('Abra uma cena de trabalho antes de pré-visualizar código de grupo.')
+        showAppAlert('Abra uma cena de trabalho antes de pré-visualizar código de grupo.')
         return
       }
 
@@ -2232,7 +2262,7 @@ function App() {
       )
 
       if (!result.ok) {
-        window.alert(result.error)
+        showAppAlert(result.error)
         return
       }
 
@@ -2244,7 +2274,7 @@ function App() {
           result.warnings.length > 30
             ? `\n… e mais ${String(result.warnings.length - 30)} aviso(s).`
             : ''
-        window.alert(`[Ver código de grupo]\n\n${preview}${suffix}`)
+        showAppAlert(`[Ver código de grupo]\n\n${preview}${suffix}`)
       }
     },
     [extendSchemaLookup, hasOpenSceneTabs, loadTextIntoCodeDock, scene],
@@ -2265,45 +2295,45 @@ function App() {
   const handleSyncNodeValueToCode = useCallback(
     (nodeId: string) => {
       if (!hasOpenSceneTabs) {
-        window.alert('Abra uma cena de trabalho antes de sincronizar valores.')
+        showAppAlert('Abra uma cena de trabalho antes de sincronizar valores.')
         return
       }
 
       if (!selectedNodeIds.includes(nodeId)) {
-        window.alert('Seleccione o nó antes de sincronizar valores para o código.')
+        showAppAlert('Seleccione o nó antes de sincronizar valores para o código.')
         return
       }
 
       if (selectedNodeIds.length > 1 && primarySelectedId !== nodeId) {
-        window.alert('Em selecção múltipla, sincronize apenas o nó primário seleccionado.')
+        showAppAlert('Em selecção múltipla, sincronize apenas o nó primário seleccionado.')
         return
       }
 
       if (!codeDockOpen) {
-        window.alert('Abra o painel Código com o ficheiro ritual antes de sincronizar.')
+        showAppAlert('Abra o painel Código com o ficheiro ritual antes de sincronizar.')
         return
       }
 
       if (!isRitobinEditorPath(codeDockFileName)) {
-        window.alert('A aba activa do CodeDock deve ser um ficheiro ritual (.bin ou .py).')
+        showAppAlert('A aba activa do CodeDock deve ser um ficheiro ritual (.bin ou .py).')
         return
       }
 
       if (!codeText.trim()) {
-        window.alert('O editor de código está vazio.')
+        showAppAlert('O editor de código está vazio.')
         return
       }
 
       const binding = nodeCodeBindings[nodeId]
       if (!binding) {
-        window.alert(
+        showAppAlert(
           'Nenhuma área vinculada a este nó. Seleccione o trecho no editor e use Shift+arrasto até ao nó para vincular.',
         )
         return
       }
 
       if (binding.codeDockTabId !== activeCodeDockTabId) {
-        window.alert(
+        showAppAlert(
           'A vinculação pertence a outra aba do editor. Active a aba correcta ou vincule de novo.',
         )
         return
@@ -2318,7 +2348,7 @@ function App() {
       )
 
       if (!result.ok) {
-        window.alert(result.error)
+        showAppAlert(result.error)
         return
       }
 
@@ -2331,7 +2361,7 @@ function App() {
           result.warnings.length > 30
             ? `\n… e mais ${String(result.warnings.length - 30)} aviso(s).`
             : ''
-        window.alert(`[Sync value to code]\n\n${preview}${suffix}`)
+        showAppAlert(`[Sync value to code]\n\n${preview}${suffix}`)
       }
     },
     [
@@ -2445,7 +2475,7 @@ function App() {
       if (bin.branch === 'success') {
         await loadTextIntoCodeDock(bin.text, file.name, bin.via, { fullText: true })
       } else if (bin.branch === 'error') {
-        window.alert(bin.message)
+        showAppAlert(bin.message)
       }
       return
     }
@@ -2459,13 +2489,13 @@ function App() {
         (isCanvasScene(parsedUnknown) ? hydrateScene(parsedUnknown) : binTreeJsonToCanvasScene(parsedUnknown))
 
       if (!graphCandidate) {
-        window.alert('Ficheiro JSON inválido (grafo node-graphs-lol, CanvasScene ou BinTree Jade).')
+        showAppAlert('Ficheiro JSON inválido (grafo node-graphs-lol, CanvasScene ou BinTree Jade).')
         return
       }
 
       openSceneInNewTab(stripExtension(file.name), graphCandidate, { sourceFileName: file.name })
     } catch {
-      window.alert('Não foi possível ler o JSON.')
+      showAppAlert('Não foi possível ler o JSON.')
     }
   }
 
@@ -2830,13 +2860,13 @@ function App() {
 
   const handleHumanizePropRitualInEditor = useCallback(async () => {
     if (!codeText.trim()) {
-      window.alert('O editor de código está vazio.')
+      showAppAlert('O editor de código está vazio.')
       return
     }
     const status = await refreshJadeResolveStatus()
     const result = await resolveRitualTextForEditor(codeText)
     if (!result.changed) {
-      window.alert(
+      showAppAlert(
         result.warning
           ? `Nenhuma hash foi convertida.\n\n${result.warning}`
           : 'Nenhuma hash foi convertida (nomes já legíveis ou hashes desconhecidas).',
@@ -2925,7 +2955,7 @@ function App() {
   const handlePreviewNodeVfx = useCallback(
     (nodeId: string) => {
       if (!hasOpenSceneTabs) {
-        window.alert('Abra uma cena de trabalho antes de pré-visualizar VFX.')
+        showAppAlert('Abra uma cena de trabalho antes de pré-visualizar VFX.')
         return
       }
 
@@ -2936,12 +2966,12 @@ function App() {
       )
 
       if (!result.ok) {
-        window.alert(result.error)
+        showAppAlert(result.error)
         return
       }
 
       if (!ritualContainsVfxSystem(result.text)) {
-        window.alert('O nó seleccionado não contém VfxSystemDefinitionData.')
+        showAppAlert('O nó seleccionado não contém VfxSystemDefinitionData.')
         return
       }
 
@@ -3068,7 +3098,7 @@ function App() {
     )
 
     if (!result.ok) {
-      window.alert(
+      showAppAlert(
         t(LangId.BlockInspectorBuildBlockFailed, undefined, {
           error: result.error,
         }),
@@ -3079,7 +3109,7 @@ function App() {
     const writeResult = await writeBlockDefinitionDocument(result.document)
 
     if (!writeResult.ok) {
-      window.alert(
+      showAppAlert(
         t(LangId.BlockInspectorBuildBlockFailed, undefined, {
           error: writeResult.error ?? 'Erro desconhecido',
         }),
@@ -3090,7 +3120,7 @@ function App() {
     const written = writeResult.written ?? result.document.id
     const overwrittenNote = writeResult.overwritten ? ' (substituído)' : ''
 
-    window.alert(
+    showAppAlert(
       t(LangId.BlockInspectorBuildBlockDone, undefined, {
         written,
         overwritten: overwrittenNote,
@@ -3117,7 +3147,7 @@ function App() {
     )
 
     if (documents.length === 0) {
-      window.alert(
+      showAppAlert(
         buildErrors.length > 0
           ? t(LangId.BlockInspectorBuildParameterFailed, undefined, {
               error: buildErrors.join('\n'),
@@ -3130,7 +3160,7 @@ function App() {
     const writeResult = await writeBlockParameterDocuments(documents)
 
     if (!writeResult.ok) {
-      window.alert(
+      showAppAlert(
         t(LangId.BlockInspectorBuildParameterFailed, undefined, {
           error: writeResult.error ?? 'Erro desconhecido',
         }),
@@ -3145,7 +3175,7 @@ function App() {
     const overwrittenNote =
       overwritten.length > 0 ? ` (${overwritten.length} substituídos)` : ''
 
-    window.alert(
+    showAppAlert(
       t(LangId.BlockInspectorBuildParameterDone, undefined, {
         written: String(written.length),
         overwritten: overwrittenNote,
@@ -3269,7 +3299,7 @@ function App() {
 
   const handleCodeBuildBlock = useCallback(async () => {
     if (!codeDockOpen) {
-      window.alert(t(LangId.CodeBuildBlockOpenEditor))
+      showAppAlert(t(LangId.CodeBuildBlockOpenEditor))
       return false
     }
 
@@ -3286,7 +3316,7 @@ function App() {
 
     const result = await revertBlockView(blockInspectorTarget.id)
     if (!result.ok) {
-      window.alert(result.error)
+      showAppAlert(result.error)
       return
     }
 
@@ -3296,7 +3326,7 @@ function App() {
         result.warnings.length > 20
           ? `\n… e mais ${String(result.warnings.length - 20)} aviso(s).`
           : ''
-      window.alert(`[Reverter bloco para nó]\n\n${preview}${suffix}`)
+      showAppAlert(`[Reverter bloco para nó]\n\n${preview}${suffix}`)
     }
   }, [blockInspectorTarget, revertBlockView])
 
@@ -3559,7 +3589,7 @@ function App() {
     }
 
     if (nodeInstanceStringCandidates.length === 0) {
-      window.alert(
+      showAppAlert(
         'Você precisa adicionar um parâmetro do tipo string em seu node para que defina o nome do node.',
       )
       return
@@ -3661,7 +3691,7 @@ function App() {
       }
 
       if (candidate.stringName.length === 0) {
-        window.alert('O valor do parâmetro string escolhido está vazio.')
+        showAppAlert('O valor do parâmetro string escolhido está vazio.')
         return
       }
 
@@ -3669,12 +3699,12 @@ function App() {
       const jsonRel = resolveNodeStructureJsonRelativePath(schemaId)
 
       if (!jsonRel) {
-        window.alert('Não foi possível localizar o JSON de origem deste node em nodeStructures.')
+        showAppAlert('Não foi possível localizar o JSON de origem deste node em nodeStructures.')
         return
       }
 
       if (!import.meta.env.DEV) {
-        window.alert(
+        showAppAlert(
           'Node Instance só grava em src/nodeStructures com o servidor de desenvolvimento (npm run dev).',
         )
         return
@@ -3683,7 +3713,7 @@ function App() {
       const instanceId = buildNodeInstanceId(schemaId, candidate.stringName)
 
       if (!instanceId) {
-        window.alert('O valor do parâmetro string escolhido não gera um nome de arquivo válido.')
+        showAppAlert('O valor do parâmetro string escolhido não gera um nome de arquivo válido.')
         return
       }
 
@@ -3709,7 +3739,7 @@ function App() {
               typeof payload === 'object' && payload !== null && 'error' in payload
                 ? String(Reflect.get(payload, 'error'))
                 : `HTTP ${String(res.status)}`
-            window.alert(`Node Instance falhou: ${error}`)
+            showAppAlert(`Node Instance falhou: ${error}`)
             return
           }
 
@@ -3718,9 +3748,9 @@ function App() {
               ? String(Reflect.get(payload, 'relativePath'))
               : instance.id
           setNodeInstanceStringPickerNodeId(null)
-          window.alert(`Node Instance salva em ${savedRelativePath}.`)
+          showAppAlert(`Node Instance salva em ${savedRelativePath}.`)
         } catch {
-          window.alert('Servidor dev indisponível ou pedido de Node Instance falhou.')
+          showAppAlert('Servidor dev indisponível ou pedido de Node Instance falhou.')
         }
       })()
     },
@@ -4153,7 +4183,7 @@ function App() {
           const raw = JSON.parse(String(reader.result ?? ''))
           const parsed = parseSceneNodesStatePresetsFile(raw)
           if (parsed === undefined) {
-            window.alert('Ficheiro JSON inválido para estados de nodes em cena.')
+            showAppAlert('Ficheiro JSON inválido para estados de nodes em cena.')
             return
           }
           if (sceneNodesStatePresets.length > 0) {
@@ -4166,7 +4196,7 @@ function App() {
           }
           replaceSceneNodesStatePresets(parsed.presets)
         } catch {
-          window.alert('Não foi possível ler o ficheiro JSON.')
+          showAppAlert('Não foi possível ler o ficheiro JSON.')
         }
       }
       reader.readAsText(file)
@@ -4260,11 +4290,16 @@ function App() {
           <div className={styles.graphSurface}>
             <div className={styles.sceneTabRow}>
               {hasOpenSceneTabs ? (
-                <div
-                  className={styles.sceneToolbarChrome}
-                  data-canvas-toolbar-chrome=""
-                  ref={setCanvasToolbarChromeHost}
-                />
+                <>
+                  <div className={styles.sceneEditorTitle}>
+                    <EditorDockFavicon kind="node" />
+                  </div>
+                  <div
+                    className={styles.sceneToolbarChrome}
+                    data-canvas-toolbar-chrome=""
+                    ref={setCanvasToolbarChromeHost}
+                  />
+                </>
               ) : null}
               <div className={styles.sceneTabBarSlot}>
                 <SceneTabBar
@@ -4278,9 +4313,11 @@ function App() {
               </div>
               {hasOpenSceneTabs ? (
                 <CanvasViewportStatusBar
-                  nodeCount={scene.nodes.length}
                   pan={scene.camera?.pan ?? { x: 0, y: 0 }}
                   scale={scene.camera?.scale ?? 1}
+                  totalNodeCount={scene.nodes.length}
+                  visibleNodeCount={visibleNodeCount}
+                  selectedNodeCount={selectedNodeIds.length}
                 />
               ) : null}
             </div>
@@ -4363,6 +4400,8 @@ function App() {
             onSetConnectionRouting={setConnectionRouting}
             onMarqueeCommit={commitMarqueeSelection}
             onMoveNode={moveNode}
+            onBeginNodeDrag={beginNodeDrag}
+            onEndNodeDrag={endNodeDrag}
             onSceneCameraChange={setSceneCamera}
             onToolbarVisibilityChange={(toolbarVisibility) =>
               patchSceneChrome({ toolbarVisibility })
@@ -4422,6 +4461,9 @@ function App() {
             onShowOnlySlotSubtree={showOnlySlotSubtree}
             onShowOnlyIncomingSlotBranch={showOnlyIncomingSlotBranch}
             onHideLinkedChildNodes={hideLinkedChildNodes}
+            onShowLinkedChildNodes={showLinkedChildNodes}
+            onHideInactiveBlockIndexBranches={hideInactiveBlockIndexBranches}
+            onApplyBlockOrganization={applyBlockOrganization}
             onSetNodeParameterOrder={setNodeParameterOrder}
             paletteRequestSignal={paletteSignal}
             scene={scene}
@@ -4440,6 +4482,9 @@ function App() {
               showGroupInspectorPinnedToToolbar ? groupInspectorControlsSlot : null
             }
             onUpdateBlockParameter={updateBlockParameter}
+            nodeLightModeEnabled={nodeLightModeEnabled}
+            onSetBlockOutputSlotConnectionIndex={setBlockOutputSlotConnectionIndex}
+            onSetBlockElementSelectedIndex={setBlockElementSelectedIndex}
             onConnectBlockSlots={connectBlockSlots}
             onUpdateGroupParameter={updateGroupParameter}
             onConnectGroupSlots={connectGroupSlots}
@@ -4730,6 +4775,7 @@ function App() {
           cancelLabel="Cancelar"
           closeLabel="OK"
           completed={codeToNodeBlockUi.completed}
+          elapsedSeconds={codeToNodeBlockElapsedSeconds}
           onCancelConfirm={() => {
             codeToNodeBlockCancelRef.current = true
             setCodeToNodeBlockUi((current) =>

@@ -84,24 +84,25 @@
 }
 
 .stepBtn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.35rem;
-  height: 1.35rem;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
   padding: 0;
-  color: var(--color-text-secondary);
-  font-size: 0.9rem;
-  line-height: 1;
-  background: rgb(255 255 255 / 4%);
-  border: 1px solid rgb(255 255 255 / 10%);
-  border-radius: 4px;
+  color: var(--ctx-menu-fg, var(--color-text-secondary));
+  font: inherit;
+  font-size: var(--ctx-menu-shortcut-font-size, 11.5px);
   cursor: pointer;
+  background: transparent;
+  border: 1px solid var(--ctx-menu-border, #454545);
+  border-radius: var(--ctx-menu-radius, 4px);
+  transition: color 100ms ease, background 100ms ease, border-color 100ms ease;
 }
 
-.stepBtn:hover {
-  color: var(--color-text-primary);
-  background: rgb(255 255 255 / 8%);
+.stepBtn:hover:not(:disabled) {
+  color: var(--ctx-menu-hover-fg, #fff);
+  background: var(--ctx-menu-hover-bg, #007acc);
+  border-color: var(--ctx-menu-hover-bg, #007acc);
 }
 
 .valueInput {

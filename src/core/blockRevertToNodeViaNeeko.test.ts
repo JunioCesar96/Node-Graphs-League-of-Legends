@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   applyBlockRevertNeekoToScene,
+  collectBlockLinkedChildNodeIds,
   collectBlockSlotLinkedNodeIds,
 } from '@/core/blockRevertToNodeViaNeeko'
 import type { CanvasScene } from '@/core/canvasScene'
@@ -72,6 +73,11 @@ function makeScene(): CanvasScene {
 }
 
 describe('blockRevertToNodeViaNeeko', () => {
+  it('collectBlockLinkedChildNodeIds inclui só descendentes por slot de bloco', () => {
+    const linked = collectBlockLinkedChildNodeIds(makeScene(), 'root')
+    expect(linked).toEqual(new Set(['child-a', 'child-b']))
+  })
+
   it('collectBlockSlotLinkedNodeIds percorre filhos ligados por slots de bloco', () => {
     const linked = collectBlockSlotLinkedNodeIds(makeScene(), 'root')
     expect(linked).toEqual(new Set(['child-a', 'child-b']))

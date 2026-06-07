@@ -29,7 +29,7 @@
   z-index: 10050;
   max-width: none;
   outline: none;
-  filter: drop-shadow(-12px 12px 40px rgb(0 0 0 / 48%));
+  filter: var(--editor-window-floating-filter, drop-shadow(-12px 12px 40px rgb(0 0 0 / 48%)));
 }
 
 .jadeEditorBanner {
@@ -70,8 +70,10 @@
   border-radius: 6px;
 }
 
-.jadeEditorBannerAction:hover {
-  background: rgb(255 255 255 / 14%);
+.jadeEditorBannerAction:hover:not(:disabled) {
+  color: var(--ctx-menu-hover-fg, #fff);
+  background: var(--ctx-menu-hover-bg, #007acc);
+  border-color: var(--ctx-menu-hover-bg, #007acc);
 }
 
 .shell {
@@ -82,10 +84,10 @@
   flex-shrink: 0;
   min-width: 446px;
   max-width: 760px;
-  background: var(--code-dock-shell-bg);
-  border: 1px solid var(--color-border-soft);
-  border-radius: 18px;
-  box-shadow: -16px 0 48px rgb(0 0 0 / 35%);
+  background: var(--editor-window-shell-bg, var(--code-dock-shell-bg));
+  border: var(--editor-window-shell-border, 1px solid var(--color-border-soft));
+  border-radius: var(--editor-window-shell-radius, 0);
+  box-shadow: var(--editor-window-shell-shadow, -16px 0 48px rgb(0 0 0 / 35%));
 }
 
 .shellFloating {
@@ -105,7 +107,7 @@
   cursor: col-resize;
   background: transparent;
   border: none;
-  border-radius: 18px 0 0 18px;
+  border-radius: 0;
   opacity: 0;
   transition:
     opacity 140ms ease,
@@ -165,16 +167,38 @@
 
 .header {
   display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: var(--space-2);
+  flex-shrink: 0;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 0;
   min-height: 36px;
-  padding: var(--space-1) var(--space-2) 0;
+  padding: 0;
   color: var(--color-text-secondary);
   font-family: var(--font-data);
   font-size: 0.72rem;
-  background: var(--code-dock-header-bg);
+  background: var(--editor-window-header-bg, var(--code-dock-header-bg));
   border-bottom: 1px solid var(--color-border-soft);
+}
+
+.headerTitle {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  gap: 2px;
+  justify-content: center;
+  align-items: center;
+  min-width: 36px;
+  max-width: 36px;
+  height: 100%;
+  padding: 0 var(--space-1);
+  border-right: 1px solid var(--color-border-soft);
+}
+
+.headerMain {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: flex-end;
+  min-width: 0;
 }
 
 .menuBarDragShell {
@@ -195,27 +219,23 @@
   cursor: inherit;
 }
 
-.headerActions {
-  display: flex;
-  flex-shrink: 0;
-  gap: var(--space-2);
-  align-items: center;
-}
-
 .headerGhostButton {
-  padding: var(--space-1) var(--space-2);
-  color: var(--color-text-secondary);
-  font-size: 0.66rem;
+  padding: var(--ctx-menu-item-padding-block, 5px) 12px;
+  color: var(--ctx-menu-fg, var(--color-text-primary));
+  font: inherit;
+  font-size: var(--ctx-menu-shortcut-font-size, 11.5px);
   white-space: nowrap;
   cursor: pointer;
-  background: rgb(255 255 255 / 5%);
-  border: 1px solid var(--color-border-soft);
-  border-radius: 8px;
+  background: transparent;
+  border: 1px solid var(--ctx-menu-border, #454545);
+  border-radius: var(--ctx-menu-radius, 4px);
+  transition: color 100ms ease, background 100ms ease, border-color 100ms ease;
 }
 
-.headerGhostButton:hover {
-  color: var(--color-text-primary);
-  background: rgb(255 255 255 / 9%);
+.headerGhostButton:hover:not(:disabled) {
+  color: var(--ctx-menu-hover-fg, #fff);
+  background: var(--ctx-menu-hover-bg, #007acc);
+  border-color: var(--ctx-menu-hover-bg, #007acc);
 }
 
 .nodeToolbar {
@@ -275,14 +295,16 @@
   border-radius: 6px;
 }
 
-.converterMenuItem:hover {
-  color: var(--color-text-primary);
-  background: rgb(255 255 255 / 8%);
+.converterMenuItem:hover:not(:disabled) {
+  color: var(--ctx-menu-hover-fg, #fff);
+  background: var(--ctx-menu-hover-bg, #007acc);
+  border-color: var(--ctx-menu-hover-bg, #007acc);
 }
 
-.converterMenuItemDanger:hover {
-  color: rgb(255 210 215);
-  background: rgb(140 32 40 / 45%);
+.converterMenuItemDanger:hover:not(:disabled) {
+  color: #fff;
+  background: rgb(180 40 40 / 88%);
+  border-color: rgb(180 40 40 / 88%);
 }
 
 .dialogBackdrop {
@@ -294,11 +316,11 @@
   justify-content: center;
   padding: var(--space-4);
   background: rgb(0 0 0 / 55%);
-  border-radius: 0 0 16px 16px;
+  border-radius: 0;
 }
 
 .shellFloating .dialogBackdrop {
-  border-radius: 0 0 18px 18px;
+  border-radius: 0;
 }
 
 .dialogPanel {
@@ -390,7 +412,9 @@
 }
 
 .dialogDanger:hover:not(:disabled) {
-  background: rgb(170 48 58 / 95%);
+  color: #fff;
+  background: rgb(180 40 40 / 88%);
+  border-color: rgb(180 40 40 / 88%);
 }
 
 .dialogDanger:disabled {
@@ -399,12 +423,21 @@
 }
 
 .close {
-  padding: var(--space-1) var(--space-2);
-  color: var(--color-text-primary);
-  font-size: 0.72rem;
-  background: rgb(255 255 255 / 6%);
-  border: 1px solid var(--color-border-soft);
-  border-radius: 8px;
+  padding: var(--ctx-menu-item-padding-block, 5px) 12px;
+  color: var(--ctx-menu-fg, var(--color-text-primary));
+  font: inherit;
+  font-size: var(--ctx-menu-shortcut-font-size, 11.5px);
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid var(--ctx-menu-border, #454545);
+  border-radius: var(--ctx-menu-radius, 4px);
+  transition: color 100ms ease, background 100ms ease, border-color 100ms ease;
+}
+
+.close:hover:not(:disabled) {
+  color: var(--ctx-menu-hover-fg, #fff);
+  background: var(--ctx-menu-hover-bg, #007acc);
+  border-color: var(--ctx-menu-hover-bg, #007acc);
 }
 
 .loading {

@@ -1,0 +1,163 @@
+/**
+ * Botões compactos partilhados — alinhados a --ctx-menu-* (menu do editor / Monaco).
+ * Classes globais opcionais; módulos CSS devem preferir os mesmos tokens directamente.
+ */
+
+.ctx-btn,
+.ctx-btn-ghost,
+.ctx-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  min-height: 26px;
+  padding: var(--ctx-menu-item-padding-block, 5px) 12px;
+  color: var(--ctx-menu-fg, var(--color-text-primary));
+  font: inherit;
+  font-size: var(--ctx-menu-shortcut-font-size, 11.5px);
+  font-weight: 500;
+  line-height: 1.2;
+  text-align: center;
+  white-space: nowrap;
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid var(--ctx-menu-border, #454545);
+  border-radius: var(--ctx-menu-radius, 4px);
+  transition:
+    color 100ms ease,
+    background 100ms ease,
+    border-color 100ms ease,
+    opacity 100ms ease;
+}
+
+.ctx-btn:hover:not(:disabled),
+.ctx-btn-ghost:hover:not(:disabled),
+.ctx-btn-secondary:hover:not(:disabled) {
+  color: var(--ctx-menu-hover-fg, #fff);
+  background: var(--ctx-menu-hover-bg, #007acc);
+  border-color: var(--ctx-menu-hover-bg, #007acc);
+}
+
+.ctx-btn:disabled,
+.ctx-btn-ghost:disabled,
+.ctx-btn-secondary:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.ctx-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  min-height: 26px;
+  padding: var(--ctx-menu-item-padding-block, 5px) 12px;
+  color: var(--ctx-menu-hover-fg, #fff);
+  font: inherit;
+  font-size: var(--ctx-menu-shortcut-font-size, 11.5px);
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: center;
+  white-space: nowrap;
+  cursor: pointer;
+  background: var(--ctx-menu-hover-bg, #007acc);
+  border: 1px solid var(--ctx-menu-hover-bg, #007acc);
+  border-radius: var(--ctx-menu-radius, 4px);
+  transition:
+    filter 100ms ease,
+    opacity 100ms ease;
+}
+
+.ctx-btn-primary:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.ctx-btn-primary:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.ctx-btn-danger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  min-height: 26px;
+  padding: var(--ctx-menu-item-padding-block, 5px) 12px;
+  color: rgb(255 140 140);
+  font: inherit;
+  font-size: var(--ctx-menu-shortcut-font-size, 11.5px);
+  font-weight: 500;
+  line-height: 1.2;
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid var(--ctx-menu-border, #454545);
+  border-radius: var(--ctx-menu-radius, 4px);
+  transition:
+    color 100ms ease,
+    background 100ms ease,
+    border-color 100ms ease;
+}
+
+.ctx-btn-danger:hover:not(:disabled) {
+  color: #fff;
+  background: rgb(180 40 40 / 88%);
+  border-color: rgb(180 40 40 / 88%);
+}
+
+.ctx-btn-icon {
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  min-width: 26px;
+  min-height: 26px;
+  padding: 0;
+  color: var(--ctx-menu-fg, var(--color-text-primary));
+  font: inherit;
+  line-height: 1;
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid var(--ctx-menu-border, #454545);
+  border-radius: var(--ctx-menu-radius, 4px);
+  transition:
+    color 100ms ease,
+    background 100ms ease,
+    border-color 100ms ease;
+}
+
+.ctx-btn-icon:hover:not(:disabled) {
+  color: var(--ctx-menu-hover-fg, #fff);
+  background: var(--ctx-menu-hover-bg, #007acc);
+  border-color: var(--ctx-menu-hover-bg, #007acc);
+}
+
+.ctx-btn-icon:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.ctx-btn-menu-row {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: var(--palette-menu-row-height, 26px);
+  padding: var(--ctx-menu-item-padding-block, 5px) var(--ctx-menu-item-padding-inline, 20px);
+  color: var(--ctx-menu-fg, var(--color-text-primary));
+  font: inherit;
+  font-size: var(--ctx-menu-font-size, 12.5px);
+  text-align: left;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  transition: color 100ms ease, background 100ms ease;
+}
+
+.ctx-btn-menu-row:hover:not(:disabled),
+.ctx-btn-menu-row[aria-pressed='true'],
+.ctx-btn-menu-row.ctx-btn-menu-row-active {
+  color: var(--ctx-menu-hover-fg, #fff);
+  background: var(--ctx-menu-hover-bg, #007acc);
+}

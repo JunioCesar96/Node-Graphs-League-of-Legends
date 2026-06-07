@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { showAppAlert } from '@/messenger_popup/appMessenger'
 import type { Monaco } from '@monaco-editor/react'
 import type * as MonacoType from 'monaco-editor'
 
@@ -346,7 +347,7 @@ export function useCodeDockJadeEditor(
   }, [])
 
   const showTauriToast = useCallback(() => {
-    window.alert('Esta acção requer o Jade desktop ou a ponte HTTP Tauri (Fase 2).')
+    showAppAlert('Esta acção requer o Jade desktop ou a ponte HTTP Tauri (Fase 2).')
   }, [])
 
   const handleMaterialLibrary = useCallback(() => {
@@ -354,7 +355,7 @@ export function useCodeDockJadeEditor(
   }, [showTauriToast])
 
   const handleCompareFiles = useCallback(() => {
-    window.alert('Compare Files: disponível no Jade desktop.')
+    showAppAlert('Compare Files: disponível no Jade desktop.')
   }, [])
 
   const applyCodeDockTheme = useCallback(async () => {

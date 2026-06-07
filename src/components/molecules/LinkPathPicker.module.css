@@ -94,20 +94,26 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 2rem;
-  height: 2rem;
+  width: 26px;
+  height: 26px;
   padding: 0;
-  color: var(--color-text-primary);
+  color: var(--ctx-menu-fg, var(--color-text-primary));
   font-size: 1.1rem;
   line-height: 1;
-  background: rgb(255 255 255 / 4%);
-  border: 1px solid rgb(255 255 255 / 14%);
-  border-radius: 6px;
+  background: transparent;
+  border: 1px solid var(--ctx-menu-border, #454545);
+  border-radius: var(--ctx-menu-radius, 4px);
   cursor: pointer;
+  transition:
+    color 100ms ease,
+    background 100ms ease,
+    border-color 100ms ease;
 }
 
 .controlBtn:hover {
-  background: rgb(255 255 255 / 10%);
+  color: var(--ctx-menu-hover-fg, #fff);
+  background: var(--ctx-menu-hover-bg, #007acc);
+  border-color: var(--ctx-menu-hover-bg, #007acc);
 }
 
 .embedded {

@@ -1,5 +1,8 @@
 import type { CanvasConnection, CanvasNode, CanvasScene } from '@/core/canvasScene'
 import { canvasNodeHasBlockCode } from '@/core/blockRitualExport'
+import { collectBlockLinkedChildNodeIds } from '@/core/blockRevertToNodeViaNeeko'
+import { hasVisibleInactiveBlockIndexBranches } from '@/core/blockCompactBranchVisibility'
+import { isBlockCanvasNode } from '@/core/blockOrganizationLayout'
 import { canvasNodeHasGroupCode } from '@/core/groupRitualExport'
 import { isNodeLocked, isNodeRemovableFromScene } from '@/core/canvasNodePresentation'
 import {
@@ -110,6 +113,8 @@ export type CanvasContextMenuBuildContext = {
   }
   /** Slash commands do card de bloco (adicionar / remover preset). */
   onRequestBlockSlashCommand?: (nodeId: string, action: 'add' | 'remove') => void
+  /** Oculta ramificações fora do índice activo (list[pointer] / map*). */
+  onHideInactiveBlockIndexBranches?: (nodeId: string) => void
 }
 
 function trLabel(
@@ -378,6 +383,128 @@ function isStructureCardView(canvasNode: CanvasNode | undefined): boolean {
   )
 }
 
+function collectSelectedBlockNodeIds(ctx: CanvasContextMenuBuildContext): string[] {
+  return ctx.selectedNodeIds.filter((nodeId) => isBlockCanvasNode(findCanvasNode(ctx.scene, nodeId)))
+}
+
+function buildBlockOrganizationMenuItems(ctx: CanvasContextMenuBuildContext): ContextMenuItem[] {
+  const blockIds = collectSelectedBlockNodeIds(ctx)
+  if (blockIds.length < 2) {
+    return []
+  }
+
+  const locked = blockIds.some((nodeId) => {
+    const node = findCanvasNode(ctx.scene, nodeId)
+    return node ? isNodeLocked(node) : false
+  })
+  const canDistribute = blockIds.length >= 3
+  const distributeDisabled = locked || !canDistribute
+
+  const leaf = (
+    id: Extract<
+      ContextMenuItemId,
+      | 'node.blockOrganization.align.left'
+      | 'node.blockOrganization.align.centerHorizontal'
+      | 'node.blockOrganization.align.right'
+      | 'node.blockOrganization.align.top'
+      | 'node.blockOrganization.align.centerVertical'
+      | 'node.blockOrganization.align.bottom'
+      | 'node.blockOrganization.distribute.left'
+      | 'node.blockOrganization.distribute.centerHorizontal'
+      | 'node.blockOrganization.distribute.right'
+      | 'node.blockOrganization.distribute.top'
+      | 'node.blockOrganization.distribute.centerVertical'
+      | 'node.blockOrganization.distribute.bottom'
+    >,
+    langId: number,
+    fallback: string,
+    disabled: boolean,
+    separatorBefore = false,
+  ): ContextMenuItem => ({
+    id,
+    label: trLabel(ctx, langId, fallback),
+    disabled,
+    ...(separatorBefore ? { separatorBefore: true } : {}),
+  })
+
+  return [
+    {
+      id: 'node.blockOrganization',
+      label: trLabel(ctx, LangId.CtxBlockOrganization, 'Organização'),
+      separatorBefore: true,
+      children: [
+        {
+          id: 'node.blockOrganization.align',
+          label: trLabel(ctx, LangId.CtxBlockOrgAlign, 'Alinhar'),
+          children: [
+            leaf('node.blockOrganization.align.left', LangId.CtxBlockOrgAlignLeft, 'Esquerda', locked),
+            leaf(
+              'node.blockOrganization.align.centerHorizontal',
+              LangId.CtxBlockOrgAlignCenterH,
+              'Centro horizontal',
+              locked,
+            ),
+            leaf('node.blockOrganization.align.right', LangId.CtxBlockOrgAlignRight, 'Direita', locked),
+            leaf('node.blockOrganization.align.top', LangId.CtxBlockOrgAlignTop, 'Topo', locked, true),
+            leaf(
+              'node.blockOrganization.align.centerVertical',
+              LangId.CtxBlockOrgAlignCenterV,
+              'Centro vertical',
+              locked,
+            ),
+            leaf('node.blockOrganization.align.bottom', LangId.CtxBlockOrgAlignBottom, 'Base', locked),
+          ],
+        },
+        {
+          id: 'node.blockOrganization.distribute',
+          label: trLabel(ctx, LangId.CtxBlockOrgDistribute, 'Distribuir'),
+          disabled: distributeDisabled,
+          children: [
+            leaf(
+              'node.blockOrganization.distribute.left',
+              LangId.CtxBlockOrgDistributeLeft,
+              'Esquerda',
+              distributeDisabled,
+              true,
+            ),
+            leaf(
+              'node.blockOrganization.distribute.centerHorizontal',
+              LangId.CtxBlockOrgDistributeCenterH,
+              'Centro horizontal',
+              distributeDisabled,
+            ),
+            leaf(
+              'node.blockOrganization.distribute.right',
+              LangId.CtxBlockOrgDistributeRight,
+              'Direita',
+              distributeDisabled,
+            ),
+            leaf(
+              'node.blockOrganization.distribute.top',
+              LangId.CtxBlockOrgDistributeTop,
+              'Topo',
+              distributeDisabled,
+              true,
+            ),
+            leaf(
+              'node.blockOrganization.distribute.centerVertical',
+              LangId.CtxBlockOrgDistributeCenterV,
+              'Centro vertical',
+              distributeDisabled,
+            ),
+            leaf(
+              'node.blockOrganization.distribute.bottom',
+              LangId.CtxBlockOrgDistributeBottom,
+              'Base',
+              distributeDisabled,
+            ),
+          ],
+        },
+      ],
+    },
+  ]
+}
+
 function buildStructureCardItems(
   ctx: CanvasContextMenuBuildContext,
   nodeId: string,
@@ -475,6 +602,44 @@ function buildStructureCardItems(
                   label: trLabel(ctx, LangId.BlockCardSlashCommandsRemove, 'Remover'),
                 },
               ],
+            },
+          ]
+        : []),
+      ...buildBlockOrganizationMenuItems(ctx),
+      ...(hasVisibleInactiveBlockIndexBranches(ctx.scene, canvasNode)
+        ? [
+            {
+              id: 'node.hideInactiveBlockIndexBranches' as const,
+              label: trLabel(
+                ctx,
+                LangId.CtxHideInactiveBlockIndexBranches,
+                'Ocultar todos os índices deseleccionados',
+              ),
+              disabled: !isSelected,
+              separatorBefore: true,
+            },
+          ]
+        : []),
+      ...(collectBlockLinkedChildNodeIds(ctx.scene, nodeId).size > 0
+        ? [
+            {
+              id: 'node.hideLinkedChildNodes' as const,
+              label: trLabel(
+                ctx,
+                LangId.CtxHideLinkedBlockChildren,
+                'Ocultar todos os blocos filhos',
+              ),
+              disabled: !isSelected,
+              separatorBefore: true,
+            },
+            {
+              id: 'node.showLinkedChildNodes' as const,
+              label: trLabel(
+                ctx,
+                LangId.CtxShowLinkedBlockChildren,
+                'Mostrar todos os blocos filhos',
+              ),
+              disabled: !isSelected,
             },
           ]
         : []),

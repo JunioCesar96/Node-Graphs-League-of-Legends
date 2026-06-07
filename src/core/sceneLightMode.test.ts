@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { emptyCanvasScene } from '@/core/canvasScene'
 import { elementViewKeyForParameter, getElementViewState } from '@/core/elementViewState'
 import { applyLightModeCompactToNode, applyLightModeToScene } from '@/core/sceneLightMode'
+import { blockElementViewKeyForParameter, getBlockElementViewState } from '@/core/blockElementViewState'
 import type { NodeInstance } from '@/core/nodeSchema'
 
 function nodeWithMapParam(mode: 'list' | 'compact'): NodeInstance {
@@ -66,5 +67,39 @@ describe('sceneLightMode', () => {
       values: [],
     }
     expect(() => applyLightModeCompactToNode(node)).not.toThrow()
+  })
+
+  it('applyLightModeToScene with initBlockIndices sets block map entries to index 0', () => {
+    const scene = {
+      ...emptyCanvasScene,
+      nodes: [
+        {
+          id: 'b1',
+          position: { x: 0, y: 0 },
+          node: { id: 'b1', schema: { id: 's', title: 'T', parameters: [] }, values: [] },
+          blockViewActive: true,
+          blockStructure: {
+            blockType: 'Main',
+            blockName: 'Main',
+            parameters: [
+              {
+                idParameter: 'entries',
+                nameParameter: 'entries',
+                typeParameter: 'mapHashEmbed',
+                defaultValue: '',
+                sourcePath: { kind: 'parameter', parameterId: 'entries' },
+              },
+            ],
+            identification_codes: [],
+          },
+          blockElementView: {
+            [blockElementViewKeyForParameter('entries')]: { mode: 'list', selectedIndex: 2 },
+          },
+        },
+      ],
+    }
+    const next = applyLightModeToScene(scene, { initBlockIndices: true })
+    const key = blockElementViewKeyForParameter('entries')
+    expect(getBlockElementViewState(next.nodes[0]!, key)).toEqual({ mode: 'compact', selectedIndex: 0 })
   })
 })

@@ -16,6 +16,7 @@ import type { BlockParameterJsonDocument } from './blockParameterJson'
 import { sanitizeBlockParameterFileStem } from './blockParameterJson'
 import { buildParameterDocumentsFromRitualSchema } from './blockParameterRitualModel'
 import { deriveChildBlockNodeId } from './blockParameterSynthesis'
+import { blockParameterCatalogKey } from './blockSpawnCatalog'
 import { blockTypeDefinitionById } from './blockStructureRegistry'
 import { templatizeSchemaNodeId } from './blockParameterIdTemplate'
 import type { CanvasNode, CanvasScene } from './canvasScene'
@@ -282,11 +283,7 @@ export function collectBlockInstancesFromRitualParse(
   })
 }
 
-function blockParameterCatalogKey(doc: BlockParameterJsonDocument): string {
-  return `${doc.block.trim()}::${doc.parameterName.trim()}`
-}
-
-/** Extrai JSON de parâmetro a partir dos schemas ritual parseados (1 doc por bloco+nome). */
+/** Extrai JSON de parâmetro a partir dos schemas ritual parseados. */
 export function extractBlockParameterDocumentsFromRitualInstances(
   instances: readonly RitualBlockInstanceContext[],
 ): BlockParameterJsonDocument[] {
@@ -327,15 +324,19 @@ export function synchronizeParameterDocumentsWithBlockDefinitions(
 
   for (const blockDoc of blockDocuments) {
     for (const parameterName of blockDoc.parameters) {
-      const key = `${blockDoc.blockName.trim()}::${parameterName.trim()}`
-      if (byKey.has(key)) {
+      const block = blockDoc.blockName.trim()
+      const name = parameterName.trim()
+      const alreadyPresent = [...byKey.values()].some(
+        (doc) => doc.block.trim() === block && doc.parameterName.trim() === name,
+      )
+      if (alreadyPresent) {
         continue
       }
       const fallback = extracted.find(
-        (doc) => doc.block.trim() === blockDoc.blockName.trim() && doc.parameterName.trim() === parameterName.trim(),
+        (doc) => doc.block.trim() === block && doc.parameterName.trim() === name,
       )
       if (fallback) {
-        byKey.set(key, fallback)
+        byKey.set(blockParameterCatalogKey(fallback), fallback)
       }
     }
   }

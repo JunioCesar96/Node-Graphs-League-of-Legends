@@ -33,6 +33,7 @@ import type { BlockSlotPeerActions } from '@/core/blockSlotPeerActions'
 import { BlockSlotPeerToolbar } from '@/components/molecules/BlockSlotPeerToolbar'
 import { readBlockParameterDisplayValue } from '@/core/syncBlockToCode'
 import { findConnectionsForBlockOutputSlot } from '@/core/blockSlotConnections'
+import type { BlockElementViewKey, BlockElementViewState } from '@/core/blockElementViewState'
 
 import styles from './BlockCard.module.css'
 
@@ -82,6 +83,11 @@ type BlockCardProps = {
   resolveBlockOutputSlotConnectionIndex?: (slotId: string, connectionCount: number) => number
   onBlockOutputSlotConnectionIndexChange?: (slotId: string, index: number) => void
   slotToolsEnabled?: boolean
+  /** Mostrar pager de fan-out (modo leve ou slot tools). */
+  slotPagerEnabled?: boolean
+  lightModeEnabled?: boolean
+  blockElementView?: Partial<Record<BlockElementViewKey, BlockElementViewState>>
+  onBlockElementSelectedIndexChange?: (elementKey: BlockElementViewKey, index: number) => void
   onSlotToolsEnabledChange?: (enabled: boolean) => void
   blockSlotPeerActions?: BlockSlotPeerActions
   onMapHashStructureSlotRemoved?: (slotId: string) => void
@@ -121,6 +127,10 @@ export function BlockCard({
   resolveBlockOutputSlotConnectionIndex,
   onBlockOutputSlotConnectionIndexChange,
   slotToolsEnabled = false,
+  slotPagerEnabled = false,
+  lightModeEnabled = false,
+  blockElementView,
+  onBlockElementSelectedIndexChange,
   onSlotToolsEnabledChange,
   blockSlotPeerActions,
   onMapHashStructureSlotRemoved,
@@ -178,7 +188,7 @@ export function BlockCard({
   }
   const headerInputPorts = headerPorts.filter((port) => port.direction === 'input')
   const headerOutputPorts = headerPorts.filter((port) => port.direction === 'output')
-  const headerOutputPortsWithPagerBelow = slotToolsEnabled
+  const headerOutputPortsWithPagerBelow = slotPagerEnabled
     ? headerOutputPorts.filter(
         (port) =>
           findConnectionsForBlockOutputSlot(scene, canvasNode.id, port.slotId).length > 1,
@@ -330,7 +340,7 @@ export function BlockCard({
                 style={{ transform: `translateY(${String(headerPortOffsetY(port))}px)` }}
               >
                 <div className={styles.headerSlotOutStack}>
-                  {!slotToolsEnabled ? (
+                  {slotPagerEnabled && !slotToolsEnabled ? (
                     <BlockSlotConnectionPager
                       onSelectedIndexChange={(index) =>
                         onBlockOutputSlotConnectionIndexChange?.(port.slotId, index)
@@ -475,6 +485,10 @@ export function BlockCard({
                 onBlockOutputSlotConnectionIndexChange?.(outputSlotId, index)
               }
               slotToolsEnabled={slotToolsEnabled}
+              slotPagerEnabled={slotPagerEnabled}
+              lightModeEnabled={lightModeEnabled}
+              blockElementView={blockElementView ?? canvasNode.blockElementView}
+              onBlockElementSelectedIndexChange={onBlockElementSelectedIndexChange}
               blockSlotPeerActions={blockSlotPeerActions}
               blockWirelessSlots={blockWirelessDisplay?.slots}
               pulseSlotId={blockWirelessPulseSlotId}

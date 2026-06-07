@@ -138,6 +138,22 @@ function ContextMenuButton({
   )
 }
 
+function isSubmenuBranchOpen(item: ContextMenuItem, targetId: ContextMenuItemId | null): boolean {
+  if (!targetId) {
+    return false
+  }
+
+  if (item.id === targetId) {
+    return true
+  }
+
+  return (item.children ?? []).some((child) => isSubmenuBranchOpen(child, targetId))
+}
+
+function submenuHasNestedFlyout(item: ContextMenuItem): boolean {
+  return (item.children ?? []).some((child) => (child.children?.length ?? 0) > 0)
+}
+
 function ContextMenuEntry({
   item,
   onClose,
@@ -147,6 +163,7 @@ function ContextMenuEntry({
   openSubmenuId,
   onOpenSubmenu,
   onCloseSubmenus,
+  depth = 0,
 }: {
   item: ContextMenuItem
   onClose: () => void
@@ -156,17 +173,20 @@ function ContextMenuEntry({
   openSubmenuId: ContextMenuItemId | null
   onOpenSubmenu: (id: ContextMenuItemId) => void
   onCloseSubmenus: () => void
+  depth?: number
 }) {
   if (item.children && item.children.length > 0) {
     return (
       <ContextMenuSubmenuRow
+        depth={depth}
         highlighted={highlighted}
         item={item}
-        isOpen={openSubmenuId === item.id}
+        isOpen={isSubmenuBranchOpen(item, openSubmenuId)}
         onClose={onClose}
         onCloseSubmenus={onCloseSubmenus}
         onOpenSubmenu={onOpenSubmenu}
         onSelect={onSelect}
+        openSubmenuId={openSubmenuId}
         t={t}
       />
     )
@@ -193,6 +213,8 @@ function ContextMenuSubmenuRow({
   isOpen,
   onOpenSubmenu,
   onCloseSubmenus,
+  openSubmenuId,
+  depth = 0,
 }: {
   item: ContextMenuItem
   onClose: () => void
@@ -202,6 +224,8 @@ function ContextMenuSubmenuRow({
   isOpen: boolean
   onOpenSubmenu: (id: ContextMenuItemId) => void
   onCloseSubmenus: () => void
+  openSubmenuId: ContextMenuItemId | null
+  depth?: number
 }) {
   const children = item.children ?? []
   const rowRef = useRef<HTMLDivElement>(null)
@@ -209,6 +233,7 @@ function ContextMenuSubmenuRow({
   const [flipX, setFlipX] = useState(false)
   const [flipY, setFlipY] = useState(false)
   const [flyoutMaxHeight, setFlyoutMaxHeight] = useState<number | undefined>(undefined)
+  const nestedFlyout = submenuHasNestedFlyout(item)
 
   const updateFlyoutPlacement = () => {
     const row = rowRef.current
@@ -240,7 +265,7 @@ function ContextMenuSubmenuRow({
 
     const availableBelow = Math.max(140, window.innerHeight - rowRect.top - margin)
     const availableAbove = Math.max(140, rowRect.bottom - margin)
-    setFlyoutMaxHeight(shouldFlipY ? availableAbove : availableBelow)
+    setFlyoutMaxHeight(nestedFlyout ? undefined : shouldFlipY ? availableAbove : availableBelow)
   }
 
   useEffect(() => {
@@ -248,7 +273,7 @@ function ContextMenuSubmenuRow({
       return
     }
     requestAnimationFrame(updateFlyoutPlacement)
-  }, [isOpen])
+  }, [isOpen, children.length, nestedFlyout])
 
   const openThisSubmenu = () => {
     onOpenSubmenu(item.id)
@@ -280,25 +305,35 @@ function ContextMenuSubmenuRow({
       </button>
       {children.length > 0 ? (
         <div
-          className={[styles.submenuFlyout, highlighted ? styles.exibirFlyout : ''].filter(Boolean).join(' ')}
+          className={[
+            styles.submenuFlyout,
+            nestedFlyout ? styles.submenuFlyoutNested : styles.submenuFlyoutScrollable,
+            highlighted ? styles.exibirFlyout : '',
+          ]
+            .filter(Boolean)
+            .join(' ')}
           data-flip-x={flipX ? 'true' : undefined}
           data-flip-y={flipY ? 'true' : undefined}
           data-open={isOpen ? 'true' : undefined}
           onMouseEnter={openThisSubmenu}
           ref={flyoutRef}
           role="menu"
-          style={flyoutMaxHeight ? { maxHeight: `${flyoutMaxHeight}px` } : undefined}
+          style={{
+            zIndex: 10 + depth * 10,
+            ...(flyoutMaxHeight && !nestedFlyout ? { maxHeight: `${flyoutMaxHeight}px` } : undefined),
+          }}
         >
           {children.map((child) => (
             <div key={child.id}>
               {child.separatorBefore ? <div className={styles.separator} role="separator" /> : null}
               <ContextMenuEntry
+                depth={depth + 1}
                 item={child}
                 onClose={onClose}
                 onCloseSubmenus={onCloseSubmenus}
                 onOpenSubmenu={onOpenSubmenu}
                 onSelect={onSelect}
-                openSubmenuId={null}
+                openSubmenuId={openSubmenuId}
                 t={t}
               />
             </div>

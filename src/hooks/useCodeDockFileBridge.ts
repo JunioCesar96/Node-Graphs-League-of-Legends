@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from 'react'
 
+import { showAppAlert } from '@/messenger_popup/appMessenger'
 import type { CodeDockFileBridge } from '@/components/organisms/CodeDock'
 import type { CodeDockEditorTab } from '@/hooks/useCodeDockTabs'
 import {
@@ -55,7 +56,7 @@ export function useCodeDockFileBridge(options: UseCodeDockFileBridgeOptions) {
     async (file: File, handle: FileSystemFileHandle | null) => {
       const payload = await importCodeDockFile({ file, handle })
       if (payload.branch === 'error') {
-        window.alert(payload.message)
+        showAppAlert(payload.message)
         return
       }
 
@@ -78,7 +79,7 @@ export function useCodeDockFileBridge(options: UseCodeDockFileBridgeOptions) {
       return
     }
     if (picked.branch === 'error') {
-      window.alert(picked.message)
+      showAppAlert(picked.message)
       return
     }
     await ingestOpenedFile(picked.opened.file, picked.opened.handle)
@@ -98,7 +99,7 @@ export function useCodeDockFileBridge(options: UseCodeDockFileBridgeOptions) {
         return
       }
       if (picked.branch === 'error') {
-        window.alert(picked.message)
+        showAppAlert(picked.message)
         return
       }
       await ingestOpenedFile(picked.opened.file, picked.opened.handle)
@@ -155,7 +156,7 @@ export function useCodeDockFileBridge(options: UseCodeDockFileBridgeOptions) {
       onSaveFile: () => void saveActive(),
       onSaveFileAs: () => void saveActiveAs(),
       onOpenLog: () => {
-        window.alert('Open Log File: disponível no Jade desktop (Tauri). No browser usa a ponte HTTP.')
+        showAppAlert('Open Log File: disponível no Jade desktop (Tauri). No browser usa a ponte HTTP.')
       },
       recentFiles,
       onOpenRecentFile: (path) => void openRecent(path),

@@ -5,7 +5,7 @@
   "name": "Scale",
   "source": {
     "kind": "parameter",
-    "parameterId": "vfx-emitter-legacy-simple__main-characters/brand/skins/skin0/particles/brand-base-q-blaze-mis-complex-emitter-definition-data--slot--13-legacy-simple-scale"
+    "parameterId": "vfx-emitter-legacy-simple__main-entries-complex-emitter-definition-data-legacy-simple_parameter_Scale"
   },
   "type": "embed",
   "embed": "ValueFloat",

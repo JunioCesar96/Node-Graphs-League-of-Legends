@@ -24,29 +24,28 @@
 .root {
   position: relative;
   align-self: start;
-  width: min(560px, calc(100% - 2rem));
+  width: min(480px, calc(100% - 2rem));
 }
 
 .rootAnchored {
   position: fixed;
   z-index: 10051;
-  width: min(560px, calc(100vw - 1rem));
+  width: min(480px, calc(100vw - 1rem));
 }
 
 .panel {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--space-2);
   width: 100%;
-  padding: var(--space-3);
+  padding: var(--ctx-menu-panel-padding-block, 4px) 0 var(--space-2);
   max-height: min(900px, calc(100dvh - clamp(5.5rem, 12vh, 7.5rem)));
   overflow: hidden;
-  background: var(--app-dialog-gradient);
-  border: 1px solid var(--color-border-strong);
-  border-radius: 24px;
-  box-shadow:
-    0 24px 70px rgb(0 0 0 / 55%),
-    inset 0 1px 0 rgb(255 255 255 / 6%);
+  font-size: var(--ctx-menu-font-size, 12.5px);
+  background: var(--ctx-menu-bg, var(--window-bg, #1e1e1e));
+  border: 1px solid var(--ctx-menu-border, #454545);
+  border-radius: var(--ctx-menu-radius, 4px);
+  box-shadow: var(--ctx-menu-shadow, 0 4px 16px rgb(0 0 0 / 40%));
 }
 
 .header {
@@ -54,154 +53,210 @@
   align-items: center;
   justify-content: space-between;
   flex-shrink: 0;
-  margin: calc(-1 * var(--space-2)) calc(-1 * var(--space-2)) 0;
-  padding: var(--space-2) var(--space-2) var(--space-1);
-  color: var(--color-text-muted);
-  font-family: var(--font-data);
-  font-size: 0.72rem;
+  margin: 0;
+  padding: var(--ctx-menu-item-padding-block, 5px) var(--ctx-menu-item-padding-inline, 20px);
+  color: var(--ctx-menu-muted, var(--color-text-muted));
+  font: inherit;
+  font-size: var(--ctx-menu-section-font-size, 10px);
+  font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   cursor: grab;
   user-select: none;
   touch-action: none;
-  border-radius: 18px 18px 10px 10px;
+  border-radius: 0;
+  border-bottom: 1px solid var(--ctx-menu-border, #454545);
 }
 
 .header:hover {
   color: var(--color-text-secondary);
-  background: var(--app-subtle-surface);
+  background: rgb(255 255 255 / 4%);
 }
 
 .header[data-dragging='true'] {
   cursor: grabbing;
-  background: var(--app-subtle-surface-hover);
+  background: rgb(255 255 255 / 6%);
 }
 
 .header kbd {
-  padding: 0.22rem 0.5rem;
-  color: var(--port-child);
-  background: rgb(255 255 255 / 6%);
-  border: 1px solid var(--color-border-soft);
-  border-radius: 999px;
+  padding: 1px 6px;
+  color: var(--ctx-menu-muted, #888);
+  font-size: var(--ctx-menu-shortcut-font-size, 11.5px);
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  background: transparent;
+  border: 1px solid var(--ctx-menu-border, #454545);
+  border-radius: 3px;
 }
 
 .input {
   flex-shrink: 0;
-  width: 100%;
-  padding: 1rem 1.1rem;
+  width: calc(100% - var(--ctx-menu-item-padding-inline, 20px) * 2);
+  margin: 0 var(--ctx-menu-item-padding-inline, 20px);
+  padding: 4px 8px;
   color: var(--color-text-primary);
-  font: 600 1rem var(--font-body);
-  background: var(--app-inset-surface-strong);
-  border: 1px solid var(--color-border-soft);
-  border-radius: 18px;
+  font: inherit;
+  font-size: var(--ctx-menu-font-size, 12.5px);
+  background: rgb(0 0 0 / 18%);
+  border: 1px solid var(--ctx-menu-border, #454545);
+  border-radius: var(--ctx-menu-radius, 4px);
 }
 
 .input:focus {
-  border-color: var(--port-child);
+  border-color: var(--syntax-property);
   outline: none;
-  box-shadow: 0 0 0 4px rgb(255 193 7 / 12%);
+  box-shadow: none;
 }
 
 .filterRows {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: var(--space-1);
   flex-shrink: 0;
+  padding: 0 var(--ctx-menu-item-padding-inline, 20px);
 }
 
 .packFoldersStatus {
   margin: 0;
   flex-shrink: 0;
-  color: var(--color-text-muted);
-  font-family: var(--font-data);
-  font-size: 0.68rem;
+  padding: 0 var(--ctx-menu-item-padding-inline, 20px);
+  color: var(--ctx-menu-muted, var(--color-text-muted));
+  font-size: var(--ctx-menu-shortcut-font-size, 11.5px);
   line-height: 1.35;
+  text-align: center;
+}
+
+.catalogToggleRow {
+  display: flex;
+  flex-shrink: 0;
+  justify-content: center;
+  padding: var(--space-1) var(--ctx-menu-item-padding-inline, 20px) 0;
+}
+
+.addonInstallSlot {
+  flex-shrink: 0;
+  width: calc(100% - var(--ctx-menu-item-padding-inline, 20px) * 2);
+  margin: 0 var(--ctx-menu-item-padding-inline, 20px);
 }
 
 .catalogToggle {
   display: inline-flex;
-  align-self: flex-start;
   flex-shrink: 0;
-  gap: 2px;
-  padding: 3px;
-  background: rgb(0 0 0 / 18%);
-  border: 1px solid var(--color-border-soft);
-  border-radius: 12px;
+  gap: 0;
+  padding: 0;
+  background: transparent;
+  border: 1px solid var(--ctx-menu-border, #454545);
+  border-radius: var(--ctx-menu-radius, 4px);
 }
 
 .catalogToggle button {
-  min-width: 5.5rem;
-  padding: 0.45rem 0.85rem;
-  color: var(--color-text-muted);
-  font-family: var(--font-data);
-  font-size: 0.72rem;
-  letter-spacing: 0.04em;
+  min-width: 4.5rem;
+  padding: var(--ctx-menu-item-padding-block, 5px) 10px;
+  color: var(--ctx-menu-fg, var(--color-text-muted));
+  font: inherit;
+  font-size: var(--ctx-menu-shortcut-font-size, 11.5px);
+  letter-spacing: 0;
   background: transparent;
-  border: 1px solid transparent;
-  border-radius: 9px;
+  border: none;
+  border-radius: 0;
+}
+
+.catalogToggle button + button {
+  border-left: 1px solid var(--ctx-menu-border, #454545);
 }
 
 .catalogToggle button:hover {
-  color: var(--color-text-secondary);
+  color: var(--ctx-menu-hover-fg, #fff);
+  background: var(--ctx-menu-hover-bg, #007acc);
 }
 
 .catalogToggle button[aria-pressed='true'] {
-  color: var(--color-text-primary);
-  background: rgb(255 255 255 / 6%);
-  border-color: rgb(255 255 255 / 14%);
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 8%);
+  color: var(--ctx-menu-hover-fg, #fff);
+  background: var(--ctx-menu-hover-bg, #007acc);
 }
 
 .tags {
   display: flex;
   flex-shrink: 0;
   flex-wrap: wrap;
-  gap: var(--space-2);
+  gap: var(--space-1);
+  padding: 0 var(--ctx-menu-item-padding-inline, 20px);
+}
+
+.filterRows .tags {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-1);
+  width: 100%;
+  padding: 0;
+}
+
+.filterRows .tags button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.filterRows .subfolderMenuWrap {
+  align-self: stretch;
+  width: 100%;
+}
+
+.filterRows .subfolderMenuTrigger {
+  justify-content: center;
+  width: 100%;
 }
 
 .tags button {
-  height: 28px;
-  padding: 0 var(--space-3);
-  color: var(--color-text-muted);
-  font-family: var(--font-data);
-  font-size: 0.68rem;
-  background: var(--app-subtle-surface);
-  border: 1px solid var(--color-border-soft);
-  border-radius: 999px;
+  height: auto;
+  min-height: var(--palette-menu-row-height, 26px);
+  padding: 2px 8px;
+  color: var(--ctx-menu-fg, var(--color-text-muted));
+  font: inherit;
+  font-size: var(--ctx-menu-shortcut-font-size, 11.5px);
+  background: transparent;
+  border: 1px solid var(--ctx-menu-border, #454545);
+  border-radius: var(--ctx-menu-radius, 4px);
 }
 
 .tags button:hover,
 .tags button[aria-pressed='true'] {
-  color: var(--color-text-primary);
-  background: rgb(255 193 7 / 12%);
-  border-color: var(--port-child);
+  color: var(--ctx-menu-hover-fg, #fff);
+  background: var(--ctx-menu-hover-bg, #007acc);
+  border-color: var(--ctx-menu-hover-bg, #007acc);
 }
 
 .subfolderMenuWrap {
   position: relative;
-  align-self: flex-start;
   flex-shrink: 0;
 }
 
 .subfolderMenuTrigger {
   display: inline-flex;
   align-items: center;
-  gap: 0.45rem;
-  min-height: 28px;
-  padding: 0 0.7rem 0 var(--space-3);
-  color: var(--color-text-muted);
-  font-family: var(--font-data);
-  font-size: 0.68rem;
-  background: var(--app-subtle-surface);
-  border: 1px solid var(--color-border-soft);
-  border-radius: 999px;
+  gap: 0.35rem;
+  min-height: var(--palette-menu-row-height, 26px);
+  padding: 2px 8px;
+  color: var(--ctx-menu-fg, var(--color-text-muted));
+  font: inherit;
+  font-size: var(--ctx-menu-shortcut-font-size, 11.5px);
+  background: transparent;
+  border: 1px solid var(--ctx-menu-border, #454545);
+  border-radius: var(--ctx-menu-radius, 4px);
 }
 
 .subfolderMenuTrigger:hover,
 .subfolderMenuTrigger[aria-expanded='true'] {
-  color: var(--color-text-primary);
-  background: rgb(255 193 7 / 12%);
-  border-color: var(--port-child);
+  color: var(--ctx-menu-hover-fg, #fff);
+  background: var(--ctx-menu-hover-bg, #007acc);
+  border-color: var(--ctx-menu-hover-bg, #007acc);
 }
 
 .subfolderMenuTriggerLabel {
@@ -227,37 +282,38 @@
 
 .subfolderPopover {
   position: absolute;
-  top: calc(100% + 6px);
+  top: calc(100% + 2px);
   left: 0;
   z-index: 20;
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
-  width: min(360px, calc(100vw - 3rem));
-  padding: var(--space-3);
-  background: var(--app-popover-gradient);
-  border: 1px solid var(--color-border-strong);
-  border-radius: 16px;
-  box-shadow:
-    0 18px 52px rgb(0 0 0 / 48%),
-    inset 0 1px 0 rgb(255 255 255 / 6%);
+  gap: 0;
+  width: min(320px, calc(100vw - 3rem));
+  padding: var(--ctx-menu-panel-padding-block, 4px) 0;
+  font-size: var(--ctx-menu-font-size, 12.5px);
+  background: var(--ctx-menu-bg, var(--window-bg, #1e1e1e));
+  border: 1px solid var(--ctx-menu-border, #454545);
+  border-radius: var(--ctx-menu-radius, 4px);
+  box-shadow: var(--ctx-menu-shadow, 0 4px 16px rgb(0 0 0 / 40%));
 }
 
 .subfolderPopoverSearch {
   flex-shrink: 0;
-  width: 100%;
-  padding: 0.65rem 0.85rem;
+  width: calc(100% - var(--ctx-menu-item-padding-inline, 20px) * 2);
+  margin: var(--space-1) var(--ctx-menu-item-padding-inline, 20px);
+  padding: 4px 8px;
   color: var(--color-text-primary);
-  font: 600 0.88rem var(--font-body);
-  background: var(--app-inset-surface-strong);
-  border: 1px solid var(--color-border-soft);
-  border-radius: 12px;
+  font: inherit;
+  font-size: var(--ctx-menu-font-size, 12.5px);
+  background: rgb(0 0 0 / 18%);
+  border: 1px solid var(--ctx-menu-border, #454545);
+  border-radius: var(--ctx-menu-radius, 4px);
 }
 
 .subfolderPopoverSearch:focus {
-  border-color: var(--port-child);
+  border-color: var(--syntax-property);
   outline: none;
-  box-shadow: 0 0 0 3px rgb(255 193 7 / 12%);
+  box-shadow: none;
 }
 
 .subfolderPopoverBody {
@@ -272,11 +328,11 @@
   display: flex;
   flex: 1 1 auto;
   flex-direction: column;
-  gap: 4px;
+  gap: 0;
   min-width: 0;
-  min-height: min(240px, 36dvh);
-  max-height: min(280px, 40dvh);
-  padding: 2px 1px;
+  min-height: min(200px, 32dvh);
+  max-height: min(240px, 36dvh);
+  padding: 0;
   margin: 0;
   overflow-x: clip;
   overflow-y: auto;
@@ -289,38 +345,35 @@
 
 .subfolderPopoverOption {
   width: 100%;
-  padding: 0.55rem 0.75rem;
-  color: var(--color-text-muted);
-  font-family: var(--font-data);
-  font-size: 0.74rem;
+  padding: var(--ctx-menu-item-padding-block, 5px) var(--ctx-menu-item-padding-inline, 20px);
+  color: var(--ctx-menu-fg, var(--color-text-muted));
+  font: inherit;
   text-align: left;
-  background: var(--app-subtle-surface);
-  border: 1px solid transparent;
-  border-radius: 10px;
+  background: transparent;
+  border: none;
+  border-radius: 0;
 }
 
 .subfolderPopoverOption:hover {
-  color: var(--color-text-primary);
-  background: rgb(255 255 255 / 7%);
-  border-color: var(--color-border-soft);
+  color: var(--ctx-menu-hover-fg, #fff);
+  background: var(--ctx-menu-hover-bg, #007acc);
 }
 
 .subfolderPopoverOption[aria-selected='true'] {
-  color: var(--color-text-primary);
-  background: rgb(255 193 7 / 14%);
-  border-color: var(--port-child);
+  color: var(--ctx-menu-hover-fg, #fff);
+  background: var(--ctx-menu-hover-bg, #007acc);
 }
 
 .subfolderPopoverEmpty {
-  padding: var(--space-3);
-  color: var(--color-text-muted);
-  font-family: var(--font-data);
-  font-size: 0.72rem;
+  padding: var(--ctx-menu-item-padding-block, 5px) var(--ctx-menu-item-padding-inline, 20px);
+  color: var(--ctx-menu-muted, var(--color-text-muted));
+  font: inherit;
+  font-size: var(--ctx-menu-shortcut-font-size, 11.5px);
   line-height: 1.35;
   text-align: center;
-  background: rgb(255 255 255 / 3%);
-  border: 1px dashed var(--color-border-soft);
-  border-radius: 10px;
+  background: transparent;
+  border: none;
+  border-radius: 0;
 }
 
 .subfolderScrollControl {
@@ -364,17 +417,17 @@
 
   display: grid;
   flex: 1 1 auto;
-  gap: var(--space-2);
+  gap: 0;
   min-width: 0;
-  /* Encolhimento flex + scroll: sem isto a área de resultados pode comprimir linhas da grelha. */
   min-height: 0;
   align-content: start;
   grid-auto-rows: max-content;
-  padding: 1px 1px 1px 280px;
-  margin-left: -280px;
+  padding: 0;
+  margin: 0;
   overflow-x: clip;
   overflow-y: auto;
   scrollbar-width: none;
+  border-top: 1px solid var(--ctx-menu-border, #454545);
 
   /**
    * Com muitos itens o flex encolhava demais e `overflow-y: auto` cortava o hover expandido.
@@ -397,14 +450,14 @@
 }
 
 .empty {
-  padding: var(--space-4);
-  color: var(--color-text-muted);
-  font-family: var(--font-data);
-  font-size: 0.78rem;
+  padding: var(--ctx-menu-item-padding-block, 5px) var(--ctx-menu-item-padding-inline, 20px);
+  color: var(--ctx-menu-muted, var(--color-text-muted));
+  font: inherit;
+  font-size: var(--ctx-menu-shortcut-font-size, 11.5px);
   text-align: center;
-  background: var(--app-subtle-surface);
-  border: 1px dashed var(--color-border-soft);
-  border-radius: 16px;
+  background: transparent;
+  border: none;
+  border-radius: 0;
 }
 
 .scrollControl {

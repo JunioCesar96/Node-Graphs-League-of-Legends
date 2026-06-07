@@ -1,5 +1,6 @@
 import { useRef } from 'react'
 
+import { showAppAlert } from '@/messenger_popup/appMessenger'
 import { LangId } from '@/core/language/languageIds'
 import {
   clearStoredRitobinExePath,
@@ -55,7 +56,9 @@ export function AppMenuBar({
   return (
     <>
       <header className={styles.bar}>
-      <span className={styles.brand}>Node Graphs LOL</span>
+      <span aria-label="Node Graphs LOL" className={styles.brand} title="Node Graphs LOL">
+        <img alt="" className={styles.brandIcon} draggable={false} src="/favicon.svg" />
+      </span>
 
       <nav aria-label="Principal" className={styles.nav}>
         <div className={styles.menu}>
@@ -168,7 +171,7 @@ export function AppMenuBar({
 
                 setStoredRitobinExePath(nextPath)
 
-                window.alert(
+                showAppAlert(
                   nextPath.length > 204
                     ? `Caminho guardado:\n…${nextPath.slice(-180)}`
                     : `Caminho guardado:\n${nextPath}`,
@@ -199,14 +202,14 @@ export function AppMenuBar({
                 const next = raw.trim()
 
                 if (next.length === 0) {
-                  window.alert('Caminho vazio — não alterado.')
+                  showAppAlert('Caminho vazio — não alterado.')
 
                   return
                 }
 
                 setStoredRitobinExePath(next)
 
-                window.alert(`Caminho guardado (${String(next.length)} caracteres).`)
+                showAppAlert(`Caminho guardado (${String(next.length)} caracteres).`)
               }}
               type="button"
             >
@@ -218,17 +221,17 @@ export function AppMenuBar({
                 const current = getStoredRitobinExePath()
 
                 if (!current) {
-                  window.alert('Nenhum executável ritobin está configurado.')
+                  showAppAlert('Nenhum executável ritobin está configurado.')
 
                   return
                 }
 
                 void navigator.clipboard.writeText(current).then(
                   () => {
-                    window.alert('Caminho copiado para a área de transferência.')
+                    showAppAlert('Caminho copiado para a área de transferência.')
                   },
                   () => {
-                    window.alert(`Caminho atual:\n${current}`)
+                    showAppAlert(`Caminho atual:\n${current}`)
                   },
                 )
               }}
@@ -240,7 +243,7 @@ export function AppMenuBar({
               className={styles.menuItemDanger}
               onClick={() => {
                 clearStoredRitobinExePath()
-                window.alert('Caminho do ritobin removido.')
+                showAppAlert('Caminho do ritobin removido.')
               }}
               type="button"
             >

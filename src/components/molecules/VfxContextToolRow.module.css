@@ -1,32 +1,52 @@
 .row {
-  display: flex;
-  gap: 6px;
+  display: grid;
+  grid-template-columns: var(--vfx-menu-check-col, 14px) var(--vfx-menu-expand-col, 22px) minmax(0, 1fr);
+  column-gap: var(--vfx-menu-row-gap, 6px);
   align-items: center;
-  padding: 2px 0;
+  padding: var(--ctx-menu-item-padding-block, 5px) 8px;
+  margin: 0 -2px;
+  border-radius: var(--ctx-menu-radius, 4px);
+  transition: color 100ms ease, background 100ms ease;
+}
+
+.row:hover {
+  color: var(--ctx-menu-hover-fg, #fff);
+  background: var(--ctx-menu-hover-bg, #007acc);
 }
 
 .checkbox {
-  flex-shrink: 0;
+  grid-column: 1;
+  width: 14px;
+  height: 14px;
+  margin: 0;
   accent-color: var(--vfx-control-accent);
   cursor: pointer;
 }
 
 .expandBtn {
-  display: flex;
-  flex-shrink: 0;
-  align-items: center;
-  justify-content: center;
-  width: 18px;
-  height: 18px;
+  display: grid;
+  grid-column: 2;
+  place-items: center;
+  width: 22px;
+  height: 22px;
   padding: 0;
+  color: inherit;
   cursor: pointer;
   background: transparent;
-  border: none;
-  border-radius: 3px;
+  border: 1px solid var(--ctx-menu-border, #454545);
+  border-radius: var(--ctx-menu-radius, 4px);
+  transition: color 100ms ease, background 100ms ease, border-color 100ms ease;
 }
 
-.expandBtn:hover {
-  background: var(--vfx-chrome-bg);
+.row:hover .expandBtn {
+  color: inherit;
+  border-color: color-mix(in srgb, currentColor 35%, var(--ctx-menu-border, #454545));
+}
+
+.expandBtn:hover:not(:disabled) {
+  color: var(--ctx-menu-hover-fg, #fff);
+  background: color-mix(in srgb, var(--ctx-menu-hover-bg, #007acc) 82%, rgb(0 0 0));
+  border-color: color-mix(in srgb, currentColor 35%, var(--ctx-menu-border, #454545));
 }
 
 .chevron {
@@ -35,7 +55,7 @@
   height: 0;
   border-top: 4px solid transparent;
   border-bottom: 4px solid transparent;
-  border-left: 5px solid var(--vfx-text-muted);
+  border-left: 5px solid currentColor;
   transition: transform 0.15s ease;
 }
 
@@ -44,11 +64,12 @@
 }
 
 .title {
-  flex: 1;
+  grid-column: 3;
   min-width: 0;
   overflow: hidden;
-  font-size: 10px;
-  color: var(--vfx-text-dim);
+  font-size: inherit;
+  line-height: 1.2;
+  color: inherit;
   text-overflow: ellipsis;
   white-space: nowrap;
   user-select: none;
@@ -58,7 +79,11 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding: 4px 0 8px 24px;
+  padding: 4px 8px 8px
+    calc(
+      var(--vfx-menu-check-col, 14px) + var(--vfx-menu-row-gap, 6px) + var(--vfx-menu-expand-col, 22px) +
+        var(--vfx-menu-row-gap, 6px) + 8px
+    );
 }
 
 .bodyDisabled {

@@ -5,7 +5,7 @@
   "name": "birthScale1",
   "source": {
     "kind": "parameter",
-    "parameterId": "vfx-emitter-definition-data__main-characters/brand/skins/skin0/particles/brand-base-dance-complex-emitter-definition-data--slot--0-birth-scale1"
+    "parameterId": "vfx-emitter-definition-data__main-entries-complex-emitter-definition-data_parameter_birthScale1"
   },
   "type": "embed",
   "embed": "ValueVector3",

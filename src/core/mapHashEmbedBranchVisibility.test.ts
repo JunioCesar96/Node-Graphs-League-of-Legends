@@ -11,10 +11,12 @@ import {
 import { mapHashPointerSlotId } from '@/core/mapHashPointerSlots'
 import { formatMapHashPointerString, parseMapHashPointerString } from '@/core/mapHashPointerValue'
 import { listEmbedSlotId } from '@/core/listEmbedSlots'
+import { listPointerSlotId } from '@/core/listPointerSlots'
 import { mapHashEmbedSlotId } from '@/core/mapHashEmbedSlots'
 import { formatMapHashEmbedString, parseMapHashEmbedString } from '@/core/mapHashEmbedValue'
 import {
   elementViewKeyForListEmbed,
+  elementViewKeyForListPointer,
   elementViewKeyForParameter,
   patchElementSelectedIndex,
   patchElementViewMode,
@@ -236,6 +238,63 @@ describe('mapHashEmbedBranchVisibility', () => {
           id: 'lb',
           fromNodeId: 'parent',
           fromInternalStructureId: listEmbedSlotId(blockId, 1),
+          toNodeId: 'child-b',
+        },
+      ],
+    }
+    const hidden = computeCompactHiddenNodeIds(scene)
+    expect(hidden.has('child-a')).toBe(false)
+    expect(hidden.has('child-b')).toBe(true)
+  })
+
+  it('listPointer compacto oculta slots fora do índice', () => {
+    const blockId = 'list-pointer-block'
+    const catalogId = 'legacy-catalog-slot-5'
+    const key = elementViewKeyForListPointer(blockId)
+    const node: NodeInstance = {
+      id: 'parent',
+      schema: {
+        id: 'parent.schema',
+        title: 'Parent',
+        parameters: [],
+        listPointer: [
+          {
+            id: blockId,
+            title: 'complexEmitterDefinitionData',
+            internalStructures: [
+              { id: 'cat-0', name: 'TypeA', schemaId: 'schema-a' },
+              { id: catalogId, name: 'TypeB', schemaId: 'schema-b' },
+            ],
+            slots: [
+              { id: listPointerSlotId(blockId, 0), name: 'TypeA', schemaId: 'schema-a' },
+              { id: listPointerSlotId(blockId, 1), name: 'TypeB', schemaId: 'schema-b' },
+            ],
+          },
+        ],
+        internalStructures: [],
+      },
+      values: [],
+      elementView: { [key]: { mode: 'compact', selectedIndex: 0 } },
+    }
+    const scene: CanvasScene = {
+      width: 800,
+      height: 600,
+      nodes: [
+        { id: 'parent', position: { x: 0, y: 0 }, node },
+        { id: 'child-a', position: { x: 200, y: 0 }, node: childNode('child-a') },
+        { id: 'child-b', position: { x: 400, y: 0 }, node: childNode('child-b') },
+      ],
+      connections: [
+        {
+          id: 'la',
+          fromNodeId: 'parent',
+          fromInternalStructureId: listPointerSlotId(blockId, 0),
+          toNodeId: 'child-a',
+        },
+        {
+          id: 'lb',
+          fromNodeId: 'parent',
+          fromInternalStructureId: catalogId,
           toNodeId: 'child-b',
         },
       ],

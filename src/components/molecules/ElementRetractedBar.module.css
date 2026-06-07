@@ -29,7 +29,8 @@
 }
 
 .expandButton:hover {
-  background: rgb(255 255 255 / 4%);
+  color: var(--ctx-menu-hover-fg, #fff);
+  background: var(--ctx-menu-hover-bg, #007acc);
 }
 
 .expandButton:focus-visible {

@@ -22,6 +22,7 @@ import type {
   NodeParameterValue,
   NodeSchemaDefinition,
 } from '@/core/nodeSchema'
+import type { BlockElementViewKey, BlockElementViewState } from '@/core/blockElementViewState'
 import type { BlockStructurePayload } from '@/core/blockSchema'
 import type { NodeCardBodyLayout, NodeCardSectionExpandedMap, NodeCardSectionId } from '@/core/nodeCardSections'
 import type { SceneChromeState } from '@/core/canvasScene'
@@ -75,6 +76,9 @@ export type WorkspaceLayoutNodeEntry = {
   addonViewActive?: boolean
   addonId?: string
   addonOutputValues?: Record<string, unknown>
+  structureCardParamsExpanded?: boolean
+  structureCardWidth?: number
+  blockElementView?: Partial<Record<BlockElementViewKey, BlockElementViewState>>
 }
 
 export type WorkspaceLayoutFile = {
@@ -252,6 +256,13 @@ function layoutEntryFromPresentation(
     ...(presentation.addonId ? { addonId: presentation.addonId } : {}),
     ...(presentation.addonOutputValues
       ? { addonOutputValues: structuredClone(presentation.addonOutputValues) }
+      : {}),
+    ...(presentation.structureCardParamsExpanded ? { structureCardParamsExpanded: true } : {}),
+    ...(presentation.structureCardWidth !== undefined
+      ? { structureCardWidth: presentation.structureCardWidth }
+      : {}),
+    ...(presentation.blockElementView && Object.keys(presentation.blockElementView).length > 0
+      ? { blockElementView: structuredClone(presentation.blockElementView) }
       : {}),
   }
 }

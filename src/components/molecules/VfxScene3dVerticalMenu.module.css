@@ -7,15 +7,15 @@
   min-width: 0;
   min-height: 0;
   overflow: hidden;
-  background: var(--vfx-panel-bg-soft);
-  border: 1px solid var(--vfx-chrome-bg-mid);
-  border-radius: 8px 0 0 8px;
-  backdrop-filter: blur(8px);
+  background: var(--ctx-menu-bg, var(--window-bg, #1e1e1e));
+  border: 1px solid var(--ctx-menu-border, #454545);
+  border-radius: var(--ctx-menu-radius, 4px) 0 0 var(--ctx-menu-radius, 4px);
+  box-shadow: var(--ctx-menu-shadow, 0 4px 16px rgb(0 0 0 / 40%));
 }
 
 .menuHasPanel {
   border-right: none;
-  border-radius: 8px 0 0 8px;
+  border-radius: var(--ctx-menu-radius, 4px) 0 0 var(--ctx-menu-radius, 4px);
 }
 
 .menuCollapsed {
@@ -38,20 +38,28 @@
   width: 100%;
   max-width: 100%;
   min-width: 0;
-  padding: 8px 4px;
+  padding: var(--ctx-menu-item-padding-block, 5px) 4px;
   cursor: pointer;
   background: transparent;
   border: none;
+  border-radius: var(--ctx-menu-radius, 4px);
+  transition: color 100ms ease, background 100ms ease;
 }
 
 .menuCollapsed .menuToggle {
   flex-direction: column;
   justify-content: center;
-  padding: 10px 4px;
+  padding: 8px 4px;
 }
 
 .menuToggle:hover {
-  background: var(--vfx-chrome-bg-soft);
+  color: var(--ctx-menu-hover-fg, #fff);
+  background: var(--ctx-menu-hover-bg, #007acc);
+}
+
+.menuToggle:hover .menuToggleIcon,
+.menuToggle:hover .menuToggleLabel {
+  color: inherit;
 }
 
 .menuToggleIcon {
@@ -82,7 +90,7 @@
   flex-shrink: 0;
   height: 1px;
   margin: 0 6px;
-  background: var(--vfx-chrome-border);
+  background: var(--ctx-menu-border, #454545);
 }
 
 .toolList {
@@ -111,11 +119,13 @@
   width: 100%;
   max-width: 100%;
   min-width: 0;
-  padding: 6px 4px;
+  padding: var(--ctx-menu-item-padding-block, 5px) 4px;
   cursor: pointer;
   background: transparent;
   border: none;
   border-right: 2px solid transparent;
+  border-radius: var(--ctx-menu-radius, 4px);
+  transition: color 100ms ease, background 100ms ease, border-color 100ms ease;
 }
 
 .menuCollapsed .toolBtn {
@@ -124,13 +134,16 @@
   padding: 8px 4px;
 }
 
-.toolBtn:hover {
-  background: var(--vfx-chrome-bg-soft);
+.toolBtn:hover:not(:disabled) {
+  color: var(--ctx-menu-hover-fg, #fff);
+  background: var(--ctx-menu-hover-bg, #007acc);
+  border-color: var(--ctx-menu-hover-bg, #007acc);
 }
 
 .toolBtnActive {
-  background: var(--vfx-accent-bg-soft);
-  border-right-color: var(--vfx-accent-text-strong);
+  color: var(--ctx-menu-hover-fg, #fff);
+    background: var(--ctx-menu-hover-bg, #007acc);
+    border-color: var(--ctx-menu-hover-bg, #007acc);
 }
 
 .menuCollapsed .toolBtnActive {
@@ -147,8 +160,14 @@
   color: var(--vfx-text-strong);
 }
 
-.toolBtnActive .toolBtnIcon {
-  color: var(--vfx-accent-text-strong);
+.toolBtnActive .toolBtnIcon,
+.toolBtn:hover:not(:disabled) .toolBtnIcon {
+  color: inherit;
+}
+
+.toolBtn:hover:not(:disabled) .toolBtnLabel,
+.toolBtnActive .toolBtnLabel {
+  color: inherit;
 }
 
 .toolBtnLabel {

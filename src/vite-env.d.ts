@@ -10,6 +10,10 @@ interface ImportMetaEnv {
   readonly VITE_RITOBIN_USE_PROXY?: string
   /** `native` | `jade` — escolha em `npm run dev`. */
   readonly VITE_DEV_BIN_BACKEND?: 'native' | 'jade'
+  /** `'true'`: desactiva Web Workers de cálculo de cena (debug). */
+  readonly VITE_DISABLE_SCENE_WORKERS?: string
+  /** `'true'`: Code To Node Block corre no Web Worker (opt-in; payload grande). */
+  readonly VITE_CODE_TO_BLOCK_WORKER?: string
 }
 
 interface ImportMeta {

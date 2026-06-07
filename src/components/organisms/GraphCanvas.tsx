@@ -1,4 +1,5 @@
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from 'react'
+﻿import { forwardRef, startTransition, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { showAppAlert } from '@/messenger_popup/appMessenger'
 import { refreshCustomBackgroundLayerHosts } from '@jade/lib/themeApplicator'
 import { createPortal } from 'react-dom'
 import type { CSSProperties, MouseEvent, PointerEvent, ReactNode } from 'react'
@@ -33,10 +34,12 @@ import { Canvas2DCursor } from '@/components/molecules/Canvas2DCursor'
 import { SnapMenu, useSnapMenu } from '@/components/molecules/SnapMenu'
 import { renderGraphSnapMenuIcon } from '@/components/molecules/SnapMenu/graphSnapMenuIcons'
 import { RitualNeekoStagingPreview } from '@/components/molecules/RitualNeekoStagingPreview'
-import { NodeCard } from '@/components/organisms/NodeCard'
-import { AddonCardHost } from '@/components/molecules/AddonCardHost'
-import { BlockCard } from '@/components/organisms/BlockCard'
-import { GroupCard } from '@/components/organisms/GroupCard'
+import {
+  GraphCanvasNodeHostProvider,
+  type GraphCanvasNodeHostContextValue,
+} from '@/components/organisms/GraphCanvasNodeHostContext'
+import { GraphCanvasSceneNode } from '@/components/organisms/GraphCanvasSceneNode'
+import { GraphCanvasConnectionsLayer } from '@/components/organisms/GraphCanvasConnectionsLayer'
 import { connectionInvolvesAddon, findConnectionForAddonSlot, ADDON_CARD_WIDTH, resolveAddonSlotCanvasPoint } from '@/core/addonSlotConnections'
 import { getAddonManifest } from '@/blockStructures/addonRegistry'
 import { useAddonCanvasLinks } from '@/hooks/useAddonCanvasLinks'
@@ -64,27 +67,36 @@ import {
 import type { CanvasConnection, CanvasNode, CanvasPosition, CanvasScene, SceneCamera } from '@/core/canvasScene'
 import { isCanvasNodeBodyCollapsed } from '@/core/canvasScene'
 import {
-  canvasNodeBodyStyle,
-  canvasNodeCardStyle,
-  canvasNodeInputPortStyle,
-  createCompactElementCanvasVisibility,
-  getNodeDisplayTitle,
   isNodeBodyEffectivelyCollapsed,
   isNodeLocked,
   isNodeVisibleOnCanvas,
+  type CompactElementCanvasVisibility,
 } from '@/core/canvasNodePresentation'
+import { useCompactElementVisibility } from '@/hooks/useCompactElementVisibility'
+import { graphCanvasNodePositionsKey } from '@/core/graphCanvasSceneMemoKeys'
+import { useGraphCanvasBlockSlotIndexMap } from '@/hooks/useGraphCanvasBlockSlotIndexMap'
+import { useGraphCanvasWirelessDisplayMaps } from '@/hooks/useGraphCanvasWirelessDisplayMaps'
 import {
-  buildWirelessDisplayByNode,
+  applyGraphCanvasDragPositionOverride,
+  resolveGraphCanvasNodeRenderPosition,
+  type GraphCanvasDragPositionOverride,
+} from '@/core/graphCanvasDragPosition'
+import {
+  collectCanvasRenderNodeIds,
+  collectVisibleCanvasNodes,
+  computeGraphViewportRect,
+} from '@/core/canvasViewportCulling'
+import {
   type WirelessPortPulseTarget,
   type WirelessPeerHoverPayload,
 } from '@/core/connectionDisplay'
 import {
-  buildBlockWirelessDisplayByNode,
-  applyBlockOutputSlotConnectionSelection,
   type BlockSlotWirelessLink,
 } from '@/core/blockConnectionDisplay'
 import {
-  buildGroupWirelessDisplayByNode,
+  type BlockElementViewKey,
+} from '@/core/blockElementViewState'
+import {
   type GroupSlotWirelessLink,
 } from '@/core/groupConnectionDisplay'
 import { resolveBlockCardWidth, resolveGroupCardWidth } from '@/core/structureCardLayout'
@@ -221,6 +233,10 @@ import {
   buildContextMenuItems,
   type CanvasContextMenuBuildContext,
 } from '@/core/canvasContextMenuItems'
+import {
+  resolveBlockOrganizationOperationFromMenuId,
+  type BlockOrganizationOperation,
+} from '@/core/blockOrganizationLayout'
 import { contextMenuItemsToSnapActions } from '@/core/snapMenu/contextMenuSnapMenu'
 import {
   GRAPH_GRID_CONTEXT_MENU_TITLE,
@@ -424,8 +440,10 @@ type GraphCanvasProps = {
   onMoveNode: (
     nodeId: string,
     position: CanvasPosition,
-    modifiers: { axisLock: '' | 'x' | 'y'; snapGrid: boolean },
+    modifiers: { axisLock: '' | 'x' | 'y'; snapGrid: boolean; transient?: boolean },
   ) => void
+  onBeginNodeDrag?: () => void
+  onEndNodeDrag?: () => void
   onRedo: () => void
   onRemoveConnection?: (connectionId: string) => void
   onResetScene: () => void
@@ -507,6 +525,12 @@ type GraphCanvasProps = {
   onShowOnlyIncomingSlotBranch?: (canvasNodeId: string) => void
   /** Oculta (`sceneHidden`) todos os descendentes ligados por saídas do nó. */
   onHideLinkedChildNodes?: (canvasNodeId: string) => void
+  /** Mostra (`sceneHidden`) todos os descendentes ligados por saídas do nó. */
+  onShowLinkedChildNodes?: (canvasNodeId: string) => void
+  /** Oculta ramificações fora do índice activo em blocos (list[pointer] / map*). */
+  onHideInactiveBlockIndexBranches?: (canvasNodeId: string) => void
+  /** Alinha / distribui blocos seleccionados. */
+  onApplyBlockOrganization?: (operation: BlockOrganizationOperation) => void
   /** Reordena parâmetros no card (índice 1-based na lista actual). */
   onSetNodeParameterOrder?: (
     canvasNodeId: string,
@@ -536,6 +560,18 @@ type GraphCanvasProps = {
   /** Painel «Nodes em cena» acoplado à barra (cápsula / chrome). */
   sceneNodesControlsSlot?: ReactNode
   onUpdateBlockParameter?: (canvasNodeId: string, paramId: string, value: string) => void
+  /** Modo leve: pager obrigatório e índice 0 por defeito em fan-out. */
+  nodeLightModeEnabled?: boolean
+  onSetBlockOutputSlotConnectionIndex?: (
+    canvasNodeId: string,
+    slotId: string,
+    index: number,
+  ) => void
+  onSetBlockElementSelectedIndex?: (
+    canvasNodeId: string,
+    elementKey: BlockElementViewKey,
+    index: number,
+  ) => void
   onConnectBlockSlots?: (
     fromNodeId: string,
     fromBlockSlotId: string,
@@ -1701,6 +1737,8 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     onSetNodeCardBodyLayout,
     onMarqueeCommit,
     onMoveNode,
+    onBeginNodeDrag,
+    onEndNodeDrag,
     onRedo,
     onRemoveConnection,
     onResetScene,
@@ -1732,6 +1770,9 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     onShowOnlySlotSubtree,
     onShowOnlyIncomingSlotBranch,
     onHideLinkedChildNodes,
+    onShowLinkedChildNodes,
+    onHideInactiveBlockIndexBranches,
+    onApplyBlockOrganization,
     scene,
     onSceneCameraChange,
     selectedNodeIds,
@@ -1741,6 +1782,9 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     groupInspectorControlsSlot,
     sceneNodesControlsSlot,
     onUpdateBlockParameter,
+    nodeLightModeEnabled = true,
+    onSetBlockOutputSlotConnectionIndex,
+    onSetBlockElementSelectedIndex,
     onConnectBlockSlots,
     onUpdateGroupParameter,
     onConnectGroupSlots,
@@ -1797,9 +1841,6 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
   const pendingBlockLinkRef = useRef<PendingBlockLink | null>(null)
   const [blockLinkDraftPoint, setBlockLinkDraftPoint] = useState<PanPoint | null>(null)
   const [blockWirelessPulse, setBlockWirelessPulse] = useState<{ nodeId: string; slotId: string } | null>(null)
-  const [blockOutputSlotConnectionIndexByKey, setBlockOutputSlotConnectionIndexByKey] = useState<
-    Map<string, number>
-  >(() => new Map())
   const [blockSlotToolsEnabledNodes, setBlockSlotToolsEnabledNodes] = useState<Set<string>>(
     () => new Set(),
   )
@@ -1833,7 +1874,75 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
   } | null>(null)
   const [pan, setPan] = useState<PanPoint>(() => scene.camera?.pan ?? { x: 0, y: 0 })
   const [scale, setScale] = useState(() => scene.camera?.scale ?? 1)
+  const sceneRef = useRef(scene)
+  sceneRef.current = scene
+  const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 })
   const nodeDragGesture = useRef<NodeDragGesture | null>(null)
+  const [dragPositionOverride, setDragPositionOverride] = useState<GraphCanvasDragPositionOverride>(null)
+  const lastDragVisualRef = useRef<GraphCanvasDragPositionOverride>(null)
+  const pendingDragVisualRef = useRef<GraphCanvasDragPositionOverride>(null)
+  const dragVisualRafRef = useRef<number | null>(null)
+  const moveNodeDragImplRef = useRef<(event: PointerEvent<HTMLDivElement>) => void>(() => {})
+  const stopNodeDragImplRef = useRef<(event: PointerEvent<HTMLDivElement>) => void>(() => {})
+
+  const flushDragVisual = useCallback(() => {
+    dragVisualRafRef.current = null
+    const pending = pendingDragVisualRef.current
+
+    if (!pending) {
+      return
+    }
+
+    pendingDragVisualRef.current = null
+    setDragPositionOverride(pending)
+  }, [])
+
+  const scheduleDragVisual = useCallback((nodeId: string, x: number, y: number) => {
+    const nextOverride = { nodeId, x, y }
+    lastDragVisualRef.current = nextOverride
+    pendingDragVisualRef.current = nextOverride
+
+    if (dragVisualRafRef.current === null) {
+      dragVisualRafRef.current = window.requestAnimationFrame(flushDragVisual)
+    }
+  }, [flushDragVisual])
+
+  const cancelPendingDragVisual = useCallback(() => {
+    if (dragVisualRafRef.current !== null) {
+      window.cancelAnimationFrame(dragVisualRafRef.current)
+      dragVisualRafRef.current = null
+    }
+
+    pendingDragVisualRef.current = null
+  }, [])
+
+  const clearDragVisual = useCallback(() => {
+    cancelPendingDragVisual()
+    lastDragVisualRef.current = null
+    setDragPositionOverride(null)
+  }, [cancelPendingDragVisual])
+
+  const commitDragVisualPosition = useCallback(
+    (
+      nodeId: string,
+      modifiers: { axisLock: '' | 'x' | 'y'; snapGrid: boolean },
+    ) => {
+      const last = lastDragVisualRef.current
+
+      if (!last || last.nodeId !== nodeId) {
+        return
+      }
+
+      startTransition(() => {
+        onMoveNode(
+          last.nodeId,
+          { x: last.x, y: last.y },
+          { ...modifiers, transient: true },
+        )
+      })
+    },
+    [onMoveNode],
+  )
 
   useEffect(() => {
     const cancelActiveNodeDrag = () => {
@@ -1971,6 +2080,30 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
   useEffect(() => {
     scaleRef.current = scale
   }, [scale])
+
+  useLayoutEffect(() => {
+    const viewport = viewportBodyRef.current
+
+    if (!viewport) {
+      return
+    }
+
+    const syncViewportSize = () => {
+      setViewportSize({
+        width: viewport.clientWidth,
+        height: viewport.clientHeight,
+      })
+    }
+
+    syncViewportSize()
+
+    const observer = new ResizeObserver(syncViewportSize)
+    observer.observe(viewport)
+
+    return () => {
+      observer.disconnect()
+    }
+  }, [])
 
   useEffect(() => {
     if (scene.camera === undefined) {
@@ -2221,39 +2354,13 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
   const [portAnchors, setPortAnchors] = useState<PortAnchorMaps>(emptyPortAnchorMaps)
   const [addonSlotAnchors, setAddonSlotAnchors] = useState<Map<string, GraphPanPoint>>(() => new Map())
 
-  useLayoutEffect(() => {
-    const el = canvasRef.current
-
-    if (!el) {
-      return
-    }
-
-    setPortAnchors(collectGraphPortAnchors(el, scale))
-    setAddonSlotAnchors(collectAddonSlotAnchors(el, scale))
-  }, [
-    canvasBounds.height,
-    canvasBounds.width,
-    pan.x,
-    pan.y,
-    scale,
-    scene.connections,
-    scene.nodes,
-  ])
-
-  const wirelessDisplayByNode = useMemo(
-    () => buildWirelessDisplayByNode(scene.connections, scene.nodes),
-    [scene.connections, scene.nodes],
+  const blockOutputSlotConnectionIndexByKey = useGraphCanvasBlockSlotIndexMap(
+    scene,
+    nodeLightModeEnabled,
   )
 
-  const blockWirelessDisplayByNode = useMemo(() => {
-    const base = buildBlockWirelessDisplayByNode(scene.connections, scene.nodes)
-    return applyBlockOutputSlotConnectionSelection(
-      base,
-      scene.connections,
-      scene.nodes,
-      blockOutputSlotConnectionIndexByKey,
-    )
-  }, [scene.connections, scene.nodes, blockOutputSlotConnectionIndexByKey])
+  const { wirelessDisplayByNode, blockWirelessDisplayByNode, groupWirelessDisplayByNode } =
+    useGraphCanvasWirelessDisplayMaps(scene.connections, scene.nodes, blockOutputSlotConnectionIndexByKey)
 
   const resolveBlockOutputSlotConnectionIndexForNode = useCallback(
     (nodeId: string, slotId: string, connectionCount: number) =>
@@ -2262,32 +2369,23 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
         nodeId,
         slotId,
         connectionCount,
+        { lightModeDefaultFirst: nodeLightModeEnabled },
       ),
-    [blockOutputSlotConnectionIndexByKey],
+    [blockOutputSlotConnectionIndexByKey, nodeLightModeEnabled],
   )
 
   const handleBlockOutputSlotConnectionIndexChange = useCallback(
     (nodeId: string, slotId: string, index: number) => {
-      const key = blockOutputSlotConnectionKey(nodeId, slotId)
-      setBlockOutputSlotConnectionIndexByKey((current) => {
-        const next = new Map(current)
-        next.set(key, index)
-        return next
-      })
+      onSetBlockOutputSlotConnectionIndex?.(nodeId, slotId, index)
     },
-    [],
-  )
-
-  const groupWirelessDisplayByNode = useMemo(
-    () => buildGroupWirelessDisplayByNode(scene.connections, scene.nodes),
-    [scene.connections, scene.nodes],
+    [onSetBlockOutputSlotConnectionIndex],
   )
 
   const handleWirelessPeerHoverStart = useCallback(
     (payload: WirelessPeerHoverPayload) => {
       setWirelessHighlightNodeId(payload.peerNodeId)
 
-      const peerNode = scene.nodes.find((node) => node.id === payload.peerNodeId)
+      const peerNode = sceneRef.current.nodes.find((node) => node.id === payload.peerNodeId)
       let retractedElementViewKey: ElementViewKey | undefined
 
       if (
@@ -2312,7 +2410,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
         retractedElementViewKey,
       })
     },
-    [scene.nodes],
+    [],
   )
 
   const handleWirelessPeerHoverEnd = useCallback(() => {
@@ -2320,10 +2418,136 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     setWirelessPortPulse(null)
   }, [])
 
-  const compactElementVisibility = useMemo(
-    () => createCompactElementCanvasVisibility(scene),
-    [scene],
+  const compactElementVisibility = useCompactElementVisibility(scene, nodeLightModeEnabled)
+
+  const isPolicyVisibleOnCanvas = useCallback(
+    (canvasNode: CanvasNode) =>
+      isNodeVisibleOnCanvas(canvasNode, compactElementVisibility, sceneRef.current),
+    [compactElementVisibility],
   )
+
+  const nodePositionsKey = useMemo(
+    () => graphCanvasNodePositionsKey(scene.nodes, dragPositionOverride),
+    [dragPositionOverride, scene.nodes],
+  )
+
+  const graphViewportRect = useMemo(
+    () =>
+      computeGraphViewportRect(viewportSize.width, viewportSize.height, pan, scale),
+    [pan.x, pan.y, scale, viewportSize.height, viewportSize.width],
+  )
+
+  const nodesForLayout = useMemo(
+    () => applyGraphCanvasDragPositionOverride(scene.nodes, dragPositionOverride),
+    [dragPositionOverride, scene.nodes],
+  )
+
+  const forceRenderNodeIds = useMemo(() => {
+    const forced = new Set<string>(selectedNodeIds)
+
+    if (dragPositionOverride?.nodeId) {
+      forced.add(dragPositionOverride.nodeId)
+    }
+
+    if (glueNodeId) {
+      forced.add(glueNodeId)
+    }
+
+    if (wirelessHighlightNodeId) {
+      forced.add(wirelessHighlightNodeId)
+    }
+
+    if (ritualLinkDropHoverNodeId) {
+      forced.add(ritualLinkDropHoverNodeId)
+    }
+
+    if (pendingLink) {
+      forced.add(pendingLink.fromNodeId)
+    }
+
+    if (pendingBlockLink) {
+      forced.add(pendingBlockLink.fromNodeId)
+    }
+
+    if (pendingGroupLink) {
+      forced.add(pendingGroupLink.fromNodeId)
+    }
+
+    return forced
+  }, [
+    glueNodeId,
+    pendingBlockLink,
+    pendingGroupLink,
+    pendingLink,
+    ritualLinkDropHoverNodeId,
+    selectedNodeIds,
+    dragPositionOverride?.nodeId,
+    wirelessHighlightNodeId,
+  ])
+
+  const canvasRenderNodeIds = useMemo(
+    () =>
+      collectCanvasRenderNodeIds({
+        nodes: nodesForLayout,
+        viewport: graphViewportRect,
+        measureBounds: measureCanvasNodeBounds,
+        forceNodeIds: forceRenderNodeIds,
+        isPolicyVisible: isPolicyVisibleOnCanvas,
+      }),
+    [
+      forceRenderNodeIds,
+      graphViewportRect,
+      isPolicyVisibleOnCanvas,
+      measureCanvasNodeBounds,
+      nodesForLayout,
+    ],
+  )
+
+  const canvasRenderNodeIdsKey = useMemo(
+    () => [...canvasRenderNodeIds].sort().join('|'),
+    [canvasRenderNodeIds],
+  )
+
+  const visibleCanvasNodes = useMemo(
+    () => collectVisibleCanvasNodes(scene.nodes, canvasRenderNodeIds),
+    [canvasRenderNodeIds, scene.nodes],
+  )
+
+  const policyVisibleNodeIds = useMemo(
+    () =>
+      new Set(
+        scene.nodes.filter((node) => isPolicyVisibleOnCanvas(node)).map((node) => node.id),
+      ),
+    [isPolicyVisibleOnCanvas, scene.nodes],
+  )
+
+  const isConnectionRenderedInViewport = useCallback(
+    (connection: CanvasConnection) => {
+      if (
+        !policyVisibleNodeIds.has(connection.fromNodeId) ||
+        !policyVisibleNodeIds.has(connection.toNodeId)
+      ) {
+        return false
+      }
+
+      return (
+        canvasRenderNodeIds.has(connection.fromNodeId) ||
+        canvasRenderNodeIds.has(connection.toNodeId)
+      )
+    },
+    [canvasRenderNodeIds, policyVisibleNodeIds],
+  )
+
+  useLayoutEffect(() => {
+    const el = canvasRef.current
+
+    if (!el) {
+      return
+    }
+
+    setPortAnchors(collectGraphPortAnchors(el, scale))
+    setAddonSlotAnchors(collectAddonSlotAnchors(el, scale))
+  }, [canvasRenderNodeIdsKey, dragPositionOverride, scale, scene.connections.length, scene.nodes.length])
 
   const tryConnectCrossSlots = useCallback(
     (request: CrossSlotConnectRequest, allowForced = false): boolean => {
@@ -2365,10 +2589,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     scale,
     canvasRef,
     addonSlotAnchors,
-    visibleNodeIds: useMemo(
-      () => new Set(scene.nodes.filter((n) => isNodeVisibleOnCanvas(n, compactElementVisibility, scene)).map((n) => n.id)),
-      [compactElementVisibility, scene],
-    ),
+    visibleNodeIds: canvasRenderNodeIds,
     tryConnectCrossSlots: onConnectAddonSlots ? tryConnectCrossSlots : undefined,
     onSelectNode,
     onOpenAddonPalette: onCreateAddonFromCatalog
@@ -2390,57 +2611,6 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       setGroupLinkDraftPoint(null)
     },
   })
-
-  const visibleNodeIds = useMemo(
-    () =>
-      new Set(
-        scene.nodes
-          .filter((node) => isNodeVisibleOnCanvas(node, compactElementVisibility, scene))
-          .map((node) => node.id),
-      ),
-    [compactElementVisibility, scene.nodes],
-  )
-
-  const connectionPaths = useMemo(() => {
-    return scene.connections
-      .filter(
-        (connection) =>
-          !isBlockSlotConnection(connection) &&
-          !isGroupSlotConnection(connection) &&
-          connection.routing !== 'wireless' &&
-          visibleNodeIds.has(connection.fromNodeId) &&
-          visibleNodeIds.has(connection.toNodeId),
-      )
-      .map((connection) => resolveConnectionPath(connection, scene.nodes, scene.connections, portAnchors))
-      .filter((path): path is ConnectionPath => path !== null)
-  }, [portAnchors, scene.connections, scene.nodes, visibleNodeIds])
-
-  const blockConnectionPaths = useMemo(() => {
-    return scene.connections
-      .filter(
-        (connection) =>
-          isBlockSlotConnection(connection) &&
-          !connectionInvolvesAddon(connection) &&
-          connection.routing !== 'wireless' &&
-          visibleNodeIds.has(connection.fromNodeId) &&
-          visibleNodeIds.has(connection.toNodeId),
-      )
-      .map((connection) => resolveBlockConnectionPath(connection, scene.nodes))
-      .filter((path): path is NonNullable<ReturnType<typeof resolveBlockConnectionPath>> => path !== null)
-  }, [scene.connections, scene.nodes, visibleNodeIds])
-
-  const groupConnectionPaths = useMemo(() => {
-    return scene.connections
-      .filter(
-        (connection) =>
-          isGroupSlotConnection(connection) &&
-          connection.routing !== 'wireless' &&
-          visibleNodeIds.has(connection.fromNodeId) &&
-          visibleNodeIds.has(connection.toNodeId),
-      )
-      .map((connection) => resolveGroupConnectionPath(connection, scene.nodes))
-      .filter((path): path is NonNullable<ReturnType<typeof resolveGroupConnectionPath>> => path !== null)
-  }, [scene.connections, scene.nodes, visibleNodeIds])
 
   const paletteSchemas = useMemo(() => {
     if (!linkDropContext) {
@@ -2465,6 +2635,19 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
 
     return availableSchemas.filter((schema) => schemaMatchesCollectionType(schema, collectionType))
   }, [availableSchemas, linkDropContext, scene.connections, scene.nodes])
+
+  const addonLinkDraftPath = useMemo(() => {
+    if (!addonLinks.pendingAddonLink || !addonLinks.addonLinkDraftPoint) {
+      return null
+    }
+
+    return addonLinks.createAddonDraftConnectionPath(
+      addonLinks.pendingAddonLink.draftAnchor.sx,
+      addonLinks.pendingAddonLink.draftAnchor.sy,
+      addonLinks.addonLinkDraftPoint.x,
+      addonLinks.addonLinkDraftPoint.y,
+    )
+  }, [addonLinks.addonLinkDraftPoint, addonLinks.createAddonDraftConnectionPath, addonLinks.pendingAddonLink])
 
   const updateLinkDraftFromClient = useCallback((clientX: number, clientY: number) => {
     const el = canvasRef.current
@@ -3477,33 +3660,36 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     [beginPendingLink],
   )
 
-  const completeLink = (toNode: CanvasNode) => {
-    const fromNode = pendingLink
-      ? scene.nodes.find((node) => node.id === pendingLink.fromNodeId)
-      : undefined
-    const outputSlot =
-      pendingLink && fromNode
-        ? findOutputSlotInNode(fromNode, pendingLink.fromInternalStructureId, scene.connections)
-        : null
+  const completeLink = useCallback(
+    (toNode: CanvasNode) => {
+      const fromNode = pendingLink
+        ? scene.nodes.find((node) => node.id === pendingLink.fromNodeId)
+        : undefined
+      const outputSlot =
+        pendingLink && fromNode
+          ? findOutputSlotInNode(fromNode, pendingLink.fromInternalStructureId, scene.connections)
+          : null
 
-    if (
-      !pendingLink ||
-      !fromNode ||
-      !outputSlot ||
-      !nodesShareCollectionTypeForOutputSlot(fromNode, outputSlot, toNode, schemaRegistry)
-    ) {
-      return
-    }
+      if (
+        !pendingLink ||
+        !fromNode ||
+        !outputSlot ||
+        !nodesShareCollectionTypeForOutputSlot(fromNode, outputSlot, toNode, schemaRegistry)
+      ) {
+        return
+      }
 
-    onConnectNodes({
-      id: `${pendingLink.fromNodeId}:${pendingLink.fromInternalStructureId}->${toNode.id}`,
-      fromInternalStructureId: pendingLink.fromInternalStructureId,
-      fromNodeId: pendingLink.fromNodeId,
-      toNodeId: toNode.id,
-    })
-    endLinkDraft()
-    onSelectNode(toNode.id)
-  }
+      onConnectNodes({
+        id: `${pendingLink.fromNodeId}:${pendingLink.fromInternalStructureId}->${toNode.id}`,
+        fromInternalStructureId: pendingLink.fromInternalStructureId,
+        fromNodeId: pendingLink.fromNodeId,
+        toNodeId: toNode.id,
+      })
+      endLinkDraft()
+      onSelectNode(toNode.id)
+    },
+    [endLinkDraft, onConnectNodes, onSelectNode, pendingLink, scene.connections, scene.nodes],
+  )
 
   const resolveAddNodeToolbarAnchor = useCallback((): { left: number; top: number } | null => {
     const anchor = addNodeToolbarAnchorRef.current
@@ -3571,7 +3757,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       if (result.ok) {
         onSelectNode(result.rootNodeId)
       } else {
-        window.alert(result.error)
+        showAppAlert(result.error)
       }
     },
     [
@@ -3595,7 +3781,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       if (result.ok) {
         onSelectNode(result.rootNodeId)
       } else {
-        window.alert(result.error)
+        showAppAlert(result.error)
       }
     },
     [closePalette, onApplyBlockSlashCommand, onSelectNode, resolvePaletteSpawnPosition],
@@ -3673,7 +3859,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
           if (result.ok) {
             onSelectNode(result.nodeId)
           } else {
-            window.alert(result.error)
+            showAppAlert(result.error)
           }
         },
       )
@@ -3714,7 +3900,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       if (result.ok) {
         onSelectNode(result.nodeId)
       } else {
-        window.alert(result.error)
+        showAppAlert(result.error)
       }
       closePalette()
     },
@@ -3842,6 +4028,13 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
   const handleViewportPointerMove = (event: PointerEvent<HTMLDivElement>) => {
     lastPointerClientRef.current = { x: event.clientX, y: event.clientY }
 
+    const activeNodeDrag = nodeDragGesture.current
+
+    if (activeNodeDrag && activeNodeDrag.pointerId === event.pointerId) {
+      moveNodeDragImplRef.current(event)
+      return
+    }
+
     if (isParameterPickerOpen()) {
       return
     }
@@ -3898,6 +4091,11 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
   }
 
   const handleViewportPointerUp = (event: PointerEvent<HTMLDivElement>) => {
+    if (nodeDragGesture.current?.pointerId === event.pointerId) {
+      stopNodeDragImplRef.current(event)
+      return
+    }
+
     const marqueeGest = marqueeGestureRef.current
 
     if (marqueeGest && marqueeGest.pointerId === event.pointerId) {
@@ -3963,7 +4161,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     persistSceneCameraFromRefs()
   }
 
-  const startNodeDrag = (event: PointerEvent<HTMLElement>, canvasNode: CanvasNode) => {
+  const startNodeDrag = useCallback((event: PointerEvent<HTMLElement>, canvasNode: CanvasNode) => {
     if (
       event.button !== 0 ||
       isNodeLocked(canvasNode) ||
@@ -3977,9 +4175,17 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     }
 
     onSelectNode(canvasNode.id, { additive: event.shiftKey })
+    onBeginNodeDrag?.()
+
+    const viewport = viewportBodyRef.current
+
+    if (!viewport) {
+      return
+    }
+
     nodeDragGesture.current = {
       axisConstraint: event.shiftKey ? 'pending' : '',
-      element: event.currentTarget,
+      element: viewport,
       nodeId: canvasNode.id,
       origin: {
         x: event.clientX,
@@ -3989,11 +4195,11 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       position: canvasNode.position,
       snapGrid: event.ctrlKey || event.metaKey,
     }
-    event.currentTarget.setPointerCapture(event.pointerId)
+    viewport.setPointerCapture(event.pointerId)
     event.stopPropagation()
-  }
+  }, [deactivateGlueNode, glueNodeId, onBeginNodeDrag, onSelectNode])
 
-  const moveNodeDrag = (event: PointerEvent<HTMLDivElement>) => {
+  const moveNodeDrag = useCallback((event: PointerEvent<HTMLDivElement>) => {
     const gesture = nodeDragGesture.current
 
     if (!gesture || document.body.dataset.addonContextMenuActive === '1') {
@@ -4040,27 +4246,10 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       targetY = Math.round(targetY / SNAP_GRID_PX) * SNAP_GRID_PX
     }
 
-    const axisDescriptor =
-      workingGesture.axisConstraint === 'horizontal'
-        ? 'y'
-        : workingGesture.axisConstraint === 'vertical'
-          ? 'x'
-          : ''
+    scheduleDragVisual(workingGesture.nodeId, Math.round(targetX), Math.round(targetY))
+  }, [scale, scheduleDragVisual])
 
-    onMoveNode(
-      workingGesture.nodeId,
-      {
-        x: Math.round(targetX),
-        y: Math.round(targetY),
-      },
-      {
-        axisLock: axisDescriptor,
-        snapGrid: workingGesture.snapGrid,
-      },
-    )
-  }
-
-  const stopNodeDrag = (event: PointerEvent<HTMLDivElement>) => {
+  const stopNodeDrag = useCallback((event: PointerEvent<HTMLDivElement>) => {
     const gesture = nodeDragGesture.current
 
     if (gesture?.pointerId !== event.pointerId) {
@@ -4069,10 +4258,30 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
 
     nodeDragGesture.current = null
 
+    if (dragVisualRafRef.current !== null) {
+      window.cancelAnimationFrame(dragVisualRafRef.current)
+      dragVisualRafRef.current = null
+    }
+
+    commitDragVisualPosition(gesture.nodeId, {
+      axisLock:
+        gesture.axisConstraint === 'horizontal'
+          ? 'y'
+          : gesture.axisConstraint === 'vertical'
+            ? 'x'
+            : '',
+      snapGrid: gesture.snapGrid,
+    })
+    clearDragVisual()
+    onEndNodeDrag?.()
+
     if (gesture.element.hasPointerCapture(event.pointerId)) {
       gesture.element.releasePointerCapture(event.pointerId)
     }
-  }
+  }, [clearDragVisual, commitDragVisualPosition, onEndNodeDrag])
+
+  moveNodeDragImplRef.current = moveNodeDrag
+  stopNodeDragImplRef.current = stopNodeDrag
 
   const PORT_FOCUS_PULSE_MS = 2600
 
@@ -4750,6 +4959,8 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
               setSlashCommandRemovePickerOpen(true)
             }
           : undefined,
+      onHideInactiveBlockIndexBranches,
+    onApplyBlockOrganization,
     }
   }, [
     canRedo,
@@ -4845,6 +5056,13 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
           focusOutputPort(peer.nodeId, peer.structureId, connection)
           onSelectNode(peer.nodeId)
         }
+        closeContextMenu()
+        return
+      }
+
+      const blockOrganizationOperation = resolveBlockOrganizationOperationFromMenuId(actionId)
+      if (blockOrganizationOperation) {
+        onApplyBlockOrganization?.(blockOrganizationOperation)
         closeContextMenu()
         return
       }
@@ -4970,6 +5188,20 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
           if (target.type === 'node') {
             onHideLinkedChildNodes?.(target.nodeId)
           }
+          break
+        case 'node.showLinkedChildNodes':
+          if (target.type === 'node') {
+            onShowLinkedChildNodes?.(target.nodeId)
+          }
+          break
+        case 'node.hideInactiveBlockIndexBranches':
+          if (target.type === 'node') {
+            onHideInactiveBlockIndexBranches?.(target.nodeId)
+          }
+          break
+        case 'node.blockOrganization':
+        case 'node.blockOrganization.align':
+        case 'node.blockOrganization.distribute':
           break
         case 'node.focus':
           if (target.type === 'node') {
@@ -5345,6 +5577,9 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       onShowOnlySlotSubtree,
       onShowOnlyIncomingSlotBranch,
       onHideLinkedChildNodes,
+      onShowLinkedChildNodes,
+      onHideInactiveBlockIndexBranches,
+    onApplyBlockOrganization,
       onRemoveList2EmbedInstance,
       onRemoveList2PointerInstance,
       onRequestRemoveElement,
@@ -5576,6 +5811,8 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       return
     }
 
+    onBeginNodeDrag?.()
+
     const reposition = (nativeEvent: Event) => {
       const pointerEvent = nativeEvent as unknown as PointerEvent
 
@@ -5592,25 +5829,239 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       const projected = graphClientToPosition(canvas, scale, pointerEvent.clientX, pointerEvent.clientY)
       const offset = gluePointerOffsetRef.current ?? { x: 0, y: 0 }
 
-      onMoveNode(
+      scheduleDragVisual(
         glueNodeId,
-        {
-          x: projected.x - offset.x,
-          y: projected.y - offset.y,
-        },
-        {
-        axisLock: '',
-          snapGrid: pointerEvent.ctrlKey || pointerEvent.metaKey,
-        },
+        Math.round(projected.x - offset.x),
+        Math.round(projected.y - offset.y),
       )
     }
 
-    window.addEventListener('pointermove', reposition)
+    window.addEventListener('pointermove', reposition, { passive: true })
 
     return () => {
       window.removeEventListener('pointermove', reposition)
+
+      if (dragVisualRafRef.current !== null) {
+        window.cancelAnimationFrame(dragVisualRafRef.current)
+        dragVisualRafRef.current = null
+      }
+
+      if (pendingDragVisualRef.current) {
+        const pending = pendingDragVisualRef.current
+        pendingDragVisualRef.current = null
+        lastDragVisualRef.current = pending
+        setDragPositionOverride(pending)
+      }
+
+      commitDragVisualPosition(glueNodeId, { axisLock: '', snapGrid: false })
+      clearDragVisual()
+      onEndNodeDrag?.()
     }
-  }, [glueNodeId, onMoveNode, scale, scene.nodes])
+  }, [
+    clearDragVisual,
+    commitDragVisualPosition,
+    glueNodeId,
+    onBeginNodeDrag,
+    onEndNodeDrag,
+    scheduleDragVisual,
+    scale,
+    scene.nodes,
+  ])
+
+  const setBlockSlotToolsEnabled = useCallback((nodeId: string, enabled: boolean) => {
+    setBlockSlotToolsEnabledNodes((current) => {
+      const next = new Set(current)
+      if (enabled) {
+        next.add(nodeId)
+      } else {
+        next.delete(nodeId)
+      }
+      return next
+    })
+  }, [])
+
+  const clearBlockParameterPanelState = useCallback(() => {
+    setBlockParameterScreenAnchor(null)
+    setBlockParameterAnchorNodeId(null)
+    setBlockParameterPanelRequest(null)
+  }, [])
+
+  const dismissBlockParameterPanel = useCallback(() => {
+    setBlockParameterScreenAnchor(null)
+    setBlockParameterAnchorNodeId(null)
+  }, [])
+
+  const clearBlockParameterPanelRequest = useCallback(() => {
+    setBlockParameterPanelRequest(null)
+  }, [])
+
+  const showBlockParameterCatalogError = useCallback((error: string) => {
+    showAppAlert(error)
+  }, [])
+
+  const nodeHostContextValue = useMemo((): GraphCanvasNodeHostContextValue => {
+    return {
+      sceneRef,
+      sceneConnections: scene.connections,
+      scale,
+      glueModeActive,
+      structureCardResizeModifierActive,
+      nodeLightModeEnabled,
+      hints,
+      compactElementVisibility,
+      schemaNodeKindBySchemaId,
+      schemaBaseParameterCatalogBySchemaId,
+      blockParameterScreenAnchor,
+      canvasRef,
+      pendingBlockLinkRef,
+      addonLinks: {
+        pendingAddonLink: addonLinks.pendingAddonLink,
+        beginAddonOutputLink: addonLinks.beginAddonOutputLink,
+        getPendingAddonLink: addonLinks.getPendingAddonLink,
+        endAddonLinkDraft: addonLinks.endAddonLinkDraft,
+        setAddonLinkDraftPointFromClient: addonLinks.setAddonLinkDraftPointFromClient,
+        resolveAddonLinkDrop: addonLinks.resolveAddonLinkDrop,
+      },
+      handleContextMenu,
+      startNodeDrag,
+      onSelectNode,
+      onApplyAddonOutputs,
+      onConnectAddonSlots,
+      tryConnectCrossSlots,
+      endBlockLinkDraft,
+      beginGroupOutputLink,
+      resolveGroupLinkDrop,
+      setGroupLinkDraftPoint,
+      handleGroupSlotWirelessHoverStart,
+      handleGroupSlotWirelessHoverEnd,
+      onUpdateGroupParameter,
+      onCycleConnectionRouting,
+      onSetStructureCardWidth,
+      beginBlockOutputLink,
+      resolveBlockLinkDrop,
+      setBlockLinkDraftPoint,
+      handleBlockSlotWirelessHoverStart,
+      handleBlockSlotWirelessHoverEnd,
+      resolveBlockOutputSlotConnectionIndexForNode,
+      handleBlockOutputSlotConnectionIndexChange,
+      setBlockSlotToolsEnabled,
+      buildBlockSlotPeerActions,
+      onSetBlockElementSelectedIndex,
+      onRemoveConnectionsFromBlockSlot,
+      onUpdateBlockParameter,
+      onAddBlockParameterFromCatalog,
+      onRemoveBlockParameter,
+      onEditBlockParameter,
+      clearBlockParameterPanelState,
+      dismissBlockParameterPanel,
+      clearBlockParameterPanelRequest,
+      completeLink,
+      handleOutputWireKeyboard,
+      handleOutputWirePointerCancel,
+      handleOutputWirePointerDown,
+      handleOutputWirePointerMove,
+      handleOutputWirePointerUp,
+      onCatalogParameterAppend,
+      onAppendEmbedCatalogItem,
+      onAppendPointerCatalogItem,
+      onAppendListEmbedCatalogItem,
+      onAppendListPointerCatalogItem,
+      onAppendList2EmbedCatalogItem,
+      onAppendList2PointerCatalogItem,
+      onRemoveList2EmbedInstance,
+      onRemoveList2PointerInstance,
+      onRequestRemoveElement,
+      onSetNodeParameterOrder,
+      onUpdateNodeParameter,
+      onSetElementViewMode,
+      onSetElementRetracted,
+      onSetElementSelectedIndex,
+      onRemoveConnectionsFromOutputSlot,
+      onRemoveConnection,
+      handleWirelessPeerHoverStart,
+      handleWirelessPeerHoverEnd,
+      buildOutputSlotPeerActions,
+      onToggleNodeCardSection,
+      onSetNodeCardSectionOrder,
+      onNeekoDropCode,
+      onNodeLockedInteraction,
+      showBlockParameterCatalogError,
+    }
+  }, [
+    addonLinks,
+    beginBlockOutputLink,
+    beginGroupOutputLink,
+    blockParameterScreenAnchor,
+    buildBlockSlotPeerActions,
+    buildOutputSlotPeerActions,
+    clearBlockParameterPanelRequest,
+    clearBlockParameterPanelState,
+    compactElementVisibility,
+    completeLink,
+    dismissBlockParameterPanel,
+    endBlockLinkDraft,
+    handleBlockSlotWirelessHoverEnd,
+    handleBlockSlotWirelessHoverStart,
+    handleContextMenu,
+    handleGroupSlotWirelessHoverEnd,
+    handleGroupSlotWirelessHoverStart,
+    handleOutputWireKeyboard,
+    handleOutputWirePointerCancel,
+    handleOutputWirePointerDown,
+    handleOutputWirePointerMove,
+    handleOutputWirePointerUp,
+    handleWirelessPeerHoverEnd,
+    handleWirelessPeerHoverStart,
+    hints,
+    glueModeActive,
+    nodeLightModeEnabled,
+    onAppendEmbedCatalogItem,
+    onAppendList2EmbedCatalogItem,
+    onAppendList2PointerCatalogItem,
+    onAppendListEmbedCatalogItem,
+    onAppendListPointerCatalogItem,
+    onAppendPointerCatalogItem,
+    onApplyAddonOutputs,
+    onAddBlockParameterFromCatalog,
+    onCatalogParameterAppend,
+    onConnectAddonSlots,
+    onCycleConnectionRouting,
+    onEditBlockParameter,
+    onNeekoDropCode,
+    onNodeLockedInteraction,
+    onRemoveBlockParameter,
+    onRemoveConnection,
+    onRemoveConnectionsFromBlockSlot,
+    onRemoveConnectionsFromOutputSlot,
+    onRemoveList2EmbedInstance,
+    onRemoveList2PointerInstance,
+    onRequestRemoveElement,
+    onSelectNode,
+    onSetBlockElementSelectedIndex,
+    onSetElementRetracted,
+    onSetElementSelectedIndex,
+    onSetElementViewMode,
+    onSetNodeCardSectionOrder,
+    onSetNodeParameterOrder,
+    onSetStructureCardWidth,
+    onToggleNodeCardSection,
+    onUpdateBlockParameter,
+    onUpdateGroupParameter,
+    onUpdateNodeParameter,
+    resolveBlockLinkDrop,
+    resolveBlockOutputSlotConnectionIndexForNode,
+    resolveGroupLinkDrop,
+    scene.connections,
+    schemaNodeKindBySchemaId,
+    setBlockLinkDraftPoint,
+    setBlockSlotToolsEnabled,
+    setGroupLinkDraftPoint,
+    showBlockParameterCatalogError,
+    startNodeDrag,
+    structureCardResizeModifierActive,
+    tryConnectCrossSlots,
+    handleBlockOutputSlotConnectionIndexChange,
+  ])
 
   return (
     <section
@@ -5926,7 +6377,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
           const result = await onRemoveBlockSlashCommand(command.command)
           setSlashCommandRemovePickerOpen(false)
           if (!result.ok) {
-            window.alert(result.error)
+            showAppAlert(result.error)
           }
         }}
         title={t(LangId.SlashCommandRemovePickerTitle, 'Remover slash command')}
@@ -5950,7 +6401,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
           if (result.ok) {
             refreshSlashCommandsCatalog()
           } else {
-            window.alert(result.error)
+            showAppAlert(result.error)
           }
         }}
         title={t(LangId.SlashCommandAddDialogTitle, 'Novo slash command')}
@@ -6137,7 +6588,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
             if (result.ok) {
               onSelectNode(result.nodeId)
             } else {
-              window.alert(result.error)
+              showAppAlert(result.error)
             }
           })
         }}
@@ -6147,236 +6598,27 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       <div className={styles.canvas} ref={canvasRef} style={canvasStyle}>
         <Canvas2DCursor position={cursor2DPosition} />
         <RitualNeekoStagingPreview />
-        <svg
-          className={styles.connections}
-          height={canvasBounds.height}
-          role="presentation"
-          viewBox={`0 0 ${canvasBounds.width} ${canvasBounds.height}`}
-          width={canvasBounds.width}
-        >
-          <defs>
-            <marker
-              id="connection-arrow"
-              markerHeight="8"
-              markerWidth="8"
-              orient="auto"
-              refX="6"
-              refY="4"
-              viewBox="0 0 8 8"
-            >
-              <path d="M 0 0 L 8 4 L 0 8 z" fill="var(--port-child)" />
-            </marker>
-            <marker
-              id="connection-arrow-block"
-              markerHeight="8"
-              markerWidth="8"
-              orient="auto"
-              refX="6"
-              refY="4"
-              viewBox="0 0 8 8"
-            >
-              <path d="M 0 0 L 8 4 L 0 8 z" fill="var(--block-slot-out)" />
-            </marker>
-          </defs>
-
-          {connectionPaths.map((connection) => (
-            <g key={connection.id}>
-              {onRemoveConnection || onCycleConnectionRouting ? (
-                <path
-                  aria-label={`Ligação ${connection.id}`}
-                  className={styles.connectionHit}
-                  d={connection.d}
-                  data-canvas-wire="true"
-                  {...{ [CANVAS_CONNECTION_ID_ATTR]: connection.id }}
-                  onContextMenu={handleContextMenu}
-                  onPointerDown={(event) => {
-                    event.preventDefault()
-                    event.stopPropagation()
-
-                    if (event.ctrlKey || event.metaKey) {
-                      if (onRemoveConnection) {
-                        onRemoveConnection(connection.id)
-                      }
-
-                      return
-                    }
-
-                    onCycleConnectionRouting?.(connection.id)
-                  }}
-                />
-              ) : null}
-              <path className={styles.connectionHalo} d={connection.d} />
-              <path
-                className={
-                  connection.routing === 'rigid' ? `${styles.connection} ${styles.connectionRigid}` : styles.connection
-                }
-                d={connection.d}
-                markerEnd="url(#connection-arrow)"
-              />
-            </g>
-          ))}
-          {blockConnectionPaths.map((connection) => (
-            <g key={connection.id}>
-              {onRemoveConnection || onCycleConnectionRouting ? (
-                <path
-                  aria-label={`Ligação bloco ${connection.id}`}
-                  className={styles.connectionHit}
-                  d={connection.d}
-                  data-canvas-wire="true"
-                  {...{ [CANVAS_CONNECTION_ID_ATTR]: connection.id }}
-                  onContextMenu={handleContextMenu}
-                  onPointerDown={(event) => {
-                    event.preventDefault()
-                    event.stopPropagation()
-
-                    if (event.ctrlKey || event.metaKey) {
-                      onRemoveConnection?.(connection.id)
-                      return
-                    }
-
-                    onCycleConnectionRouting?.(connection.id)
-                  }}
-                />
-              ) : null}
-              <path
-                className={[
-                  styles.connectionBlockHalo,
-                  connection.forced ? styles.connectionBlockHaloForced : '',
-                ]
-                  .filter(Boolean)
-                  .join(' ')}
-                d={connection.d}
-              />
-              <path
-                className={[
-                  styles.connectionBlock,
-                  connection.routing === 'rigid' ? styles.connectionBlockRigid : '',
-                  connection.routing === 'wireless' ? styles.connectionBlockWireless : '',
-                  connection.forced ? styles.connectionBlockForced : '',
-                ]
-                  .filter(Boolean)
-                  .join(' ')}
-                d={connection.d}
-                markerEnd="url(#connection-arrow-block)"
-              />
-            </g>
-          ))}
-          {addonLinks.addonConnectionPaths.map((connection) => (
-            <g key={connection.id}>
-              {onRemoveConnection || onCycleConnectionRouting ? (
-                <path
-                  aria-label={`Ligação add-on ${connection.id}`}
-                  className={styles.connectionHit}
-                  d={connection.d}
-                  data-canvas-wire="true"
-                  {...{ [CANVAS_CONNECTION_ID_ATTR]: connection.id }}
-                  onContextMenu={handleContextMenu}
-                  onPointerDown={(event) => {
-                    event.preventDefault()
-                    event.stopPropagation()
-                    if (event.ctrlKey || event.metaKey) {
-                      onRemoveConnection?.(connection.id)
-                      return
-                    }
-                    onCycleConnectionRouting?.(connection.id)
-                  }}
-                />
-              ) : null}
-              <path
-                className={[
-                  styles.connectionBlockHalo,
-                  connection.forced ? styles.connectionBlockHaloForced : '',
-                ]
-                  .filter(Boolean)
-                  .join(' ')}
-                d={connection.d}
-              />
-              <path
-                className={[
-                  styles.connectionBlock,
-                  connection.routing === 'rigid' ? styles.connectionBlockRigid : '',
-                  connection.routing === 'wireless' ? styles.connectionBlockWireless : '',
-                  connection.forced ? styles.connectionBlockForced : '',
-                ]
-                  .filter(Boolean)
-                  .join(' ')}
-                d={connection.d}
-                markerEnd="url(#connection-arrow-block)"
-              />
-            </g>
-          ))}
-          {addonLinks.pendingAddonLink && addonLinks.addonLinkDraftPoint ? (
-            <path
-              className={styles.connectionBlockDraft}
-              d={addonLinks.createAddonDraftConnectionPath(
-                addonLinks.pendingAddonLink.draftAnchor.sx,
-                addonLinks.pendingAddonLink.draftAnchor.sy,
-                addonLinks.addonLinkDraftPoint.x,
-                addonLinks.addonLinkDraftPoint.y,
-              )}
-            />
-          ) : null}
-          {groupConnectionPaths.map((connection) => (
-            <g key={connection.id}>
-              {onRemoveConnection || onCycleConnectionRouting ? (
-                <path
-                  aria-label={`Ligação grupo ${connection.id}`}
-                  className={styles.connectionHit}
-                  d={connection.d}
-                  data-canvas-wire="true"
-                  {...{ [CANVAS_CONNECTION_ID_ATTR]: connection.id }}
-                  onContextMenu={handleContextMenu}
-                  onPointerDown={(event) => {
-                    event.preventDefault()
-                    event.stopPropagation()
-
-                    if (event.ctrlKey || event.metaKey) {
-                      onRemoveConnection?.(connection.id)
-                      return
-                    }
-
-                    onCycleConnectionRouting?.(connection.id)
-                  }}
-                />
-              ) : null}
-              <path className={styles.connectionBlockHalo} d={connection.d} />
-              <path className={styles.connectionBlock} d={connection.d} markerEnd="url(#connection-arrow-block)" />
-            </g>
-          ))}
-          {pendingBlockLink && blockLinkDraftPoint ? (
-            <path
-              className={styles.connectionBlockDraft}
-              d={createBlockDraftConnectionPath(
-                pendingBlockLink.draftAnchor.sx,
-                pendingBlockLink.draftAnchor.sy,
-                blockLinkDraftPoint.x,
-                blockLinkDraftPoint.y,
-              )}
-            />
-          ) : null}
-          {pendingGroupLink && groupLinkDraftPoint ? (
-            <path
-              className={styles.connectionBlockDraft}
-              d={createGroupDraftConnectionPath(
-                pendingGroupLink.draftAnchor.sx,
-                pendingGroupLink.draftAnchor.sy,
-                groupLinkDraftPoint.x,
-                groupLinkDraftPoint.y,
-              )}
-            />
-          ) : null}
-          {pendingLink && linkDraftPoint ? (
-            <path
-              className={styles.connectionDraft}
-              d={createDraftConnectionPath(
-                pendingLink.draftAnchor.sx,
-                pendingLink.draftAnchor.sy,
-                linkDraftPoint.x,
-                linkDraftPoint.y,
-              )}
-            />
-          ) : null}
-        </svg>
+        <GraphCanvasConnectionsLayer
+          canvasBounds={canvasBounds}
+          nodePositionsKey={nodePositionsKey}
+          connections={scene.connections}
+          nodesForLayout={nodesForLayout}
+          portAnchors={portAnchors}
+          isConnectionRenderedInViewport={isConnectionRenderedInViewport}
+          resolveNodeConnectionPath={resolveConnectionPath}
+          addonConnectionPaths={addonLinks.addonConnectionPaths}
+          addonLinkDraftPath={addonLinkDraftPath}
+          pendingBlockLink={pendingBlockLink}
+          blockLinkDraftPoint={blockLinkDraftPoint}
+          pendingGroupLink={pendingGroupLink}
+          groupLinkDraftPoint={groupLinkDraftPoint}
+          pendingLink={pendingLink}
+          linkDraftPoint={linkDraftPoint}
+          createDraftConnectionPath={createDraftConnectionPath}
+          onContextMenu={handleContextMenu}
+          onRemoveConnection={onRemoveConnection}
+          onCycleConnectionRouting={onCycleConnectionRouting}
+        />
 
         {marqueeOverlay ? (
           <div
@@ -6395,551 +6637,111 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
           />
         ) : null}
 
-        {scene.nodes.map((canvasNode) => {
-          if (!isNodeVisibleOnCanvas(canvasNode, compactElementVisibility, scene)) {
-            return null
-          }
-
-          const nodeLocked = isNodeLocked(canvasNode)
-          const nodeGlueLocked = glueNodeId === canvasNode.id
-          const nodeInteractionLocked = nodeLocked || nodeGlueLocked
-          const isSelected = selectedNodeIds.includes(canvasNode.id)
-          const cardHandlesSelection =
-            (canvasNode.groupViewActive && !!canvasNode.groupStructure) ||
-            (canvasNode.addonViewActive && !!canvasNode.addonInstance) ||
-            (canvasNode.blockViewActive && !!canvasNode.blockStructure)
-          const pendingFromNode = pendingLink
-            ? scene.nodes.find((node) => node.id === pendingLink.fromNodeId)
-            : undefined
-          const pendingOutputSlot =
-            pendingLink && pendingFromNode
-              ? findOutputSlotInNode(pendingFromNode, pendingLink.fromInternalStructureId, scene.connections)
-              : null
-          const isCompatibleTarget =
-            pendingLink !== null &&
-            pendingFromNode !== undefined &&
-            pendingOutputSlot !== null &&
-            pendingLink.fromNodeId !== canvasNode.id &&
-            nodesShareCollectionTypeForOutputSlot(
-              pendingFromNode,
-              pendingOutputSlot,
-              canvasNode,
-              schemaRegistry,
-            )
-          const isIncompatibleDuringLink =
-            pendingLink !== null &&
-            pendingLink.fromNodeId !== canvasNode.id &&
-            !isCompatibleTarget
-          const wirelessHighlighted = wirelessHighlightNodeId === canvasNode.id
-          const linkDropHovered = ritualLinkDropHoverNodeId === canvasNode.id
-          const classes = [
-            styles.node,
-            isSelected && !cardHandlesSelection ? styles.nodeSelected : '',
-            wirelessHighlighted && !canvasNode.blockViewActive ? styles.nodeWirelessLinked : '',
-            isCompatibleTarget ? styles.nodeCompatibleTarget : '',
-            isIncompatibleDuringLink ? styles.nodeIncompatibleTarget : '',
-            linkDropHovered ? styles.nodeLinkDropTarget : '',
-          ]
-            .filter(Boolean)
-            .join(' ')
-
-          return (
-            <div
-              className={classes}
-              data-canvas-node="true"
-              data-canvas-node-id={canvasNode.id}
-              key={canvasNode.id}
-              onContextMenu={handleContextMenu}
-              onPointerCancel={stopNodeDrag}
-              onPointerMove={moveNodeDrag}
-              onPointerUp={stopNodeDrag}
-              style={{
-                left: `${canvasNode.position.x}px`,
-                top: `${canvasNode.position.y}px`,
-              }}
-            >
-              {canvasNode.addonViewActive && canvasNode.addonInstance ? (
-                <AddonCardHost
-                  canvasNode={canvasNode}
-                  scene={scene}
-                  selected={isSelected}
-                  interactionLocked={nodeInteractionLocked}
-                  activeAddonSlotId={addonLinks.pendingAddonLink?.fromAddonSlotId}
-                  onGraphStateMutation={(nodeId, outputs) =>
-                    onApplyAddonOutputs?.(nodeId, outputs)
-                  }
-                  onAddonOutputPointerDown={(slotId, event) => {
-                    if (event.button !== 0) {
-                      return
-                    }
-                    event.stopPropagation()
-                    addonLinks.beginAddonOutputLink(canvasNode.id, slotId)
-                    event.currentTarget.setPointerCapture(event.pointerId)
-                  }}
-                  onAddonOutputPointerUp={(slotId, event) => {
-                    event.stopPropagation()
-                    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-                      event.currentTarget.releasePointerCapture(event.pointerId)
-                    }
-                  }}
-                  onAddonOutputPointerCancel={(_slotId, event) => {
-                    event.stopPropagation()
-                    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-                      event.currentTarget.releasePointerCapture(event.pointerId)
-                    }
-                    addonLinks.endAddonLinkDraft()
-                  }}
-                  onAddonOutputPointerMove={(_slotId, event) => {
-                    addonLinks.setAddonLinkDraftPointFromClient(event.clientX, event.clientY)
-                  }}
-                  onAddonInputPointerUp={(slotId, event) => {
-                    const pendingAddon = addonLinks.getPendingAddonLink()
-                    if (pendingAddon && onConnectAddonSlots) {
-                      tryConnectCrossSlots({
-                        kind: 'addon',
-                        fromNodeId: pendingAddon.fromNodeId,
-                        fromAddonSlotId: pendingAddon.fromAddonSlotId,
-                        toNodeId: canvasNode.id,
-                        toAddonSlotId: slotId,
-                      })
-                      addonLinks.endAddonLinkDraft()
-                      onSelectNode(canvasNode.id)
-                      return
-                    }
-                    const pendingBlock = pendingBlockLinkRef.current
-                    if (pendingBlock && onConnectAddonSlots) {
-                      tryConnectCrossSlots({
-                        kind: 'blockToAddon',
-                        fromNodeId: pendingBlock.fromNodeId,
-                        fromBlockSlotId: pendingBlock.fromBlockSlotId,
-                        fromBlockParameterId: pendingBlock.fromBlockParameterId,
-                        toNodeId: canvasNode.id,
-                        toAddonSlotId: slotId,
-                      })
-                      endBlockLinkDraft()
-                      onSelectNode(canvasNode.id)
-                      return
-                    }
-                    addonLinks.resolveAddonLinkDrop(event.clientX, event.clientY)
-                  }}
-                  onSelect={(event) =>
-                    onSelectNode(canvasNode.id, { additive: Boolean(event?.shiftKey) })
-                  }
-                  onStartDrag={
-                    nodeInteractionLocked ? undefined : (event) => startNodeDrag(event, canvasNode)
-                  }
-                />
-              ) : canvasNode.groupViewActive && canvasNode.groupStructure ? (
-              <GroupCard
-                canvasNode={canvasNode}
-                scene={scene}
-                selected={isSelected}
-                interactionLocked={nodeInteractionLocked}
-                activeGroupSlotId={pendingGroupLink?.fromGroupSlotId}
-                blockWirelessDisplay={groupWirelessDisplayByNode.get(canvasNode.id)}
-                blockWirelessPulseSlotId={
-                  groupWirelessPulse?.nodeId === canvasNode.id ? groupWirelessPulse.slotId : undefined
-                }
-                onUpdateGroupParameter={(paramId, value) =>
-                  onUpdateGroupParameter?.(canvasNode.id, paramId, value)
-                }
-                onBlockOutputPointerDown={(paramId, slotId, event) => {
-                  event.stopPropagation()
-                  beginGroupOutputLink(canvasNode.id, slotId, paramId)
-                  event.currentTarget.setPointerCapture(event.pointerId)
-                }}
-                onBlockOutputPointerUp={(_paramId, _slotId, event) => {
-                  if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-                    event.currentTarget.releasePointerCapture(event.pointerId)
-                  }
-                  resolveGroupLinkDrop(event.clientX, event.clientY)
-                }}
-                onBlockOutputPointerMove={(_paramId, _slotId, event) => {
-                  const canvasEl = canvasRef.current
-                  if (!canvasEl) {
-                    return
-                  }
-                  setGroupLinkDraftPoint(
-                    graphClientToPosition(canvasEl, scale, event.clientX, event.clientY),
+        <GraphCanvasNodeHostProvider value={nodeHostContextValue}>
+          {visibleCanvasNodes.map((canvasNode) => {
+            const nodeLocked = isNodeLocked(canvasNode)
+            const nodeGlueLocked = glueNodeId === canvasNode.id
+            const nodeInteractionLocked = nodeLocked || nodeGlueLocked
+            const isSelected = selectedNodeIds.includes(canvasNode.id)
+            const cardHandlesSelection =
+              (canvasNode.groupViewActive && !!canvasNode.groupStructure) ||
+              (canvasNode.addonViewActive && !!canvasNode.addonInstance) ||
+              (canvasNode.blockViewActive && !!canvasNode.blockStructure)
+            const pendingFromNode = pendingLink
+              ? scene.nodes.find((node) => node.id === pendingLink.fromNodeId)
+              : undefined
+            const pendingOutputSlot =
+              pendingLink && pendingFromNode
+                ? findOutputSlotInNode(
+                    pendingFromNode,
+                    pendingLink.fromInternalStructureId,
+                    scene.connections,
                   )
-                }}
-                onBlockHeaderOutputPointerDown={(slotId, event) => {
-                  event.stopPropagation()
-                  beginGroupOutputLink(canvasNode.id, slotId)
-                  event.currentTarget.setPointerCapture(event.pointerId)
-                }}
-                onBlockHeaderOutputPointerUp={(_slotId, event) => {
-                  if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-                    event.currentTarget.releasePointerCapture(event.pointerId)
-                  }
-                  resolveGroupLinkDrop(event.clientX, event.clientY)
-                }}
-                onBlockHeaderInputPointerUp={(_slotId, event) => {
-                  resolveGroupLinkDrop(event.clientX, event.clientY)
-                }}
-                onBlockInputPointerUp={(_paramId, _slotId, event) => {
-                  resolveGroupLinkDrop(event.clientX, event.clientY)
-                }}
-                onGroupSlotWirelessHoverStart={handleGroupSlotWirelessHoverStart}
-                onGroupSlotWirelessHoverEnd={handleGroupSlotWirelessHoverEnd}
-                onGroupSlotCycleRouting={onCycleConnectionRouting}
-                canvasScale={scale}
-                structureCardResizeModifierActive={
-                  structureCardResizeModifierActive && !glueModeActive
-                }
-                onStructureCardResize={({ width, positionX }) =>
-                  onSetStructureCardWidth?.(canvasNode.id, width, positionX)
-                }
-                onSelect={(event) => onSelectNode(canvasNode.id, { additive: Boolean(event?.shiftKey) })}
-                onStartDrag={
-                  nodeInteractionLocked ? undefined : (event) => startNodeDrag(event, canvasNode)
-                }
-              />
-            ) : canvasNode.blockViewActive && canvasNode.blockStructure ? (
-              <BlockCard
+                : null
+            const isCompatibleTarget =
+              pendingLink !== null &&
+              pendingFromNode !== undefined &&
+              pendingOutputSlot !== null &&
+              pendingLink.fromNodeId !== canvasNode.id &&
+              nodesShareCollectionTypeForOutputSlot(
+                pendingFromNode,
+                pendingOutputSlot,
+                canvasNode,
+                schemaRegistry,
+              )
+            const isIncompatibleDuringLink =
+              pendingLink !== null &&
+              pendingLink.fromNodeId !== canvasNode.id &&
+              !isCompatibleTarget
+            const slotToolsEnabled =
+              !nodeGlueLocked && blockSlotToolsEnabledNodes.has(canvasNode.id)
+
+            return (
+              <GraphCanvasSceneNode
+                key={canvasNode.id}
                 canvasNode={canvasNode}
-                scene={scene}
-                selected={isSelected}
-                interactionLocked={nodeInteractionLocked}
-                activeBlockSlotId={pendingBlockLink?.fromBlockSlotId}
+                renderPosition={resolveGraphCanvasNodeRenderPosition(
+                  canvasNode,
+                  dragPositionOverride,
+                )}
+                isSelected={isSelected}
+                nodeInteractionLocked={nodeInteractionLocked}
+                nodeLocked={nodeLocked}
+                isCompatibleTarget={isCompatibleTarget}
+                isIncompatibleDuringLink={isIncompatibleDuringLink}
+                wirelessHighlighted={wirelessHighlightNodeId === canvasNode.id}
+                linkDropHovered={ritualLinkDropHoverNodeId === canvasNode.id}
+                cardHandlesSelection={cardHandlesSelection}
                 blockWirelessDisplay={blockWirelessDisplayByNode.get(canvasNode.id)}
+                groupWirelessDisplay={groupWirelessDisplayByNode.get(canvasNode.id)}
+                wirelessDisplay={wirelessDisplayByNode.get(canvasNode.id)}
                 blockWirelessPulseSlotId={
-                  blockWirelessPulse?.nodeId === canvasNode.id ? blockWirelessPulse.slotId : undefined
-                }
-                onUpdateBlockParameter={(paramId, value) =>
-                  onUpdateBlockParameter?.(canvasNode.id, paramId, value)
-                }
-                onBlockOutputPointerDown={(paramId, slotId, event) => {
-                  event.stopPropagation()
-                  beginBlockOutputLink(canvasNode.id, slotId, paramId)
-                  event.currentTarget.setPointerCapture(event.pointerId)
-                }}
-                onBlockOutputPointerUp={(_paramId, _slotId, event) => {
-                  if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-                    event.currentTarget.releasePointerCapture(event.pointerId)
-                  }
-                  resolveBlockLinkDrop(event.clientX, event.clientY)
-                }}
-                onBlockOutputPointerMove={(_paramId, _slotId, event) => {
-                  const canvasEl = canvasRef.current
-                  if (!canvasEl) {
-                    return
-                  }
-                  setBlockLinkDraftPoint(
-                    graphClientToPosition(canvasEl, scale, event.clientX, event.clientY),
-                  )
-                }}
-                onBlockHeaderOutputPointerDown={(slotId, event) => {
-                  event.stopPropagation()
-                  beginBlockOutputLink(canvasNode.id, slotId)
-                  event.currentTarget.setPointerCapture(event.pointerId)
-                }}
-                onBlockHeaderOutputPointerUp={(_slotId, event) => {
-                  if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-                    event.currentTarget.releasePointerCapture(event.pointerId)
-                  }
-                  resolveBlockLinkDrop(event.clientX, event.clientY)
-                }}
-                onBlockHeaderInputPointerUp={(slotId, event) => {
-                  const pendingAddon = addonLinks.getPendingAddonLink()
-                  if (pendingAddon && onConnectAddonSlots) {
-                    tryConnectCrossSlots({
-                      kind: 'addonToBlock',
-                      fromNodeId: pendingAddon.fromNodeId,
-                      fromAddonSlotId: pendingAddon.fromAddonSlotId,
-                      toNodeId: canvasNode.id,
-                      toBlockSlotId: slotId,
-                    })
-                    addonLinks.endAddonLinkDraft()
-                    onSelectNode(canvasNode.id)
-                    return
-                  }
-                  resolveBlockLinkDrop(event.clientX, event.clientY)
-                }}
-                onBlockInputPointerUp={(paramId, slotId, event) => {
-                  const pendingAddon = addonLinks.getPendingAddonLink()
-                  if (pendingAddon && onConnectAddonSlots) {
-                    tryConnectCrossSlots({
-                      kind: 'addonToBlock',
-                      fromNodeId: pendingAddon.fromNodeId,
-                      fromAddonSlotId: pendingAddon.fromAddonSlotId,
-                      toNodeId: canvasNode.id,
-                      toBlockSlotId: slotId,
-                      toBlockParameterId: paramId,
-                    })
-                    addonLinks.endAddonLinkDraft()
-                    onSelectNode(canvasNode.id)
-                    return
-                  }
-                  resolveBlockLinkDrop(event.clientX, event.clientY)
-                }}
-                onBlockSlotWirelessHoverStart={handleBlockSlotWirelessHoverStart}
-                onBlockSlotWirelessHoverEnd={handleBlockSlotWirelessHoverEnd}
-                resolveBlockOutputSlotConnectionIndex={(slotId, connectionCount) =>
-                  resolveBlockOutputSlotConnectionIndexForNode(
-                    canvasNode.id,
-                    slotId,
-                    connectionCount,
-                  )
-                }
-                onBlockOutputSlotConnectionIndexChange={(slotId, index) =>
-                  handleBlockOutputSlotConnectionIndexChange(canvasNode.id, slotId, index)
-                }
-                slotToolsEnabled={
-                  nodeGlueLocked ? false : blockSlotToolsEnabledNodes.has(canvasNode.id)
-                }
-                onSlotToolsEnabledChange={(enabled) => {
-                  setBlockSlotToolsEnabledNodes((current) => {
-                    const next = new Set(current)
-                    if (enabled) {
-                      next.add(canvasNode.id)
-                    } else {
-                      next.delete(canvasNode.id)
-                    }
-                    return next
-                  })
-                }}
-                blockSlotPeerActions={
-                  blockSlotToolsEnabledNodes.has(canvasNode.id)
-                    ? buildBlockSlotPeerActions(canvasNode.id)
+                  blockWirelessPulse?.nodeId === canvasNode.id
+                    ? blockWirelessPulse.slotId
                     : undefined
                 }
-                onMapHashStructureSlotRemoved={
-                  onRemoveConnectionsFromBlockSlot
-                    ? (slotId) => onRemoveConnectionsFromBlockSlot(canvasNode.id, slotId)
+                groupWirelessPulseSlotId={
+                  groupWirelessPulse?.nodeId === canvasNode.id
+                    ? groupWirelessPulse.slotId
                     : undefined
                 }
-                canvasScale={scale}
-                structureCardResizeModifierActive={
-                  structureCardResizeModifierActive && !glueModeActive
+                wirelessPortPulse={
+                  wirelessPortPulse?.nodeId === canvasNode.id ? wirelessPortPulse : undefined
                 }
-                onStructureCardResize={({ width, positionX }) =>
-                  onSetStructureCardWidth?.(canvasNode.id, width, positionX)
-                }
-                onSelect={(event) => onSelectNode(canvasNode.id, { additive: Boolean(event?.shiftKey) })}
-                onStartDrag={
-                  nodeInteractionLocked ? undefined : (event) => startNodeDrag(event, canvasNode)
-                }
-                onAddParameterFromCatalog={
-                  nodeInteractionLocked || !onAddBlockParameterFromCatalog
-                    ? undefined
-                    : (doc) => {
-                        const result = onAddBlockParameterFromCatalog(canvasNode.id, doc)
-                        if (!result.ok) {
-                          window.alert(result.error)
-                        }
-                      }
-                }
-                onRemoveParameter={
-                  nodeInteractionLocked || !onRemoveBlockParameter
-                    ? undefined
-                    : (paramId) => onRemoveBlockParameter(canvasNode.id, paramId)
-                }
-                onEditParameter={
-                  nodeInteractionLocked || !onEditBlockParameter
-                    ? undefined
-                    : (param, screenAnchor) => {
-                        const anchor = screenAnchor ?? blockParameterScreenAnchor ?? undefined
-                        onEditBlockParameter(canvasNode.id, param, anchor)
-                        setBlockParameterScreenAnchor(null)
-                        setBlockParameterAnchorNodeId(null)
-                        setBlockParameterPanelRequest(null)
-                      }
-                }
+                slotToolsEnabled={slotToolsEnabled}
+                slotPagerEnabled={nodeLightModeEnabled || slotToolsEnabled}
                 parameterPanelRequest={
                   blockParameterPanelRequest?.nodeId === canvasNode.id
                     ? blockParameterPanelRequest.panel
                     : null
                 }
                 parameterPanelScreenAnchor={
-                  blockParameterAnchorNodeId === canvasNode.id ? blockParameterScreenAnchor : null
+                  blockParameterAnchorNodeId === canvasNode.id
+                    ? blockParameterScreenAnchor
+                    : null
                 }
-                onParameterPanelDismiss={() => {
-                  setBlockParameterScreenAnchor(null)
-                  setBlockParameterAnchorNodeId(null)
-                }}
-                onParameterPanelRequestHandled={() => setBlockParameterPanelRequest(null)}
-                wirelessHighlighted={wirelessHighlighted}
-              />
-            ) : (
-              <NodeCard
+                blockSlotPeerActions={
+                  slotToolsEnabled ? buildBlockSlotPeerActions(canvasNode.id) : undefined
+                }
+                activeBlockSlotId={pendingBlockLink?.fromBlockSlotId}
+                activeGroupSlotId={pendingGroupLink?.fromGroupSlotId}
+                activeAddonSlotId={addonLinks.pendingAddonLink?.fromAddonSlotId}
                 activeOutputInternalStructureId={
-                  pendingLink?.fromNodeId === canvasNode.id ? pendingLink.fromInternalStructureId : undefined
-                }
-                bodyStyle={canvasNodeBodyStyle(canvasNode)}
-                cardStyle={canvasNodeCardStyle(canvasNode)}
-                inputPortStyle={canvasNodeInputPortStyle(canvasNode)}
-                canvasNodeId={canvasNode.id}
-                canAcceptLink={isCompatibleTarget}
-                connections={scene.connections}
-                displayTitle={getNodeDisplayTitle(canvasNode)}
-                locked={nodeLocked}
-                onLockedInteraction={onNodeLockedInteraction}
-                catalogParameters={(() => {
-                  const sid = canvasNode.node.schema.id
-                  const kind = schemaNodeKindBySchemaId?.[sid] ?? 'module'
-                  if (kind !== 'base') {
-                    return undefined
-                  }
-                  const list = schemaBaseParameterCatalogBySchemaId?.[sid] ?? []
-                  const ids = new Set(canvasNode.node.schema.parameters.map((p) => p.id))
-                  const names = new Set(canvasNode.node.schema.parameters.map((p) => p.name))
-                  return list.filter((p) => !ids.has(p.id) && !names.has(p.name))
-                })()}
-                node={canvasNode.node}
-                nodeKind={schemaNodeKindBySchemaId?.[canvasNode.node.schema.id] ?? 'module'}
-                templateSchema={schemaRegistry[canvasNode.node.schema.id] ?? null}
-                parameterStubCatalog={
-                  schemaBaseParameterCatalogBySchemaId?.[canvasNode.node.schema.id] ?? []
-                }
-                onAppendCatalogParameter={
-                  onCatalogParameterAppend
-                    ? (definition) => onCatalogParameterAppend(canvasNode.id, definition)
+                  pendingLink?.fromNodeId === canvasNode.id
+                    ? pendingLink.fromInternalStructureId
                     : undefined
                 }
-                onAppendEmbedCatalogItem={
-                  onAppendEmbedCatalogItem
-                    ? (embedId, structure) =>
-                        onAppendEmbedCatalogItem(canvasNode.id, embedId, structure)
-                    : undefined
-                }
-                onAppendPointerCatalogItem={
-                  onAppendPointerCatalogItem
-                    ? (pointerId, structure) =>
-                        onAppendPointerCatalogItem(canvasNode.id, pointerId, structure)
-                    : undefined
-                }
-                onAppendListEmbedCatalogItem={
-                  onAppendListEmbedCatalogItem
-                    ? (listEmbedId, structure) =>
-                        onAppendListEmbedCatalogItem(canvasNode.id, listEmbedId, structure)
-                    : undefined
-                }
-                onAppendListPointerCatalogItem={
-                  onAppendListPointerCatalogItem
-                    ? (listPointerId, structure) =>
-                        onAppendListPointerCatalogItem(canvasNode.id, listPointerId, structure)
-                    : undefined
-                }
-                onAppendList2EmbedCatalogItem={
-                  onAppendList2EmbedCatalogItem
-                    ? (list2EmbedId, structure) =>
-                        onAppendList2EmbedCatalogItem(canvasNode.id, list2EmbedId, structure)
-                    : undefined
-                }
-                onAppendList2PointerCatalogItem={
-                  onAppendList2PointerCatalogItem
-                    ? (list2PointerId, structure) =>
-                        onAppendList2PointerCatalogItem(canvasNode.id, list2PointerId, structure)
-                    : undefined
-                }
-                onRemoveList2EmbedInstance={
-                  onRemoveList2EmbedInstance
-                    ? (list2EmbedId, instanceId) =>
-                        onRemoveList2EmbedInstance(canvasNode.id, list2EmbedId, instanceId)
-                    : undefined
-                }
-                onRemoveList2PointerInstance={
-                  onRemoveList2PointerInstance
-                    ? (list2PointerId, instanceId) =>
-                        onRemoveList2PointerInstance(canvasNode.id, list2PointerId, instanceId)
-                    : undefined
-                }
-                onRequestRemoveElement={
-                  onRequestRemoveElement
-                    ? (item) => onRequestRemoveElement(canvasNode.id, item)
-                    : undefined
-                }
-                onInputPortClick={() => completeLink(canvasNode)}
-                onOutputWireKeyboard={(entity) => handleOutputWireKeyboard(canvasNode.id, entity)}
-                onOutputWirePointerCancel={handleOutputWirePointerCancel}
-                onOutputWirePointerDown={
-                  nodeLocked
-                    ? undefined
-                    : (entity, event) => handleOutputWirePointerDown(canvasNode.id, entity, event)
-                }
-                onOutputWirePointerMove={handleOutputWirePointerMove}
-                onOutputWirePointerUp={(entity, event) =>
-                  handleOutputWirePointerUp(canvasNode.id, entity, event)
-                }
-                onSelect={(event) => onSelectNode(canvasNode.id, { additive: Boolean(event?.shiftKey) })}
-                onStartDrag={
-                  nodeInteractionLocked ? undefined : (event) => startNodeDrag(event, canvasNode)
-                }
-                onReorderNodeParameter={
-                  onSetNodeParameterOrder
-                    ? (parameterId, oneBased) =>
-                        onSetNodeParameterOrder(canvasNode.id, parameterId, oneBased)
-                    : undefined
-                }
-                onUpdateParameter={
-                  onUpdateNodeParameter
-                    ? (parameterId, nextValue) =>
-                        onUpdateNodeParameter(canvasNode.id, parameterId, nextValue)
-                    : undefined
-                }
-                onSetElementViewMode={
-                  onSetElementViewMode
-                    ? (elementKey, mode) => onSetElementViewMode(canvasNode.id, elementKey, mode)
-                    : undefined
-                }
-                onSetElementRetracted={
-                  onSetElementRetracted
-                    ? (elementKey, retracted) =>
-                        onSetElementRetracted(canvasNode.id, elementKey, retracted)
-                    : undefined
-                }
-                onSetElementSelectedIndex={
-                  onSetElementSelectedIndex
-                    ? (elementKey, index) =>
-                        onSetElementSelectedIndex(canvasNode.id, elementKey, index)
-                    : undefined
-                }
-                onMapHashStructureSlotRemoved={
-                  onRemoveConnectionsFromOutputSlot
-                    ? (slotId) => onRemoveConnectionsFromOutputSlot(canvasNode.id, slotId)
-                    : undefined
-                }
-                onCycleConnectionRouting={onCycleConnectionRouting}
-                onRemoveConnection={onRemoveConnection}
-                onWirelessPeerHoverStart={handleWirelessPeerHoverStart}
-                onWirelessPeerHoverEnd={handleWirelessPeerHoverEnd}
-                wirelessDisplay={wirelessDisplayByNode.get(canvasNode.id)}
-                wirelessPortPulse={
-                  wirelessPortPulse?.nodeId === canvasNode.id ? wirelessPortPulse : undefined
-                }
-                parameterHints={hints}
-                bodyCollapsed={isNodeBodyEffectivelyCollapsed(canvasNode, compactElementVisibility)}
-                cardSectionExpanded={canvasNode.cardSectionExpanded}
-                cardSectionOrder={canvasNode.cardSectionOrder}
+                bodyCollapsed={isNodeBodyEffectivelyCollapsed(
+                  canvasNode,
+                  compactElementVisibility,
+                )}
                 cardBodyLayout={resolveNodeCardBodyLayout(canvasNode)}
-                onToggleCardSection={
-                  onToggleNodeCardSection
-                    ? (sectionId) => onToggleNodeCardSection(canvasNode.id, sectionId)
-                    : undefined
-                }
-                onReorderNodeCardSection={
-                  onSetNodeCardSectionOrder
-                    ? (sectionId, oneBased) =>
-                        onSetNodeCardSectionOrder(canvasNode.id, sectionId, oneBased)
-                    : undefined
-                }
-                selected={isSelected}
-                neekoTransformPhase={canvasNode.neekoTransformPhase}
-                neekoTransformError={canvasNode.neekoTransformError}
-                isNeekoTransforming={neekoTransformingNodeId === canvasNode.id}
+                neekoTransforming={neekoTransformingNodeId === canvasNode.id}
                 ritualDropHover={ritualDropHoverNeekoId === canvasNode.id}
-                onNeekoDropCode={
-                  onNeekoDropCode && !nodeLocked
-                    ? (text) => onNeekoDropCode(canvasNode.id, text)
-                    : undefined
-                }
-                outputSlotPeerActions={buildOutputSlotPeerActions(canvasNode.id)}
               />
-              )}
-            </div>
-          )
-        })}
+            )
+          })}
+        </GraphCanvasNodeHostProvider>
       </div>
       </div>
     </section>

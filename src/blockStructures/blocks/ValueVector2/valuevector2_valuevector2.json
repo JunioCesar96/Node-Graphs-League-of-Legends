@@ -10,7 +10,7 @@
   },
   "color": "#40ff56",
   "headerSlots": [
-    "in[birthUvScrollRate,birthUVOffset,uvScale,rateByVelocityFunction,uvScaleMult,birthUVOffsetMult,birthUvScrollRateMult]",
+    "in[birthUvScrollRate,birthUVOffset,uvScaleMult,birthUVOffsetMult]",
     "out[ValueVector2Preview]"
   ],
   "parameters": [

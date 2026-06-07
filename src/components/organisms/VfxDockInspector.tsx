@@ -483,12 +483,3 @@ export function VfxDockInspector({
     </aside>
   )
 }
-
-export function emitterAccentColor(name: string): string {
-  const lower = name.toLowerCase()
-  if (lower.includes('ring')) return '#3dd6c8'
-  if (lower.includes('splat')) return '#f0c14a'
-  if (lower.includes('juice')) return '#6eb5ff'
-  if (lower.includes('glow') || lower.includes('core')) return '#7ef0ff'
-  return '#8aa4c8'
-}

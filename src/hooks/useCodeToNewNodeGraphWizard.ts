@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from 'react'
 
+import { showAppAlert } from '@/messenger_popup/appMessenger'
 import type { CanvasScene } from '@/core/canvasScene'
 import { createEmptyNewNodeGraphScene, prepareCodeToNewNodeGraph } from '@/core/codeToNewNodeGraph'
 import {
@@ -99,7 +100,7 @@ export function useCodeToNewNodeGraphWizard({
       const prepared = prepareCodeToNewNodeGraph(codeText)
 
       if (!prepared.ok) {
-        window.alert(prepared.error)
+        showAppAlert(prepared.error)
         return false
       }
 
@@ -109,7 +110,7 @@ export function useCodeToNewNodeGraphWizard({
 
       const steps = planNewNodeGraphSteps(prepared.parseRegistry)
       if (steps.length === 0) {
-        window.alert('Nenhum passo de construção gerado.')
+        showAppAlert('Nenhum passo de construção gerado.')
         return false
       }
 

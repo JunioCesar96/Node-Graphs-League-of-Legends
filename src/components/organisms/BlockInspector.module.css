@@ -1,19 +1,20 @@
 .panel {
   display: grid;
-  gap: var(--space-4);
+  gap: var(--space-2);
   align-content: start;
   width: min(380px, calc(100vw - 64px));
   max-height: min(640px, calc(100vh - 96px));
   overflow: auto;
-  padding: var(--space-4);
-  background: var(--block-surface-dark);
-  border: 1px solid rgb(0 0 0 / 40%);
-  border-radius: 16px;
-  box-shadow: 0 24px 72px rgb(0 0 0 / 45%);
+  padding: var(--ctx-menu-panel-padding-block, 4px) 0 var(--space-2);
+  font-size: var(--ctx-menu-font-size, 12.5px);
+  background: var(--ctx-menu-bg, var(--window-bg, #1e1e1e));
+  border: 1px solid var(--ctx-menu-border, #454545);
+  border-radius: var(--ctx-menu-radius, 4px);
+  box-shadow: var(--ctx-menu-shadow, 0 4px 16px rgb(0 0 0 / 40%));
 }
 
 .panelViewportFloatingBody {
-  padding: var(--space-4);
+  padding: var(--ctx-menu-panel-padding-block, 4px) 0 var(--space-2);
   margin: 0;
 }
 
@@ -25,12 +26,12 @@
   align-items: center;
   min-width: 0;
   max-width: min(280px, 36vw);
-  height: 42px;
-  padding: 0 var(--space-2) 0 var(--space-3);
-  background: var(--block-surface);
-  border: 1px solid rgb(0 0 0 / 35%);
-  border-radius: 999px;
-  box-shadow: 0 8px 28px rgb(0 0 0 / 22%);
+  height: 34px;
+  padding: 0 var(--ctx-menu-item-padding-inline, 20px);
+  background: var(--ctx-menu-bg, var(--window-bg, #1e1e1e));
+  border: 1px solid var(--ctx-menu-border, #454545);
+  border-radius: var(--ctx-menu-radius, 4px);
+  box-shadow: var(--ctx-menu-shadow, 0 4px 16px rgb(0 0 0 / 40%));
 }
 
 .inspectorChromeStripDraggable {
@@ -45,9 +46,10 @@
 
 .chromeStripEyebrow {
   flex: 0 0 auto;
-  color: var(--block-slot);
-  font-family: var(--font-data);
-  font-size: 0.62rem;
+  color: var(--block-slot, var(--ctx-menu-muted));
+  font: inherit;
+  font-size: var(--ctx-menu-section-font-size, 10px);
+  font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -57,8 +59,8 @@
   min-width: 0;
   margin: 0;
   overflow: hidden;
-  color: var(--block-text);
-  font-size: 0.78rem;
+  color: var(--ctx-menu-fg, var(--block-text));
+  font: inherit;
   font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -71,46 +73,58 @@
 }
 
 .iconButton {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
   padding: 0;
-  border: 1px solid rgb(255 255 255 / 8%);
-  border-radius: 999px;
-  background: rgb(0 0 0 / 18%);
-  color: var(--block-text);
+  color: var(--ctx-menu-fg, var(--block-text));
   cursor: pointer;
+  background: transparent;
+  border: 1px solid var(--ctx-menu-border, #454545);
+  border-radius: var(--ctx-menu-radius, 4px);
+}
+
+.iconButton:hover {
+  color: var(--ctx-menu-hover-fg, #fff);
+  background: var(--ctx-menu-hover-bg, #007acc);
+  border-color: var(--ctx-menu-hover-bg, #007acc);
 }
 
 .fieldRow {
   display: grid;
-  gap: var(--space-2);
+  gap: var(--space-1);
 }
 
 .fieldRow label {
-  color: var(--block-text);
-  font-size: 0.72rem;
+  color: var(--ctx-menu-fg, var(--block-text));
+  font: inherit;
+  font-size: var(--ctx-menu-shortcut-font-size, 11.5px);
 }
 
 .fieldHint {
-  color: rgb(196 196 196 / 68%);
-  font-size: 0.68rem;
+  color: var(--ctx-menu-muted, rgb(196 196 196 / 68%));
+  font: inherit;
+  font-size: var(--ctx-menu-shortcut-font-size, 11.5px);
   line-height: 1.35;
 }
-
 
 .fieldRow input,
 .fieldRow select {
   width: 100%;
-  padding: 6px 8px;
-  border: 1px solid rgb(255 255 255 / 10%);
-  border-radius: 6px;
-  background: var(--block-surface);
-  color: var(--block-text);
-  font-family: var(--font-data);
-  font-size: 0.75rem;
+  padding: 4px 8px;
+  color: var(--ctx-menu-fg, var(--block-text));
+  font: inherit;
+  font-size: var(--ctx-menu-font-size, 12.5px);
+  background: rgb(0 0 0 / 18%);
+  border: 1px solid var(--ctx-menu-border, #454545);
+  border-radius: var(--ctx-menu-radius, 4px);
+}
+
+.fieldRow input:focus,
+.fieldRow select:focus {
+  border-color: var(--syntax-property);
+  outline: none;
 }
 
 .dockedBodyLayout {
@@ -133,7 +147,7 @@
 .inspectorScroll {
   display: grid;
   flex: 1 1 auto;
-  gap: var(--space-4);
+  gap: var(--space-2);
   align-content: start;
   min-height: 0;
   overflow: auto;
@@ -141,39 +155,44 @@
 
 .paramList {
   display: grid;
-  gap: var(--space-3);
+  gap: var(--space-1);
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
 .actions {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   flex: 0 0 auto;
-  flex-wrap: wrap;
-  gap: var(--space-2);
+  gap: var(--space-1);
   width: 100%;
   box-sizing: border-box;
   margin: 0;
-  margin-top: var(--space-4);
-  padding-top: var(--space-4);
-  border-top: 1px solid rgb(255 255 255 / 10%);
+  margin-top: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--ctx-menu-border, #454545);
 }
 
 .primary,
 .secondary {
-  flex: 1 1 auto;
-  padding: 8px 10px;
-  border: none;
-  border-radius: 8px;
-  font-size: 0.78rem;
+  padding: var(--ctx-menu-item-padding-block, 5px) 10px;
+  font: inherit;
+  font-size: var(--ctx-menu-shortcut-font-size, 11.5px);
   font-weight: 600;
+  text-align: center;
   cursor: pointer;
+  border-radius: var(--ctx-menu-radius, 4px);
+  transition:
+    color 100ms ease,
+    background 100ms ease,
+    border-color 100ms ease;
 }
 
 .primary {
-  background: var(--block-slot-out);
-  color: #111;
+  color: var(--ctx-menu-hover-fg, #fff);
+  background: var(--ctx-menu-hover-bg, #007acc);
+  border: 1px solid var(--ctx-menu-hover-bg, #007acc);
 }
 
 .primary:disabled {
@@ -182,26 +201,36 @@
 }
 
 .secondary {
-  background: var(--block-surface);
-  color: var(--block-text);
-  border: 1px solid rgb(255 255 255 / 12%);
+  color: var(--ctx-menu-fg, var(--block-text));
+  background: transparent;
+  border: 1px solid var(--ctx-menu-border, #454545);
+}
+
+.secondary:hover:not(:disabled) {
+  color: var(--ctx-menu-hover-fg, #fff);
+  background: var(--ctx-menu-hover-bg, #007acc);
+  border-color: var(--ctx-menu-hover-bg, #007acc);
 }
 
 .empty {
   margin: 0;
-  color: rgb(196 196 196 / 72%);
-  font-size: 0.78rem;
+  color: var(--ctx-menu-muted, rgb(196 196 196 / 72%));
+  font: inherit;
+  font-size: var(--ctx-menu-shortcut-font-size, 11.5px);
+  text-align: center;
 }
 
 .minimizedDockRow {
   display: inline-flex;
-  gap: var(--space-2);
+  gap: var(--space-1);
   align-items: center;
-  height: 42px;
-  padding: 0 var(--space-2);
-  background: var(--block-surface);
-  border: 1px solid rgb(0 0 0 / 35%);
-  border-radius: 999px;
+  max-width: min(420px, calc(100vw - 48px));
+  height: 34px;
+  padding: 0 var(--space-1) 0 var(--ctx-menu-item-padding-inline, 20px);
+  background: var(--ctx-menu-bg, var(--window-bg, #1e1e1e));
+  border: 1px solid var(--ctx-menu-border, #454545);
+  border-radius: var(--ctx-menu-radius, 4px);
+  box-shadow: var(--ctx-menu-shadow, 0 4px 16px rgb(0 0 0 / 40%));
 }
 
 .minimizedDockRowDraggable .minimizedButton {
@@ -216,25 +245,45 @@
 
 .minimizedButton {
   display: inline-flex;
+  flex: 1 1 auto;
   gap: var(--space-2);
   align-items: center;
-  padding: 0 var(--space-2);
-  border: none;
-  background: transparent;
-  color: var(--block-text);
+  min-width: 0;
+  padding: 0 var(--space-1);
+  color: var(--ctx-menu-fg, var(--block-text));
+  font: inherit;
   cursor: pointer;
+  background: transparent;
+  border: none;
 }
 
 .minimizedIcon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  border-radius: 999px;
-  background: var(--block-slot);
-  color: #111;
-  font-family: var(--font-data);
-  font-size: 0.72rem;
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  color: var(--ctx-menu-hover-fg, #fff);
+  font: inherit;
+  font-size: var(--ctx-menu-shortcut-font-size, 11.5px);
   font-weight: 700;
+  border-radius: var(--ctx-menu-radius, 4px);
+  background: var(--ctx-menu-hover-bg, #007acc);
+}
+
+.minimizedLabel {
+  min-width: 0;
+  overflow: hidden;
+  font: inherit;
+  font-weight: 600;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.minimizedDockActions {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  padding-right: var(--space-1);
 }

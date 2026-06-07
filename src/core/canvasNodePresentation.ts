@@ -2,7 +2,12 @@ import type { CSSProperties } from 'react'
 
 import type { CanvasNode, CanvasScene } from '@/core/canvasScene'
 import {
-  createCompactElementCanvasVisibility,
+  computeBlockCompactHiddenNodeIds,
+  type BlockCompactVisibilityOptions,
+} from '@/core/blockCompactBranchVisibility'
+import {
+  createCompactElementCanvasVisibility as createNodeCompactElementCanvasVisibility,
+  expandHiddenNodeBranches,
   type CompactElementCanvasVisibility,
 } from '@/core/compactElementBranchVisibility'
 import { collectLinkVisibilityVisibleIds } from '@/core/sceneNodeLinkVisibility'
@@ -20,10 +25,25 @@ export function getNodeDisplayTitle(canvasNode: CanvasNode): string {
 
 export type MapHashEmbedCanvasVisibility = CompactElementCanvasVisibility
 
-export {
-  createCompactElementCanvasVisibility,
-  type CompactElementCanvasVisibility,
+export type CompactElementCanvasVisibilityOptions = BlockCompactVisibilityOptions
+
+export function createCompactElementCanvasVisibility(
+  scene: CanvasScene,
+  options?: CompactElementCanvasVisibilityOptions,
+): CompactElementCanvasVisibility {
+  const base = createNodeCompactElementCanvasVisibility(scene)
+  const blockHidden = computeBlockCompactHiddenNodeIds(scene, options)
+  const mergedHidden = new Set([...base.hiddenNodeIds, ...blockHidden])
+  if (mergedHidden.size === 0) {
+    return base
+  }
+  return {
+    ...base,
+    hiddenNodeIds: expandHiddenNodeBranches(scene, mergedHidden),
+  }
 }
+
+export { type CompactElementCanvasVisibility }
 
 export const createMapHashEmbedCanvasVisibility = createCompactElementCanvasVisibility
 
@@ -58,6 +78,21 @@ export function isNodeVisibleOnCanvas(
   }
 
   return true
+}
+
+export function countVisibleCanvasNodes(
+  scene: NodeVisibilitySceneContext & { nodes: readonly CanvasNode[] },
+  compactVisibility?: CompactElementCanvasVisibility,
+): number {
+  let count = 0
+
+  for (const canvasNode of scene.nodes) {
+    if (isNodeVisibleOnCanvas(canvasNode, compactVisibility, scene)) {
+      count += 1
+    }
+  }
+
+  return count
 }
 
 export function isNodeBodyEffectivelyCollapsed(

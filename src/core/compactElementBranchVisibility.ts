@@ -9,7 +9,11 @@ import type {
   NodeParameterDefinition,
 } from '@/core/nodeSchema'
 import { listEmbedSlotId, populatedSlotsForListEmbed } from '@/core/listEmbedSlots'
-import { listPointerSlotId, populatedSlotsForListPointer } from '@/core/listPointerSlots'
+import {
+  listPointerOutputSlotConnectionIds,
+  listPointerSlotId,
+  populatedSlotsForListPointer,
+} from '@/core/listPointerSlots'
 import { populatedSlotsForList2EmbedInstance } from '@/core/list2EmbedSlots'
 import { populatedSlotsForList2PointerInstance } from '@/core/list2PointerSlots'
 import { mapHashEmbedSlotId } from '@/core/mapHashEmbedSlots'
@@ -94,6 +98,22 @@ export function collectDescendantNodeIds(
   return descendants
 }
 
+/** Expande o conjunto oculto com todos os descendentes de cada nó já marcado. */
+export function expandHiddenNodeBranches(
+  scene: Pick<CanvasScene, 'connections'>,
+  hidden: ReadonlySet<string>,
+): Set<string> {
+  const expanded = new Set(hidden)
+
+  for (const nodeId of hidden) {
+    for (const descendantId of collectDescendantNodeIds(scene, nodeId)) {
+      expanded.add(descendantId)
+    }
+  }
+
+  return expanded
+}
+
 /** Nós alcançáveis a partir dos slots de saída indicados (filhos directos + descendentes). */
 export function collectBranchNodeIdsFromOutputSlots(
   scene: Pick<CanvasScene, 'connections'>,
@@ -110,6 +130,26 @@ export function collectBranchNodeIdsFromOutputSlots(
   return target
 }
 
+function connectionMatchesOutputSlot(
+  connection: CanvasScene['connections'][number],
+  fromNodeId: string,
+  slotId: string,
+): boolean {
+  if (connection.fromNodeId !== fromNodeId) {
+    return false
+  }
+
+  if (
+    connection.fromInternalStructureId === slotId ||
+    connection.fromInternalStructureId === `__block__:${slotId}` ||
+    connection.fromBlockSlotId === slotId
+  ) {
+    return true
+  }
+
+  return false
+}
+
 function hideBranchesFromOutputSlots(
   scene: CanvasScene,
   fromNodeId: string,
@@ -118,10 +158,7 @@ function hideBranchesFromOutputSlots(
 ): void {
   for (const slotId of slotIds) {
     for (const connection of scene.connections) {
-      if (
-        connection.fromNodeId !== fromNodeId ||
-        connection.fromInternalStructureId !== slotId
-      ) {
+      if (!connectionMatchesOutputSlot(connection, fromNodeId, slotId)) {
         continue
       }
 
@@ -317,13 +354,22 @@ export function inactiveListPointerSlotIds(
   block: ListPointerDefinition,
   elementKey: string,
 ): string[] {
-  return inactiveListBlockSlotIds(
-    node,
-    block.id,
-    elementKey,
-    populatedSlotsForListPointer(block),
-    listPointerSlotId,
-  )
+  if (!isElementViewCompact(node, elementKey)) {
+    return []
+  }
+
+  const slots = populatedSlotsForListPointer(block)
+  const activeIndex = resolvedSelectedIndex(node, elementKey, slots.length)
+  const inactive: string[] = []
+
+  for (let index = 0; index < slots.length; index += 1) {
+    if (index === activeIndex) {
+      continue
+    }
+    inactive.push(...listPointerOutputSlotConnectionIds(block, index))
+  }
+
+  return inactive
 }
 
 function inactiveList2InstanceSlotIds(
@@ -556,7 +602,6 @@ export function createCompactElementCanvasVisibility(scene: CanvasScene): Compac
     listCollapsedBodyNodeIds: computeListModeCollapsedBodyNodeIds(scene),
   }
 }
-
 // Aliases retrocompatíveis com mapHashEmbedBranchVisibility
 export const computeMapHashEmbedHiddenNodeIds = computeCompactHiddenNodeIds
 export const computeMapHashEmbedListCollapsedNodeIds = computeListModeCollapsedBodyNodeIds

@@ -5,7 +5,7 @@
   "name": "paletteDefinition",
   "source": {
     "kind": "parameter",
-    "parameterId": "vfx-emitter-definition-data__main-characters/brand/skins/skin0/particles/brand-base-joke-complex-emitter-definition-data--slot--1-palette-definition"
+    "parameterId": "vfx-emitter-definition-data__main-entries-complex-emitter-definition-data-palette-definition"
   },
   "type": "pointer",
   "pointer": "VfxPaletteDefinitionData",

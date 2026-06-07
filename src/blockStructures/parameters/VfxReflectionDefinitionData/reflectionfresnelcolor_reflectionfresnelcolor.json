@@ -5,7 +5,7 @@
   "name": "reflectionFresnelColor",
   "source": {
     "kind": "parameter",
-    "parameterId": "vfx-reflection-definition-data__main-characters/brand/skins/skin0/particles/brand-base-r-wildfire-mis-complex-emitter-definition-data--slot--2-reflection-definition_parameter_reflectionFresnelColor"
+    "parameterId": "vfx-reflection-definition-data__main-entries-complex-emitter-definition-data-reflection-definition_parameter_reflectionFresnelColor"
   },
   "type": "vec4",
   "value": "1, 1, 1, 0",

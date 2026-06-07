@@ -17,19 +17,21 @@
   max-width: 260px;
   min-height: 0;
   overflow: hidden;
-  background: var(--vfx-panel-bg-soft);
-  border: 1px solid var(--vfx-chrome-bg-mid);
+  font-size: var(--ctx-menu-font-size, 12.5px);
+  color: var(--ctx-menu-fg, var(--color-text-primary));
+  background: var(--ctx-menu-bg, var(--window-bg, #1e1e1e));
+  border: 1px solid var(--ctx-menu-border, #454545);
   border-left: none;
-  border-radius: 0 8px 8px 0;
-  backdrop-filter: blur(8px);
+  border-radius: 0 var(--ctx-menu-radius, 4px) var(--ctx-menu-radius, 4px) 0;
+  box-shadow: var(--ctx-menu-shadow, 0 4px 16px rgb(0 0 0 / 40%));
 }
 
 .scenePanelHead {
   display: flex;
   gap: 8px;
   align-items: center;
-  padding: 8px 10px;
-  border-bottom: 1px solid var(--vfx-chrome-bg-mid);
+  padding: var(--ctx-menu-item-padding-block, 5px) 10px;
+  border-bottom: 1px solid var(--ctx-menu-border, #454545);
 }
 
 .scenePanelHeadIcon {
@@ -51,26 +53,52 @@
 }
 
 .scenePanelScroll {
+  --vfx-menu-check-col: 14px;
+  --vfx-menu-expand-col: 22px;
+  --vfx-menu-row-gap: 6px;
+
   flex: 1;
   min-width: 0;
   min-height: 0;
-  padding: 0 8px 8px;
+  padding: var(--ctx-menu-panel-padding-block, 4px) 6px 8px;
   overflow: hidden auto;
-  font-size: 10px;
-  color: var(--vfx-text-dim);
+  font-size: var(--ctx-menu-shortcut-font-size, 11.5px);
+  color: var(--ctx-menu-fg, var(--color-text-primary));
 }
 
 .overlayItem {
-  display: flex;
-  gap: 6px;
+  display: grid;
+  grid-template-columns: var(--vfx-menu-check-col) var(--vfx-menu-expand-col) minmax(0, 1fr);
+  column-gap: var(--vfx-menu-row-gap);
   align-items: center;
-  padding: 2px 0;
+  padding: var(--ctx-menu-item-padding-block, 5px) 8px;
+  margin: 0 -2px;
   cursor: pointer;
   user-select: none;
+  border-radius: var(--ctx-menu-radius, 4px);
+  transition: color 100ms ease, background 100ms ease;
 }
 
-.overlayItem input {
+.overlayItem input[type='checkbox'] {
+  grid-column: 1;
+  width: 14px;
+  height: 14px;
+  margin: 0;
   accent-color: var(--vfx-control-accent);
+}
+
+.overlayLabel {
+  grid-column: 3;
+  min-width: 0;
+  overflow: hidden;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.overlayItem:hover {
+  color: var(--ctx-menu-hover-fg, #fff);
+  background: var(--ctx-menu-hover-bg, #007acc);
 }
 
 .overlayCheckboxOnly {
@@ -81,13 +109,16 @@
 
 .overlayContextLabel {
   flex: 1;
+  padding: 2px 4px;
+  margin: -2px -4px;
   cursor: context-menu;
-  border-radius: 3px;
+  border-radius: var(--ctx-menu-radius, 4px);
+  transition: color 100ms ease, background 100ms ease;
 }
 
 .overlayContextLabel:hover {
-  color: var(--vfx-accent-text-strong);
-  background: var(--vfx-chrome-bg);
+  color: var(--ctx-menu-hover-fg, #fff);
+  background: var(--ctx-menu-hover-bg, #007acc);
 }
 
 .viewHints {
@@ -100,8 +131,8 @@
 }
 
 .section {
-  margin-top: 6px;
-  border-top: 1px solid var(--vfx-chrome-bg-mid);
+  margin-top: 4px;
+  border-top: 1px solid var(--ctx-menu-border, #454545);
 }
 
 .sectionHead {
@@ -109,20 +140,28 @@
   gap: 6px;
   align-items: center;
   width: 100%;
-  padding: 7px 2px;
-  font-size: 10px;
+  padding: var(--ctx-menu-item-padding-block, 5px) 8px;
+  margin: 0 -2px;
+  font-size: var(--ctx-menu-section-font-size, 10px);
   font-weight: 600;
-  color: var(--vfx-text-muted);
+  color: var(--ctx-menu-muted, var(--color-text-muted));
   text-align: left;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   cursor: pointer;
   background: transparent;
   border: none;
+  border-radius: var(--ctx-menu-radius, 4px);
+  transition: color 100ms ease, background 100ms ease;
 }
 
 .sectionHead:hover {
-  background: var(--vfx-chrome-bg-soft);
+  color: var(--ctx-menu-hover-fg, #fff);
+  background: var(--ctx-menu-hover-bg, #007acc);
+}
+
+.sectionHead:hover .sectionChevron {
+  border-left-color: currentColor;
 }
 
 .sectionChevron {

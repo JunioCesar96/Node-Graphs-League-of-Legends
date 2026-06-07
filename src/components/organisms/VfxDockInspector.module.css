@@ -8,8 +8,8 @@
   max-width: 260px;
   min-height: 0;
   align-self: stretch;
-  background: var(--vfx-panel-bg);
-  border-left: 1px solid var(--color-border-soft);
+  background: var(--ctx-menu-bg, var(--window-bg, #1e1e1e));
+  border-left: 1px solid var(--ctx-menu-border, #454545);
 }
 
 .inspectorCollapsed {
@@ -34,8 +34,10 @@
   border: none;
 }
 
-.vertTab:hover {
-  background: var(--vfx-tab-sidebar-hover);
+.vertTab:hover:not(:disabled) {
+  color: var(--ctx-menu-hover-fg, #fff);
+  background: var(--ctx-menu-hover-bg, #007acc);
+  border-color: var(--ctx-menu-hover-bg, #007acc);
 }
 
 .vertTabLabel {
@@ -71,17 +73,18 @@
   transform: translate(-100%, -50%);
 }
 
-.collapseBtn:hover {
-  color: var(--vfx-accent-text-strong);
-  background: var(--vfx-collapse-hover);
+.collapseBtn:hover:not(:disabled) {
+  color: var(--ctx-menu-hover-fg, #fff);
+  background: var(--ctx-menu-hover-bg, #007acc);
+  border-color: var(--ctx-menu-hover-bg, #007acc);
 }
 
 .inspectorHead {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding: 8px 10px;
-  border-bottom: 1px solid var(--color-border-soft);
+  padding: var(--ctx-menu-item-padding-block, 5px) 10px;
+  border-bottom: 1px solid var(--ctx-menu-border, #454545);
 }
 
 .inspectorTitle {
@@ -117,7 +120,7 @@
 }
 
 .section {
-  border-bottom: 1px solid var(--vfx-chrome-bg);
+  border-bottom: 1px solid var(--ctx-menu-border, #454545);
 }
 
 .sectionHead {
@@ -125,20 +128,26 @@
   gap: 6px;
   align-items: center;
   width: 100%;
-  padding: 7px 10px;
-  font-size: 10px;
+  padding: var(--ctx-menu-item-padding-block, 5px) 10px;
+  font-size: var(--ctx-menu-section-font-size, 10px);
   font-weight: 600;
-  color: var(--vfx-text-muted);
+  color: var(--ctx-menu-muted, var(--color-text-muted));
   text-align: left;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   cursor: pointer;
   background: transparent;
   border: none;
+  transition: color 100ms ease, background 100ms ease;
 }
 
 .sectionHead:hover {
-  background: var(--vfx-chrome-bg-soft);
+  color: var(--ctx-menu-hover-fg, #fff);
+  background: var(--ctx-menu-hover-bg, #007acc);
+}
+
+.sectionHead:hover .sectionChevron {
+  border-left-color: currentColor;
 }
 
 .sectionChevron {
@@ -228,12 +237,12 @@
 
 .gameRootInput {
   width: 100%;
-  padding: 4px 6px;
-  font-size: 10px;
+  padding: 3px 6px;
+  font-size: var(--ctx-menu-shortcut-font-size, 11.5px);
   color: inherit;
   background: var(--vfx-inset-dark);
-  border: 1px solid var(--vfx-chrome-border);
-  border-radius: 5px;
+  border: 1px solid var(--ctx-menu-border, #454545);
+  border-radius: var(--ctx-menu-radius, 4px);
 }
 
 .assetsBtnRow {
@@ -244,32 +253,44 @@
 
 .assetsBtn,
 .assetsBtnSecondary {
-  flex: 1;
-  min-width: 0;
-  padding: 5px 6px;
-  font-size: 9px;
+  padding: var(--ctx-menu-item-padding-block, 5px) 12px;
+  color: var(--ctx-menu-fg, var(--color-text-primary));
+  font: inherit;
+  font-size: var(--ctx-menu-shortcut-font-size, 11.5px);
   cursor: pointer;
-  border-radius: 6px;
+  background: transparent;
+  border: 1px solid var(--ctx-menu-border, #454545);
+  border-radius: var(--ctx-menu-radius, 4px);
+  transition: color 100ms ease, background 100ms ease, border-color 100ms ease;
 }
 
 .assetsBtn {
-  color: var(--vfx-title-color);
-  background: var(--vfx-accent-bg-active);
-  border: 1px solid var(--vfx-preview-border);
+  padding: var(--ctx-menu-item-padding-block, 5px) 12px;
+  color: var(--ctx-menu-hover-fg, #fff);
+  font: inherit;
+  font-size: var(--ctx-menu-shortcut-font-size, 11.5px);
+  font-weight: 600;
+  cursor: pointer;
+  background: var(--ctx-menu-hover-bg, #007acc);
+  border: 1px solid var(--ctx-menu-hover-bg, #007acc);
+  border-radius: var(--ctx-menu-radius, 4px);
+  transition: filter 100ms ease, opacity 100ms ease;
 }
 
 .assetsBtnSecondary {
-  color: var(--vfx-text-medium);
-  background: var(--vfx-chrome-bg);
-  border: 1px solid var(--vfx-chrome-border-mid);
+  color: var(--ctx-menu-fg, var(--color-text-primary));
+  background: transparent;
+  border: 1px solid var(--ctx-menu-border, #454545);
 }
 
 .assetsBtnSecondary:hover:not(:disabled) {
-  background: var(--vfx-chrome-border);
+  color: var(--ctx-menu-hover-fg, #fff);
+  background: var(--ctx-menu-hover-bg, #007acc);
+  border-color: var(--ctx-menu-hover-bg, #007acc);
 }
 
 .assetsBtn:hover:not(:disabled) {
-  background: var(--vfx-accent-bg-active);
+  filter: brightness(1.08);
 }
 
 .assetsBtn:disabled {
@@ -333,10 +354,19 @@
   display: flex;
   gap: 6px;
   align-items: center;
-  margin-bottom: 6px;
-  font-size: 11px;
-  color: var(--vfx-text-strong);
+  margin-bottom: 4px;
+  padding: var(--ctx-menu-item-padding-block, 5px) 6px;
+  margin-inline: -6px;
+  font-size: var(--ctx-menu-shortcut-font-size, 11.5px);
+  color: var(--ctx-menu-fg, var(--color-text-primary));
   cursor: pointer;
+  border-radius: var(--ctx-menu-radius, 4px);
+  transition: color 100ms ease, background 100ms ease;
+}
+
+.checkRow:hover {
+  color: var(--ctx-menu-hover-fg, #fff);
+  background: var(--ctx-menu-hover-bg, #007acc);
 }
 
 .vec3Grid {
@@ -356,9 +386,9 @@
 .vec3Input {
   width: 100%;
   padding: 3px 5px;
-  font-size: 11px;
+  font-size: var(--ctx-menu-shortcut-font-size, 11.5px);
   color: var(--vfx-text-strong);
   background: var(--vfx-inset-dark);
-  border: 1px solid var(--vfx-chrome-bg-hover);
-  border-radius: 4px;
+  border: 1px solid var(--ctx-menu-border, #454545);
+  border-radius: var(--ctx-menu-radius, 4px);
 }

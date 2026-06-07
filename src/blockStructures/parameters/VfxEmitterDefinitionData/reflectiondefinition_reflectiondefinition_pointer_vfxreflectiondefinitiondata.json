@@ -5,7 +5,7 @@
   "name": "reflectionDefinition",
   "source": {
     "kind": "parameter",
-    "parameterId": "vfx-emitter-definition-data__main-characters/brand/skins/skin0/particles/brand-base-p-fire-mark3-complex-emitter-definition-data--slot--0-reflection-definition"
+    "parameterId": "vfx-emitter-definition-data__main-entries-complex-emitter-definition-data-reflection-definition"
   },
   "type": "pointer",
   "pointer": "VfxReflectionDefinitionData",

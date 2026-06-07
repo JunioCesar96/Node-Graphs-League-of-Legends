@@ -1,29 +1,28 @@
 .toggle {
-  display: inline-flex;
+  display: inline-grid;
   flex-shrink: 0;
-  align-items: center;
-  justify-content: center;
-  width: 1.75rem;
-  height: 1.75rem;
+  place-items: center;
+  width: 26px;
+  height: 26px;
   padding: 0;
-  color: var(--color-text-secondary);
+  color: var(--ctx-menu-fg, var(--color-text-secondary));
   cursor: pointer;
   background: transparent;
-  border: 1px dashed var(--color-border);
-  border-radius: var(--radius-control);
+  border: 1px solid var(--ctx-menu-border, #454545);
+  border-radius: var(--ctx-menu-radius, 4px);
+  transition: color 100ms ease, background 100ms ease, border-color 100ms ease;
 }
 
-.toggle:hover {
-  color: var(--color-text-primary);
-  background: rgb(255 255 255 / 4%);
-  border-color: var(--syntax-property, #64b5f6);
+.toggle:hover:not(:disabled) {
+  color: var(--ctx-menu-hover-fg, #fff);
+  background: var(--ctx-menu-hover-bg, #007acc);
+  border-color: var(--ctx-menu-hover-bg, #007acc);
 }
 
 .toggle[aria-pressed='true'] {
-  color: var(--syntax-property, #64b5f6);
-  background: rgb(100 181 246 / 10%);
-  border-color: var(--syntax-property, #64b5f6);
-  border-style: solid;
+  color: var(--ctx-menu-hover-fg, #fff);
+  background: var(--ctx-menu-hover-bg, #007acc);
+  border-color: var(--ctx-menu-hover-bg, #007acc);
 }
 
 .icon {

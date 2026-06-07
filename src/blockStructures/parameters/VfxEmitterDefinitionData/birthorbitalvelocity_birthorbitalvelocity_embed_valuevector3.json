@@ -5,7 +5,7 @@
   "name": "birthOrbitalVelocity",
   "source": {
     "kind": "parameter",
-    "parameterId": "vfx-emitter-definition-data__main-characters/brand/skins/skin0/particles/brand-base-dance-complex-emitter-definition-data--slot--2-birth-orbital-velocity"
+    "parameterId": "vfx-emitter-definition-data__main-entries-complex-emitter-definition-data_parameter_birthOrbitalVelocity"
   },
   "type": "embed",
   "embed": "ValueVector3",

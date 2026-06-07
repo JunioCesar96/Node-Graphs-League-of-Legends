@@ -14,6 +14,10 @@ import { blockRitualTypeToNodeDataType, isBlockMapStructureType } from '@/core/b
 import type { BlockSlotWirelessLink } from '@/core/blockConnectionDisplay'
 import { isBlockSlotPulsing } from '@/core/blockConnectionDisplay'
 import type { BlockSlotPeerActions } from '@/core/blockSlotPeerActions'
+import type { BlockElementViewKey, BlockElementViewState } from '@/core/blockElementViewState'
+import {
+  blockElementViewKeyForParameter,
+} from '@/core/blockElementViewState'
 
 import styles from './GroupBlockParameterRow.module.css'
 
@@ -54,6 +58,10 @@ type BlockParameterRowProps = {
   outputConnectionIndex?: number
   onOutputConnectionIndexChange?: (index: number) => void
   slotToolsEnabled?: boolean
+  slotPagerEnabled?: boolean
+  lightModeEnabled?: boolean
+  blockElementView?: Partial<Record<BlockElementViewKey, BlockElementViewState>>
+  onBlockElementSelectedIndexChange?: (elementKey: BlockElementViewKey, index: number) => void
   blockSlotPeerActions?: BlockSlotPeerActions
 }
 
@@ -85,6 +93,10 @@ export function BlockParameterRow({
   outputConnectionIndex = 0,
   onOutputConnectionIndexChange,
   slotToolsEnabled = false,
+  slotPagerEnabled = false,
+  lightModeEnabled = false,
+  blockElementView,
+  onBlockElementSelectedIndexChange,
   blockSlotPeerActions,
 }: BlockParameterRowProps) {
   const outputSlotId = `block-param:${parameter.idParameter}:output`
@@ -98,12 +110,21 @@ export function BlockParameterRow({
   const [inputFocused, setInputFocused] = useState(false)
   const mapSlotOutRef = useRef<HTMLDivElement>(null)
 
+  const paramViewKey = blockElementViewKeyForParameter(parameter.idParameter)
+  const persistedMapIndex =
+    blockElementView?.[paramViewKey]?.selectedIndex ?? (lightModeEnabled ? 0 : undefined)
+
   const mapHashFieldProps = {
     activeSlotId,
     blockWirelessSlots,
     canvasNodeId: canvasNodeId ?? '',
     defaultValue: parameter.defaultValue,
     interactionLocked,
+    lightModeEnabled,
+    persistedSelectedIndex: persistedMapIndex,
+    onPersistedSelectedIndexChange: onBlockElementSelectedIndexChange
+      ? (index: number) => onBlockElementSelectedIndexChange(paramViewKey, index)
+      : undefined,
     onCommit: onCommitValue,
     onInputFocusChange: setInputFocused,
     onOutputPointerDown: onMapHashOutputPointerDown,
@@ -127,7 +148,8 @@ export function BlockParameterRow({
     slotToolsEnabled && outputSlotLink && blockSlotPeerActions
       ? blockSlotPeerActions.getPeerState(outputSlotId, 'output', outputConnectionIndex)
       : undefined
-  const showSlotPagerBelow = slotToolsEnabled && outputConnectionCount > 1
+  const showSlotPagerBelow = slotPagerEnabled && slotToolsEnabled && outputConnectionCount > 1
+  const showInlineSlotPager = slotPagerEnabled && !slotToolsEnabled && outputConnectionCount > 1
 
   const mapHashField =
     isMapStructure && canvasNodeId ? (
@@ -237,7 +259,7 @@ export function BlockParameterRow({
       >
         {hasOutputSlot && !isMapStructure ? (
           <div className={styles.slotOutStack}>
-            {!showSlotPagerBelow ? (
+            {!showSlotPagerBelow && showInlineSlotPager ? (
               <BlockSlotConnectionPager
                 onSelectedIndexChange={(index) => onOutputConnectionIndexChange?.(index)}
                 selectedIndex={outputConnectionIndex}

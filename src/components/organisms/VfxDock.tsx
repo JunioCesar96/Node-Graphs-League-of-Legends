@@ -55,6 +55,12 @@ import {
 } from '@/components/organisms/codeDockFloatingRect'
 
 import { VfxEffectTabsBar } from '@/components/molecules/VfxEffectTabsBar'
+import {
+  EditorWindowHeaderChrome,
+  EditorWindowHeaderChromeButton,
+  EditorWindowHeaderChromeIconButton,
+} from '@/components/molecules/EditorWindowHeaderChrome'
+import { EditorDockFavicon } from '@/components/atoms/EditorDockFavicon'
 import { buildVfxTransformDebugList } from '@/core/vfx/vfxTransformDebugList'
 import { VfxToolsDock } from './VfxToolsDock'
 import { computeEmitterActiveWindow } from '@/core/vfx/vfxEmitterTimeline'
@@ -119,6 +125,7 @@ export function VfxDock({
   const [assetIndex, setAssetIndex] = useState<VfxAssetFileIndex | null>(null)
   const [lolCaches, setLolCaches] = useState<VfxLolAssetCaches | null>(null)
   const [assetLoading, setAssetLoading] = useState(false)
+  const [headerActionsCollapsed, setHeaderActionsCollapsed] = useState(true)
   const [assetWarnings, setAssetWarnings] = useState<string[]>([])
   const [viewportSettings, setViewportSettings] = useState<VfxViewportSettings>(loadVfxViewportSettings)
   const assetFolderInputRef = useRef<HTMLInputElement>(null)
@@ -616,64 +623,105 @@ export function VfxDock({
           }
         }}
       >
-        <div className={styles.headerTitle}>
-          <span className={styles.title}>{t(LangId.VfxDockTitle)}</span>
-          {scene?.particleName ? (
-            <span className={styles.subtitle} title={scene.particleName}>
-              {scene.particleName}
-            </span>
-          ) : (
-            <span className={styles.subtitleMuted}>{t(LangId.VfxDockNoRitual)}</span>
-          )}
+        <div className={[styles.headerTitle, styles.headerTitleIconOnly].join(' ')}>
+          <EditorDockFavicon kind="vfx" />
         </div>
-        <div className={styles.headerActions}>
+        <EditorWindowHeaderChrome>
+          <EditorWindowHeaderChromeIconButton
+            active={!headerActionsCollapsed}
+            aria-expanded={!headerActionsCollapsed}
+            aria-label={
+              headerActionsCollapsed ? t(LangId.GraphToolbarExpand) : t(LangId.GraphToolbarCollapse)
+            }
+            onClick={(event) => {
+              event.stopPropagation()
+              setHeaderActionsCollapsed((previous) => !previous)
+            }}
+            title={
+              headerActionsCollapsed ? t(LangId.GraphToolbarExpand) : t(LangId.GraphToolbarCollapse)
+            }
+          />
           {isolation !== null ? (
-            <button
+            <EditorWindowHeaderChromeButton
               aria-label={t(LangId.VfxDockBackToPrevious)}
-              className={`${styles.actionBtn} ${styles.isolationExitBtn}`}
-              onClick={exitIsolation}
+              className={styles.isolationExitBtn}
+              onClick={(event) => {
+                event.stopPropagation()
+                exitIsolation()
+              }}
               title={t(LangId.VfxDockBackToPrevious)}
-              type="button"
             >
               <VfxBackToPreviousIcon className={styles.isolationExitIcon} size={14} />
               <span>{t(LangId.VfxDockBackToPrevious)}</span>
-            </button>
+            </EditorWindowHeaderChromeButton>
           ) : null}
-          {playing ? <span className={styles.liveBadge}>{t(LangId.VfxDockLive)}</span> : null}
-          {compositorMode ? (
-            <span className={styles.compositorBadge} title={t(LangId.VfxDockCompositorBadge)}>
-              {t(LangId.VfxDockCompositorBadge)}
-            </span>
+          {!headerActionsCollapsed ? (
+            <>
+              <EditorWindowHeaderChromeButton
+                onClick={(event) => {
+                  event.stopPropagation()
+                  rebuild()
+                }}
+              >
+                {t(LangId.VfxDockRebuild)}
+              </EditorWindowHeaderChromeButton>
+              <EditorWindowHeaderChromeButton
+                onClick={(event) => {
+                  event.stopPropagation()
+                  onToggleFloating()
+                }}
+                title={floatingActive ? t(LangId.VfxDockDock) : t(LangId.VfxDockFloat)}
+              >
+                {floatingActive ? t(LangId.VfxDockDock) : t(LangId.VfxDockFloat)}
+              </EditorWindowHeaderChromeButton>
+              {floatingActive ? (
+                <EditorWindowHeaderChromeButton
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    onResetFloatingDimensions()
+                  }}
+                  title={t(LangId.VfxDockReset)}
+                >
+                  {t(LangId.VfxDockReset)}
+                </EditorWindowHeaderChromeButton>
+              ) : null}
+              <EditorWindowHeaderChromeButton
+                onClick={(event) => {
+                  event.stopPropagation()
+                  onClose()
+                }}
+              >
+                {t(LangId.VfxDockClose)}
+              </EditorWindowHeaderChromeButton>
+            </>
           ) : null}
-          <button className={styles.actionBtn} onClick={() => rebuild()} type="button">
-            {t(LangId.VfxDockRebuild)}
-          </button>
-          <button className={styles.actionBtn} onClick={onToggleFloating} type="button">
-            {floatingActive ? t(LangId.VfxDockDock) : t(LangId.VfxDockFloat)}
-          </button>
-          {floatingActive ? (
-            <button className={styles.actionBtn} onClick={onResetFloatingDimensions} type="button">
-              {t(LangId.VfxDockReset)}
-            </button>
-          ) : null}
-          <button className={styles.actionBtnDanger} onClick={onClose} type="button">
-            {t(LangId.VfxDockClose)}
-          </button>
-        </div>
+        </EditorWindowHeaderChrome>
+        {showEffectTabsBar ? (
+          <div className={styles.headerMain}>
+            <VfxEffectTabsBar
+              attached
+              activeEffectId={activeEffectId}
+              compositorMode={compositorMode}
+              effects={effectList}
+              onAddToCompositor={addEffectToCompositor}
+              onRemoveFromCompositor={removeEffectFromCompositor}
+              onSelectEffect={selectEffect}
+              onToggleEffectSelection={toggleEffectSelection}
+              selectedEffectIds={selectedEffectIds}
+            />
+          </div>
+        ) : null}
+        {playing || compositorMode ? (
+          <div className={styles.headerMeta}>
+            {playing ? <span className={styles.liveBadge}>{t(LangId.VfxDockLive)}</span> : null}
+            {compositorMode ? (
+              <span className={styles.compositorBadge} title={t(LangId.VfxDockCompositorBadge)}>
+                {t(LangId.VfxDockCompositorBadge)}
+              </span>
+            ) : null}
+          </div>
+        ) : null}
       </header>
-
-      {showEffectTabsBar ? (
-        <VfxEffectTabsBar
-          activeEffectId={activeEffectId}
-          compositorMode={compositorMode}
-          effects={effectList}
-          onAddToCompositor={addEffectToCompositor}
-          onRemoveFromCompositor={removeEffectFromCompositor}
-          onSelectEffect={selectEffect}
-          onToggleEffectSelection={toggleEffectSelection}
-          selectedEffectIds={selectedEffectIds}
-        />
-      ) : null}
 
       {showWorkspace || showTimeline ? (
       <div className={styles.mainSplit} ref={splitResizeEnabled ? splitRef : undefined}>
@@ -722,7 +770,6 @@ export function VfxDock({
             }
             emitters={emitterEntries}
             onSettingsChange={patchViewportSettings}
-            particleName={scene?.particleName}
             sceneRaycastRootsRef={sceneRaycastRootsRef}
             settings={viewportSettings}
           />
@@ -789,6 +836,8 @@ export function VfxDock({
         lifetime={lifetime}
         loop={loop}
         mode={compositorMode ? 'compositor' : 'emitters'}
+        particleName={scene?.particleName ?? null}
+        particleNameFallback={t(LangId.VfxDockNoRitual)}
         onClipOffsetChange={compositorMode ? setEffectClipOffset : undefined}
         onLayerFocus={handleLayerFocus}
         onLayerVisibility={handleLayerVisibility}

@@ -3,17 +3,15 @@
   z-index: 46;
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
-  width: min(300px, calc(100vw - 24px));
-  padding: var(--space-4);
-  color: var(--color-text-secondary);
-  background: var(--app-studio-panel-bg);
-  border: 1px solid var(--app-studio-panel-border);
-  border-radius: 14px;
-  box-shadow:
-    0 24px 64px rgb(0 0 0 / 42%),
-    inset 0 1px 0 rgb(255 255 255 / 6%);
-  backdrop-filter: blur(16px);
+  gap: var(--space-2);
+  width: min(280px, calc(100vw - 24px));
+  padding: var(--space-2) var(--ctx-menu-item-padding-inline, 20px);
+  color: var(--ctx-menu-fg, var(--color-text-secondary));
+  font-size: var(--ctx-menu-font-size, 12.5px);
+  background: var(--ctx-menu-bg, var(--window-bg, #1e1e1e));
+  border: 1px solid var(--ctx-menu-border, #454545);
+  border-radius: var(--ctx-menu-radius, 4px);
+  box-shadow: var(--ctx-menu-shadow, 0 4px 16px rgb(0 0 0 / 40%));
 }
 
 .header {
@@ -40,7 +38,7 @@
 }
 
 .title {
-  font-size: 0.92rem;
+  font-size: var(--ctx-menu-font-size, 12.5px);
   font-weight: 600;
   color: var(--color-text-primary);
 }
@@ -48,31 +46,31 @@
 .section {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
-  padding-top: var(--space-2);
-  border-top: 1px solid color-mix(in srgb, var(--color-border-soft) 72%, transparent);
+  gap: var(--space-2);
+  padding-top: var(--space-1);
+  border-top: 1px solid var(--ctx-menu-border, #454545);
 }
 
 .sectionLabel {
-  font-size: 0.62rem;
+  font-size: var(--ctx-menu-section-font-size, 10px);
   font-weight: 700;
-  color: var(--app-studio-eyebrow);
+  color: var(--ctx-menu-muted, var(--color-text-muted));
   text-transform: uppercase;
   letter-spacing: 0.1em;
 }
 
 .toggleRow {
   display: flex;
-  gap: var(--space-3);
+  gap: var(--space-2);
   align-items: center;
   justify-content: space-between;
-  min-height: 36px;
+  min-height: 28px;
   cursor: pointer;
   user-select: none;
 }
 
 .rowLabel {
-  font-size: 0.82rem;
+  font-size: inherit;
   font-weight: 500;
   color: var(--color-text-primary);
 }
@@ -91,7 +89,7 @@
 }
 
 .rangeLabel {
-  font-size: 0.82rem;
+  font-size: inherit;
   font-weight: 500;
   color: var(--color-text-primary);
 }
@@ -99,7 +97,7 @@
 .rangeValue {
   min-width: 2.5rem;
   font-family: var(--font-data);
-  font-size: 0.72rem;
+  font-size: var(--ctx-menu-shortcut-font-size, 11.5px);
   color: var(--color-text-secondary);
   text-align: right;
   font-variant-numeric: tabular-nums;
@@ -123,10 +121,10 @@
 
 .colorRow {
   display: flex;
-  gap: var(--space-3);
+  gap: var(--space-2);
   align-items: center;
   justify-content: space-between;
-  min-height: 36px;
+  min-height: 28px;
 }
 
 .colorInput {

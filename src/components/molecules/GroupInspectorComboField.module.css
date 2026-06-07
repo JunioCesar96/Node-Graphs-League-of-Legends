@@ -1,45 +1,3 @@
-.wrap {
-  position: relative;
-  min-width: 0;
-}
-
-.inputRow {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: var(--space-1);
-  align-items: center;
-}
-
-.input,
-.search {
-  width: 100%;
-  min-width: 0;
-  padding: 6px 8px;
-  border: 1px solid rgb(255 255 255 / 12%);
-  border-radius: 6px;
-  background: var(--group-surface-dark);
-  color: var(--group-text);
-  font-family: var(--font-data);
-  font-size: 0.74rem;
-}
-
-.input:focus,
-.search:focus {
-  outline: 2px solid rgb(128 255 230 / 45%);
-  outline-offset: 1px;
-}
-
-.toggle {
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  border: 1px solid rgb(255 255 255 / 12%);
-  border-radius: 6px;
-  background: var(--group-surface);
-  color: var(--group-text);
-  cursor: pointer;
-}
-
 .panel {
   position: absolute;
   top: calc(100% + 4px);
@@ -47,15 +5,55 @@
   left: 0;
   z-index: 6;
   display: grid;
-  gap: var(--space-2);
-  padding: var(--space-2);
-  background: rgb(20 20 20 / 98%);
-  border: 1px solid rgb(255 255 255 / 14%);
-  border-radius: 8px;
-  box-shadow: 0 12px 32px rgb(0 0 0 / 45%);
+  gap: 0;
+  padding: var(--ctx-menu-panel-padding-block, 4px) 0;
+  font-size: var(--ctx-menu-font-size, 12.5px);
+  background: var(--ctx-menu-bg, var(--window-bg, #1e1e1e));
+  border: 1px solid var(--ctx-menu-border, #454545);
+  border-radius: var(--ctx-menu-radius, 4px);
+  box-shadow: var(--ctx-menu-shadow, 0 4px 16px rgb(0 0 0 / 40%));
+}
+
+.input,
+.search {
+  width: 100%;
+  min-width: 0;
+  padding: 4px 8px;
+  color: var(--ctx-menu-fg, var(--group-text));
+  font: inherit;
+  font-size: var(--ctx-menu-font-size, 12.5px);
+  background: rgb(0 0 0 / 18%);
+  border: 1px solid var(--ctx-menu-border, #454545);
+  border-radius: var(--ctx-menu-radius, 4px);
+}
+
+.input:focus,
+.search:focus {
+  border-color: var(--syntax-property);
+  outline: none;
+}
+
+.toggle {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  color: var(--ctx-menu-fg, var(--group-text));
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid var(--ctx-menu-border, #454545);
+  border-radius: var(--ctx-menu-radius, 4px);
+}
+
+.toggle:hover {
+  color: var(--ctx-menu-hover-fg, #fff);
+  background: var(--ctx-menu-hover-bg, #007acc);
+  border-color: var(--ctx-menu-hover-bg, #007acc);
 }
 
 .search {
+  margin: 0 var(--ctx-menu-item-padding-inline, 20px);
   padding-left: 28px;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' fill='%23c4c4c4' viewBox='0 0 16 16'%3E%3Cpath d='M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85zm-5.242 1.156a5 5 0 1 1 0-10 5 5 0 0 1 0 10z'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
@@ -68,29 +66,44 @@
   padding: 0;
   overflow: auto;
   list-style: none;
+  border-top: 1px solid var(--ctx-menu-border, #454545);
 }
 
 .option {
   width: 100%;
-  padding: 6px 8px;
-  border: none;
-  border-radius: 4px;
-  background: transparent;
-  color: var(--group-text);
-  font-family: var(--font-data);
-  font-size: 0.72rem;
+  padding: var(--ctx-menu-item-padding-block, 5px) var(--ctx-menu-item-padding-inline, 20px);
+  color: var(--ctx-menu-fg, var(--group-text));
+  font: inherit;
+  font-size: var(--ctx-menu-shortcut-font-size, 11.5px);
   text-align: left;
   cursor: pointer;
+  background: transparent;
+  border: none;
+  border-radius: 0;
 }
 
 .option:hover,
 .optionActive {
-  background: rgb(128 255 230 / 14%);
+  color: var(--ctx-menu-hover-fg, #fff);
+  background: var(--ctx-menu-hover-bg, #007acc);
 }
 
 .empty {
   margin: 0;
-  padding: 4px 6px;
-  color: rgb(196 196 196 / 65%);
-  font-size: 0.68rem;
+  padding: var(--ctx-menu-item-padding-block, 5px) var(--ctx-menu-item-padding-inline, 20px);
+  color: var(--ctx-menu-muted, rgb(196 196 196 / 65%));
+  font: inherit;
+  font-size: var(--ctx-menu-shortcut-font-size, 11.5px);
+}
+
+.wrap {
+  position: relative;
+  min-width: 0;
+}
+
+.inputRow {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--space-1);
+  align-items: center;
 }

@@ -5,7 +5,7 @@
   "name": "birthRotation",
   "source": {
     "kind": "parameter",
-    "parameterId": "vfx-emitter-legacy-simple__main-characters/brand/skins/skin0/particles/brand-base-q-blaze-mis-complex-emitter-definition-data--slot--13-legacy-simple-birth-rotation"
+    "parameterId": "vfx-emitter-legacy-simple__main-entries-complex-emitter-definition-data-legacy-simple_parameter_birthRotation"
   },
   "type": "embed",
   "embed": "ValueFloat",

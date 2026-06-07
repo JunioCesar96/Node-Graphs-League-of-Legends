@@ -197,6 +197,12 @@ entries: map[hash,embed] = {
     expect(blockNodes.filter((node) => node.blockStructure?.blockType === 'VfxSystemDefinitionData').length).toBe(2)
     expect(blockNodes.filter((node) => node.blockStructure?.blockType === 'VfxEmitterDefinitionData').length).toBe(2)
     expect(result.scene.connections.filter((c) => c.fromBlockSlotId && c.toBlockSlotId).length).toBeGreaterThanOrEqual(4)
+
+    const systems = blockNodes.filter((node) => node.blockStructure?.blockType === 'VfxSystemDefinitionData')
+    expect(systems).toHaveLength(2)
+    const [firstSystem, secondSystem] = systems.sort((left, right) => left.position.y - right.position.y)
+    expect(firstSystem.position.x).toBe(secondSystem.position.x)
+    expect(secondSystem.position.y - firstSystem.position.y).toBe(36)
   })
 
   it('rejeita editor vazio', () => {
