@@ -11,11 +11,13 @@ import { DockTabIcon } from '@/components/atoms/DockTabIcon'
 import { InspectorViewportDockShell } from '@/components/molecules/InspectorViewportDockShell'
 import { InspectorFloatingPanelShell } from '@/components/molecules/InspectorFloatingPanelShell'
 import { SceneNodesOptionsMenu } from '@/components/molecules/SceneNodesOptionsMenu'
+import { SceneNodesParametersSection } from '@/components/molecules/SceneNodesParametersSection'
 import { SceneNodesStatesSection } from '@/components/molecules/SceneNodesStatesSection'
 import type { CanvasNode, CanvasScene } from '@/core/canvasScene'
 import { LangId } from '@/core/language/languageIds'
 import { useLanguage } from '@/language/LanguageProvider'
 import type { SceneNodesStatePreset } from '@/core/sceneNodesStatePresets'
+import type { SceneNodesParameterKind } from '@/core/sceneNodesParametersView'
 import {
   createCompactElementCanvasVisibility,
   getNodeDisplayTitle,
@@ -33,7 +35,7 @@ import {
 import dockStyles from '@/styles/inspectorViewportDock.module.css'
 import styles from '@/components/organisms/SceneNodesPanel.module.css'
 
-export type SceneNodesPanelTab = 'nodes' | 'states'
+export type SceneNodesPanelTab = 'nodes' | 'parameters' | 'states'
 
 type SceneNodesPanelProps = {
   dragHandleProps: HTMLAttributes<HTMLElement>
@@ -61,6 +63,12 @@ type SceneNodesPanelProps = {
   onRequestAddNode: () => void
   onResetSelectedPosition: () => void
   onSelectNode: (nodeId: string) => void
+  onCommitParameter: (
+    nodeId: string,
+    parameterId: string,
+    value: string,
+    kind: SceneNodesParameterKind,
+  ) => void
   onShowAll: () => void
   onToggleMinimized: () => void
   onUndockFromViewportToolbar?: () => void
@@ -104,6 +112,7 @@ function PanelBody({
   compactVisibility,
   sceneVisibilityContext,
   onSelectNode,
+  onCommitParameter,
   selectedNodeIds,
   sceneNodesStatePresets,
   onSaveNewSceneNodesState,
@@ -112,6 +121,8 @@ function PanelBody({
   onOverwriteSceneNodesState,
   onExportSceneNodesStatesJson,
   onImportSceneNodesStatesJson,
+  primarySelectedId,
+  scene,
 }: {
   activeTab: SceneNodesPanelTab
   headerActions?: ReactNode
@@ -134,6 +145,12 @@ function PanelBody({
   compactVisibility: CompactElementCanvasVisibility
   sceneVisibilityContext: NodeVisibilitySceneContext
   onSelectNode: (nodeId: string) => void
+  onCommitParameter: (
+    nodeId: string,
+    parameterId: string,
+    value: string,
+    kind: SceneNodesParameterKind,
+  ) => void
   selectedNodeIds: string[]
   sceneNodesStatePresets: SceneNodesStatePreset[]
   onSaveNewSceneNodesState: () => void
@@ -142,9 +159,13 @@ function PanelBody({
   onOverwriteSceneNodesState: (presetId: string) => void
   onExportSceneNodesStatesJson: () => void
   onImportSceneNodesStatesJson: (file: File) => void
+  primarySelectedId: string
+  scene: CanvasScene
 }) {
   const { t } = useLanguage()
   const nodesTabActive = activeTab === 'nodes'
+  const parametersTabActive = activeTab === 'parameters'
+  const statesTabActive = activeTab === 'states'
   return (
     <div
       className={[styles.bodyLayout, !nodesTabActive ? styles.bodyLayoutFull : ''].filter(Boolean).join(' ')}
@@ -178,14 +199,24 @@ function PanelBody({
             {t(LangId.SceneNodesTabNodes, undefined, { count: sortedNodes.length })}
           </button>
           <button
-            aria-selected={!nodesTabActive}
-            className={[styles.tab, !nodesTabActive ? styles.tabActive : ''].filter(Boolean).join(' ')}
+            aria-selected={parametersTabActive}
+            className={[styles.tab, parametersTabActive ? styles.tabActive : ''].filter(Boolean).join(' ')}
+            id="scene-nodes-tab-parameters"
+            onClick={() => onTabChange('parameters')}
+            role="tab"
+            type="button"
+          >
+            {t(LangId.SceneNodesTabParameters)}
+          </button>
+          <button
+            aria-selected={statesTabActive}
+            className={[styles.tab, statesTabActive ? styles.tabActive : ''].filter(Boolean).join(' ')}
             id="scene-nodes-tab-states"
             onClick={() => onTabChange('states')}
             role="tab"
             type="button"
           >
-            Estados ({sceneNodesStatePresets.length})
+            {t(LangId.SceneNodesTabStates, undefined, { count: sceneNodesStatePresets.length })}
           </button>
         </div>
 
@@ -324,6 +355,20 @@ function PanelBody({
           </select>
         </footer>
           </div>
+        ) : parametersTabActive ? (
+          <div
+            aria-labelledby="scene-nodes-tab-parameters"
+            className={[styles.tabPanel, styles.tabPanelStates].join(' ')}
+            role="tabpanel"
+          >
+            <SceneNodesParametersSection
+              onCommitParameter={onCommitParameter}
+              onSelectNode={onSelectNode}
+              primarySelectedId={primarySelectedId}
+              scene={scene}
+              selectedNodeIds={selectedNodeIds}
+            />
+          </div>
         ) : (
           <div
             aria-labelledby="scene-nodes-tab-states"
@@ -395,6 +440,7 @@ export function SceneNodesPanel({
   onRequestAddNode,
   onResetSelectedPosition,
   onSelectNode,
+  onCommitParameter,
   onShowAll,
   onToggleMinimized,
   onUndockFromViewportToolbar,
@@ -538,6 +584,7 @@ export function SceneNodesPanel({
     compactVisibility,
     sceneVisibilityContext,
     onSelectNode,
+    onCommitParameter,
     selectedNodeIds,
     sceneNodesStatePresets,
     onSaveNewSceneNodesState: () => {
@@ -549,6 +596,8 @@ export function SceneNodesPanel({
     onOverwriteSceneNodesState,
     onExportSceneNodesStatesJson,
     onImportSceneNodesStatesJson,
+    primarySelectedId,
+    scene,
   }
 
   const optionsMenu =

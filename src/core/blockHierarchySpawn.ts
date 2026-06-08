@@ -25,6 +25,7 @@ import {
   findBlockSlotEndpoint,
   withoutConnectionsToBlockInputSlot,
 } from './blockSlotConnections'
+import { reconcileBlockSpawnConnections } from './reconcileBlockSpawnConnections'
 import type { CanvasConnection, CanvasNode, CanvasPosition, CanvasScene } from './canvasScene'
 import { createUniqueNodeId } from './canvasNodeIds'
 import { defaultNewCanvasNodeLayout } from './nodeCardSections'
@@ -882,6 +883,7 @@ export function mergeBlockHierarchyIntoScene(
   scene: CanvasScene,
   plan: BlockHierarchySpawnPlan,
 ): CanvasScene {
+  const mergedNodes = [...scene.nodes, ...plan.nodes]
   let connections = [...scene.connections]
   for (const connection of plan.connections) {
     if (connection.toBlockSlotId) {
@@ -892,10 +894,12 @@ export function mergeBlockHierarchyIntoScene(
       )
     }
   }
+  connections = [...connections, ...plan.connections]
+  connections = reconcileBlockSpawnConnections(mergedNodes, connections)
 
   return {
     ...scene,
-    nodes: [...scene.nodes, ...plan.nodes],
-    connections: [...connections, ...plan.connections],
+    nodes: mergedNodes,
+    connections,
   }
 }

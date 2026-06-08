@@ -10,7 +10,8 @@ import { BlockMapHashPointerField } from '@/components/molecules/BlockMapHashPoi
 import { BlockMapU64PointerField } from '@/components/molecules/BlockMapU64PointerField'
 import { ParameterValueInput } from '@/components/molecules/ParameterValueInput'
 import type { BlockParameterDef } from '@/core/blockSchema'
-import { blockRitualTypeToNodeDataType, isBlockMapStructureType } from '@/core/blockSchema'
+import { blockParameterTypeToNodeDataType, isBlockMapStructureType } from '@/core/blockSchema'
+import { resolveBlockParameterInputValue } from '@/core/blockParameterInputValue'
 import type { BlockSlotWirelessLink } from '@/core/blockConnectionDisplay'
 import { isBlockSlotPulsing } from '@/core/blockConnectionDisplay'
 import type { BlockSlotPeerActions } from '@/core/blockSlotPeerActions'
@@ -101,7 +102,8 @@ export function BlockParameterRow({
 }: BlockParameterRowProps) {
   const outputSlotId = `block-param:${parameter.idParameter}:output`
   const inputSlotId = `block-param:${parameter.idParameter}:input`
-  const dataType = blockRitualTypeToNodeDataType(parameter.typeParameter)
+  const dataType = blockParameterTypeToNodeDataType(parameter.typeParameter)
+  const inputValue = resolveBlockParameterInputValue(value, parameter.typeParameter)
   const isStringInput = dataType === 'string'
   const isMapHashEmbed = parameter.typeParameter === 'mapHashEmbed'
   const isMapHashPointer = parameter.typeParameter === 'mapHashPointer'
@@ -239,7 +241,7 @@ export function BlockParameterRow({
                 type={dataType}
                 fieldTitle={parameter.nameParameter}
                 readOnly={Boolean(inputSlotLink)}
-                value={value}
+                value={inputValue}
                 onCommit={onCommitValue}
                 onFocusChange={isStringInput ? setInputFocused : undefined}
               />

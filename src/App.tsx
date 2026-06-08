@@ -56,19 +56,45 @@ import {
   buildBlockAutoBuildPlan,
   buildBlockAutoBuildPlanFromRitualCode,
 } from '@/core/blockAutoBuild'
-import { codeToBlockSceneAsync } from '@/core/codeToBlockScene'
+import { codeToBlockSceneAsync, type CodeToBlockSceneOptions } from '@/core/codeToBlockScene'
+import {
+  invokeAddonSystemFunction,
+  type AddonSystemFunctionContext,
+  type AddonSystemFunctionDeps,
+} from '@/core/addonSystemFunctions'
+import { ADDON_CARD_WIDTH } from '@/core/addonSlotConnections'
+import { resolveAddonCardWidthPx } from '@/core/addonUiTemplate'
+import { getAddonPackage } from '@/blockStructures/addonRegistry'
 import {
   executeAutoBuildWorkItems,
   flattenAutoBuildWorkItems,
   type AutoBuildProgress,
   type AutoBuildRunResult,
 } from '@/core/blockAutoBuildExecutor'
-import { buildBlockDefinitionJsonDocument } from '@/core/blockDefinitionJson'
+import {
+  createBlockInCatalog,
+  createParameterInCatalog,
+  deleteBlockFromCatalog,
+  deleteParameterFromCatalog,
+  updateBlockInCatalog,
+  updateParameterInCatalog,
+  type ManualBlockParameterFormInput,
+} from '@/core/blockCatalogCreate'
+import type { CreateBlockDialogConfirmPayload } from '@/components/molecules/CreateBlockDialog'
+import type { EditBlockDialogConfirmPayload } from '@/components/molecules/EditBlockDialog'
+import { CATALOG_BLOCK_SCHEMA_PACK_FOLDER } from '@/core/catalogBlockSchema'
+import {
+  buildBlockDefinitionJsonDocument,
+  type ManualBlockDefinitionInput,
+} from '@/core/blockDefinitionJson'
 import { writeBlockDefinitionDocument } from '@/core/blockDefinitionStorage'
 import { buildBlockParameterJsonDocuments } from '@/core/blockParameterJson'
 import { writeBlockParameterDocuments } from '@/core/blockParameterStorage'
 import { blockTypeDefinitionsList } from '@/core/blockStructureRegistry'
 import { SceneNodesPanel, type SceneNodesPanelTab } from '@/components/organisms/SceneNodesPanel'
+import { getAddonManifest } from '@/blockStructures/addonRegistry'
+import { syncAddonSceneParameterToCardDom } from '@/core/sceneNodesAddonDomSync'
+import type { SceneNodesParameterKind } from '@/core/sceneNodesParametersView'
 import {
   filterRemovableNodeIds,
   getNodeDisplayTitle,
@@ -388,6 +414,8 @@ function App() {
     createRootNode,
     spawnNeekoNodeAtPosition,
     deleteSelectedNodes,
+    copySelectedNodes,
+    pasteCopiedNodes,
     deleteNodeIds,
     patchNodeSceneOverlay,
     setAllNodesSceneHidden,
@@ -469,6 +497,7 @@ function App() {
     applyBlockSlashCommand,
     createAddonNode,
     applyAddonOutputsToScene,
+    updateScene,
     connectAddonSlots,
     syncBlockParameterCatalogFromDefinitions,
     addBlockParameterFromCatalog,
@@ -1367,73 +1396,92 @@ function App() {
     return () => window.clearInterval(intervalId)
   }, [codeToNodeBlockUi?.phase])
 
-  const handleCodeToNodeBlock = useCallback(async () => {
-    if (codeToNodeBlockBusy) {
-      return false
-    }
-
-    const formatProgressCountLabel = (input: {
-      completed: number
-      total: number
-      blockTotal: number
-      parameterTotal: number
-      blocksDone: number
-      parametersDone: number
-    }) =>
-      `${String(input.completed)}/${String(input.total)} · Blocos ${String(input.blocksDone)}/${String(input.blockTotal)} · Parâmetros ${String(input.parametersDone)}/${String(input.parameterTotal)}`
-
-    const isCancelled = () => codeToNodeBlockCancelRef.current
-
-    codeToNodeBlockCancelRef.current = false
-    codeToNodeBlockStartedAtRef.current = Date.now()
-    setCodeToNodeBlockElapsedSeconds(0)
-    setCodeToNodeBlockUi({
-      phase: 'running',
-      completed: 0,
-      total: 1,
-      currentLabel: 'Etapa: A analisar código ritual…',
-      progressCountLabel: '0/1 · Blocos 0/0 · Parâmetros 0/0',
-    })
-
-    try {
-      const converted = await codeToBlockSceneAsync(codeText, extendSchemaLookup, {
-        shouldCancel: isCancelled,
-        onProgress: (progress) => {
-          setCodeToNodeBlockUi((current) => {
-            if (!current || current.phase === 'confirmCancel') {
-              return current
-            }
-            const kindPrefix =
-              progress.currentKind === 'parameter'
-                ? 'Parâmetro'
-                : progress.currentKind === 'block'
-                  ? 'Bloco'
-                  : 'Etapa'
-            return {
-              phase: 'running',
-              completed: progress.completed,
-              total: progress.total,
-              currentLabel: `${kindPrefix}: ${progress.currentLabel}`,
-              progressCountLabel: formatProgressCountLabel(progress),
-            }
-          })
-        },
-      })
-
-      if (isCancelled()) {
-        setCodeToNodeBlockUi({
-          phase: 'summary',
-          completed: 0,
-          total: 1,
-          currentLabel: '',
-          progressCountLabel: '',
-          summaryTitle: 'Code To Node Block cancelado',
-          summaryBody: 'A conversão foi cancelada pelo utilizador.',
-        })
-        return false
+  const runCodeToNodeBlockOperation = useCallback(
+    async (ritualText: string, options?: Pick<CodeToBlockSceneOptions, 'mergeInto'>) => {
+      if (codeToNodeBlockBusy) {
+        return { ok: false as const, error: 'busy' }
       }
 
-      if (!converted.ok) {
+      const formatProgressCountLabel = (input: {
+        completed: number
+        total: number
+        blockTotal: number
+        parameterTotal: number
+        blocksDone: number
+        parametersDone: number
+      }) =>
+        `${String(input.completed)}/${String(input.total)} · Blocos ${String(input.blocksDone)}/${String(input.blockTotal)} · Parâmetros ${String(input.parametersDone)}/${String(input.parameterTotal)}`
+
+      const isCancelled = () => codeToNodeBlockCancelRef.current
+
+      codeToNodeBlockCancelRef.current = false
+      codeToNodeBlockStartedAtRef.current = Date.now()
+      setCodeToNodeBlockElapsedSeconds(0)
+      setCodeToNodeBlockUi({
+        phase: 'running',
+        completed: 0,
+        total: 1,
+        currentLabel: 'Etapa: A analisar código ritual…',
+        progressCountLabel: '0/1 · Blocos 0/0 · Parâmetros 0/0',
+      })
+
+      try {
+        const converted = await codeToBlockSceneAsync(ritualText, extendSchemaLookup, {
+          mergeInto: options?.mergeInto,
+          shouldCancel: isCancelled,
+          onProgress: (progress) => {
+            setCodeToNodeBlockUi((current) => {
+              if (!current || current.phase === 'confirmCancel') {
+                return current
+              }
+              const kindPrefix =
+                progress.currentKind === 'parameter'
+                  ? 'Parâmetro'
+                  : progress.currentKind === 'block'
+                    ? 'Bloco'
+                    : 'Etapa'
+              return {
+                phase: 'running',
+                completed: progress.completed,
+                total: progress.total,
+                currentLabel: `${kindPrefix}: ${progress.currentLabel}`,
+                progressCountLabel: formatProgressCountLabel(progress),
+              }
+            })
+          },
+        })
+
+        if (isCancelled()) {
+          setCodeToNodeBlockUi({
+            phase: 'summary',
+            completed: 0,
+            total: 1,
+            currentLabel: '',
+            progressCountLabel: '',
+            summaryTitle: 'Code To Node Block cancelado',
+            summaryBody: 'A conversão foi cancelada pelo utilizador.',
+          })
+          return { ok: false as const, error: 'cancelled' }
+        }
+
+        if (!converted.ok) {
+          setCodeToNodeBlockUi({
+            phase: 'error',
+            completed: 0,
+            total: 1,
+            currentLabel: '',
+            progressCountLabel: '',
+            summaryTitle: 'Code To Node Block falhou',
+            summaryBody: converted.error,
+          })
+          return { ok: false as const, error: converted.error }
+        }
+
+        codeToNodeBlockCancelRef.current = false
+        setCodeToNodeBlockUi(null)
+        return { ok: true as const, converted }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
         setCodeToNodeBlockUi({
           phase: 'error',
           completed: 0,
@@ -1441,56 +1489,123 @@ function App() {
           currentLabel: '',
           progressCountLabel: '',
           summaryTitle: 'Code To Node Block falhou',
-          summaryBody: converted.error,
+          summaryBody: message,
         })
-        return false
+        return { ok: false as const, error: message }
       }
+    },
+    [codeToNodeBlockBusy, extendSchemaLookup],
+  )
 
-      const sceneTitle = stripExtension(codeDockFileName).trim() || 'Cena'
-      const rootNodeId = converted.rootNodeId
-
-      codeToNodeBlockCancelRef.current = false
-      setCodeToNodeBlockUi(null)
-
-      requestAnimationFrame(() => {
-        openOrReplaceSceneByTitle(sceneTitle, converted.scene, { prepared: true })
-        requestAnimationFrame(() => {
-          selectNode(rootNodeId)
-          graphCanvasRef.current?.focusSelectionIntoView([rootNodeId])
-        })
-      })
-
-      if (converted.warnings.length > 0) {
-        const preview = converted.warnings.slice(0, 30).join('\n')
-        const suffix =
-          converted.warnings.length > 30
-            ? `\n… e mais ${String(converted.warnings.length - 30)} aviso(s).`
-            : ''
-        showAppAlert(`[Code To Node Block]\n\n${preview}${suffix}`)
-      }
-
-      return true
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error)
-      setCodeToNodeBlockUi({
-        phase: 'error',
-        completed: 0,
-        total: 1,
-        currentLabel: '',
-        progressCountLabel: '',
-        summaryTitle: 'Code To Node Block falhou',
-        summaryBody: message,
-      })
+  const handleCodeToNodeBlock = useCallback(async () => {
+    const result = await runCodeToNodeBlockOperation(codeText)
+    if (!result.ok) {
       return false
     }
-  }, [
-    codeDockFileName,
-    codeText,
-    codeToNodeBlockBusy,
-    extendSchemaLookup,
-    openOrReplaceSceneByTitle,
-    selectNode,
-  ])
+
+    const sceneTitle = stripExtension(codeDockFileName).trim() || 'Cena'
+    const rootNodeId = result.converted.rootNodeId
+
+    requestAnimationFrame(() => {
+      openOrReplaceSceneByTitle(sceneTitle, result.converted.scene, { prepared: true })
+      requestAnimationFrame(() => {
+        selectNode(rootNodeId)
+        graphCanvasRef.current?.focusSelectionIntoView([rootNodeId])
+      })
+    })
+
+    if (result.converted.warnings.length > 0) {
+      const preview = result.converted.warnings.slice(0, 30).join('\n')
+      const suffix =
+        result.converted.warnings.length > 30
+          ? `\n… e mais ${String(result.converted.warnings.length - 30)} aviso(s).`
+          : ''
+      showAppAlert(`[Code To Node Block]\n\n${preview}${suffix}`)
+    }
+
+    return true
+  }, [codeDockFileName, codeText, openOrReplaceSceneByTitle, runCodeToNodeBlockOperation, selectNode])
+
+  const sceneRef = useRef(scene)
+  sceneRef.current = scene
+
+  const handleInvokeAddonSystemFunction = useCallback(
+    async (functionName: string, context: AddonSystemFunctionContext) => {
+      const deps: AddonSystemFunctionDeps = {
+        extendSchemaLookup,
+        getScene: () => sceneRef.current,
+        updateScene,
+        getAddonNodePosition: (nodeId) => {
+          const node = sceneRef.current.nodes.find((entry) => entry.id === nodeId)
+          return node ? { x: node.position.x, y: node.position.y } : null
+        },
+        getAddonCardWidth: (nodeId) => {
+          const node = sceneRef.current.nodes.find((entry) => entry.id === nodeId)
+          const pkg = node?.addonInstance ? getAddonPackage(node.addonInstance.addonId) : undefined
+          return resolveAddonCardWidthPx(pkg?.cardWidthPx, ADDON_CARD_WIDTH)
+        },
+        selectNode,
+        focusIntoView: (nodeIds) => {
+          graphCanvasRef.current?.focusSelectionIntoView(nodeIds)
+        },
+        showCodeToNodeBlockProgress: (progress) => {
+          setCodeToNodeBlockUi({
+            phase: 'running',
+            completed: progress.completed,
+            total: progress.total,
+            currentLabel: progress.currentLabel,
+            progressCountLabel: progress.progressCountLabel,
+          })
+        },
+        hideCodeToNodeBlockProgress: () => {
+          setCodeToNodeBlockUi(null)
+        },
+        showCodeToNodeBlockError: (title, body) => {
+          setCodeToNodeBlockUi({
+            phase: 'error',
+            completed: 0,
+            total: 1,
+            currentLabel: '',
+            progressCountLabel: '',
+            summaryTitle: title,
+            summaryBody: body,
+          })
+        },
+        showCodeToNodeBlockSummary: (title, body) => {
+          setCodeToNodeBlockUi({
+            phase: 'summary',
+            completed: 0,
+            total: 1,
+            currentLabel: '',
+            progressCountLabel: '',
+            summaryTitle: title,
+            summaryBody: body,
+          })
+        },
+        showWarnings: (title, warnings) => {
+          const preview = warnings.slice(0, 30).join('\n')
+          const suffix =
+            warnings.length > 30 ? `\n… e mais ${String(warnings.length - 30)} aviso(s).` : ''
+          showAppAlert(`${title}\n\n${preview}${suffix}`)
+        },
+        runCodeToNodeBlock: (ritualText, options) =>
+          runCodeToNodeBlockOperation(ritualText, options).then((result) => {
+            if (!result.ok) {
+              return { ok: false as const, error: result.error }
+            }
+            return {
+              ok: true as const,
+              scene: result.converted.scene,
+              rootNodeId: result.converted.rootNodeId,
+              warnings: result.converted.warnings,
+            }
+          }),
+      }
+
+      await invokeAddonSystemFunction(functionName, context, deps)
+    },
+    [extendSchemaLookup, runCodeToNodeBlockOperation, selectNode, updateScene],
+  )
 
   const handleDismissCodeToCanvasWizard = useCallback(() => {
     const summary = codeToCanvasWizardController.summary
@@ -3128,6 +3243,176 @@ function App() {
     )
   }, [blockInspectorDraft, blockInspectorTarget, scene, t])
 
+  const handleCreateBlockInCatalog = useCallback(
+    async ({ input, parameterSources }: CreateBlockDialogConfirmPayload) => {
+      const result = await createBlockInCatalog(input, { parameterSources })
+      if (!result.ok) {
+        showAppAlert(
+          t(LangId.CreateBlockDialogFailed, 'Falha ao criar bloco: {error}', {
+            error: result.error,
+          }),
+        )
+        return result
+      }
+
+      setDynamicStructurePacks((previous) => {
+        const folder = CATALOG_BLOCK_SCHEMA_PACK_FOLDER
+        const existing = previous.find((pack) => pack.folder === folder)
+        const kept = (existing?.schemas ?? []).filter(
+          (entry) => entry.title.trim() !== result.schema.title.trim(),
+        )
+        const next = previous.filter((pack) => pack.folder !== folder)
+        next.push({ folder, schemas: [...kept, result.schema] })
+        saveDynamicStructurePacksToStorage(next)
+        return next
+      })
+
+      showAppAlert(
+        t(LangId.CreateBlockDialogDone, 'Bloco criado: {id}', {
+          id: result.id,
+        }),
+      )
+      return result
+    },
+    [t],
+  )
+
+  const handleCreateParameterInCatalog = useCallback(
+    async (input: ManualBlockParameterFormInput) => {
+      const result = await createParameterInCatalog(input)
+      if (!result.ok) {
+        showAppAlert(
+          t(LangId.CreateParameterDialogFailed, 'Falha ao criar parâmetro: {error}', {
+            error: result.error,
+          }),
+        )
+        return result
+      }
+
+      showAppAlert(
+        t(LangId.CreateParameterDialogDone, 'Parâmetro criado: {id}', {
+          id: result.id,
+        }),
+      )
+      return result
+    },
+    [t],
+  )
+
+  const handleUpdateBlockInCatalog = useCallback(
+    async (blockName: string, { input, parameterSources }: EditBlockDialogConfirmPayload) => {
+      const result = await updateBlockInCatalog(blockName, input, { parameterSources })
+      if (!result.ok) {
+        showAppAlert(
+          t(LangId.EditBlockDialogFailed, 'Falha ao editar bloco: {error}', {
+            error: result.error,
+          }),
+        )
+        return result
+      }
+
+      setDynamicStructurePacks((previous) => {
+        const folder = CATALOG_BLOCK_SCHEMA_PACK_FOLDER
+        const existing = previous.find((pack) => pack.folder === folder)
+        const kept = (existing?.schemas ?? []).filter(
+          (entry) => entry.title.trim() !== input.blockName.trim(),
+        )
+        const next = previous.filter((pack) => pack.folder !== folder)
+        next.push({ folder, schemas: [...kept, result.schema] })
+        saveDynamicStructurePacksToStorage(next)
+        return next
+      })
+
+      showAppAlert(
+        t(LangId.EditBlockDialogDone, 'Bloco actualizado: {id}', {
+          id: result.id,
+        }),
+      )
+      return result
+    },
+    [t],
+  )
+
+  const handleDeleteBlockFromCatalog = useCallback(
+    async (blockName: string) => {
+      const result = await deleteBlockFromCatalog(blockName)
+      if (!result.ok) {
+        showAppAlert(
+          t(LangId.DeleteBlockDialogFailed, 'Falha ao apagar bloco: {error}', {
+            error: result.error,
+          }),
+        )
+        return result
+      }
+
+      setDynamicStructurePacks((previous) => {
+        const folder = CATALOG_BLOCK_SCHEMA_PACK_FOLDER
+        const existing = previous.find((pack) => pack.folder === folder)
+        const kept = (existing?.schemas ?? []).filter(
+          (entry) => entry.title.trim() !== blockName.trim(),
+        )
+        const next = previous.filter((pack) => pack.folder !== folder)
+        if (kept.length > 0) {
+          next.push({ folder, schemas: kept })
+        }
+        saveDynamicStructurePacksToStorage(next)
+        return next
+      })
+
+      showAppAlert(
+        t(LangId.DeleteBlockDialogDone, 'Bloco apagado: {id}', {
+          id: result.id,
+        }),
+      )
+      return result
+    },
+    [t],
+  )
+
+  const handleUpdateParameterInCatalog = useCallback(
+    async (input: ManualBlockParameterFormInput) => {
+      const result = await updateParameterInCatalog(input)
+      if (!result.ok) {
+        showAppAlert(
+          t(LangId.EditParameterDialogFailed, 'Falha ao editar parâmetro: {error}', {
+            error: result.error,
+          }),
+        )
+        return result
+      }
+
+      showAppAlert(
+        t(LangId.EditParameterDialogDone, 'Parâmetro actualizado: {id}', {
+          id: result.id,
+        }),
+      )
+      return result
+    },
+    [t],
+  )
+
+  const handleDeleteParameterFromCatalog = useCallback(
+    async (blockName: string, parameterName: string) => {
+      const result = await deleteParameterFromCatalog(blockName, parameterName)
+      if (!result.ok) {
+        showAppAlert(
+          t(LangId.DeleteParameterDialogFailed, 'Falha ao apagar parâmetro: {error}', {
+            error: result.error,
+          }),
+        )
+        return result
+      }
+
+      showAppAlert(
+        t(LangId.DeleteParameterDialogDone, 'Parâmetro apagado: {id}', {
+          id: result.id,
+        }),
+      )
+      return result
+    },
+    [t],
+  )
+
   const handleBuildBlockParameters = useCallback(async () => {
     if (!blockInspectorTarget || !blockInspectorDraft) {
       return
@@ -4204,6 +4489,34 @@ function App() {
     [replaceSceneNodesStatePresets, sceneNodesStatePresets.length],
   )
 
+  const handleCommitSceneNodesParameter = useCallback(
+    (nodeId: string, parameterId: string, value: string, kind: SceneNodesParameterKind) => {
+      if (kind === 'block') {
+        updateBlockParameter(nodeId, parameterId, value)
+        return
+      }
+
+      if (kind === 'schema') {
+        updateNodeParameter(nodeId, parameterId, value)
+        return
+      }
+
+      const canvasNode = scene.nodes.find((node) => node.id === nodeId)
+      const addonId = canvasNode?.addonInstance?.addonId
+      const manifest = addonId ? getAddonManifest(addonId) : undefined
+      const slotDirection = manifest?.data.find((field) => field.name === parameterId)?.direction
+
+      if (slotDirection === 'output') {
+        applyAddonOutputsToScene(nodeId, { [parameterId]: value })
+      }
+
+      window.requestAnimationFrame(() => {
+        syncAddonSceneParameterToCardDom(nodeId, parameterId, value)
+      })
+    },
+    [applyAddonOutputsToScene, scene.nodes, updateBlockParameter, updateNodeParameter],
+  )
+
   const sceneNodesPanelProps = {
     ...sceneNodesPickHandlers,
     canDeleteSelected: sceneNodesCanDelete,
@@ -4225,6 +4538,7 @@ function App() {
     onRequestAddNode: requestPalette,
     onResetSelectedPosition: handleResetSceneNodesSelectedPosition,
     onSelectNode: (nodeId: string) => selectNode(nodeId, { includeHidden: true }),
+    onCommitParameter: handleCommitSceneNodesParameter,
     onShowAll: () => setAllNodesSceneHidden(false),
     onToggleMinimized: toggleSceneNodesMinimized,
     onUnlockAll: () => setAllNodesLocked(false),
@@ -4373,6 +4687,7 @@ function App() {
               createAddonNode(addonId, position, spawnLink)
             }
             onApplyAddonOutputs={applyAddonOutputsToScene}
+            onInvokeAddonSystemFunction={handleInvokeAddonSystemFunction}
             onConnectAddonSlots={connectAddonSlots}
             onSyncBlockParameterCatalog={syncBlockParameterCatalogFromDefinitions}
             onAddBlockParameterFromCatalog={addBlockParameterFromCatalog}
@@ -4428,6 +4743,12 @@ function App() {
             onSaveBlockSlashCommand={saveBlockSlashCommand}
             onRemoveBlockSlashCommand={removeBlockSlashCommand}
             onApplyBlockSlashCommand={applyBlockSlashCommand}
+            onCreateBlockInCatalog={handleCreateBlockInCatalog}
+            onCreateParameterInCatalog={handleCreateParameterInCatalog}
+            onUpdateBlockInCatalog={handleUpdateBlockInCatalog}
+            onDeleteBlockFromCatalog={handleDeleteBlockFromCatalog}
+            onUpdateParameterInCatalog={handleUpdateParameterInCatalog}
+            onDeleteParameterFromCatalog={handleDeleteParameterFromCatalog}
             onGraphsToCode={() => void handleGraphsToCode()}
             onViewNodeCode={handleViewNodeCode}
             onViewNodeBlockCode={handleViewNodeBlockCode}
@@ -4437,6 +4758,8 @@ function App() {
             onSyncNodeValueToCode={handleSyncNodeValueToCode}
             canSyncNodeToCode={canSyncNodeToCode}
             onNeekoDropCode={handleNeekoDropCode}
+            onCopySelectedNodes={copySelectedNodes}
+            onPasteCopiedNodes={pasteCopiedNodes}
             onBindCodeRangeToNode={handleBindCodeRangeToNode}
             onBuildNeekoAtPosition={handleBuildNeekoAtPosition}
             onNeekoBuildFailed={handleNeekoBuildFailed}

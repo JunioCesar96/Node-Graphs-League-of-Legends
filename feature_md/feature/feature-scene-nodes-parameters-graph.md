@@ -205,19 +205,3 @@ sequenceDiagram
 5. On the child, use **→** on `dynamics` to jump to `VfxAnimatedColorVariableData`.
 6. Use **←** in the header to walk up the hierarchy (child → parent) or return to the originally selected canvas node.
 7. Edit simple values inline in the **VALUE** column (e.g. `alphaRef`, `emitterName`); wired fields show the child label and are read-only.
-
----
-
-## Acknowledgements
-
-Special thanks to **Bud**, creator of the Jade tool that powers the BIN conversion system used in this project.
-GitHub: https://github.com/budlibu500
-
-Key contributions include:
-
-* BIN code conversion
-* BIN League syntax analysis
-* Particle editing systems
-* General-purpose editing tools
-
-Their work and support were essential to the development and functionality of this project.

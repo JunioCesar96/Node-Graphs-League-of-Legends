@@ -14,7 +14,7 @@ import {
   resolveBlockHeaderSlotsForStructure,
 } from './blockCardHeaderSlots'
 import { blockDefinitionByBlockName } from './blockDefinitionRegistry'
-import { BLOCK_CARD_WIDTH, blockParameterSlotId, isBlockListPointerParameter, isBlockMapStructureType, parseBlockHeaderSlotId } from './blockSchema'
+import { BLOCK_CARD_WIDTH, blockParameterSlotId, isBlockListCollectionParameter, isBlockListPointerParameter, isBlockMapStructureType, parseBlockHeaderSlotId } from './blockSchema'
 import {
   blockMapHashEntrySlotCenterY,
   estimateBlockMapHashListRowHeight,
@@ -721,7 +721,7 @@ export function collectBlockFanOutPolicyOutputSlotIds(
   }
 
   for (const param of canvasNode.blockStructure.parameters) {
-    if (!isBlockListPointerParameter(param)) {
+    if (!isBlockListCollectionParameter(param)) {
       continue
     }
     const aggregatedOutputSlot = blockParameterSlotId(param.idParameter, 'output')
@@ -810,20 +810,22 @@ export function connectionUsesBlockOutputSlot(
   const paramOutputMatch = /^block-param:([^:]+):output$/.exec(fromBlockSlotId)
   if (paramOutputMatch) {
     const param = structure.parameters.find((entry) => entry.idParameter === paramOutputMatch[1])
-    if (param && isBlockListPointerParameter(param)) {
-      const listIndex = parseListPointerSlotIndex(connection.fromBlockSlotId ?? '', param.idParameter)
-      if (listIndex !== null) {
+    if (param && isBlockListCollectionParameter(param)) {
+      const listPointerIndex = parseListPointerSlotIndex(connection.fromBlockSlotId ?? '', param.idParameter)
+      const listEmbedIndex = parseListEmbedSlotIndex(connection.fromBlockSlotId ?? '', param.idParameter)
+      if (listPointerIndex !== null || listEmbedIndex !== null) {
         return true
       }
     }
   }
 
   for (const param of structure.parameters) {
-    if (!isBlockListPointerParameter(param)) {
+    if (!isBlockListCollectionParameter(param)) {
       continue
     }
-    const listIndex = parseListPointerSlotIndex(fromBlockSlotId, param.idParameter)
-    if (listIndex === null) {
+    const listPointerIndex = parseListPointerSlotIndex(fromBlockSlotId, param.idParameter)
+    const listEmbedIndex = parseListEmbedSlotIndex(fromBlockSlotId, param.idParameter)
+    if (listPointerIndex === null && listEmbedIndex === null) {
       continue
     }
     if (connection.fromBlockSlotId === blockParameterSlotId(param.idParameter, 'output')) {
@@ -834,7 +836,7 @@ export function connectionUsesBlockOutputSlot(
   return false
 }
 
-/** `list[pointer]` pode ligar a vários destinos a partir da mesma saída (fan-out). */
+/** `list[pointer]` / `list[embed]` pode ligar a vários destinos a partir da mesma saída (fan-out). */
 export function isListPointerBlockOutputSlot(
   canvasNode: CanvasNode,
   slotId: string,
@@ -846,13 +848,14 @@ export function isListPointerBlockOutputSlot(
   }
 
   const matches = (param: BlockStructurePayload['parameters'][number]): boolean => {
-    if (!param.listParameter || param.sourcePath.kind !== 'pointerChild') {
+    if (!isBlockListCollectionParameter(param)) {
       return false
     }
 
     return (
       slotId === blockParameterSlotId(param.idParameter, 'output') ||
-      parseListPointerSlotIndex(slotId, param.idParameter) !== null
+      parseListPointerSlotIndex(slotId, param.idParameter) !== null ||
+      parseListEmbedSlotIndex(slotId, param.idParameter) !== null
     )
   }
 
@@ -1069,9 +1072,10 @@ export function getBlockSlotPortYOffset(
       return rowCenter
     }
 
-    if (isBlockListPointerParameter(param)) {
-      const listIndex = parseListPointerSlotIndex(slotId, param.idParameter)
-      if (listIndex !== null) {
+    if (isBlockListCollectionParameter(param)) {
+      const listPointerIndex = parseListPointerSlotIndex(slotId, param.idParameter)
+      const listEmbedIndex = parseListEmbedSlotIndex(slotId, param.idParameter)
+      if (listPointerIndex !== null || listEmbedIndex !== null) {
         return rowCenter
       }
     }

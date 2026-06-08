@@ -151,6 +151,19 @@ export function isBlockListPointerParameter(
   return param.listParameter === true && param.sourcePath.kind === 'pointerChild'
 }
 
+/** Campo ritual `list[embed]` ligado a filhos via slot indexado (`paramId__slot__N`). */
+export function isBlockListEmbedParameter(
+  param: Pick<BlockParameterDef, 'listParameter' | 'sourcePath'>,
+): boolean {
+  return param.listParameter === true && param.sourcePath.kind === 'embedChild'
+}
+
+export function isBlockListCollectionParameter(
+  param: Pick<BlockParameterDef, 'listParameter' | 'sourcePath'>,
+): boolean {
+  return isBlockListPointerParameter(param) || isBlockListEmbedParameter(param)
+}
+
 export function blockListPointerOutputSlotIds(
   parameterId: string,
   maxIndex = 0,
@@ -171,8 +184,70 @@ export function isBlockMapStructureType(typeParameter: string): boolean {
 }
 
 /** Converte tipo ritual do bloco para `NodeDataType` usado em `ParameterValueInput`. */
+export function blockParameterTypeToNodeDataType(typeParameter: string): NodeDataType {
+  const raw = typeParameter.trim()
+
+  switch (raw) {
+    case 'listF32':
+    case 'listString':
+    case 'listHash':
+    case 'listVector2':
+    case 'listVector3':
+    case 'listVector4':
+    case 'optionF32':
+    case 'optionString':
+    case 'optionVector3':
+    case 'mapHashLink':
+    case 'mapHashPointer':
+    case 'mapHashEmbed':
+    case 'mapU64Pointer':
+    case 'mtx44':
+    case 'link':
+    case 'keyword':
+    case 'symbol':
+    case 'integer':
+    case 'i8':
+    case 'u8':
+    case 'i16':
+    case 'u16':
+    case 'i32':
+    case 'u32':
+    case 'i64':
+    case 'u64':
+    case 'double':
+      return raw
+    case 'f64':
+      return 'double'
+    case 'bool':
+    case 'flag':
+      return raw
+    case 'vec4':
+      return 'vector4'
+    case 'vec3':
+    case 'vec':
+      return 'vector3'
+    case 'vec2':
+      return 'vector2'
+    case 'f32':
+    case 'float':
+      return 'f32'
+    case 'rgba':
+      return 'rgba'
+    case 'string':
+      return 'string'
+    default:
+      break
+  }
+
+  if (raw.endsWith('{}')) {
+    return 'string'
+  }
+
+  return blockRitualTypeToNodeDataType(raw)
+}
+
 export function blockRitualTypeToNodeDataType(typeParameter: string): NodeDataType {
-  switch (typeParameter) {
+  switch (typeParameter.trim()) {
     case 'vec4':
       return 'vector4'
     case 'vec3':
