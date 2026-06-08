@@ -9,7 +9,7 @@ Arquivo salvo em: `feature_md/feature/feature-scene-nodes-parameters-graph.md`
 | Nome da Branch | `feature/scene-nodes-parameters-graph` |
 | Nome das Features | Aba **Parameters** no painel Nodes em Cena; navegação hierárquica pai/filho no grafo; valores ligados com rótulo do nó filho; inputs tipados por parâmetro; consistência de ligações `list[embed]` / `pointer` em blocos |
 | Versão atual | `1.5.0` |
-| Hash do Commit | _(preencher após commit com `git rev-parse HEAD`)_ |
+| Hash do Commit | `ac784d3` |
 
 Documentação relacionada: `feature_md/feature/feature-nodes-em-cena.md`, `feature_md/feature/feature-block-link-palette.md`, `feature_md/prompet/prompet_sistema_blocos.md`.
 
