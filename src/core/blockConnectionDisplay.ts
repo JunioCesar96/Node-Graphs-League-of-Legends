@@ -1,7 +1,7 @@
 import type { WirelessPortLink } from './connectionDisplay'
 import type { CanvasConnection, CanvasNode, ConnectionRouting } from './canvasScene'
 import { connectionInvolvesAddon } from './addonSlotConnections'
-import { blockParameterSlotId, isBlockListPointerParameter } from './blockSchema'
+import { blockParameterSlotId, isBlockListCollectionParameter } from './blockSchema'
 import {
   findConnectionsForBlockOutputSlot,
   isBlockSlotConnection,
@@ -117,7 +117,7 @@ export function buildBlockWirelessDisplayByNode(
         const param = fromNode?.blockStructure?.parameters.find(
           (entry) => entry.idParameter === connection.fromBlockParameterId,
         )
-        if (param && isBlockListPointerParameter(param)) {
+        if (param && isBlockListCollectionParameter(param)) {
           const canonicalOutputSlotId = blockParameterSlotId(param.idParameter, 'output')
           if (canonicalOutputSlotId !== connection.fromBlockSlotId) {
             setBlockSlotLink(fromDisplay, canonicalOutputSlotId, {

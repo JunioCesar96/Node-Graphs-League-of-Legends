@@ -16,6 +16,9 @@ export const CANVAS_CONNECTION_ID_ATTR = 'data-canvas-connection-id'
 
 export const ELEMENT_MENU_TRIGGER_ATTR = 'data-element-menu-trigger'
 
+/** Zona do card de bloco onde o menu de contexto do nó é permitido (`header` | `footer`). */
+export const BLOCK_CARD_CONTEXT_ZONE_ATTR = 'data-block-card-context-zone'
+
 type ElementContextKind = NodeElementKind | 'list2EmbedBlock' | 'list2PointerBlock' | 'list2EmbedInstance' | 'list2PointerInstance'
 
 type ElementContextPropsInput = {

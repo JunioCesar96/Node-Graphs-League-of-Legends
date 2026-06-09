@@ -1,6 +1,7 @@
 import type { MouseEvent as ReactMouseEvent } from 'react'
 
 import {
+  BLOCK_CARD_CONTEXT_ZONE_ATTR,
   CANVAS_CONNECTION_ID_ATTR,
   CANVAS_CONTEXT_ELEMENT_ID_ATTR,
   CANVAS_CONTEXT_EMBED_ID_ATTR,
@@ -21,6 +22,32 @@ import type { NodeElementKind } from '@/core/listNodeElements'
 function readOptionalAttr(el: Element, name: string): string | undefined {
   const value = el.getAttribute(name)
   return value && value.length > 0 ? value : undefined
+}
+
+function isBlockCardContextMenuZone(target: Element): boolean {
+  return Boolean(target.closest(`[${BLOCK_CARD_CONTEXT_ZONE_ATTR}]`))
+}
+
+/** Menu de contexto do nó em cards de bloco só no cabeçalho ou rodapé. */
+export function shouldAllowBlockNodeContextMenu(
+  event: Pick<ReactMouseEvent, 'target'>,
+  resolved: CanvasContextTarget,
+): boolean {
+  if (resolved.type !== 'node') {
+    return true
+  }
+
+  const target = event.target
+  if (!(target instanceof Element)) {
+    return true
+  }
+
+  const blockCard = target.closest('[data-block-card="1"]')
+  if (!blockCard) {
+    return true
+  }
+
+  return isBlockCardContextMenuZone(target)
 }
 
 export function resolveContextTarget(event: ReactMouseEvent): CanvasContextTarget | null {
@@ -146,6 +173,11 @@ export function resolveContextTarget(event: ReactMouseEvent): CanvasContextTarge
     const nodeId = nodeEl.getAttribute('data-canvas-node-id')
 
     if (nodeId) {
+      const blockCard = target.closest('[data-block-card="1"]')
+      if (blockCard && !isBlockCardContextMenuZone(target)) {
+        return null
+      }
+
       return { type: 'node', nodeId }
     }
   }

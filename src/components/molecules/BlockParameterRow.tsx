@@ -1,7 +1,16 @@
-import type { PointerEvent as ReactPointerEvent, PointerEventHandler } from 'react'
-import { useRef, useState } from 'react'
+import type {
+  MouseEvent as ReactMouseEvent,
+  PointerEvent as ReactPointerEvent,
+  PointerEventHandler,
+} from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 
 import { BlockParameterIcon } from '@/components/atoms/BlockParameterIcon'
+import { InputAddonChangeCell } from '@/components/molecules/InputAddonChangeCell'
+import {
+  SceneNodesParameterInputAddonContextMenu,
+  type SceneNodesParameterInputAddonContextMenuAnchor,
+} from '@/components/molecules/SceneNodesParameterInputAddonContextMenu'
 import { BlockSlot } from '@/components/atoms/BlockSlot'
 import { BlockSlotConnectionPager } from '@/components/molecules/BlockSlotConnectionPager'
 import { BlockSlotPeerToolbar } from '@/components/molecules/BlockSlotPeerToolbar'
@@ -9,8 +18,12 @@ import { BlockMapHashEmbedField } from '@/components/molecules/BlockMapHashEmbed
 import { BlockMapHashPointerField } from '@/components/molecules/BlockMapHashPointerField'
 import { BlockMapU64PointerField } from '@/components/molecules/BlockMapU64PointerField'
 import { ParameterValueInput } from '@/components/molecules/ParameterValueInput'
+import { parameterTypeUsesPickerInput } from '@/core/parameterValueInput'
 import type { BlockParameterDef } from '@/core/blockSchema'
-import { blockRitualTypeToNodeDataType, isBlockMapStructureType } from '@/core/blockSchema'
+import { blockParameterTypeToNodeDataType, isBlockMapStructureType } from '@/core/blockSchema'
+import { resolveBlockParameterInputValue } from '@/core/blockParameterInputValue'
+import { writeInputAddonPreference } from '@/core/inputAddonPreferences'
+import { resolveBlockParameterInputAddonBinding } from '@/core/inputAddonMatcher'
 import type { BlockSlotWirelessLink } from '@/core/blockConnectionDisplay'
 import { isBlockSlotPulsing } from '@/core/blockConnectionDisplay'
 import type { BlockSlotPeerActions } from '@/core/blockSlotPeerActions'
@@ -22,6 +35,7 @@ import {
 import styles from './GroupBlockParameterRow.module.css'
 
 type BlockParameterRowProps = {
+  blockType: string
   parameter: BlockParameterDef
   value: string
   interactionLocked?: boolean
@@ -66,6 +80,7 @@ type BlockParameterRowProps = {
 }
 
 export function BlockParameterRow({
+  blockType,
   parameter,
   value,
   interactionLocked = false,
@@ -101,14 +116,57 @@ export function BlockParameterRow({
 }: BlockParameterRowProps) {
   const outputSlotId = `block-param:${parameter.idParameter}:output`
   const inputSlotId = `block-param:${parameter.idParameter}:input`
-  const dataType = blockRitualTypeToNodeDataType(parameter.typeParameter)
+  const dataType = blockParameterTypeToNodeDataType(parameter.typeParameter)
+  const inputValue = resolveBlockParameterInputValue(value, parameter.typeParameter)
   const isStringInput = dataType === 'string'
+  const usesPickerInput = parameterTypeUsesPickerInput(dataType)
   const isMapHashEmbed = parameter.typeParameter === 'mapHashEmbed'
   const isMapHashPointer = parameter.typeParameter === 'mapHashPointer'
   const isMapU64Pointer = parameter.typeParameter === 'mapU64Pointer'
   const isMapStructure = isBlockMapStructureType(parameter.typeParameter)
   const [inputFocused, setInputFocused] = useState(false)
+  const [inputAddonOverrideId, setInputAddonOverrideId] = useState<string | undefined>(undefined)
+  const [inputAddonContextMenu, setInputAddonContextMenu] =
+    useState<SceneNodesParameterInputAddonContextMenuAnchor | null>(null)
   const mapSlotOutRef = useRef<HTMLDivElement>(null)
+
+  const inputAddonBinding = useMemo(
+    () => resolveBlockParameterInputAddonBinding(blockType, parameter.nameParameter, parameter.typeParameter),
+    [blockType, parameter.nameParameter, parameter.typeParameter],
+  )
+
+  const activeInputAddonId = inputAddonOverrideId ?? inputAddonBinding?.activeInputAddonId
+  const activeInputAddonManifest =
+    inputAddonBinding?.matches.find((manifest) => manifest.id === activeInputAddonId) ??
+    inputAddonBinding?.activeManifest
+
+  const showInputAddon = Boolean(
+    activeInputAddonManifest &&
+      activeInputAddonId &&
+      !hideValueInput &&
+      !inputSlotLink &&
+      !interactionLocked,
+  )
+
+  const canChooseInputAddon = Boolean(
+    inputAddonBinding && inputAddonBinding.matches.length > 1 && !interactionLocked,
+  )
+
+  const openInputAddonContextMenu = useCallback(
+    (event: ReactMouseEvent<HTMLElement>) => {
+      if (!canChooseInputAddon) {
+        return
+      }
+      const target = event.target
+      if (target instanceof Element && target.closest('button, input, select, textarea')) {
+        return
+      }
+      event.preventDefault()
+      event.stopPropagation()
+      setInputAddonContextMenu({ left: event.clientX, top: event.clientY })
+    },
+    [canChooseInputAddon],
+  )
 
   const paramViewKey = blockElementViewKeyForParameter(parameter.idParameter)
   const persistedMapIndex =
@@ -165,12 +223,14 @@ export function BlockParameterRow({
   return (
     <div
       className={styles.row}
+      data-input-addon-menu={canChooseInputAddon ? '1' : '0'}
       data-input-focused={inputFocused ? '1' : '0'}
       data-map-structure={isMapStructure ? '1' : '0'}
       data-map-list={isMapStructure ? '1' : '0'}
       data-no-value={hideValueInput ? '1' : '0'}
       data-slot-tools={slotToolsEnabled ? '1' : '0'}
       data-slot-pager-below={showSlotPagerBelow ? '1' : '0'}
+      onContextMenu={canChooseInputAddon ? openInputAddonContextMenu : undefined}
     >
       <div className={styles.slotIn}>
         {hasInputSlot ? (
@@ -228,21 +288,67 @@ export function BlockParameterRow({
       </span>
       {!isMapStructure ? (
         <div className={styles.field} data-empty={hideValueInput ? '1' : '0'}>
-          {hideValueInput ? null : (
+          {hideValueInput ? null : showInputAddon && activeInputAddonManifest && activeInputAddonId ? (
             <>
               {isStringInput ? (
                 <span className={styles.focusedTitle}>{parameter.nameParameter}</span>
               ) : null}
-              <ParameterValueInput
-                ariaLabel={parameter.nameParameter}
-                className={styles.input}
-                type={dataType}
-                fieldTitle={parameter.nameParameter}
-                readOnly={Boolean(inputSlotLink)}
-                value={value}
-                onCommit={onCommitValue}
-                onFocusChange={isStringInput ? setInputFocused : undefined}
-              />
+              {usesPickerInput ? (
+                <span className={styles.valueShell}>
+                  <span className={styles.bracket}>{'{'}</span>
+                  <InputAddonChangeCell
+                    className={styles.valueInput}
+                    inputAddonId={activeInputAddonId}
+                    layout="field"
+                    manifest={activeInputAddonManifest}
+                    onCommit={onCommitValue}
+                    value={inputValue}
+                  />
+                  <span className={styles.bracket}>{'}'}</span>
+                </span>
+              ) : (
+                <InputAddonChangeCell
+                  className={styles.input}
+                  inputAddonId={activeInputAddonId}
+                  layout="field"
+                  manifest={activeInputAddonManifest}
+                  onCommit={onCommitValue}
+                  value={inputValue}
+                />
+              )}
+            </>
+          ) : (
+            <>
+              {isStringInput ? (
+                <span className={styles.focusedTitle}>{parameter.nameParameter}</span>
+              ) : null}
+              {usesPickerInput ? (
+                <span className={styles.valueShell}>
+                  <span className={styles.bracket}>{'{'}</span>
+                  <ParameterValueInput
+                    ariaLabel={parameter.nameParameter}
+                    className={styles.valueInput}
+                    type={dataType}
+                    fieldTitle={parameter.nameParameter}
+                    readOnly={Boolean(inputSlotLink)}
+                    value={inputValue}
+                    onCommit={onCommitValue}
+                    onFocusChange={setInputFocused}
+                  />
+                  <span className={styles.bracket}>{'}'}</span>
+                </span>
+              ) : (
+                <ParameterValueInput
+                  ariaLabel={parameter.nameParameter}
+                  className={styles.input}
+                  type={dataType}
+                  fieldTitle={parameter.nameParameter}
+                  readOnly={Boolean(inputSlotLink)}
+                  value={inputValue}
+                  onCommit={onCommitValue}
+                  onFocusChange={isStringInput ? setInputFocused : undefined}
+                />
+              )}
             </>
           )}
         </div>
@@ -328,6 +434,18 @@ export function BlockParameterRow({
             total={outputConnectionCount}
           />
         </div>
+      ) : null}
+      {inputAddonContextMenu && canChooseInputAddon && inputAddonBinding ? (
+        <SceneNodesParameterInputAddonContextMenu
+          activeInputAddonId={activeInputAddonId}
+          anchor={inputAddonContextMenu}
+          manifests={inputAddonBinding.matches}
+          onClose={() => setInputAddonContextMenu(null)}
+          onSelect={(inputAddonId) => {
+            writeInputAddonPreference(inputAddonBinding.preferenceKey, inputAddonId)
+            setInputAddonOverrideId(inputAddonId)
+          }}
+        />
       ) : null}
     </div>
   )

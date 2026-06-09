@@ -1,9 +1,17 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent, PointerEvent } from 'react'
 
+import {
+  ADDON_PALETTE_TAG_FILTER_CONTEXT_MENU_ROOT_ATTR,
+  AddonPaletteTagFilterContextMenu,
+  type AddonPaletteTagFilterContextMenuAnchor,
+  type AddonPaletteTagFilterMenuAction,
+} from '@/components/molecules/AddonPaletteTagFilterContextMenu'
 import { ExpandActionCapsule, type ExpandActionCapsuleKind } from '@/components/molecules/ExpandActionCapsule'
 import { PaletteAddAddonOption } from '@/components/molecules/PaletteAddAddonOption'
+import { PaletteAddInputAddonOption } from '@/components/molecules/PaletteAddInputAddonOption'
 import { PaletteAddonInstallZone } from '@/components/molecules/PaletteAddonInstallZone'
+import { PaletteInputAddonInstallZone } from '@/components/molecules/PaletteInputAddonInstallZone'
 import { PaletteAddBlockOption } from '@/components/molecules/PaletteAddBlockOption'
 import { PaletteAddNodeOption } from '@/components/molecules/PaletteAddNodeOption'
 import { PaletteSlashCommandOption } from '@/components/molecules/PaletteSlashCommandOption'
@@ -12,6 +20,22 @@ import {
   listAddonManifests,
   matchesAddonQuery,
 } from '@/blockStructures/addonRegistry'
+import {
+  fetchInputAddonsFromDisk,
+  listInputAddonManifests,
+  matchesInputAddonQuery,
+} from '@/blockStructures/inputAddonRegistry'
+import { fetchAddonLanguagePack, type AddonLanguagePack } from '@/core/addonLanguage'
+import {
+  addonManifestShouldShowInPaletteList,
+  collectAddonPaletteFilterLabels,
+  migrateLegacyAddonPaletteHiddenTagKeys,
+} from '@/core/addonPaletteTags'
+import {
+  partitionAddonPaletteTagKeys,
+  readHiddenAddonPaletteTagKeys,
+  writeHiddenAddonPaletteTagKeys,
+} from '@/core/addonPaletteTagFilterPreferences'
 import {
   blockDefinitionsList,
   matchesBlockDefinitionQuery,
@@ -26,6 +50,7 @@ import {
   matchesSlashCommandQuery,
   slashCommandsList,
 } from '@/core/slashCommandRegistry'
+import { filterSlashCommandsByLocale } from '@/core/slashCommandLocale'
 import { fetchSlashCommandsFromDisk } from '@/core/slashCommandStorage'
 import type { SlashCommandDocument } from '@/core/slashCommandTypes'
 import type { BlockDefinitionJsonDocument } from '@/core/blockDefinitionJson'
@@ -55,7 +80,7 @@ const MAX_SCROLL_SPEED = 28
 const EXPAND_CAPSULE_LIFETIME_SECONDS = 5
 
 type PaletteScrollDirection = 'down' | 'idle' | 'up'
-export type PaletteCatalogMode = 'nodes' | 'blocks' | 'addons'
+export type PaletteCatalogMode = 'nodes' | 'blocks' | 'addons' | 'inputAddons'
 
 /** Teste: m/n controlam expandir/retrair (m = expandir, n = retrair), com hover na linha ou atalho global quando o foco não está no campo de pesquisa. */
 type PaletteExpandOverride = 'compact' | 'default' | 'expanded'
@@ -154,7 +179,7 @@ export function AddNodePalette({
   schemas,
   screenAnchor = null,
 }: AddNodePaletteProps) {
-  const { t } = useLanguage()
+  const { locale, t } = useLanguage()
   const [paletteCatalogMode, setPaletteCatalogMode] = useState<PaletteCatalogMode>(initialCatalogMode)
   const [palettePackFolder, setPalettePackFolder] = useState<string | null>(null)
   const [paletteStructureSubfolder, setPaletteStructureSubfolder] = useState<string | null>(null)
@@ -181,6 +206,24 @@ export function AddNodePalette({
   const [diskAddonManifests, setDiskAddonManifests] = useState(() => [...listAddonManifests()])
   const [diskAddonsLoading, setDiskAddonsLoading] = useState(false)
   const [diskAddonsError, setDiskAddonsError] = useState<string | null>(null)
+  const [diskInputAddonManifests, setDiskInputAddonManifests] = useState(() => [
+    ...listInputAddonManifests(),
+  ])
+  const [diskInputAddonsLoading, setDiskInputAddonsLoading] = useState(false)
+  const [diskInputAddonsError, setDiskInputAddonsError] = useState<string | null>(null)
+  const [paletteAddonTagsSelected, setPaletteAddonTagsSelected] = useState<string[]>([])
+  const [paletteAddonTagsHidden, setPaletteAddonTagsHidden] = useState<string[]>(() =>
+    readHiddenAddonPaletteTagKeys(),
+  )
+  const [addonLanguagePacksByManifestId, setAddonLanguagePacksByManifestId] = useState<
+    Record<string, AddonLanguagePack>
+  >({})
+  const [addonTagFilterOpen, setAddonTagFilterOpen] = useState(false)
+  const [addonTagContextMenu, setAddonTagContextMenu] = useState<{
+    anchor: AddonPaletteTagFilterContextMenuAnchor
+    hidden: boolean
+    tagKey: string
+  } | null>(null)
 
   const [structureSubfolderMenuOpen, setStructureSubfolderMenuOpen] = useState(false)
   const [structureSubfolderMenuQuery, setStructureSubfolderMenuQuery] = useState('')
@@ -256,6 +299,20 @@ export function AddNodePalette({
         return
       }
       setDiskAddonsError(result.error)
+    })
+  }, [])
+
+  const refreshInputAddonsCatalog = useCallback(() => {
+    setDiskInputAddonsLoading(true)
+    setDiskInputAddonsError(null)
+
+    void fetchInputAddonsFromDisk().then((result) => {
+      setDiskInputAddonsLoading(false)
+      if (result.ok) {
+        setDiskInputAddonManifests([...result.manifests])
+        return
+      }
+      setDiskInputAddonsError(result.error)
     })
   }, [])
 
@@ -456,10 +513,50 @@ export function AddNodePalette({
   )
 
   const blockDefinitions = diskBlockDefinitions
+  const allPaletteAddonFilterLabels = useMemo(
+    () => collectAddonPaletteFilterLabels(diskAddonManifests, addonLanguagePacksByManifestId),
+    [addonLanguagePacksByManifestId, diskAddonManifests],
+  )
+
+  const { visibleTagKeys: paletteAddonTagKeys, hiddenTagKeysInCatalog: paletteAddonTagsHiddenInCatalog } =
+    useMemo(
+      () => partitionAddonPaletteTagKeys(allPaletteAddonFilterLabels, paletteAddonTagsHidden),
+      [allPaletteAddonFilterLabels, paletteAddonTagsHidden],
+    )
+
+  const paletteAddonTagsSelectedKey = paletteAddonTagsSelected.join('|')
+
+  /** Filtro activo ignora tags «ocultas na lista» (só botões visíveis). */
+  const activePaletteAddonTagFilters = useMemo(
+    () =>
+      paletteAddonTagsSelected.filter(
+        (label) => !paletteAddonTagsHidden.includes(label),
+      ),
+    [paletteAddonTagsHidden, paletteAddonTagsSelected, paletteAddonTagsSelectedKey],
+  )
+
+  const paletteAddonTagsHiddenKey = paletteAddonTagsHidden.join('|')
+
   const filteredAddons = useMemo(() => {
     const q = paletteQuery.trim()
-    return diskAddonManifests.filter((manifest) => matchesAddonQuery(manifest, q))
-  }, [diskAddonManifests, paletteQuery])
+    return diskAddonManifests
+      .filter((manifest) => matchesAddonQuery(manifest, q))
+      .filter((manifest) =>
+        addonManifestShouldShowInPaletteList(
+          manifest,
+          paletteAddonTagsHidden,
+          activePaletteAddonTagFilters,
+          addonLanguagePacksByManifestId,
+        ),
+      )
+  }, [
+    activePaletteAddonTagFilters,
+    addonLanguagePacksByManifestId,
+    diskAddonManifests,
+    paletteAddonTagsHidden,
+    paletteAddonTagsHiddenKey,
+    paletteQuery,
+  ])
 
   const filteredBlocks = useMemo(() => {
     const matched = blockDefinitions
@@ -485,12 +582,200 @@ export function AddNodePalette({
   }, [paletteQuery])
 
   const filteredSlashCommands = useMemo(() => {
-    return diskSlashCommands.filter((entry) => matchesSlashCommandQuery(entry, slashCommandQuery))
-  }, [diskSlashCommands, slashCommandQuery])
+    return filterSlashCommandsByLocale(
+      diskSlashCommands.filter((entry) => matchesSlashCommandQuery(entry, slashCommandQuery)),
+      locale,
+    )
+  }, [diskSlashCommands, locale, slashCommandQuery])
 
   const isAddonsMode = addonsCatalogEnabled && paletteCatalogMode === 'addons'
+  const isInputAddonsMode = addonsCatalogEnabled && paletteCatalogMode === 'inputAddons'
+
+  const filteredInputAddons = useMemo(() => {
+    const q = paletteQuery.trim()
+    return diskInputAddonManifests.filter((manifest) => matchesInputAddonQuery(manifest, q))
+  }, [diskInputAddonManifests, paletteQuery])
+
+  useEffect(() => {
+    if (!isAddonsMode) {
+      setPaletteAddonTagsSelected([])
+      setAddonTagFilterOpen(false)
+      return
+    }
+
+    setPaletteAddonTagsSelected((current) =>
+      current.filter((tag) => allPaletteAddonFilterLabels.includes(tag)),
+    )
+  }, [allPaletteAddonFilterLabels, isAddonsMode])
+
+  useEffect(() => {
+    setPaletteAddonTagsHidden((current) => {
+      const next = migrateLegacyAddonPaletteHiddenTagKeys(
+        current,
+        diskAddonManifests,
+        addonLanguagePacksByManifestId,
+      ).filter((tag) => allPaletteAddonFilterLabels.includes(tag))
+      if (next.length === current.length && next.every((tag, index) => tag === current[index])) {
+        return current
+      }
+      writeHiddenAddonPaletteTagKeys(next)
+      return next
+    })
+  }, [addonLanguagePacksByManifestId, allPaletteAddonFilterLabels, diskAddonManifests])
+
+  useEffect(() => {
+    if (activePaletteAddonTagFilters.length > 0) {
+      setAddonTagFilterOpen(true)
+    }
+  }, [activePaletteAddonTagFilters.length])
+
+  useEffect(() => {
+    if (!isAddonsMode || diskAddonManifests.length === 0) {
+      setAddonLanguagePacksByManifestId({})
+      return
+    }
+
+    let cancelled = false
+
+    void (async () => {
+      const packs: Record<string, AddonLanguagePack> = {}
+
+      await Promise.all(
+        diskAddonManifests.map(async (manifest) => {
+          packs[manifest.id] = await fetchAddonLanguagePack(manifest.id, locale)
+        }),
+      )
+
+      if (!cancelled) {
+        setAddonLanguagePacksByManifestId(packs)
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [diskAddonManifests, isAddonsMode, locale])
+
+  useEffect(() => {
+    if (!isAddonsMode) {
+      return
+    }
+    setHighlightedSchemaIndex(0)
+    setPaletteHoveredOptionIndex(null)
+  }, [isAddonsMode, paletteAddonTagsSelectedKey, paletteAddonTagsHiddenKey])
+
+  useEffect(() => {
+    if (!isInputAddonsMode) {
+      return
+    }
+    setHighlightedSchemaIndex(0)
+    setPaletteHoveredOptionIndex(null)
+  }, [isInputAddonsMode, paletteQuery])
+
+  const resetPaletteAddonTagFilterHighlight = useCallback(() => {
+    setHighlightedSchemaIndex(0)
+    setPaletteHoveredOptionIndex(null)
+    setPaletteExpandOverride('default')
+  }, [])
+
+  const openAddonTagContextMenu = useCallback(
+    (tagKey: string, hidden: boolean, clientX: number, clientY: number) => {
+      setAddonTagContextMenu({
+        anchor: { left: clientX, top: clientY },
+        hidden,
+        tagKey,
+      })
+    },
+    [],
+  )
+
+  const handleAddonTagFilterClick = useCallback(
+    (tagKey: string, event: { ctrlKey: boolean; metaKey: boolean }) => {
+      if (event.ctrlKey || event.metaKey) {
+        return
+      }
+
+      setPaletteAddonTagsSelected((current) => {
+        if (current.length === 1 && current[0] === tagKey) {
+          return []
+        }
+        return [tagKey]
+      })
+      resetPaletteAddonTagFilterHighlight()
+    },
+    [resetPaletteAddonTagFilterHighlight],
+  )
+
+  const handleAddonTagContextMenuAction = useCallback(
+    (action: AddonPaletteTagFilterMenuAction, tagKey: string) => {
+      switch (action) {
+        case 'filter-only':
+          setPaletteAddonTagsSelected([tagKey])
+          break
+        case 'add-to-filter':
+          setPaletteAddonTagsSelected((current) =>
+            current.includes(tagKey) ? current : [...current, tagKey],
+          )
+          break
+        case 'remove-from-selection':
+          setPaletteAddonTagsSelected((current) => current.filter((tag) => tag !== tagKey))
+          break
+        case 'hide-in-list':
+          setPaletteAddonTagsHidden((current) => {
+            const next = current.includes(tagKey) ? current : [...current, tagKey]
+            writeHiddenAddonPaletteTagKeys(next)
+            return next
+          })
+          break
+        case 'show-in-list':
+          setPaletteAddonTagsHidden((current) => {
+            const next = current.filter((tag) => tag !== tagKey)
+            writeHiddenAddonPaletteTagKeys(next)
+            return next
+          })
+          break
+      }
+
+      resetPaletteAddonTagFilterHighlight()
+      queueMicrotask(() => {
+        setAddonTagContextMenu(null)
+      })
+    },
+    [resetPaletteAddonTagFilterHighlight],
+  )
+
+  const renderAddonTagFilterButton = useCallback(
+    (tagKey: string, hidden: boolean) => (
+      <button
+        aria-pressed={hidden ? undefined : paletteAddonTagsSelected.includes(tagKey)}
+        data-tag-hidden={hidden ? 'true' : undefined}
+        key={tagKey}
+        title={tagKey}
+        type="button"
+        onClick={(event) => {
+          if (event.ctrlKey || event.metaKey) {
+            event.preventDefault()
+            openAddonTagContextMenu(tagKey, hidden, event.clientX, event.clientY)
+            return
+          }
+          if (!hidden) {
+            handleAddonTagFilterClick(tagKey, event)
+          }
+        }}
+        onContextMenu={(event) => {
+          event.preventDefault()
+          openAddonTagContextMenu(tagKey, hidden, event.clientX, event.clientY)
+        }}
+      >
+        {tagKey}
+      </button>
+    ),
+    [handleAddonTagFilterClick, openAddonTagContextMenu, paletteAddonTagsSelected],
+  )
   const isBlocksMode = blocksCatalogEnabled && paletteCatalogMode === 'blocks'
-  const paletteResultCount = isAddonsMode
+  const paletteResultCount = isInputAddonsMode
+    ? filteredInputAddons.length
+    : isAddonsMode
     ? filteredAddons.length
     : isBlocksMode
       ? isSlashCommandsMode
@@ -716,7 +1001,9 @@ export function AddNodePalette({
   }, [])
 
   const handlePaletteKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
-    const activeListLength = isAddonsMode
+    const activeListLength = isInputAddonsMode
+      ? filteredInputAddons.length
+      : isAddonsMode
       ? filteredAddons.length
       : isBlocksMode
         ? isSlashCommandsMode
@@ -725,6 +1012,11 @@ export function AddNodePalette({
         : filteredSchemas.length
 
     if (event.key === 'Escape') {
+      if (addonTagContextMenu) {
+        event.preventDefault()
+        setAddonTagContextMenu(null)
+        return
+      }
       if (structureSubfolderMenuOpen) {
         event.preventDefault()
         setStructureSubfolderMenuOpen(false)
@@ -938,10 +1230,31 @@ export function AddNodePalette({
     return paletteOptionExpanded(index)
   }
 
+  const handlePaletteOverlayPointerDown = (event: PointerEvent<HTMLDivElement>) => {
+    const target = event.target
+    if (
+      target instanceof Element &&
+      target.closest(`[${ADDON_PALETTE_TAG_FILTER_CONTEXT_MENU_ROOT_ATTR}]`)
+    ) {
+      event.preventDefault()
+      event.stopPropagation()
+      return
+    }
+
+    if (addonTagContextMenu) {
+      event.preventDefault()
+      event.stopPropagation()
+      setAddonTagContextMenu(null)
+      return
+    }
+
+    onClose()
+  }
+
   return (
     <div
       className={[styles.overlay, isPaletteFloating ? styles.overlayAnchored : ''].filter(Boolean).join(' ')}
-      onPointerDown={onClose}
+      onPointerDown={handlePaletteOverlayPointerDown}
       role="presentation"
     >
       {expandCapsule ? (
@@ -1023,18 +1336,96 @@ export function AddNodePalette({
                   {t(LangId.NodePaletteCatalogAddons)}
                 </button>
               ) : null}
+              {addonsCatalogEnabled ? (
+                <button
+                  aria-pressed={paletteCatalogMode === 'inputAddons'}
+                  type="button"
+                  onClick={() => {
+                    setPaletteCatalogMode('inputAddons')
+                    setHighlightedSchemaIndex(0)
+                    setPaletteHoveredOptionIndex(null)
+                    setPaletteExpandOverride('default')
+                    refreshInputAddonsCatalog()
+                  }}
+                >
+                  {t(LangId.NodePaletteCatalogInputAddons)}
+                </button>
+              ) : null}
               </div>
             </div>
           ) : null}
+          {isInputAddonsMode ? (
+            <div className={styles.addonsSearchRow}>
+              <input
+                aria-activedescendant={filteredInputAddons[activeSchemaIndex]?.id}
+                aria-controls="node-schema-results"
+                aria-label={t(LangId.NodePaletteSearchAria)}
+                autoComplete="off"
+                className={`${styles.input} ${styles.inputInRow}`}
+                onChange={(event) => {
+                  setPaletteQuery(event.target.value)
+                  setHighlightedSchemaIndex(0)
+                  setPaletteHoveredOptionIndex(null)
+                  setPaletteExpandOverride('default')
+                }}
+                onKeyDown={handlePaletteKeyDown}
+                placeholder={t(LangId.NodePaletteSearchInputAddonsPlaceholder)}
+                ref={paletteInputRef}
+                role="combobox"
+                type="search"
+                value={paletteQuery}
+              />
+              <button
+                aria-label={t(LangId.NodePaletteInputAddonsReload)}
+                className={styles.addonsReloadButton}
+                disabled={diskInputAddonsLoading}
+                title={t(LangId.NodePaletteInputAddonsReload)}
+                type="button"
+                onClick={refreshInputAddonsCatalog}
+              >
+                {t(LangId.NodePaletteInputAddonsReload)}
+              </button>
+            </div>
+          ) : isAddonsMode ? (
+            <div className={styles.addonsSearchRow}>
+              <input
+                aria-activedescendant={filteredAddons[activeSchemaIndex]?.id}
+                aria-controls="node-schema-results"
+                aria-label={t(LangId.NodePaletteSearchAria)}
+                autoComplete="off"
+                className={`${styles.input} ${styles.inputInRow}`}
+                onChange={(event) => {
+                  setPaletteQuery(event.target.value)
+                  setHighlightedSchemaIndex(0)
+                  setPaletteHoveredOptionIndex(null)
+                  setPaletteExpandOverride('default')
+                }}
+                onKeyDown={handlePaletteKeyDown}
+                placeholder={t(LangId.NodePaletteSearchAddonsPlaceholder)}
+                ref={paletteInputRef}
+                role="combobox"
+                type="search"
+                value={paletteQuery}
+              />
+              <button
+                aria-label={t(LangId.NodePaletteAddonsReload)}
+                className={styles.addonsReloadButton}
+                disabled={diskAddonsLoading}
+                title={t(LangId.NodePaletteAddonsReload)}
+                type="button"
+                onClick={refreshAddonsCatalog}
+              >
+                {t(LangId.NodePaletteAddonsReload)}
+              </button>
+            </div>
+          ) : (
           <input
             aria-activedescendant={
-              isAddonsMode
-                ? filteredAddons[activeSchemaIndex]?.id
-                : isBlocksMode
-                  ? isSlashCommandsMode
-                    ? filteredSlashCommands[activeSchemaIndex]?.command
-                    : filteredBlocks[activeSchemaIndex]?.id
-                  : filteredSchemas[activeSchemaIndex]?.id
+              isBlocksMode
+                ? isSlashCommandsMode
+                  ? filteredSlashCommands[activeSchemaIndex]?.command
+                  : filteredBlocks[activeSchemaIndex]?.id
+                : filteredSchemas[activeSchemaIndex]?.id
             }
             aria-controls="node-schema-results"
             aria-label={t(LangId.NodePaletteSearchAria)}
@@ -1048,17 +1439,16 @@ export function AddNodePalette({
             }}
             onKeyDown={handlePaletteKeyDown}
             placeholder={
-              isAddonsMode
-                ? t(LangId.NodePaletteSearchAddonsPlaceholder)
-                : isBlocksMode
-                  ? t(LangId.NodePaletteSearchBlocksPlaceholder)
-                  : t(LangId.NodePaletteSearchPlaceholder)
+              isBlocksMode
+                ? t(LangId.NodePaletteSearchBlocksPlaceholder)
+                : t(LangId.NodePaletteSearchPlaceholder)
             }
             ref={paletteInputRef}
             role="combobox"
             type="search"
             value={paletteQuery}
           />
+          )}
           {isBlocksMode && diskBlockDefinitionsLoading ? (
             <p className={styles.packFoldersStatus}>A ler blocos em blockStructures/blocks…</p>
           ) : null}
@@ -1067,7 +1457,7 @@ export function AddNodePalette({
               Blocos pelo registo estático ({diskBlockDefinitionsError})
             </p>
           ) : null}
-          {!isBlocksMode && !isAddonsMode ? (
+          {!isBlocksMode && !isAddonsMode && !isInputAddonsMode ? (
           <div className={styles.filterRows}>
             <div className={styles.tags} aria-label="Organization modes">
               <button
@@ -1288,10 +1678,72 @@ export function AddNodePalette({
             ) : null}
           </div>
           ) : null}
-          {isAddonsMode ? (
+          {isInputAddonsMode ? (
             <div className={styles.addonInstallSlot}>
-              <PaletteAddonInstallZone onInstalled={refreshAddonsCatalog} />
+              <PaletteInputAddonInstallZone onInstalled={refreshInputAddonsCatalog} />
             </div>
+          ) : null}
+          {isAddonsMode ? (
+            <>
+              <div className={styles.addonInstallSlot}>
+                <PaletteAddonInstallZone onInstalled={refreshAddonsCatalog} />
+              </div>
+              {allPaletteAddonFilterLabels.length > 0 ? (
+                <div className={styles.addonTagFilters}>
+                  <button
+                    aria-expanded={addonTagFilterOpen}
+                    className={styles.addonTagFilterHead}
+                    type="button"
+                    onClick={() => setAddonTagFilterOpen((open) => !open)}
+                  >
+                    <span
+                      aria-hidden
+                      className={styles.addonTagFilterChevron}
+                      data-open={addonTagFilterOpen ? '1' : '0'}
+                    />
+                    <span className={styles.addonTagFilterTitle}>
+                      {t(LangId.NodePaletteFilterByTag)}
+                    </span>
+                    {activePaletteAddonTagFilters.length > 0 ? (
+                      <span className={styles.addonTagFilterBadge}>
+                        {activePaletteAddonTagFilters.length}
+                      </span>
+                    ) : null}
+                  </button>
+                  {addonTagFilterOpen ? (
+                    <div className={styles.addonTagFilterBody}>
+                      <div className={styles.tags} aria-label={t(LangId.NodePaletteAddonTagFilterAria)}>
+                        {activePaletteAddonTagFilters.length > 0 ? (
+                          <button
+                            aria-pressed={false}
+                            type="button"
+                            onClick={() => {
+                              setPaletteAddonTagsSelected([])
+                              resetPaletteAddonTagFilterHighlight()
+                            }}
+                          >
+                            {t(LangId.NodePalettePackAll)}
+                          </button>
+                        ) : null}
+                        {paletteAddonTagKeys.map((tagKey) => renderAddonTagFilterButton(tagKey, false))}
+                      </div>
+                      {paletteAddonTagsHiddenInCatalog.length > 0 ? (
+                        <div className={styles.addonTagFilterHidden}>
+                          <span className={styles.addonTagFilterHiddenLabel}>
+                            {t(LangId.NodePaletteAddonHiddenInList)}
+                          </span>
+                          <div className={styles.tags} aria-label={t(LangId.NodePaletteAddonHiddenInList)}>
+                            {paletteAddonTagsHiddenInCatalog.map((tagKey) =>
+                              renderAddonTagFilterButton(tagKey, true),
+                            )}
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+            </>
           ) : null}
           <div
             className={styles.results}
@@ -1302,7 +1754,9 @@ export function AddNodePalette({
               '--palette-expand-slots': String(
                 Math.min(
                   Math.max(
-                    (isAddonsMode
+                    (isInputAddonsMode
+                      ? filteredInputAddons.length
+                      : isAddonsMode
                       ? filteredAddons.length
                       : isBlocksMode
                         ? isSlashCommandsMode
@@ -1317,7 +1771,9 @@ export function AddNodePalette({
               '--palette-rows': String(
                 Math.min(
                   Math.max(
-                    isAddonsMode
+                    isInputAddonsMode
+                      ? filteredInputAddons.length
+                      : isAddonsMode
                       ? filteredAddons.length
                       : isBlocksMode
                         ? isSlashCommandsMode
@@ -1332,7 +1788,31 @@ export function AddNodePalette({
             } as CSSProperties & Record<'--palette-rows' | '--palette-expand-slots', string>}
             onPointerLeave={handlePaletteResultsPointerLeave}
           >
-            {isAddonsMode ? (
+            {isInputAddonsMode ? (
+              diskInputAddonsLoading ? (
+                <div className={styles.empty}>{t(LangId.NodePaletteInputAddonsLoading)}</div>
+              ) : diskInputAddonsError ? (
+                <div className={styles.empty}>{diskInputAddonsError}</div>
+              ) : filteredInputAddons.length > 0 ? (
+                filteredInputAddons.map((manifest, index) => (
+                  <PaletteAddInputAddonOption
+                    key={manifest.id}
+                    expanded={paletteOptionExpanded(index)}
+                    highlighted={index === activeSchemaIndex}
+                    onPointerEnter={() => {
+                      setHighlightedSchemaIndex(index)
+                      setPaletteHoveredOptionIndex(index)
+                    }}
+                    onPointerLeave={() => {
+                      setPaletteHoveredOptionIndex((current) => (current === index ? null : current))
+                    }}
+                    manifest={manifest}
+                  />
+                ))
+              ) : (
+                <div className={styles.empty}>{t(LangId.NodePaletteInputAddonsEmpty)}</div>
+              )
+            ) : isAddonsMode ? (
               diskAddonsLoading ? (
                 <div className={styles.empty}>{t(LangId.NodePaletteAddonsLoading)}</div>
               ) : diskAddonsError ? (
@@ -1451,6 +1931,17 @@ export function AddNodePalette({
           <span className={styles.scrollArrowDown} aria-hidden="true" />
         </button>
       </div>
+      {addonTagContextMenu ? (
+        <AddonPaletteTagFilterContextMenu
+          anchor={addonTagContextMenu.anchor}
+          hidden={addonTagContextMenu.hidden}
+          selected={paletteAddonTagsSelected.includes(addonTagContextMenu.tagKey)}
+          onClose={() => setAddonTagContextMenu(null)}
+          onSelect={(action) =>
+            handleAddonTagContextMenuAction(action, addonTagContextMenu.tagKey)
+          }
+        />
+      ) : null}
     </div>
   )
 }

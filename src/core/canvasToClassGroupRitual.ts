@@ -485,7 +485,7 @@ export function classifyOutgoingLink(parent: CanvasNode, connection: CanvasConne
   return null
 }
 
-function resolveOutgoingLinks(parent: CanvasNode, scene: CanvasScene): OutgoingLink[] {
+export function resolveOutgoingLinks(parent: CanvasNode, scene: CanvasScene): OutgoingLink[] {
   const links: OutgoingLink[] = []
   const seen = new Set<string>()
   const schema = parent.node.schema

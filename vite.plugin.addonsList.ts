@@ -5,6 +5,11 @@ import {
   handleAddonsInstallAvailableRequest,
   handleAddonsInstallRequest,
 } from './vite.addonsInstallHandler'
+import { handleInputAddonsListRequest } from './vite.inputAddonsListHandler'
+import {
+  handleInputAddonsInstallAvailableRequest,
+  handleInputAddonsInstallRequest,
+} from './vite.inputAddonsInstallHandler'
 import { normalizeApiPathname } from './vite.devApiPath'
 
 export function vitePluginAddonsList(projectRoot: string): Plugin {
@@ -27,10 +32,24 @@ export function vitePluginAddonsList(projectRoot: string): Plugin {
           void handleAddonsInstallRequest(projectRoot, req, res)
           return
         }
+        if (pathname === '/api/input-addons-list' && req.method === 'GET') {
+          void handleInputAddonsListRequest(projectRoot, res)
+          return
+        }
+        if (pathname === '/api/input-addons-install-available' && req.method === 'GET') {
+          handleInputAddonsInstallAvailableRequest(res)
+          return
+        }
+        if (pathname === '/api/input-addons-install' && req.method === 'POST') {
+          void handleInputAddonsInstallRequest(projectRoot, req, res)
+          return
+        }
         next()
       })
       console.log('[addons-list] GET /api/addons-list activo')
       console.log('[addons-install] POST /api/addons-install activo')
+      console.log('[input-addons-list] GET /api/input-addons-list activo')
+      console.log('[input-addons-install] POST /api/input-addons-install activo')
     },
   }
 }
