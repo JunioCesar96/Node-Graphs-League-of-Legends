@@ -49,6 +49,7 @@ import {
   type BlockParameterInspectorTarget,
 } from '@/components/organisms/BlockParameterInspector'
 import { fetchAddonsFromDisk } from '@/blockStructures/addonRegistry'
+import { fetchInputAddonsFromDisk } from '@/blockStructures/inputAddonRegistry'
 import type { BlockDefinitionJsonDocument } from '@/core/blockDefinitionJson'
 import { GroupInspector } from '@/components/organisms/GroupInspector'
 import { BlockingProgressDialog } from '@/components/molecules/BlockingProgressDialog'
@@ -207,15 +208,15 @@ import { useAppShortcutHandlers } from '@/shortcuts/useAppShortcutHandlers'
 import {
   ensureJadeHashesLoaded,
   getJadeEditorResolveStatus,
-  resolveRitualTextForEditor,
   type JadeEditorResolveStatus,
 } from '@/core/jadeEditorTextResolve'
 import {
-  prepareRitualEditorText,
+  resolveRitualEditorText,
   shouldUseNativeRitualBinCodec,
+  type RitualEditorResolveResult,
 } from '@/core/ritualBin'
-import { ritualContainsVfxSystem } from '@/core/vfx/ritualParseVfx'
-import { resolveVfxRitualText } from '@/core/vfx/resolveVfxRitualText'
+import { ritualContainsVfxSystem, parseRitualVfxCatalog } from '@/core/vfx/ritualParseVfx'
+import { extractVfxRitualFromText, resolveVfxRitualText } from '@/core/vfx/resolveVfxRitualText'
 import { useCodeDockTabs } from '@/hooks/useCodeDockTabs'
 import { useCodeDockFileBridge } from '@/hooks/useCodeDockFileBridge'
 import { useNeekoTransform } from '@/hooks/useNeekoTransform'
@@ -353,6 +354,7 @@ function App() {
 
   useEffect(() => {
     void fetchAddonsFromDisk()
+    void fetchInputAddonsFromDisk()
   }, [])
 
   const mergedPackFolderBySchemaId = useMemo(
@@ -678,12 +680,9 @@ function App() {
   const [codeDockFloatingRect, setCodeDockFloatingRect] = useState(() =>
     clampFloatingDockRect(createDefaultFloatingCodeDockRect()),
   )
-  const [codeDockJadeBanner, setCodeDockJadeBanner] = useState<{
-    message: string
-    tone: 'fnv' | 'jade' | 'mock'
-  } | null>(null)
   const [vfxDockOpen, setVfxDockOpen] = useState(false)
   const [vfxRitualOverride, setVfxRitualOverride] = useState<string | null>(null)
+  const [vfxRebuildRequestId, setVfxRebuildRequestId] = useState(0)
   const [vfxDockWidth, setVfxDockWidth] = useState(VFX_DOCK_DEFAULT_WIDTH)
   const [vfxDockFloating, setVfxDockFloating] = useState(false)
   const [vfxDockFloatingRect, setVfxDockFloatingRect] = useState(() =>
@@ -1965,39 +1964,31 @@ function App() {
 
   const refreshJadeResolveStatus = useCallback(() => getJadeEditorResolveStatus(), [])
 
-  const applyCodeDockJadeBanner = useCallback(
-    (via: 'unchanged' | 'jade-bridge' | 'fnv-fallback' | 'convert-only', status: JadeEditorResolveStatus | null) => {
-      if (via === 'fnv-fallback') {
-        setCodeDockJadeBanner({
-          tone: 'fnv',
-          message:
-            'Hashes parciais (fallback FNV). Use `npm run jade:http-bridge:build` e preload de hashes no Jade (Settings → Hashes).',
-        })
-        return
-      }
-      if (status?.isMockBridge) {
-        setCodeDockJadeBanner({
-          tone: 'mock',
-          message:
-            'Mock bridge activo — conversão/unhash incompletos. `npm run jade:http-bridge:build` e reinicia `npm run dev`.',
-        })
-        return
-      }
-      if (status?.provider === 'jade-http-bridge' && status.unhashText) {
-        const count =
-          status.fnvCount !== null && status.fnvCount !== undefined
-            ? String(status.fnvCount)
-            : '?'
-        setCodeDockJadeBanner({
-          tone: 'jade',
-          message: `Motor Jade (${count} hashes em cache).`,
-        })
-        return
-      }
-      setCodeDockJadeBanner(null)
+  const applyCodeDockResolveBanner = useCallback(
+    (_result: RitualEditorResolveResult, _jadeStatus: JadeEditorResolveStatus | null) => {
+      // Resolução de hashes é silenciosa no editor — sem banner.
     },
     [],
   )
+
+  const ritualResolveViaLabel = useCallback((result: RitualEditorResolveResult): string => {
+    if (result.mode === 'native') {
+      if (result.via === 'native-unhash') {
+        return 'motor nativo + tabelas FrogTools'
+      }
+      if (result.via === 'fnv-lexicon') {
+        return 'léxico FNV local'
+      }
+      return 'motor nativo'
+    }
+    if (result.via === 'jade-bridge') {
+      return 'parser Jade + tabelas de hash'
+    }
+    if (result.via === 'fnv-fallback') {
+      return 'fallback FNV (bridge Jade indisponível)'
+    }
+    return 'conversão'
+  }, [])
 
   const loadTextIntoCodeDock = useCallback(
     async (
@@ -2019,29 +2010,25 @@ function App() {
       let content = raw
       let resolveVia: string = via
 
-      if (shouldUseNativeRitualBinCodec()) {
-        const prepared = await prepareRitualEditorText(raw)
-        content = prepared.text
-        if (prepared.via === 'fnv-lexicon') {
-          resolveVia = `${via} + léxico FNV`
-        } else if (prepared.via === 'native-unhash') {
-          resolveVia = `${via} + unhash nativo`
+      const resolved = await resolveRitualEditorText(raw)
+      content = resolved.text
+
+      if (resolved.changed) {
+        if (resolved.mode === 'native') {
+          if (resolved.via === 'fnv-lexicon') {
+            resolveVia = `${via} + léxico FNV`
+          } else if (resolved.via === 'native-unhash') {
+            resolveVia = `${via} + unhash nativo`
+          }
         }
-        setCodeDockJadeBanner(
-          prepared.notice
-            ? { tone: prepared.via === 'native-unhash' ? 'jade' : 'fnv', message: prepared.notice }
-            : prepared.via === 'native-unhash'
-              ? { tone: 'jade', message: 'Hashes resolvidos via motor nativo.' }
-              : null,
-        )
-      } else {
-        const status = await refreshJadeResolveStatus()
-        const unhashed = await resolveRitualTextForEditor(raw)
-        content = unhashed.text
-        applyCodeDockJadeBanner(unhashed.via, status)
-        if (unhashed.changed && unhashed.via === 'fnv-fallback' && unhashed.warning) {
-          console.warn('[ritualBin] fallback FNV:', unhashed.warning)
-        }
+      }
+
+      const jadeStatus =
+        resolved.mode === 'jade' ? await refreshJadeResolveStatus() : null
+      applyCodeDockResolveBanner(resolved, jadeStatus)
+
+      if (resolved.mode === 'jade' && resolved.changed && resolved.via === 'fnv-fallback' && resolved.warning) {
+        console.warn('[ritualBin] fallback FNV:', resolved.warning)
       }
 
       const normalized = normalizeCodeDockFileName(fileName)
@@ -2056,7 +2043,7 @@ function App() {
         showAppAlert(`«${normalized}» convertido e aberto no painel Código (${resolveVia}).`)
       }
     },
-    [applyCodeDockJadeBanner, openCodeDockTab, refreshJadeResolveStatus],
+    [applyCodeDockResolveBanner, openCodeDockTab, refreshJadeResolveStatus],
   )
 
   const {
@@ -2979,27 +2966,25 @@ function App() {
       return
     }
     const status = await refreshJadeResolveStatus()
-    const result = await resolveRitualTextForEditor(codeText)
+    const result = await resolveRitualEditorText(codeText)
     if (!result.changed) {
+      const detail = result.notice ?? result.warning
       showAppAlert(
-        result.warning
-          ? `Nenhuma hash foi convertida.\n\n${result.warning}`
+        detail
+          ? `Nenhuma hash foi convertida.\n\n${detail}`
           : 'Nenhuma hash foi convertida (nomes já legíveis ou hashes desconhecidas).',
       )
       return
     }
     skipPropHumanizeOnceRef.current = true
     setCodeText(result.text)
-    applyCodeDockJadeBanner(result.via, status)
-    const viaLabel =
-      result.via === 'jade-bridge'
-        ? 'parser Jade + tabelas de hash'
-        : 'fallback FNV (bridge Jade indisponível)'
-    showSaveStatusNotice(`Hashes convertidas (${viaLabel}).`)
-    if (result.warning) {
-      console.warn('[jadeEditorTextResolve]', result.warning)
+    applyCodeDockResolveBanner(result, result.mode === 'jade' ? status : null)
+    showSaveStatusNotice(`Hashes convertidas (${ritualResolveViaLabel(result)}).`)
+    const logDetail = result.warning ?? result.notice
+    if (logDetail) {
+      console.warn('[resolveRitualEditorText]', logDetail)
     }
-  }, [applyCodeDockJadeBanner, codeText, refreshJadeResolveStatus, setCodeText, showSaveStatusNotice])
+  }, [applyCodeDockResolveBanner, codeText, refreshJadeResolveStatus, ritualResolveViaLabel, setCodeText, showSaveStatusNotice])
 
   const prevCodeTextForVfxRef = useRef(codeText)
   useEffect(() => {
@@ -3014,8 +2999,10 @@ function App() {
     if (!codeDockOpen) {
       return
     }
-    void ensureJadeHashesLoaded()
-    void refreshJadeResolveStatus()
+    if (!shouldUseNativeRitualBinCodec()) {
+      void ensureJadeHashesLoaded()
+      void refreshJadeResolveStatus()
+    }
   }, [codeDockOpen, refreshJadeResolveStatus])
 
   useEffect(() => {
@@ -3031,19 +3018,19 @@ function App() {
 
     void (async () => {
       const status = await refreshJadeResolveStatus()
-      const result = await resolveRitualTextForEditor(codeText)
+      const result = await resolveRitualEditorText(codeText)
       if (cancelled || !result.changed || result.text === codeText) {
         return
       }
       skipPropHumanizeOnceRef.current = true
       setCodeText(result.text)
-      applyCodeDockJadeBanner(result.via, status)
+      applyCodeDockResolveBanner(result, result.mode === 'jade' ? status : null)
     })()
 
     return () => {
       cancelled = true
     }
-  }, [applyCodeDockJadeBanner, codeDockOpen, codeText, refreshJadeResolveStatus, setCodeText])
+  }, [applyCodeDockResolveBanner, codeDockOpen, codeText, refreshJadeResolveStatus, setCodeText])
 
   const vfxPreviewRitualText = useMemo(
     () =>
@@ -3094,6 +3081,60 @@ function App() {
       setVfxDockOpen(true)
     },
     [extendSchemaLookup, hasOpenSceneTabs, scene],
+  )
+
+  const handleRebuildBlockVfx = useCallback(
+    async (nodeId: string) => {
+      if (!hasOpenSceneTabs) {
+        showAppAlert('Abra uma cena de trabalho antes de reconstruir VFX.')
+        return
+      }
+
+      const hydrated = hydrateScene(scene)
+      const canvasNode = hydrated.nodes.find((entry) => entry.id === nodeId)
+
+      const result = emitNodeBlockCardPreviewCodeText(hydrated, extendSchemaLookup, nodeId)
+
+      if (!result.ok) {
+        showAppAlert(result.error)
+        return
+      }
+
+      const ritualSlice = extractVfxRitualFromText(result.text) ?? result.text
+      if (!ritualContainsVfxSystem(ritualSlice)) {
+        showAppAlert('O bloco seleccionado não contém VfxSystemDefinitionData.')
+        return
+      }
+
+      const catalog = parseRitualVfxCatalog(ritualSlice)
+      if (catalog.entries.length === 0) {
+        showAppAlert(
+          catalog.warnings.length > 0
+            ? `Não foi possível reconstruir VFX.\n\n${catalog.warnings.slice(0, 8).join('\n')}`
+            : 'Não foi possível reconstruir VFX a partir do bloco seleccionado.',
+        )
+        return
+      }
+
+      if (result.warnings.length > 0) {
+        console.warn('[rebuildBlockVfx]', result.warnings)
+      }
+
+      const title =
+        canvasNode?.blockStructure?.blockName ??
+        canvasNode?.node.schema.title ??
+        'block'
+      const fileName = `rebuild_vfx_${sanitizeCodeDockBaseName(title)}.bin`
+
+      setVfxRitualOverride(null)
+      await loadTextIntoCodeDock(result.text, fileName, 'Rebuild VFX', {
+        fullText: true,
+        suppressConvertedOpenAlert: true,
+      })
+      setVfxDockOpen(true)
+      setVfxRebuildRequestId((current) => current + 1)
+    },
+    [extendSchemaLookup, hasOpenSceneTabs, loadTextIntoCodeDock, scene],
   )
 
   const prevDockFloatingRef = useRef(codeDockFloating)
@@ -4753,6 +4794,7 @@ function App() {
             onViewNodeCode={handleViewNodeCode}
             onViewNodeBlockCode={handleViewNodeBlockCode}
             onPreviewBlockCardCode={handlePreviewBlockCardCode}
+            onRebuildBlockVfx={handleRebuildBlockVfx}
             onViewNodeGroupCode={handleViewNodeGroupCode}
             onPreviewNodeVfx={handlePreviewNodeVfx}
             onSyncNodeValueToCode={handleSyncNodeValueToCode}
@@ -5012,6 +5054,7 @@ function App() {
                 setVfxDockFloatingRect(clampFloatingDockRect(createDefaultFloatingCodeDockRect()))
               }
               onToggleFloating={() => setVfxDockFloating((value) => !value)}
+              rebuildRequestId={vfxRebuildRequestId}
               ritualText={vfxPreviewRitualText}
             />
           </div>
@@ -5042,7 +5085,6 @@ function App() {
               activeTabId={activeCodeDockTabId}
               codeToNewGraphProgress={codeToNewNodeGraphProgress}
               dockedWidth={codeDockWidth}
-              jadeEditorBanner={codeDockJadeBanner}
               fileBridge={codeDockFileBridge}
               floatingActive={codeDockFloating}
               floatingRect={codeDockFloatingRect}

@@ -1,0 +1,22 @@
+{
+  "id": "input-addon-color-vec4",
+  "type": "input",
+  "name": "[{0}]",
+  "category": "Values",
+  "info": {
+    "link": "https://github.com/JunioCesar96/Node-Graphs-League-of-Legends",
+    "author": "Junio Cesar (Takeda)",
+    "version": "1.0.0",
+    "description": "[{1}]",
+    "license": "MIT",
+    "tags": ["[{2}]", "[{3}]", "color", "vec4", "ValueColor"],
+    "docs": "https://github.com/JunioCesar96/Node-Graphs-League-of-Legends/blob/main/README.md"
+  },
+  "icon": "none",
+  "input": {
+    "block": "ValueColor",
+    "parameter": "constantValue",
+    "type": "vec4",
+    "change": "inputaddon"
+  }
+}

@@ -6,6 +6,7 @@ import { BlockSlotConnectionPager } from '@/components/molecules/BlockSlotConnec
 import { StructureCardResizeHandles } from '@/components/molecules/StructureCardResizeHandles'
 import { BlockSlot } from '@/components/atoms/BlockSlot'
 import { BlockTypeDivider } from '@/components/atoms/BlockTypeDivider'
+import { BLOCK_CARD_CONTEXT_ZONE_ATTR } from '@/core/canvasContextMenuAttributes'
 import type { CanvasNode, CanvasScene } from '@/core/canvasScene'
 import {
   BLOCK_CARD_WIDTH,
@@ -248,6 +249,7 @@ export function BlockCard({
         className={styles.header}
         data-slot-tools={slotToolsEnabled ? '1' : '0'}
         data-slot-pager-below={headerOutputPortsWithPagerBelow.length > 0 ? '1' : '0'}
+        {...{ [BLOCK_CARD_CONTEXT_ZONE_ATTR]: 'header' }}
       >
         <div className={styles.headerSlotColumn}>
           {headerInputPorts.length > 0 ? (
@@ -470,6 +472,7 @@ export function BlockCard({
           return (
             <BlockParameterRow
               key={parameter.idParameter}
+              blockType={structure.blockType}
               parameter={parameter}
               value={value}
               interactionLocked={interactionLocked}
@@ -543,7 +546,7 @@ export function BlockCard({
       onRemoveParameter ||
       onEditParameter ||
       onSlotToolsEnabledChange ? (
-        <footer className={styles.footer}>
+        <footer className={styles.footer} {...{ [BLOCK_CARD_CONTEXT_ZONE_ATTR]: 'footer' }}>
           <BlockCardParameterMenu
             blockType={structure.blockType}
             parameters={structure.parameters}

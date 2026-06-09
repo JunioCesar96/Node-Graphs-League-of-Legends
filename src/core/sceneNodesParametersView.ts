@@ -23,7 +23,9 @@ import {
   outgoingLinkFieldName,
   resolveSceneNodesParameterParentNodeId,
 } from '@/core/sceneNodesParameterGraphLinks'
+import { enrichSceneNodesParameterRowsWithInputAddons } from '@/core/inputAddonMatcher'
 import { readBlockParameterDisplayValue } from '@/core/syncBlockToCode'
+import type { InputAddonManifest } from '@/services/inputAddonLoader.service'
 
 export { resolveSceneNodesParameterParentNodeId } from '@/core/sceneNodesParameterGraphLinks'
 
@@ -57,6 +59,9 @@ export type SceneNodesParameterRow = {
   editable: boolean
   childNodeId?: string
   navigable: boolean
+  inputAddonMatches?: InputAddonManifest[]
+  activeInputAddonId?: string
+  inputAddonPreferenceKey?: string
 }
 
 function resolveBlockParameterEditValue(fullValue: string, typeParameter?: string): string {
@@ -399,23 +404,25 @@ export function buildSceneNodesParameterRows(
   scene: CanvasScene,
   canvasNode: CanvasNode,
 ): SceneNodesParameterRow[] {
-  if (canvasNode.addonViewActive && canvasNode.addonInstance) {
-    return buildAddonParameterRows(scene, canvasNode)
-  }
+  let rows: SceneNodesParameterRow[]
 
-  if (canvasNode.blockViewActive && canvasNode.blockStructure) {
-    return mergeStructuralOutgoingLinkRows(
+  if (canvasNode.addonViewActive && canvasNode.addonInstance) {
+    rows = buildAddonParameterRows(scene, canvasNode)
+  } else if (canvasNode.blockViewActive && canvasNode.blockStructure) {
+    rows = mergeStructuralOutgoingLinkRows(
       scene,
       canvasNode,
       buildBlockParameterRows(scene, canvasNode),
       'block',
     )
+  } else {
+    rows = mergeStructuralOutgoingLinkRows(
+      scene,
+      canvasNode,
+      buildSchemaParameterRows(scene, canvasNode),
+      'schema',
+    )
   }
 
-  return mergeStructuralOutgoingLinkRows(
-    scene,
-    canvasNode,
-    buildSchemaParameterRows(scene, canvasNode),
-    'schema',
-  )
+  return enrichSceneNodesParameterRowsWithInputAddons(canvasNode, rows)
 }

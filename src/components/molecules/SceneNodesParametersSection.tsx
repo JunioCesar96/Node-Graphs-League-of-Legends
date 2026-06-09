@@ -1,8 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
 
+import { InputAddonChangeCell } from '@/components/molecules/InputAddonChangeCell'
 import { ParameterValueInput } from '@/components/molecules/ParameterValueInput'
+import {
+  SceneNodesParameterInputAddonContextMenu,
+  type SceneNodesParameterInputAddonContextMenuAnchor,
+} from '@/components/molecules/SceneNodesParameterInputAddonContextMenu'
 import type { CanvasScene } from '@/core/canvasScene'
 import { getNodeDisplayTitle } from '@/core/canvasNodePresentation'
+import { writeInputAddonPreference } from '@/core/inputAddonPreferences'
 import { LangId } from '@/core/language/languageIds'
 import type { SceneNodesParameterKind } from '@/core/sceneNodesParametersView'
 import {
@@ -27,6 +33,11 @@ type SceneNodesParametersSectionProps = {
   ) => void
 }
 
+type InputAddonContextState = {
+  rowId: string
+  anchor: SceneNodesParameterInputAddonContextMenuAnchor
+}
+
 export function SceneNodesParametersSection({
   primarySelectedId,
   scene,
@@ -36,6 +47,10 @@ export function SceneNodesParametersSection({
 }: SceneNodesParametersSectionProps) {
   const { t } = useLanguage()
   const [viewNodeId, setViewNodeId] = useState(primarySelectedId)
+  const [inputAddonOverrides, setInputAddonOverrides] = useState<Record<string, string>>({})
+  const [inputAddonContextMenu, setInputAddonContextMenu] = useState<InputAddonContextState | null>(
+    null,
+  )
 
   useEffect(() => {
     setViewNodeId(primarySelectedId)
@@ -118,51 +133,130 @@ export function SceneNodesParametersSection({
           <div className={styles.tableHead} role="row">
             <span role="columnheader">{t(LangId.SceneNodesParametersColName)}</span>
             <span role="columnheader">{t(LangId.SceneNodesParametersColValue)}</span>
+            <span role="columnheader">{t(LangId.SceneNodesParametersColInputAddon)}</span>
             <span aria-hidden />
           </div>
-          {rows.map((row) => (
-            <div className={styles.tableRow} key={row.id} role="row">
-              <span className={styles.paramName} role="cell" title={row.name}>
-                {row.name}
-              </span>
-              <div className={styles.paramValueCell} role="cell">
-                {row.editable ? (
-                  <ParameterValueInput
-                    ariaLabel={`${row.name} value`}
-                    className={styles.paramInput}
-                    key={`${viewNodeId}:${row.id}`}
-                    onCommit={(nextValue) =>
-                      onCommitParameter(viewNodeId, row.id, nextValue, row.kind)
-                    }
-                    type={row.valueType}
-                    value={row.editValue}
-                  />
+          {rows.map((row) => {
+            const activeInputAddonId =
+              inputAddonOverrides[row.id] ?? row.activeInputAddonId
+            const activeManifest = row.inputAddonMatches?.find(
+              (manifest) => manifest.id === activeInputAddonId,
+            )
+            const showInputAddon =
+              row.editable && activeManifest && activeInputAddonId
+            const canChooseInputAddon = Boolean(
+              row.editable && row.inputAddonMatches && row.inputAddonMatches.length > 1,
+            )
+
+            return (
+              <div
+                className={styles.tableRow}
+                key={row.id}
+                onContextMenu={
+                  canChooseInputAddon
+                    ? (event) => {
+                        const target = event.target
+                        if (
+                          target instanceof Element &&
+                          target.closest('button, input, select, textarea')
+                        ) {
+                          return
+                        }
+                        event.preventDefault()
+                        setInputAddonContextMenu({
+                          rowId: row.id,
+                          anchor: { left: event.clientX, top: event.clientY },
+                        })
+                      }
+                    : undefined
+                }
+                role="row"
+              >
+                <span className={styles.paramName} role="cell" title={row.name}>
+                  {row.name}
+                </span>
+                <div className={styles.paramValueCell} role="cell">
+                  {row.editable ? (
+                    <ParameterValueInput
+                      ariaLabel={`${row.name} value`}
+                      className={styles.paramInput}
+                      key={`${viewNodeId}:${row.id}`}
+                      onCommit={(nextValue) =>
+                        onCommitParameter(viewNodeId, row.id, nextValue, row.kind)
+                      }
+                      type={row.valueType}
+                      value={row.editValue}
+                    />
+                  ) : (
+                    <span className={styles.paramValue} title={row.fullValue || row.displayValue}>
+                      {row.displayValue}
+                    </span>
+                  )}
+                </div>
+                <div className={styles.inputAddonCell} role="cell">
+                  {showInputAddon ? (
+                    <InputAddonChangeCell
+                      inputAddonId={activeInputAddonId}
+                      key={`${viewNodeId}:${row.id}:${activeInputAddonId}`}
+                      manifest={activeManifest}
+                      onCommit={(nextValue) =>
+                        onCommitParameter(viewNodeId, row.id, nextValue, row.kind)
+                      }
+                      value={row.editValue}
+                    />
+                  ) : null}
+                </div>
+                {row.navigable && row.childNodeId ? (
+                  <button
+                    aria-label={t(LangId.SceneNodesParametersNavigateChild, undefined, {
+                      name: row.name,
+                    })}
+                    className={styles.navigateButton}
+                    onClick={() => {
+                      setViewNodeId(row.childNodeId!)
+                      onSelectNode(row.childNodeId!)
+                    }}
+                    title={t(LangId.SceneNodesParametersNavigateChild, undefined, {
+                      name: row.name,
+                    })}
+                    type="button"
+                  >
+                    →
+                  </button>
                 ) : (
-                  <span className={styles.paramValue} title={row.fullValue || row.displayValue}>
-                    {row.displayValue}
-                  </span>
+                  <span aria-hidden />
                 )}
               </div>
-              {row.navigable && row.childNodeId ? (
-                <button
-                  aria-label={t(LangId.SceneNodesParametersNavigateChild, undefined, { name: row.name })}
-                  className={styles.navigateButton}
-                  onClick={() => {
-                    setViewNodeId(row.childNodeId!)
-                    onSelectNode(row.childNodeId!)
-                  }}
-                  title={t(LangId.SceneNodesParametersNavigateChild, undefined, { name: row.name })}
-                  type="button"
-                >
-                  →
-                </button>
-              ) : (
-                <span aria-hidden />
-              )}
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
+
+      {inputAddonContextMenu ? (
+        (() => {
+          const row = rows.find((entry) => entry.id === inputAddonContextMenu.rowId)
+          if (!row?.inputAddonMatches?.length) {
+            return null
+          }
+          return (
+            <SceneNodesParameterInputAddonContextMenu
+              activeInputAddonId={inputAddonOverrides[row.id] ?? row.activeInputAddonId}
+              anchor={inputAddonContextMenu.anchor}
+              manifests={row.inputAddonMatches}
+              onClose={() => setInputAddonContextMenu(null)}
+              onSelect={(inputAddonId) => {
+                if (row.inputAddonPreferenceKey) {
+                  writeInputAddonPreference(row.inputAddonPreferenceKey, inputAddonId)
+                }
+                setInputAddonOverrides((current) => ({
+                  ...current,
+                  [row.id]: inputAddonId,
+                }))
+              }}
+            />
+          )
+        })()
+      ) : null}
     </div>
   )
 }

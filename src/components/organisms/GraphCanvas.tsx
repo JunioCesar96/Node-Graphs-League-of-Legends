@@ -41,6 +41,7 @@ import {
 import { GraphCanvasSceneNode } from '@/components/organisms/GraphCanvasSceneNode'
 import { GraphCanvasConnectionsLayer } from '@/components/organisms/GraphCanvasConnectionsLayer'
 import { connectionInvolvesAddon, findConnectionForAddonSlot, ADDON_CARD_WIDTH, resolveAddonSlotCanvasPoint } from '@/core/addonSlotConnections'
+import type { AddonSystemFunctionContext } from '@/core/addonSystemFunctions'
 import { getAddonManifest } from '@/blockStructures/addonRegistry'
 import { useAddonCanvasLinks } from '@/hooks/useAddonCanvasLinks'
 import { resolveAddonDropFromDataTransfer } from '@/ritualDrag/addonDropHandler'
@@ -63,6 +64,7 @@ import {
   DEFAULT_CANVAS_INTERACTION_MODE,
   type CanvasInteractionMode,
   isCanvasPanCursorMode,
+  isCanvasSelectBoxMode,
 } from '@/core/canvasInteractionMode'
 import type { CanvasConnection, CanvasNode, CanvasPosition, CanvasScene, SceneCamera } from '@/core/canvasScene'
 import { isCanvasNodeBodyCollapsed } from '@/core/canvasScene'
@@ -78,6 +80,8 @@ import { useGraphCanvasBlockSlotIndexMap } from '@/hooks/useGraphCanvasBlockSlot
 import { useGraphCanvasWirelessDisplayMaps } from '@/hooks/useGraphCanvasWirelessDisplayMaps'
 import {
   applyGraphCanvasDragPositionOverride,
+  createGraphCanvasDragPositionOverride,
+  graphCanvasDragOverrideNodeIds,
   resolveGraphCanvasNodeRenderPosition,
   type GraphCanvasDragPositionOverride,
 } from '@/core/graphCanvasDragPosition'
@@ -243,17 +247,36 @@ import {
   SNAP_MENU_BACK_LABEL,
 } from '@/core/language/graphGridSnapMenuLangIds'
 import { LangId } from '@/core/language/languageIds'
-import type { SlashCommandDocument } from '@/core/slashCommandTypes'
+import type { ManualBlockParameterFormInput } from '@/core/blockCatalogCreate'
+import { slashCommandByKey } from '@/core/slashCommandRegistry'
 import { refreshSlashCommandRegistryFromDisk } from '@/core/slashCommandStorage'
+import {
+  slashCommandEffectiveAction,
+  type SlashCommandDocument,
+} from '@/core/slashCommandTypes'
+import {
+  CreateBlockDialog,
+  type CreateBlockDialogConfirmPayload,
+} from '@/components/molecules/CreateBlockDialog'
+import { CreateParameterDialog } from '@/components/molecules/CreateParameterDialog'
+import { DeleteBlockDialog } from '@/components/molecules/DeleteBlockDialog'
+import { DeleteParameterDialog } from '@/components/molecules/DeleteParameterDialog'
+import {
+  EditBlockDialog,
+  type EditBlockDialogConfirmPayload,
+} from '@/components/molecules/EditBlockDialog'
+import { EditParameterDialog } from '@/components/molecules/EditParameterDialog'
 import { useLanguage } from '@/language/LanguageProvider'
 import {
   MESSENGER_CONFIRM_ADDON_CONNECTION_FORCED,
   MESSENGER_CONFIRM_BLOCK_CONNECTION_FORCED,
+  MESSENGER_TOAST_SLOT_CONNECTION_LOOP,
 } from '@/messenger_popup/messengerCatalog'
 import {
   classifyCrossSlotRequest,
   type CrossSlotConnectRequest,
 } from '@/core/crossSlotConnections'
+import { wouldCreateSlotConnectionLoop } from '@/core/slotConnectionLoop'
 import { useMessengerPopup } from '@/messenger_popup/MessengerPopupProvider'
 import {
   DEFAULT_CANVAS_TOOLBAR_VISIBILITY,
@@ -261,7 +284,10 @@ import {
   type CanvasToolbarToolId,
   type CanvasToolbarVisibility,
 } from '@/core/canvasToolbarVisibility'
-import { resolveContextTarget } from '@/core/canvasContextMenuResolve'
+import {
+  resolveContextTarget,
+  shouldAllowBlockNodeContextMenu,
+} from '@/core/canvasContextMenuResolve'
 import {
   collectGraphPortAnchors,
   collectAddonSlotAnchors,
@@ -386,6 +412,10 @@ type GraphCanvasProps = {
     },
   ) => Promise<{ ok: true; nodeId: string } | { ok: false; error: string }>
   onApplyAddonOutputs?: (nodeId: string, outputs: Record<string, unknown>) => void
+  onInvokeAddonSystemFunction?: (
+    functionName: string,
+    context: AddonSystemFunctionContext,
+  ) => void | Promise<void>
   onConnectAddonSlots?: (
     request:
       | {
@@ -603,6 +633,10 @@ type GraphCanvasProps = {
   onSceneNodesPanelRequest?: () => void
   /** Drop/colar ritual Class Group num Neeko Node. */
   onNeekoDropCode?: (canvasNodeId: string, text: string) => void
+  /** Copia nós seleccionados para a área de transferência interna (Ctrl+C). */
+  onCopySelectedNodes?: () => void
+  /** Cola nós copiados (Ctrl+V); devolve true quando colou. */
+  onPasteCopiedNodes?: () => boolean
   /** Vincular área do editor ao nó (Shift+arrasto). */
   onBindCodeRangeToNode?: (
     canvasNodeId: string,
@@ -627,6 +661,7 @@ type GraphCanvasProps = {
   onSaveBlockSlashCommand?: (
     nodeId: string,
     commandName: string,
+    locale?: string,
   ) => Promise<{ ok: true } | { ok: false; error: string }>
   onRemoveBlockSlashCommand?: (
     command: string,
@@ -635,6 +670,26 @@ type GraphCanvasProps = {
     command: string,
     position?: CanvasPosition,
   ) => { ok: true; rootNodeId: string } | { ok: false; error: string }
+  onCreateBlockInCatalog?: (
+    payload: CreateBlockDialogConfirmPayload,
+  ) => Promise<{ ok: true; id: string } | { ok: false; error: string }>
+  onCreateParameterInCatalog?: (
+    input: ManualBlockParameterFormInput,
+  ) => Promise<{ ok: true; id: string } | { ok: false; error: string }>
+  onUpdateBlockInCatalog?: (
+    blockName: string,
+    payload: EditBlockDialogConfirmPayload,
+  ) => Promise<{ ok: true; id: string } | { ok: false; error: string }>
+  onDeleteBlockFromCatalog?: (
+    blockName: string,
+  ) => Promise<{ ok: true; id: string } | { ok: false; error: string }>
+  onUpdateParameterInCatalog?: (
+    input: ManualBlockParameterFormInput,
+  ) => Promise<{ ok: true; id: string } | { ok: false; error: string }>
+  onDeleteParameterFromCatalog?: (
+    blockName: string,
+    parameterName: string,
+  ) => Promise<{ ok: true; id: string } | { ok: false; error: string }>
   /** Serializa Main → ritual Class Group e abre no CodeDock. */
   onGraphsToCode?: () => void
   /** Pré-visualiza subárvore do nó no CodeDock. */
@@ -642,6 +697,8 @@ type GraphCanvasProps = {
   onViewNodeBlockCode?: (nodeId: string) => void
   /** Preview de código de bloco a partir do menu de contexto do block card. */
   onPreviewBlockCardCode?: (nodeId: string) => void
+  /** Gera código do bloco e reconstrói a pré-visualização VFX. */
+  onRebuildBlockVfx?: (nodeId: string) => void
   onViewNodeGroupCode?: (nodeId: string) => void
   /** Abre VFX Dock com ritual da subárvore do nó. */
   onPreviewNodeVfx?: (nodeId: string) => void
@@ -703,9 +760,10 @@ type NodeDragGesture = {
   axisConstraint: '' | 'horizontal' | 'pending' | 'vertical'
   element: HTMLElement
   nodeId: string
+  nodeIds: readonly string[]
   origin: PanPoint
+  originPositions: Readonly<Record<string, CanvasPosition>>
   pointerId: number
-  position: CanvasPosition
   snapGrid: boolean
 }
 
@@ -1790,6 +1848,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     onConnectGroupSlots,
     onCreateAddonFromCatalog,
     onApplyAddonOutputs,
+    onInvokeAddonSystemFunction,
     onConnectAddonSlots,
     onNodeLockedInteraction,
     onPatchNodeSceneOverlay,
@@ -1798,15 +1857,24 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     onSaveBlockSlashCommand,
     onRemoveBlockSlashCommand,
     onApplyBlockSlashCommand,
+    onCreateBlockInCatalog,
+    onCreateParameterInCatalog,
+    onUpdateBlockInCatalog,
+    onDeleteBlockFromCatalog,
+    onUpdateParameterInCatalog,
+    onDeleteParameterFromCatalog,
     onGraphsToCode,
     onViewNodeCode,
     onViewNodeBlockCode,
     onPreviewBlockCardCode,
+    onRebuildBlockVfx,
     onViewNodeGroupCode,
     onPreviewNodeVfx,
     onSyncNodeValueToCode,
     canSyncNodeToCode = false,
     onNeekoDropCode,
+    onCopySelectedNodes,
+    onPasteCopiedNodes,
     onBindCodeRangeToNode,
     onBuildNeekoAtPosition,
     onNeekoBuildFailed,
@@ -1834,8 +1902,8 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
   },
   ref,
 ) {
-  const { t } = useLanguage()
-  const { showConfirmByCatalogId } = useMessengerPopup()
+  const { locale, t } = useLanguage()
+  const { showConfirmByCatalogId, showToastByCatalogId } = useMessengerPopup()
   const [pendingLink, setPendingLink] = useState<PendingLink | null>(null)
   const [pendingBlockLink, setPendingBlockLink] = useState<PendingBlockLink | null>(null)
   const pendingBlockLinkRef = useRef<PendingBlockLink | null>(null)
@@ -1872,6 +1940,12 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     nodeId: string
     suggestedName: string
   } | null>(null)
+  const [createBlockDialogOpen, setCreateBlockDialogOpen] = useState(false)
+  const [createParameterDialogOpen, setCreateParameterDialogOpen] = useState(false)
+  const [editBlockDialogOpen, setEditBlockDialogOpen] = useState(false)
+  const [deleteBlockDialogOpen, setDeleteBlockDialogOpen] = useState(false)
+  const [editParameterDialogOpen, setEditParameterDialogOpen] = useState(false)
+  const [deleteParameterDialogOpen, setDeleteParameterDialogOpen] = useState(false)
   const [pan, setPan] = useState<PanPoint>(() => scene.camera?.pan ?? { x: 0, y: 0 })
   const [scale, setScale] = useState(() => scene.camera?.scale ?? 1)
   const sceneRef = useRef(scene)
@@ -1897,8 +1971,13 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     setDragPositionOverride(pending)
   }, [])
 
-  const scheduleDragVisual = useCallback((nodeId: string, x: number, y: number) => {
-    const nextOverride = { nodeId, x, y }
+  const scheduleDragVisual = useCallback((positions: Readonly<Record<string, CanvasPosition>>) => {
+    const nextOverride = createGraphCanvasDragPositionOverride(positions)
+
+    if (!nextOverride) {
+      return
+    }
+
     lastDragVisualRef.current = nextOverride
     pendingDragVisualRef.current = nextOverride
 
@@ -1924,21 +2003,33 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
 
   const commitDragVisualPosition = useCallback(
     (
-      nodeId: string,
+      nodeIds: readonly string[],
       modifiers: { axisLock: '' | 'x' | 'y'; snapGrid: boolean },
     ) => {
       const last = lastDragVisualRef.current
 
-      if (!last || last.nodeId !== nodeId) {
+      if (!last) {
+        return
+      }
+
+      const pendingMoves = nodeIds.flatMap((nodeId) => {
+        const position = last.positions[nodeId]
+
+        if (!position) {
+          return []
+        }
+
+        return [{ nodeId, position }]
+      })
+
+      if (pendingMoves.length === 0) {
         return
       }
 
       startTransition(() => {
-        onMoveNode(
-          last.nodeId,
-          { x: last.x, y: last.y },
-          { ...modifiers, transient: true },
-        )
+        for (const move of pendingMoves) {
+          onMoveNode(move.nodeId, move.position, { ...modifiers, transient: true })
+        }
       })
     },
     [onMoveNode],
@@ -2445,8 +2536,8 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
   const forceRenderNodeIds = useMemo(() => {
     const forced = new Set<string>(selectedNodeIds)
 
-    if (dragPositionOverride?.nodeId) {
-      forced.add(dragPositionOverride.nodeId)
+    for (const nodeId of graphCanvasDragOverrideNodeIds(dragPositionOverride)) {
+      forced.add(nodeId)
     }
 
     if (glueNodeId) {
@@ -2481,7 +2572,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     pendingLink,
     ritualLinkDropHoverNodeId,
     selectedNodeIds,
-    dragPositionOverride?.nodeId,
+    dragPositionOverride,
     wirelessHighlightNodeId,
   ])
 
@@ -2547,7 +2638,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
 
     setPortAnchors(collectGraphPortAnchors(el, scale))
     setAddonSlotAnchors(collectAddonSlotAnchors(el, scale))
-  }, [canvasRenderNodeIdsKey, dragPositionOverride, scale, scene.connections.length, scene.nodes.length])
+  }, [canvasRenderNodeIdsKey, dragPositionOverride, nodePositionsKey, scale, scene.connections.length, scene.nodes.length])
 
   const tryConnectCrossSlots = useCallback(
     (request: CrossSlotConnectRequest, allowForced = false): boolean => {
@@ -2557,6 +2648,11 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
 
       const connectionClass = classifyCrossSlotRequest(scene.nodes, request)
       if (connectionClass.kind === 'incompatible') {
+        return false
+      }
+
+      if (wouldCreateSlotConnectionLoop(scene, request.fromNodeId, request.toNodeId)) {
+        showToastByCatalogId(MESSENGER_TOAST_SLOT_CONNECTION_LOOP)
         return false
       }
 
@@ -2581,11 +2677,12 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       })
       return true
     },
-    [onConnectAddonSlots, scene.nodes, showConfirmByCatalogId],
+    [onConnectAddonSlots, scene, showConfirmByCatalogId, showToastByCatalogId],
   )
 
   const addonLinks = useAddonCanvasLinks({
     scene,
+    nodesForLayout,
     scale,
     canvasRef,
     addonSlotAnchors,
@@ -2804,6 +2901,11 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
         return false
       }
 
+      if (wouldCreateSlotConnectionLoop(scene, fromNodeId, toNodeId)) {
+        showToastByCatalogId(MESSENGER_TOAST_SLOT_CONNECTION_LOOP)
+        return false
+      }
+
       if (connectionClass.kind === 'forced') {
         showConfirmByCatalogId(MESSENGER_CONFIRM_BLOCK_CONNECTION_FORCED, {
           onConfirm: () => {
@@ -2832,7 +2934,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       )
       return true
     },
-    [onConnectBlockSlots, scene.nodes, showConfirmByCatalogId],
+    [onConnectBlockSlots, scene, showConfirmByCatalogId, showToastByCatalogId],
   )
 
   const resolveBlockLinkDrop = useCallback(
@@ -3743,9 +3845,53 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     setIsSlashCommandPickerOpen(false)
   }, [])
 
+  const handleSlashCommandCatalogAction = useCallback(
+    (command: SlashCommandDocument) => {
+      const action = slashCommandEffectiveAction(command)
+      closeSlashCommandPicker()
+      setSlashCommandRemovePickerOpen(false)
+
+      if (action === 'createBlock') {
+        setCreateBlockDialogOpen(true)
+        return true
+      }
+      if (action === 'createParameter') {
+        setCreateParameterDialogOpen(true)
+        return true
+      }
+      if (action === 'editBlock') {
+        setEditBlockDialogOpen(true)
+        return true
+      }
+      if (action === 'deleteBlock') {
+        setDeleteBlockDialogOpen(true)
+        return true
+      }
+      if (action === 'editParameter') {
+        setEditParameterDialogOpen(true)
+        return true
+      }
+      if (action === 'deleteParameter') {
+        setDeleteParameterDialogOpen(true)
+        return true
+      }
+      return false
+    },
+    [closeSlashCommandPicker],
+  )
+
   const handleSlashCommandPick = useCallback(
     (command: SlashCommandDocument) => {
-      if (command.feature !== 'blocks' || !onApplyBlockSlashCommand) {
+      if (command.feature !== 'blocks') {
+        closeSlashCommandPicker()
+        return
+      }
+
+      if (handleSlashCommandCatalogAction(command)) {
+        return
+      }
+
+      if (!onApplyBlockSlashCommand) {
         closeSlashCommandPicker()
         return
       }
@@ -3763,6 +3909,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     [
       closeSlashCommandPicker,
       cursor2DPosition,
+      handleSlashCommandCatalogAction,
       onApplyBlockSlashCommand,
       onSelectNode,
     ],
@@ -3770,6 +3917,12 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
 
   const handlePaletteSlashCommandPick = useCallback(
     (command: string) => {
+      const document = slashCommandByKey('blocks', command)
+      if (document && handleSlashCommandCatalogAction(document)) {
+        closePalette()
+        return
+      }
+
       if (!onApplyBlockSlashCommand) {
         closePalette()
         return
@@ -3784,7 +3937,13 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
         showAppAlert(result.error)
       }
     },
-    [closePalette, onApplyBlockSlashCommand, onSelectNode, resolvePaletteSpawnPosition],
+    [
+      closePalette,
+      handleSlashCommandCatalogAction,
+      onApplyBlockSlashCommand,
+      onSelectNode,
+      resolvePaletteSpawnPosition,
+    ],
   )
 
   const closeContextMenu = useCallback(() => {
@@ -4174,7 +4333,16 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       deactivateGlueNode()
     }
 
-    onSelectNode(canvasNode.id, { additive: event.shiftKey })
+    const inCurrentSelection = selectedNodeIds.includes(canvasNode.id)
+
+    if (isCanvasSelectBoxMode(canvasInteractionMode)) {
+      if (!inCurrentSelection) {
+        onSelectNode(canvasNode.id, { additive: event.ctrlKey || event.metaKey })
+      }
+    } else {
+      onSelectNode(canvasNode.id, { additive: event.shiftKey })
+    }
+
     onBeginNodeDrag?.()
 
     const viewport = viewportBodyRef.current
@@ -4183,21 +4351,50 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       return
     }
 
+    const dragNodeIds =
+      isCanvasSelectBoxMode(canvasInteractionMode) &&
+      inCurrentSelection &&
+      selectedNodeIds.length > 1
+        ? selectedNodeIds.filter((nodeId) => {
+            const node = scene.nodes.find((entry) => entry.id === nodeId)
+            return node && !isNodeLocked(node)
+          })
+        : [canvasNode.id]
+
+    const originPositions: Record<string, CanvasPosition> = {}
+
+    for (const nodeId of dragNodeIds) {
+      const node = scene.nodes.find((entry) => entry.id === nodeId)
+
+      if (node) {
+        originPositions[nodeId] = { ...node.position }
+      }
+    }
+
     nodeDragGesture.current = {
       axisConstraint: event.shiftKey ? 'pending' : '',
       element: viewport,
       nodeId: canvasNode.id,
+      nodeIds: dragNodeIds,
       origin: {
         x: event.clientX,
         y: event.clientY,
       },
+      originPositions,
       pointerId: event.pointerId,
-      position: canvasNode.position,
       snapGrid: event.ctrlKey || event.metaKey,
     }
     viewport.setPointerCapture(event.pointerId)
     event.stopPropagation()
-  }, [deactivateGlueNode, glueNodeId, onBeginNodeDrag, onSelectNode])
+  }, [
+    canvasInteractionMode,
+    deactivateGlueNode,
+    glueNodeId,
+    onBeginNodeDrag,
+    onSelectNode,
+    scene.nodes,
+    selectedNodeIds,
+  ])
 
   const moveNodeDrag = useCallback((event: PointerEvent<HTMLDivElement>) => {
     const gesture = nodeDragGesture.current
@@ -4238,15 +4435,40 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       deltaX = 0
     }
 
-    let targetX = workingGesture.position.x + deltaX
-    let targetY = workingGesture.position.y + deltaY
+    const anchorPosition =
+      workingGesture.originPositions[workingGesture.nodeId] ??
+      workingGesture.originPositions[workingGesture.nodeIds[0] ?? '']
+
+    if (!anchorPosition) {
+      return
+    }
+
+    let targetX = anchorPosition.x + deltaX
+    let targetY = anchorPosition.y + deltaY
 
     if (workingGesture.snapGrid) {
       targetX = Math.round(targetX / SNAP_GRID_PX) * SNAP_GRID_PX
       targetY = Math.round(targetY / SNAP_GRID_PX) * SNAP_GRID_PX
     }
 
-    scheduleDragVisual(workingGesture.nodeId, Math.round(targetX), Math.round(targetY))
+    const offsetX = targetX - anchorPosition.x
+    const offsetY = targetY - anchorPosition.y
+    const nextPositions: Record<string, CanvasPosition> = {}
+
+    for (const nodeId of workingGesture.nodeIds) {
+      const originPosition = workingGesture.originPositions[nodeId]
+
+      if (!originPosition) {
+        continue
+      }
+
+      nextPositions[nodeId] = {
+        x: Math.round(originPosition.x + offsetX),
+        y: Math.round(originPosition.y + offsetY),
+      }
+    }
+
+    scheduleDragVisual(nextPositions)
   }, [scale, scheduleDragVisual])
 
   const stopNodeDrag = useCallback((event: PointerEvent<HTMLDivElement>) => {
@@ -4263,7 +4485,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       dragVisualRafRef.current = null
     }
 
-    commitDragVisualPosition(gesture.nodeId, {
+    commitDragVisualPosition(gesture.nodeIds, {
       axisLock:
         gesture.axisConstraint === 'horizontal'
           ? 'y'
@@ -4928,6 +5150,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       onViewNodeCode,
       onViewNodeBlockCode,
       onPreviewBlockCardCode,
+      onRebuildBlockVfx,
       onViewNodeGroupCode,
       onPreviewNodeVfx,
       onSyncNodeValueToCode,
@@ -4982,6 +5205,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     onViewNodeCode,
     onViewNodeBlockCode,
     onPreviewBlockCardCode,
+    onRebuildBlockVfx,
     onViewNodeGroupCode,
     onPreviewNodeVfx,
     onSyncNodeValueToCode,
@@ -5291,6 +5515,22 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
             })
           }
           break
+        case 'node.rebuildBlockVfx':
+          if (target.type === 'node') {
+            const active = document.activeElement
+            if (
+              active instanceof HTMLInputElement ||
+              active instanceof HTMLTextAreaElement ||
+              (active instanceof HTMLElement && active.isContentEditable)
+            ) {
+              active.blur()
+            }
+
+            window.requestAnimationFrame(() => {
+              onRebuildBlockVfx?.(target.nodeId)
+            })
+          }
+          break
         case 'node.blockParameters':
           break
         case 'node.blockParameters.add':
@@ -5560,6 +5800,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       onViewNodeCode,
       onViewNodeBlockCode,
       onPreviewBlockCardCode,
+      onRebuildBlockVfx,
       onViewNodeGroupCode,
       onPreviewNodeVfx,
       onSyncNodeValueToCode,
@@ -5681,6 +5922,8 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     setCanvasInteractionMode,
     onCloseCodePanelShortcut,
     onNeekoDropCode,
+    onCopySelectedNodes,
+    onPasteCopiedNodes,
     setStructureCardResizeModifierActive,
   })
 
@@ -5731,6 +5974,10 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
         if (!connection) {
           resolved = { type: 'node', nodeId: resolved.nodeId }
         }
+      }
+
+      if (!shouldAllowBlockNodeContextMenu(event, resolved)) {
+        return
       }
 
       event.preventDefault()
@@ -5829,11 +6076,12 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       const projected = graphClientToPosition(canvas, scale, pointerEvent.clientX, pointerEvent.clientY)
       const offset = gluePointerOffsetRef.current ?? { x: 0, y: 0 }
 
-      scheduleDragVisual(
-        glueNodeId,
-        Math.round(projected.x - offset.x),
-        Math.round(projected.y - offset.y),
-      )
+      scheduleDragVisual({
+        [glueNodeId]: {
+          x: Math.round(projected.x - offset.x),
+          y: Math.round(projected.y - offset.y),
+        },
+      })
     }
 
     window.addEventListener('pointermove', reposition, { passive: true })
@@ -5853,7 +6101,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
         setDragPositionOverride(pending)
       }
 
-      commitDragVisualPosition(glueNodeId, { axisLock: '', snapGrid: false })
+      commitDragVisualPosition([glueNodeId], { axisLock: '', snapGrid: false })
       clearDragVisual()
       onEndNodeDrag?.()
     }
@@ -5926,6 +6174,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       startNodeDrag,
       onSelectNode,
       onApplyAddonOutputs,
+      onInvokeAddonSystemFunction,
       onConnectAddonSlots,
       tryConnectCrossSlots,
       endBlockLinkDraft,
@@ -6022,6 +6271,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     onAppendListPointerCatalogItem,
     onAppendPointerCatalogItem,
     onApplyAddonOutputs,
+    onInvokeAddonSystemFunction,
     onAddBlockParameterFromCatalog,
     onCatalogParameterAppend,
     onConnectAddonSlots,
@@ -6397,7 +6647,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
             return
           }
 
-          const result = await onSaveBlockSlashCommand(request.nodeId, value)
+          const result = await onSaveBlockSlashCommand(request.nodeId, value, locale)
           if (result.ok) {
             refreshSlashCommandsCatalog()
           } else {
@@ -6405,6 +6655,96 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
           }
         }}
         title={t(LangId.SlashCommandAddDialogTitle, 'Novo slash command')}
+      />
+
+      <CreateBlockDialog
+        isOpen={createBlockDialogOpen}
+        onCancel={() => setCreateBlockDialogOpen(false)}
+        onConfirm={async (payload) => {
+          setCreateBlockDialogOpen(false)
+          if (!onCreateBlockInCatalog) {
+            return
+          }
+          const result = await onCreateBlockInCatalog(payload)
+          if (!result.ok) {
+            showAppAlert(result.error)
+          }
+        }}
+      />
+
+      <CreateParameterDialog
+        isOpen={createParameterDialogOpen}
+        onCancel={() => setCreateParameterDialogOpen(false)}
+        onConfirm={async (input) => {
+          setCreateParameterDialogOpen(false)
+          if (!onCreateParameterInCatalog) {
+            return
+          }
+          const result = await onCreateParameterInCatalog(input)
+          if (!result.ok) {
+            showAppAlert(result.error)
+          }
+        }}
+      />
+
+      <EditBlockDialog
+        isOpen={editBlockDialogOpen}
+        onCancel={() => setEditBlockDialogOpen(false)}
+        onConfirm={async (blockName, payload) => {
+          setEditBlockDialogOpen(false)
+          if (!onUpdateBlockInCatalog) {
+            return
+          }
+          const result = await onUpdateBlockInCatalog(blockName, payload)
+          if (!result.ok) {
+            showAppAlert(result.error)
+          }
+        }}
+      />
+
+      <DeleteBlockDialog
+        isOpen={deleteBlockDialogOpen}
+        onCancel={() => setDeleteBlockDialogOpen(false)}
+        onConfirm={async (blockName) => {
+          setDeleteBlockDialogOpen(false)
+          if (!onDeleteBlockFromCatalog) {
+            return
+          }
+          const result = await onDeleteBlockFromCatalog(blockName)
+          if (!result.ok) {
+            showAppAlert(result.error)
+          }
+        }}
+      />
+
+      <EditParameterDialog
+        isOpen={editParameterDialogOpen}
+        onCancel={() => setEditParameterDialogOpen(false)}
+        onConfirm={async (input) => {
+          setEditParameterDialogOpen(false)
+          if (!onUpdateParameterInCatalog) {
+            return
+          }
+          const result = await onUpdateParameterInCatalog(input)
+          if (!result.ok) {
+            showAppAlert(result.error)
+          }
+        }}
+      />
+
+      <DeleteParameterDialog
+        isOpen={deleteParameterDialogOpen}
+        onCancel={() => setDeleteParameterDialogOpen(false)}
+        onConfirm={async (blockName, parameterName) => {
+          setDeleteParameterDialogOpen(false)
+          if (!onDeleteParameterFromCatalog) {
+            return
+          }
+          const result = await onDeleteParameterFromCatalog(blockName, parameterName)
+          if (!result.ok) {
+            showAppAlert(result.error)
+          }
+        }}
       />
 
       {isPaletteOpen ? (
@@ -6725,7 +7065,12 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
                 }
                 activeBlockSlotId={pendingBlockLink?.fromBlockSlotId}
                 activeGroupSlotId={pendingGroupLink?.fromGroupSlotId}
-                activeAddonSlotId={addonLinks.pendingAddonLink?.fromAddonSlotId}
+                activeAddonSlotId={
+                  addonLinks.pendingAddonLink?.fromAddonSlotId ??
+                  (blockWirelessPulse?.nodeId === canvasNode.id
+                    ? blockWirelessPulse.slotId
+                    : undefined)
+                }
                 activeOutputInternalStructureId={
                   pendingLink?.fromNodeId === canvasNode.id
                     ? pendingLink.fromInternalStructureId

@@ -709,5 +709,18 @@
   "779": "Full catalog — pick from the list or use + to create a new parameter.",
   "780": "Header slots",
   "781": "Block header in/out slots (e.g. in[Main], out[MainPreview]).",
-  "782": "All available parameters are already selected."
+  "782": "All available parameters are already selected.",
+  "783": "Rebuild VFX",
+  "784": "Input Addon",
+  "785": "Input Addon",
+  "786": "Input Addon",
+  "787": "Install Input Addon",
+  "788": "Drag the folder here",
+  "789": "Validating manifest…",
+  "790": "Input add-on installed successfully.",
+  "791": "Install only available with `npm run dev`.",
+  "792": "No input add-ons found.",
+  "793": "Loading input add-ons…",
+  "794": "Search input add-on by name or id…",
+  "795": "Reload input add-ons"
 }

@@ -802,6 +802,19 @@ export const LangId = {
   EditBlockDialogHeaderSlots: 780,
   EditBlockDialogHeaderSlotsHint: 781,
   CreateBlockDialogParametersAllSelected: 782,
+  GraphCtxRebuildVfx: 783,
+  NodePaletteCatalogInputAddons: 784,
+  SceneNodesParametersColInputAddon: 785,
+  SceneNodesParametersInputAddonMenu: 786,
+  NodePaletteInputAddonInstallTitle: 787,
+  NodePaletteInputAddonInstallHint: 788,
+  NodePaletteInputAddonInstallSearching: 789,
+  NodePaletteInputAddonInstallSuccess: 790,
+  NodePaletteInputAddonInstallDevOnly: 791,
+  NodePaletteInputAddonsEmpty: 792,
+  NodePaletteInputAddonsLoading: 793,
+  NodePaletteSearchInputAddonsPlaceholder: 794,
+  NodePaletteInputAddonsReload: 795,
 } as const
 
 export type LangIdValue = (typeof LangId)[keyof typeof LangId]

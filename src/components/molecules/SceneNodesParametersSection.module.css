@@ -56,7 +56,7 @@
 .tableHead,
 .tableRow {
   display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr) auto auto;
   gap: var(--space-1);
   align-items: center;
 }
@@ -89,10 +89,15 @@
 }
 
 .paramName,
-.paramValueCell {
+.paramValueCell,
+.inputAddonCell {
   display: flex;
   align-items: center;
   min-width: 0;
+}
+
+.inputAddonCell {
+  justify-content: center;
 }
 
 .paramValue {

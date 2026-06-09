@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
+import { registerInputAddonManifest } from '@/blockStructures/inputAddonRegistry'
 import { blockParameterSlotId } from '@/core/blockSchema'
 import type { CanvasNode, CanvasScene } from '@/core/canvasScene'
 import { listEmbedSlotId } from '@/core/listEmbedSlots'
@@ -424,5 +425,52 @@ describe('buildSceneNodesParameterRows', () => {
     expect(valueColorRows.map((row) => row.name)).toEqual(['constantValue', 'dynamics'])
     expect(valueColorRows.find((row) => row.name === 'dynamics')?.navigable).toBe(true)
     expect(valueColorRows.find((row) => row.name === 'dynamics')?.childNodeId).toBe('animated')
+  })
+
+  it('enriquece linhas editáveis com input add-ons compatíveis', () => {
+    registerInputAddonManifest({
+      id: 'input-addon-color-vec4',
+      type: 'input',
+      name: 'Cor Vec4',
+      category: 'Values',
+      input: {
+        block: 'ValueColor',
+        parameter: 'constantValue',
+        type: 'vec4',
+        change: 'inputaddon',
+      },
+    })
+
+    const valueColor: CanvasNode = {
+      id: 'value-color',
+      position: { x: 0, y: 0 },
+      blockViewActive: true,
+      blockStructure: {
+        blockType: 'ValueColor',
+        blockName: 'ValueColor',
+        parameters: [
+          {
+            idParameter: 'constantValue',
+            nameParameter: 'constantValue',
+            typeParameter: 'vec4',
+            defaultValue: '0, 0, 0, 1',
+            sourcePath: { kind: 'parameter', parameterId: 'constantValue' },
+          },
+        ],
+        identification_codes: [],
+      },
+      node: {
+        id: 'inst-value-color',
+        schema: { id: 'ValueColor', title: 'ValueColor', parameters: [], internalStructures: [] },
+        values: [{ parameterId: 'constantValue', value: '0, 0, 0, 1' }],
+      },
+    } as CanvasNode
+
+    const rows = buildSceneNodesParameterRows({ nodes: [valueColor], connections: [] }, valueColor)
+    const constantValueRow = rows.find((row) => row.name === 'constantValue')
+    expect(constantValueRow?.inputAddonMatches?.map((manifest) => manifest.id)).toContain(
+      'input-addon-color-vec4',
+    )
+    expect(constantValueRow?.activeInputAddonId).toBe('input-addon-color-vec4')
   })
 })
