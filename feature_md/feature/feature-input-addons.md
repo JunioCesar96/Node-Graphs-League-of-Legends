@@ -9,7 +9,7 @@ Arquivo salvo em: `feature_md/feature/feature-input-addons.md`
 | Nome da Branch | `feature/input-addons` |
 | Nome das Features | **inputAddons** — pacotes de entrada personalizada para parâmetros de bloco/nó; paleta Ctrl+K (aba Input Addon); coluna Input Addon no painel Parameters; substituição do input no `BlockParameterRow`; menu de contexto para escolha entre múltiplos addons; primeiro pacote `input-addon-color-vec4` (ValueColor.constantValue vec4) |
 | Versão atual | `1.5.0` |
-| Hash do Commit | _(preencher com `git rev-parse HEAD` na branch de entrega)_ |
+| Hash do Commit | `ba80ea4` |
 
 Documentação relacionada: `feature_md/feature/feature-addon-palette-install.md`, `feature_md/feature/feature-scene-nodes-parameters-graph.md`, `feature_md/prompet/prompt_doc.md`.
 

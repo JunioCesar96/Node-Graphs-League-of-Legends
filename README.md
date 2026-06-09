@@ -1,17 +1,17 @@
-# Documentação de Implementação — Aba Parameters (Nodes em Cena) e navegação no grafo
+# Documentação de Implementação — Input Addons (editores personalizados de parâmetros)
 
-Arquivo salvo em: `feature_md/feature/feature-scene-nodes-parameters-graph.md`
+Arquivo salvo em: `feature_md/feature/feature-input-addons.md`
 
 ## 1. Cabeçalho
 
 | Campo | Valor |
 | --- | --- |
-| Nome da Branch | `feature/scene-nodes-parameters-graph` |
-| Nome das Features | Aba **Parameters** no painel Nodes em Cena; navegação hierárquica pai/filho no grafo; valores ligados com rótulo do nó filho; inputs tipados por parâmetro; consistência de ligações `list[embed]` / `pointer` em blocos |
+| Nome da Branch | `feature/input-addons` |
+| Nome das Features | **inputAddons** — pacotes de entrada personalizada para parâmetros de bloco/nó; paleta Ctrl+K (aba Input Addon); coluna Input Addon no painel Parameters; substituição do input no `BlockParameterRow`; menu de contexto para escolha entre múltiplos addons; primeiro pacote `input-addon-color-vec4` (ValueColor.constantValue vec4) |
 | Versão atual | `1.5.0` |
-| Hash do Commit | `ac784d3` |
+| Hash do Commit | `ba80ea4` |
 
-Documentação relacionada: `feature_md/feature/feature-nodes-em-cena.md`, `feature_md/feature/feature-block-link-palette.md`, `feature_md/prompet/prompet_sistema_blocos.md`.
+Documentação relacionada: `feature_md/feature/feature-addon-palette-install.md`, `feature_md/feature/feature-scene-nodes-parameters-graph.md`, `feature_md/prompet/prompt_doc.md`.
 
 ---
 
@@ -19,8 +19,8 @@ Documentação relacionada: `feature_md/feature/feature-nodes-em-cena.md`, `feat
 
 | Tag | Definição |
 | --- | --- |
-| `[NOVO]` | Novo módulo, componente, função ou fluxo criado nesta entrega. |
-| `[ATUALIZADO]` | Componente ou função existente alterada para suportar a aba Parameters ou ligações estruturais. |
+| `[NOVO]` | Novo módulo, pacote em `public/inputAddons/`, componente ou fluxo criado nesta entrega. |
+| `[ATUALIZADO]` | Componente ou função existente alterada para integrar input addons. |
 | `[REMOVIDO]` | Comportamento ou API removida ou descontinuada. |
 
 Tags presentes nesta implementação:
@@ -36,40 +36,37 @@ Não houve itens classificados como `[REMOVIDO]`.
 
 ```mermaid
 graph TD
-  subgraph panel [Painel Nodes em Cena]
-    A[Seleccionar 1 nó] --> B[Tab Parameters]
-    B --> C[buildSceneNodesParameterRows]
-    C --> D{Vista bloco activa?}
-    D -->|Sim| E[buildBlockParameterRows]
-    D -->|Não| F[buildSchemaParameterRows]
-    E --> G[mergeStructuralOutgoingLinkRows]
-    F --> G
-    G --> H[Tabela NAME / VALUE + botões ← →]
+  subgraph boot [Bootstrap]
+    A[App mount] --> B[fetchInputAddonsFromDisk]
+    B --> C[inputAddonRegistry]
   end
 
-  subgraph graph [Índice de ligações]
-    I[resolveOutgoingLinks] --> J[buildOutgoingLinksIndex]
-    J --> K[listEmbed / pointer / embed / block-param]
-    K --> G
+  subgraph match [Matching]
+    D[Parâmetro editável] --> E{block + parameter + type}
+    E --> F[findMatchingInputAddons]
+    F --> G{matches > 0?}
+    G -->|Não| H[ParameterValueInput padrão]
+    G -->|Sim| I[resolveActiveInputAddonId + localStorage]
   end
 
-  subgraph nav [Navegação]
-    H --> L{Botão →}
-    L --> M[setViewNodeId childNodeId]
-    M --> C
-    H --> N{Botão ←}
-    N --> O[resolveSceneNodesParameterParentNodeId]
-    O --> M
+  subgraph ui [UI]
+    I --> J[InputAddonChangeCell]
+    J --> K[preloadInputAddonPackage]
+    K --> L[ui.html + logic.execute]
+    L --> M[Elemento change na célula]
+    M --> N{Clique no change}
+    N --> O[AddonColorVec4Picker modal]
+    O --> P[onCommitParameter / onCommitValue]
   end
 
-  subgraph display [Valor ligado]
-    P[formatOutgoingLinksDisplayLabel] --> Q[Nome do bloco filho ex. ValueColor]
-    R[resolveBlockParameterConnectedDisplayLabel] --> Q
+  subgraph palette [Paleta Ctrl+K]
+    Q[Aba Input Addon] --> R[Lista + instalação drag-drop]
+    R --> C
   end
 
-  subgraph blocks [Consistência BlockCard]
-    S[mergeBlockHierarchyIntoScene] --> T[reconcileBlockSpawnConnections]
-    T --> U[blockConnectionDisplay espelha list embed]
+  subgraph ctx [Contexto múltiplos addons]
+    S[Clique direito na linha] --> T[SceneNodesParameterInputAddonContextMenu]
+    T --> U[writeInputAddonPreference]
   end
 ```
 
@@ -80,37 +77,29 @@ graph TD
 ```mermaid
 sequenceDiagram
   actor U as Utilizador
-  participant SNP as SceneNodesPanel
-  participant Sec as SceneNodesParametersSection
-  participant View as sceneNodesParametersView
-  participant Links as sceneNodesParameterGraphLinks
-  participant Ritual as canvasToClassGroupRitual
-  participant App as App
+  participant App as App.tsx
+  participant Reg as inputAddonRegistry
+  participant Row as BlockParameterRow
+  participant Cell as InputAddonChangeCell
+  participant Ldr as InputAddonLoaderService
+  participant Picker as AddonColorVec4Picker
 
-  U->>SNP: Selecciona nó + tab Parameters
-  SNP->>Sec: scene, primarySelectedId
-  Sec->>View: buildSceneNodesParameterRows(scene, viewNode)
-  View->>Ritual: resolveOutgoingLinks(parent, scene)
-  Ritual-->>View: OutgoingLink[]
-  View->>Links: buildOutgoingLinksIndex
-  View->>View: mergeStructuralOutgoingLinkRows
-  View-->>Sec: SceneNodesParameterRow[]
-  Sec-->>U: Tabela com birthColor → ValueColor + →
+  App->>Reg: fetchInputAddonsFromDisk on mount
+  Reg->>Ldr: loadManifestOnly / loadFromSandbox
 
-  U->>Sec: Clica → em birthColor
-  Sec->>Sec: setViewNodeId(value-color)
-  Sec->>App: onSelectNode(value-color)
-  Sec->>View: buildSceneNodesParameterRows(ValueColor)
-  View-->>U: constantValue + dynamics → Animated
-
-  U->>Sec: Clica ←
-  Sec->>Links: resolveSceneNodesParameterParentNodeId
-  Links-->>Sec: parentNodeId emitter
-  Sec->>Sec: setViewNodeId(emitter)
-
-  U->>Sec: Edita alphaRef (ParameterValueInput)
-  Sec->>App: onCommitParameter(nodeId, id, value, kind)
-  App->>App: updateNodeParameter / updateBlockParameter
+  U->>Row: Edita constantValue em ValueColor
+  Row->>Row: resolveBlockParameterInputAddonBinding
+  Row->>Cell: render com activeInputAddonId
+  Cell->>Reg: preloadInputAddonPackage
+  Reg->>Ldr: loadFromSandbox id locale
+  Ldr-->>Cell: uiHtml + execute + languagePack
+  Cell->>Cell: logic.execute value hostDOM
+  U->>Cell: Clique no swatch change
+  Cell->>Picker: modal com painel color vec4
+  U->>Picker: Altera cor
+  Picker->>Cell: emitAddonColorVec4PanelChange
+  Cell->>Row: onCommitValue
+  Row->>Row: updateBlockParameter na cena
 ```
 
 ---
@@ -119,68 +108,81 @@ sequenceDiagram
 
 | Status | Nome | Feature | Descrição Técnica | Parâmetros / Retorno |
 | --- | --- | --- | --- | --- |
-| `[NOVO]` | `SceneNodesParametersSection.tsx` | Aba Parameters | UI da tab: cabeçalho com ←, tabela NAME/VALUE, botão → por linha navegável, `ParameterValueInput` para valores editáveis. | Props: `scene`, `primarySelectedId`, `onSelectNode`, `onCommitParameter`. |
-| `[NOVO]` | `sceneNodesParametersView.ts` | Linhas de parâmetro | Constrói `SceneNodesParameterRow[]` para schema, bloco e add-on; trunca display; resolve labels de ligação. | `buildSceneNodesParameterRows`, `formatSceneNodesParameterDisplayValue`. |
-| `[NOVO]` | `mergeStructuralOutgoingLinkRows` | Grafo estrutural | Acrescenta linhas para campos com ligação de saída (`listEmbed`, `pointer`, etc.) ausentes de `parameters[]`. | `(scene, node, rows, kind) → rows`. |
-| `[NOVO]` | `sceneNodesParameterGraphLinks.ts` | Índice de ligações | Normaliza nomes de campo, indexa `OutgoingLink`, formata label do filho, resolve nó pai upstream. | `buildOutgoingLinksIndex`, `resolveSceneNodesParameterParentNodeId`. |
-| `[NOVO]` | `blockParameterInputValue.ts` | Inputs tipados | Normaliza valor de token bloco para `ParameterValueInput` (vec4, listas, escalares). | `resolveBlockParameterInputValue`, `blockParameterTypeToNodeDataType`. |
-| `[NOVO]` | `reconcileBlockSpawnConnections.ts` | Ligações spawn | Repara metadados e filhos órfãos após spawn hierárquico de blocos. | `reconcileBlockSpawnConnections(scene)`. |
-| `[NOVO]` | Testes Vitest | Regressão | Cobertura para rows, graph links, connection display e reconcile. | `*.test.ts` correspondentes. |
-| `[ATUALIZADO]` | `SceneNodesPanel.tsx` | Tab Parameters | Integra `SceneNodesParametersSection` e prop `onCommitParameter`. | Tab `parameters` no painel flutuante. |
-| `[ATUALIZADO]` | `buildSceneNodesParameterRows` | Routing vista | Vista bloco só quando `blockViewActive && blockStructure`; caso contrário schema + merge estrutural. | `CanvasScene`, `CanvasNode` → rows. |
-| `[ATUALIZADO]` | `canvasToClassGroupRitual.ts` | Outgoing links | `resolveOutgoingLinks` / `classifyOutgoingLink` exportados; fallback block-param para `embedChild` / `pointerChild`. | `OutgoingLink[]`. |
-| `[ATUALIZADO]` | `blockConnectionDisplay.ts` | UI BlockCard | Espelha ligação `list[embed]` no slot canónico do pai (como `list[pointer]`). | Display de ports conectados. |
-| `[ATUALIZADO]` | `blockHierarchySpawn.ts` | Spawn | Chama reconciliação após `mergeBlockHierarchyIntoScene`. | Cena actualizada. |
-| `[ATUALIZADO]` | `blockSchema.ts` | Schema bloco | Helpers `isBlockListEmbedParameter`, `isBlockListCollectionParameter`, paths estruturais. | Tipos e guards. |
-| `[ATUALIZADO]` | `BlockParameterRow.tsx` | Inputs bloco | Usa `ParameterValueInput` com valor normalizado por tipo. | `onUpdateBlockParameter`. |
-| `[ATUALIZADO]` | `App.tsx` | Commit parâmetro | `handleCommitSceneNodesParameter` despacha por `kind`: block / schema / addon. | Callback do painel. |
-| `[ATUALIZADO]` | `languageIds` + JSON i18n | Strings UI | Colunas, vazios, navegação pai/filho na aba Parameters. | `SceneNodesParameters*`. |
+| `[NOVO]` | `public/inputAddons/` | Pacotes | Estrutura igual aos addons: `manifest.json`, `ui.html`, `logic.js`, `language/`. Manifest com `type: "input"` e `input.{block,parameter,type,change}`. | `index.json` fallback estático. |
+| `[NOVO]` | `input-addon-color-vec4` | Pacote inicial | Editor de cor vec4 (0–1) para `ValueColor.constantValue`; `change: inputaddon` (swatch). | Reutiliza `addons/shared/colorVec4Input.js`. |
+| `[NOVO]` | `inputAddonLoader.service.ts` | Loader | Validação e `loadFromSandbox` em `/inputAddons/{id}/`. | `InputAddonManifest`, `InputAddonPackage`. |
+| `[NOVO]` | `inputAddonRegistry.ts` | Registry | Cache, `preloadInputAddonPackage`, `fetchInputAddonsFromDisk`. | API espelhada de `addonRegistry`. |
+| `[NOVO]` | `inputAddonMatcher.ts` | Matching | Cruza `block`, `parameter`, `type` ritual; enriquece linhas do painel Parameters. | `resolveBlockParameterInputAddonBinding`. |
+| `[NOVO]` | `inputAddonPreferences.ts` | Preferência | `localStorage` chave `inputAddonPref:{block}:{parameter}:{type}`. | `resolveActiveInputAddonId`. |
+| `[NOVO]` | `inputAddonChangeElement.ts` | UI DOM | Resolve id `change` (fallback `inputaddon`); clona elemento para célula. | `findChangeElement`, `cloneChangeElementForDisplay`. |
+| `[NOVO]` | `inputAddonInstallFromDrop.ts` | Instalação dev | `POST /api/input-addons-install` via drag-and-drop na paleta. | `installInputAddonFromDataTransfer`. |
+| `[NOVO]` | `vite.inputAddonsListHandler.ts` | Dev API | `GET /api/input-addons-list` enumera `public/inputAddons/*/manifest.json`. | Handler Vite. |
+| `[NOVO]` | `InputAddonChangeCell.tsx` | UI parâmetro | Host DOM oculto, elemento `change` clicável, modal `AddonColorVec4Picker`. | `layout: compact \| field`. |
+| `[NOVO]` | `PaletteAddInputAddonOption.tsx` | Paleta | Item de catálogo na aba Input Addon (somente listagem/instalação). | — |
+| `[NOVO]` | `PaletteInputAddonInstallZone.tsx` | Paleta | Zona drag-and-drop para instalar pacotes. | — |
+| `[NOVO]` | `SceneNodesParameterInputAddonContextMenu.tsx` | Contexto | Lista input addons quando há múltiplos matches. | `onSelect(inputAddonId)`. |
+| `[ATUALIZADO]` | `AddNodePalette.tsx` | Paleta | Nova aba **Input Addon** ao lado de Addons; busca, reload, lista. | `PaletteCatalogMode` + `inputAddons`. |
+| `[ATUALIZADO]` | `SceneNodesParametersSection.tsx` | Painel Parameters | Coluna **Input Addon**; menu de contexto na linha. | Grid 4 colunas. |
+| `[ATUALIZADO]` | `BlockParameterRow.tsx` | Card bloco | Substitui `ParameterValueInput` pelo input addon quando há match; menu de contexto na linha. | Prop `blockType`. |
+| `[ATUALIZADO]` | `sceneNodesParametersView.ts` | Dados linhas | Campos `inputAddonMatches`, `activeInputAddonId`, `inputAddonPreferenceKey`. | `enrichSceneNodesParameterRowsWithInputAddons`. |
+| `[ATUALIZADO]` | `App.tsx` | Bootstrap | `fetchInputAddonsFromDisk()` no mount. | — |
+| `[ATUALIZADO]` | `canvasContextMenuResolve.ts` | Menu bloco | Menu de contexto do **card de bloco** só no cabeçalho ou rodapé (`data-block-card-context-zone`). | `shouldAllowBlockNodeContextMenu`. |
+| `[ATUALIZADO]` | `BlockCard.tsx` | Zonas menu | `data-block-card-context-zone` em `<header>` e `<footer>`. | — |
+| `[ATUALIZADO]` | `GraphCanvas.tsx` | Canvas | Filtra abertura do menu de nó em cards de bloco. | — |
+| `[ATUALIZADO]` | `vite.plugin.addonsList.ts` | Dev server | Rotas `/api/input-addons-list` e `/api/input-addons-install`. | — |
 
 ---
 
 ## 6. Descrição Detalhada de Funcionamento
 
-### Aba Parameters no painel Nodes em Cena
+### Pacotes inputAddons
 
-[NOVO] Com **exactamente um nó** seleccionado, a tab **Parameters** lista parâmetros do nó activo (`viewNodeId`), não apenas do nó primário da selecção. O cabeçalho mostra o título do nó em foco e um botão **←** quando existe pai upstream (`resolveSceneNodesParameterParentNodeId`) ou quando se navegou para um filho e se quer voltar ao nó seleccionado originalmente.
+[NOVO] Cada pacote vive em `public/inputAddons/{id}/` com a mesma estrutura dos addons (`manifest`, `ui`, `logic`, `language`). O manifest declara `type: "input"` e um objeto `input`:
 
-[NOVO] Cada linha expõe **NAME**, **VALUE** (editável ou só leitura) e, quando aplicável, **→** para saltar para o nó filho ligado (`childNodeId`).
+```json
+{
+  "input": {
+    "block": "ValueColor",
+    "parameter": "constantValue",
+    "type": "vec4",
+    "change": "inputaddon"
+  }
+}
+```
 
-### Construção das linhas
+[NOVO] O campo `change` define o id do elemento em `ui.html` exibido na célula (swatch, botão, etc.). Valores vazios (`""`, `false`, `null`, `"none"`) usam o id padrão `inputaddon`. Se o id não existir no HTML, mostra-se um botão fallback que ainda abre o modal.
 
-[ATUALIZADO] `buildSceneNodesParameterRows` escolhe o builder conforme a vista:
+[NOVO] `logic.js` exporta `logic.execute(inputs, hostDOM)` com contrato `{ value: string }` in/out — mais simples que os cards de addon no canvas.
 
-- **Bloco activo** (`blockViewActive && blockStructure`): `buildBlockParameterRows` — percorre `blockStructure.parameters`, consulta `buildOutgoingLinksIndex`, marca `navigable` quando há filho ou slot estrutural.
-- **Grafo de nós** (sem vista bloco): `buildSchemaParameterRows` — percorre `schema.parameters`; parâmetros estruturais com ligação ficam navegáveis.
-- **Add-on**: `buildAddonParameterRows` — campos do manifest / `outputValues`.
+### Matching e preferência
 
-[NOVO] **`mergeStructuralOutgoingLinkRows`** executa-se sempre após o builder base. Percorre todas as entradas do índice de ligações de saída e adiciona linhas sintéticas para campos como **`birthColor`** (`listEmbed`) ou **`dynamics`** (`pointer`) que **não** constam de `parameters[]` mas têm conexão no grafo. Isto corrige o caso em que o canvas (`NodeCard`) mostra o campo estrutural mas a aba Parameters só listava escalares (`alphaRef`, `emitterName`).
+[NOVO] `inputAddonMatcher` compara `input.block` com `blockStructure.blockType` (vista bloco) ou `schema.title` (vista schema), `input.parameter` com o nome do parâmetro, e `input.type` com o tipo ritual (`vec4`, `f32`, etc.).
 
-### Labels e valores
+[NOVO] Quando vários pacotes correspondem ao mesmo parâmetro, `resolveActiveInputAddonId` lê `localStorage`; o utilizador pode alterar via menu de contexto na linha do parâmetro (painel Parameters ou `BlockParameterRow`).
 
-[ATUALIZADO] Valores ligados deixam de mostrar **—** quando existe filho: `formatOutgoingLinksDisplayLabel` e `resolveBlockParameterConnectedDisplayLabel` devolvem o nome do bloco ou título do nó (ex.: `ValueColor`).
+### Onde o input addon aparece
 
-[NOVO] Valores editáveis usam `ParameterValueInput` com tipo derivado de `blockParameterTypeToNodeDataType` / `resolveBlockParameterInputValue`, alinhado ao node graph (vec4, listas, etc.).
+[ATUALIZADO] **Painel Nodes em Cena → Parameters:** coluna **Input Addon** ao lado de Name/Value; o elemento `change` é clicável e abre o editor (modal para vec4 cor).
 
-### Índice de ligações
+[ATUALIZADO] **BlockCard:** quando há match e o parâmetro é editável (sem slot IN ligado), o `ParameterValueInput` é **substituído** pelo `InputAddonChangeCell` com layout `field` (swatch em largura total dentro de `{ }` ritual quando aplicável).
 
-[NOVO] `sceneNodesParameterGraphLinks` encapsula a normalização de nomes de campo (case-insensitive), agregação de múltiplas ligações no mesmo campo e resolução do **pai** via `scene.connections` (slots block, `fromInternalStructureId`, `__block__:`).
+### Paleta Ctrl+K
 
-[ATUALIZADO] `resolveOutgoingLinks` em `canvasToClassGroupRitual` classifica ligações schema (`listEmbed`, `pointer`, `embed`, …) e, para blocos, complementa com ligações a partir de `fromBlockParameterId` e `sourcePath` (`embedChild`, `pointerChild`).
+[ATUALIZADO] Nova aba **Input Addon** com pesquisa, reload e instalação por drag-and-drop (dev server). Não cria nós no canvas — apenas catálogo e instalação.
 
-### Consistência BlockCard ↔ filhos
+### Menu de contexto do card de bloco
 
-[ATUALIZADO] `blockConnectionDisplay` espelha ligações `list[embed]` no slot canónico do pai, evitando slot pai “desconectado” com filho ligado.
+[ATUALIZADO] O menu de contexto do **nó bloco** (focar, parâmetros do card, código, etc.) abre **apenas** com clique direito no **cabeçalho** ou **rodapé** do `BlockCard`. Cliques no corpo (linhas de parâmetros) não abrem esse menu — evita conflito com o menu de escolha de input addon.
 
-[NOVO] `reconcileBlockSpawnConnections` normaliza metadados de conexão após spawn hierárquico; `blockHierarchySpawn` invoca-o em `mergeBlockHierarchyIntoScene`.
+### Primeiro pacote: input-addon-color-vec4
 
-### Regras de negócio e erros
+[NOVO] Binding `ValueColor` + `constantValue` + `vec4`. UI com swatch `#inputaddon` e painel completo para o modal. Reutiliza `AddonColorVec4Picker` e `ensureAddonColorVec4InputWired` do ecossistema `addon-color-vec4`.
 
-- A tab Parameters **não** aparece com 0 ou ≥2 nós seleccionados (`shouldShowSceneNodesParametersPanel`).
-- Parâmetros estruturais aninhados (blocos `{}`, `mapHashEmbed`, filhos embed/pointer) são **não editáveis** na aba; navegam-se com **→**.
-- Nó **locked**: linhas ficam só leitura; navegação ←/→ mantém-se.
-- Confirmações de UI continuam a usar **Messenger Popup** (`showConfirmByCatalogId`); esta feature não introduz `window.confirm` para fluxos novos.
-- Edição de parâmetro add-on input wired sincroniza DOM do card via `syncAddonSceneParameterToCardDom` após commit.
+### Tratamento de erros
+
+- Manifest inválido: pacote ignorado na listagem (`skipped` na API dev).
+- Falha de preload: célula permanece vazia ou com fallback desabilitado até o pacote carregar.
+- Instalação: validação no handler Vite; erros devolvidos em JSON (sem `window.alert` em fluxos novos de instalação).
 
 ---
 
@@ -188,23 +190,25 @@ sequenceDiagram
 
 ### Português
 
-1. Abra o painel **Nodes em Cena** e seleccione **um único nó** (ex.: `VfxEmitterDefinitionData`).
-2. Clique na tab **Parameters**.
-3. Veja parâmetros escalares (`alphaRef`, `emitterName`) e campos estruturais ligados (`birthColor` → `ValueColor`).
-4. Clique **→** na linha `birthColor` para focar o nó filho `ValueColor` na mesma tabela.
-5. No filho, use **→** em `dynamics` para ir a `VfxAnimatedColorVariableData`.
-6. Use **←** no cabeçalho para subir na hierarquia (filho → pai) ou voltar ao nó que tinha seleccionado no canvas.
-7. Edite valores simples directamente na coluna **VALUE** (ex.: `alphaRef`, `emitterName`); campos ligados a outros nós são só leitura com rótulo do filho.
+1. Com `npm run dev`, os pacotes em `public/inputAddons/` são listados automaticamente.
+2. Abra **Ctrl+K** → aba **Input Addon** para ver o catálogo ou instalar uma pasta (drag-and-drop).
+3. Selecione um nó **ValueColor** no canvas (vista de bloco).
+4. No card, o parâmetro `constantValue` mostra um **swatch de cor** em vez do picker vec4 padrão.
+5. **Clique no swatch** → abre o seletor de cor (modal vec4 0–1); ao alterar, o valor persiste no bloco.
+6. No painel **Nodes em Cena → Parameters**, a coluna **Input Addon** mostra o mesmo swatch para o parâmetro.
+7. Se existirem **vários** input addons para o mesmo parâmetro, **clique direito na linha** do parâmetro → **Input Addon** → escolha qual usar.
+8. Para o menu do **bloco** (adicionar/editar parâmetros, focar nó), use **clique direito no cabeçalho ou rodapé** do card — não no corpo dos parâmetros.
 
 ### English
 
-1. Open the **Nodes in scene** panel and select **exactly one node** (e.g. `VfxEmitterDefinitionData`).
-2. Switch to the **Parameters** tab.
-3. View scalar parameters (`alphaRef`, `emitterName`) and wired structural fields (`birthColor` → `ValueColor`).
-4. Click **→** on `birthColor` to focus the child node `ValueColor` in the same table.
-5. On the child, use **→** on `dynamics` to jump to `VfxAnimatedColorVariableData`.
-6. Use **←** in the header to walk up the hierarchy (child → parent) or return to the originally selected canvas node.
-7. Edit simple values inline in the **VALUE** column (e.g. `alphaRef`, `emitterName`); wired fields show the child label and are read-only.
+1. With `npm run dev`, packages under `public/inputAddons/` are discovered automatically.
+2. Open **Ctrl+K** → **Input Addon** tab to browse or install a folder (drag-and-drop).
+3. Select a **ValueColor** block node on the canvas.
+4. On the card, `constantValue` shows a **color swatch** instead of the default vec4 picker.
+5. **Click the swatch** → color picker modal (vec4 0–1); changes persist on the block.
+6. In **Nodes in scene → Parameters**, the **Input Addon** column shows the same swatch.
+7. If **multiple** input addons match the same parameter, **right-click the parameter row** → **Input Addon** → pick which one to use.
+8. For the **block** context menu (add/edit parameters, focus node), **right-click the card header or footer** — not the parameter body.
 
 ---
 
