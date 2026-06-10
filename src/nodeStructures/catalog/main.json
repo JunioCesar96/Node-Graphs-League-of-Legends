@@ -1,0 +1,17 @@
+{
+  "id": "main",
+  "title": "Main",
+  "parameters": [],
+  "embed": [],
+  "pointer": [],
+  "listEmbed": [],
+  "listPointer": [],
+  "list2Embed": [],
+  "list2Pointer": [],
+  "internalStructures": [],
+  "nomenclature": {
+    "group": "",
+    "collection": "#3 Collection Block",
+    "collectionType": "Main"
+  }
+}

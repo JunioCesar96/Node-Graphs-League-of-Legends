@@ -1,0 +1,9 @@
+{
+  "0": "String Value",
+  "1": "Value",
+  "4": "text",
+  "6": "Literal string value exposed on the add-on output.",
+  "20": "Values",
+  "21": "Parameter",
+  "23": "Sets a literal string value and exposes it on an output slot compatible with block parameters."
+}

@@ -1,0 +1,16 @@
+{
+  "0": "Code to JSON",
+  "1": "Code",
+  "2": "Connect a block header OUT slot to convert ritual code into JSON",
+  "3": "Converts connected ritual code from header OUT to JSON, or lets you paste/edit JSON manually in the output area.",
+  "4": "Paste or type ritual JSON here, or connect a block to convert code…",
+  "11": "Converted JSON appears here…",
+  "5": "Expand JSON view",
+  "6": "Collapse JSON view",
+  "7": "Preview",
+  "8": "Waiting for connection…",
+  "9": "JSON",
+  "20": "League of Legends",
+  "21": "Utility",
+  "22": "JSON"
+}

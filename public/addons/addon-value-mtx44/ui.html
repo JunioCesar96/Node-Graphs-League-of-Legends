@@ -1,0 +1,229 @@
+<div class="addon-value-mtx44-ui">
+  <div class="addon-value-row addon-value-row--mtx44">
+    {slot:value}{/slot}
+    <div
+      class="addon-mtx44-grid"
+      data-addon-mtx44-panel
+      data-ritual-type="mtx44"
+      data-parameter-type="mtx44"
+    >
+      <input
+        type="hidden"
+        name="literal"
+        value="1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1"
+      />
+      <div class="addon-mtx44-row">
+        <div class="addon-mtx44-cell" data-mtx-col="0">
+          <span class="addon-mtx44-label">xx</span>
+          <input type="text" class="addon-mtx44-cell-input" data-mtx-cell="0" inputmode="decimal" value="1" aria-label="xx" />
+        </div>
+        <div class="addon-mtx44-cell" data-mtx-col="1">
+          <span class="addon-mtx44-label">xy</span>
+          <input type="text" class="addon-mtx44-cell-input" data-mtx-cell="1" inputmode="decimal" value="0" aria-label="xy" />
+        </div>
+        <div class="addon-mtx44-cell" data-mtx-col="2">
+          <span class="addon-mtx44-label">xz</span>
+          <input type="text" class="addon-mtx44-cell-input" data-mtx-cell="2" inputmode="decimal" value="0" aria-label="xz" />
+        </div>
+        <div class="addon-mtx44-cell" data-mtx-col="3">
+          <span class="addon-mtx44-label">xw</span>
+          <input type="text" class="addon-mtx44-cell-input" data-mtx-cell="3" inputmode="decimal" value="0" aria-label="xw" />
+        </div>
+      </div>
+      <div class="addon-mtx44-row">
+        <div class="addon-mtx44-cell" data-mtx-col="0">
+          <span class="addon-mtx44-label">yx</span>
+          <input type="text" class="addon-mtx44-cell-input" data-mtx-cell="4" inputmode="decimal" value="0" aria-label="yx" />
+        </div>
+        <div class="addon-mtx44-cell" data-mtx-col="1">
+          <span class="addon-mtx44-label">yy</span>
+          <input type="text" class="addon-mtx44-cell-input" data-mtx-cell="5" inputmode="decimal" value="1" aria-label="yy" />
+        </div>
+        <div class="addon-mtx44-cell" data-mtx-col="2">
+          <span class="addon-mtx44-label">yz</span>
+          <input type="text" class="addon-mtx44-cell-input" data-mtx-cell="6" inputmode="decimal" value="0" aria-label="yz" />
+        </div>
+        <div class="addon-mtx44-cell" data-mtx-col="3">
+          <span class="addon-mtx44-label">yw</span>
+          <input type="text" class="addon-mtx44-cell-input" data-mtx-cell="7" inputmode="decimal" value="0" aria-label="yw" />
+        </div>
+      </div>
+      <div class="addon-mtx44-row">
+        <div class="addon-mtx44-cell" data-mtx-col="0">
+          <span class="addon-mtx44-label">zx</span>
+          <input type="text" class="addon-mtx44-cell-input" data-mtx-cell="8" inputmode="decimal" value="0" aria-label="zx" />
+        </div>
+        <div class="addon-mtx44-cell" data-mtx-col="1">
+          <span class="addon-mtx44-label">zy</span>
+          <input type="text" class="addon-mtx44-cell-input" data-mtx-cell="9" inputmode="decimal" value="0" aria-label="zy" />
+        </div>
+        <div class="addon-mtx44-cell" data-mtx-col="2">
+          <span class="addon-mtx44-label">zz</span>
+          <input type="text" class="addon-mtx44-cell-input" data-mtx-cell="10" inputmode="decimal" value="1" aria-label="zz" />
+        </div>
+        <div class="addon-mtx44-cell" data-mtx-col="3">
+          <span class="addon-mtx44-label">zw</span>
+          <input type="text" class="addon-mtx44-cell-input" data-mtx-cell="11" inputmode="decimal" value="0" aria-label="zw" />
+        </div>
+      </div>
+      <div class="addon-mtx44-row">
+        <div class="addon-mtx44-cell" data-mtx-col="0">
+          <span class="addon-mtx44-label">wx</span>
+          <input type="text" class="addon-mtx44-cell-input" data-mtx-cell="12" inputmode="decimal" value="0" aria-label="wx" />
+        </div>
+        <div class="addon-mtx44-cell" data-mtx-col="1">
+          <span class="addon-mtx44-label">wy</span>
+          <input type="text" class="addon-mtx44-cell-input" data-mtx-cell="13" inputmode="decimal" value="0" aria-label="wy" />
+        </div>
+        <div class="addon-mtx44-cell" data-mtx-col="2">
+          <span class="addon-mtx44-label">wz</span>
+          <input type="text" class="addon-mtx44-cell-input" data-mtx-cell="14" inputmode="decimal" value="0" aria-label="wz" />
+        </div>
+        <div class="addon-mtx44-cell" data-mtx-col="3">
+          <span class="addon-mtx44-label">ww</span>
+          <input type="text" class="addon-mtx44-cell-input" data-mtx-cell="15" inputmode="decimal" value="1" aria-label="ww" />
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .addon-value-mtx44-ui {
+    box-sizing: border-box;
+    width: 220px;
+    height: 108px;
+    min-height: 108px;
+    display: flex;
+    flex-direction: column;
+    color: var(--color-text-primary);
+    overflow: hidden;
+  }
+
+  .addon-value-mtx44-ui .addon-body-grid {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    width: 100%;
+  }
+
+  .addon-value-mtx44-ui .addon-grid-row {
+    flex: 1 1 auto;
+    align-items: stretch;
+    min-height: 0;
+    width: 100%;
+    grid-template-columns: 18px minmax(0, 1fr) 18px;
+    gap: 4px;
+  }
+
+  .addon-value-mtx44-ui .addon-grid-col--body {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    align-self: stretch;
+  }
+
+  .addon-value-mtx44-ui .addon-grid-col--output {
+    align-self: center;
+    padding-top: 0;
+  }
+
+  .addon-value-mtx44-ui .addon-value-row--mtx44 {
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+    gap: 0.25rem;
+    width: 100%;
+    min-width: 0;
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+
+  .addon-value-mtx44-ui .addon-mtx44-grid {
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--ctx-menu-border, #454545);
+    border-radius: 4px;
+    overflow: hidden;
+    background: var(--ctx-menu-bg, #2d2d2d);
+  }
+
+  .addon-value-mtx44-ui .addon-mtx44-row {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    flex: 1 1 0;
+    min-height: 22px;
+    border-bottom: 1px solid color-mix(in srgb, var(--ctx-menu-border, #454545) 55%, transparent);
+  }
+
+  .addon-value-mtx44-ui .addon-mtx44-row:last-child {
+    border-bottom: none;
+  }
+
+  .addon-value-mtx44-ui .addon-mtx44-cell {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    min-width: 0;
+    min-height: 0;
+    padding: 0 0.25rem;
+    border-right: 1px solid color-mix(in srgb, var(--ctx-menu-border, #454545) 40%, transparent);
+  }
+
+  .addon-value-mtx44-ui .addon-mtx44-cell:last-child {
+    border-right: none;
+  }
+
+  .addon-value-mtx44-ui .addon-mtx44-label {
+    flex: 0 0 0.875rem;
+    font-size: 0.625rem;
+    font-weight: 700;
+    letter-spacing: 0;
+    user-select: none;
+  }
+
+  .addon-value-mtx44-ui .addon-mtx44-cell[data-mtx-col='0'] .addon-mtx44-label {
+    color: #c9a06a;
+  }
+
+  .addon-value-mtx44-ui .addon-mtx44-cell[data-mtx-col='1'] .addon-mtx44-label {
+    color: #6bc96b;
+  }
+
+  .addon-value-mtx44-ui .addon-mtx44-cell[data-mtx-col='2'] .addon-mtx44-label {
+    color: #c9b0e0;
+  }
+
+  .addon-value-mtx44-ui .addon-mtx44-cell[data-mtx-col='3'] .addon-mtx44-label {
+    color: var(--syntax-mtx44, #7eb8d4);
+  }
+
+  .addon-value-mtx44-ui .addon-mtx44-cell-input {
+    flex: 1 1 0;
+    min-width: 0;
+    width: 0;
+    padding: 0;
+    font-size: 0.625rem;
+    line-height: 1.1;
+    text-align: right;
+    color: var(--color-text-primary);
+    background: transparent;
+    border: none;
+    outline: none;
+  }
+
+  .addon-value-mtx44-ui .addon-mtx44-cell-input:focus-visible {
+    outline: 1px solid var(--ctx-menu-hover-bg, #007acc);
+    outline-offset: -1px;
+    border-radius: 2px;
+  }
+
+  .addon-value-mtx44-ui .addon-mtx44-grid[data-invalid='1'] {
+    border-color: #e54545;
+    box-shadow: 0 0 0 1px rgba(229, 69, 69, 0.35);
+  }
+</style>

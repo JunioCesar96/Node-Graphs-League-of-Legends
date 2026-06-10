@@ -8,7 +8,7 @@
     "kind": "block",
     "nodeId": "main"
   },
-  "color": "#40ff56",
+  "color": "#0400ff",
   "headerSlots": [
     "in[Main]",
     "out[MainPreview]"
@@ -17,6 +17,7 @@
     "type",
     "version",
     "linked",
-    "entries"
+    "entries",
+    "testedell"
   ]
 }

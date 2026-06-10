@@ -1,3 +1,9 @@
+import { applyAddonMtx44FieldInteraction, syncAddonMtx44GridFromLiteral } from '@/core/addonMtx44Input'
+import {
+  applyAddonColorVec4FieldInteraction,
+  syncAddonColorVec4FromLiteral,
+} from '@/core/addonColorVec4Input'
+import { applyAddonVecAxisFieldInteraction, syncAddonVecAxisFromLiteral } from '@/core/addonVecAxisInput'
 import { hasGlobalInputReactiveDrive, resolveAddonDrives } from '@/core/addonDrive'
 import type { AddonManifest, AddonPackage } from '@/services/addonLoader.service'
 
@@ -34,6 +40,11 @@ export function syncWiredAddonInputsToDom(
     if (el.value !== next) {
       el.value = next
     }
+    if (slot.name === 'literal') {
+      syncAddonVecAxisFromLiteral(cardDOM, next)
+      syncAddonMtx44GridFromLiteral(cardDOM, next)
+      syncAddonColorVec4FromLiteral(cardDOM, next)
+    }
   }
 }
 
@@ -60,6 +71,10 @@ export function applyAddonInputFieldInteraction(
       el.removeAttribute('title')
     }
   }
+
+  applyAddonVecAxisFieldInteraction(wiredSlotNames, cardDOM)
+  applyAddonMtx44FieldInteraction(wiredSlotNames, cardDOM)
+  applyAddonColorVec4FieldInteraction(wiredSlotNames, cardDOM)
 }
 
 export function isAddonInputFieldWired(

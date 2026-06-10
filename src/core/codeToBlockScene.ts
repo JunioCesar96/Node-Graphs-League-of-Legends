@@ -3,6 +3,11 @@ import { buildCodeToBlockScene, buildCodeToBlockSceneSync } from './codeToBlockS
 import { buildCodeToBlockSceneInWorker } from './sceneComputeWorkerClient'
 import type { NodeSchemaDefinition } from './nodeSchema'
 
+export type CodeToBlockMergeInto = {
+  scene: CanvasScene
+  spawnPosition: { x: number; y: number }
+}
+
 export type CodeToBlockSceneResult =
   | { ok: true; scene: CanvasScene; rootNodeId: string; warnings: string[] }
   | { ok: false; error: string }
@@ -22,6 +27,7 @@ export type CodeToBlockSceneProgress = {
 
 export type CodeToBlockSceneOptions = {
   rootBlockName?: string
+  mergeInto?: CodeToBlockMergeInto
   onProgress?: (progress: CodeToBlockSceneProgress) => void
   shouldCancel?: () => boolean
 }
@@ -39,7 +45,7 @@ function yieldToUi(): Promise<void> {
 export function codeToBlockScene(
   ritualText: string,
   schemaLookup: Record<string, NodeSchemaDefinition>,
-  options?: Pick<CodeToBlockSceneOptions, 'rootBlockName'>,
+  options?: Pick<CodeToBlockSceneOptions, 'rootBlockName' | 'mergeInto'>,
 ): CodeToBlockSceneResult {
   return buildCodeToBlockSceneSync(ritualText, schemaLookup, options)
 }
@@ -64,7 +70,10 @@ export async function codeToBlockSceneAsync(
     parametersDone: 0,
   })
 
-  const workerPromise = buildCodeToBlockSceneInWorker(ritualText, schemaLookup, options)
+  const workerPromise =
+    options?.mergeInto === undefined
+      ? buildCodeToBlockSceneInWorker(ritualText, schemaLookup, options)
+      : null
 
   if (workerPromise) {
     try {
@@ -85,6 +94,7 @@ export async function codeToBlockSceneAsync(
 
   return buildCodeToBlockScene(ritualText, schemaLookup, {
     rootBlockName: options?.rootBlockName,
+    mergeInto: options?.mergeInto,
     onProgress: options?.onProgress,
     shouldCancel: options?.shouldCancel,
     yieldUi: yieldToUi,

@@ -2,12 +2,14 @@ import { useEffect, useMemo, useState } from 'react'
 
 import { InputAddonChangeCell } from '@/components/molecules/InputAddonChangeCell'
 import { ParameterValueInput } from '@/components/molecules/ParameterValueInput'
+import { StructureIndexPager } from '@/components/molecules/StructureIndexPager'
 import {
   SceneNodesParameterInputAddonContextMenu,
   type SceneNodesParameterInputAddonContextMenuAnchor,
 } from '@/components/molecules/SceneNodesParameterInputAddonContextMenu'
 import type { CanvasScene } from '@/core/canvasScene'
 import { getNodeDisplayTitle } from '@/core/canvasNodePresentation'
+import type { BlockElementViewKey } from '@/core/blockElementViewState'
 import { writeInputAddonPreference } from '@/core/inputAddonPreferences'
 import { LangId } from '@/core/language/languageIds'
 import type { SceneNodesParameterKind } from '@/core/sceneNodesParametersView'
@@ -31,6 +33,11 @@ type SceneNodesParametersSectionProps = {
     value: string,
     kind: SceneNodesParameterKind,
   ) => void
+  onSetBlockElementSelectedIndex?: (
+    nodeId: string,
+    elementKey: BlockElementViewKey,
+    selectedIndex: number,
+  ) => void
 }
 
 type InputAddonContextState = {
@@ -44,6 +51,7 @@ export function SceneNodesParametersSection({
   selectedNodeIds,
   onSelectNode,
   onCommitParameter,
+  onSetBlockElementSelectedIndex,
 }: SceneNodesParametersSectionProps) {
   const { t } = useLanguage()
   const [viewNodeId, setViewNodeId] = useState(primarySelectedId)
@@ -131,22 +139,50 @@ export function SceneNodesParametersSection({
       ) : (
         <div className={styles.table} role="table">
           <div className={styles.tableHead} role="row">
-            <span role="columnheader">{t(LangId.SceneNodesParametersColName)}</span>
-            <span role="columnheader">{t(LangId.SceneNodesParametersColValue)}</span>
-            <span role="columnheader">{t(LangId.SceneNodesParametersColInputAddon)}</span>
-            <span aria-hidden />
+            <span className={styles.colName} role="columnheader">
+              {t(LangId.SceneNodesParametersColName)}
+            </span>
+            <span className={styles.colValue} role="columnheader">
+              {t(LangId.SceneNodesParametersColValue)}
+            </span>
+            <span
+              className={styles.colInputAddon}
+              role="columnheader"
+              title={t(LangId.SceneNodesParametersColInputAddon)}
+            >
+              (I.A)
+            </span>
           </div>
           {rows.map((row) => {
-            const activeInputAddonId =
-              inputAddonOverrides[row.id] ?? row.activeInputAddonId
+            const showListIndex = Boolean(row.listIndex && row.listIndex.connectionCount > 1)
+            const activeInputAddonId = inputAddonOverrides[row.id] ?? row.activeInputAddonId
             const activeManifest = row.inputAddonMatches?.find(
               (manifest) => manifest.id === activeInputAddonId,
             )
-            const showInputAddon =
-              row.editable && activeManifest && activeInputAddonId
+            const showInputAddon = row.editable && activeManifest && activeInputAddonId
             const canChooseInputAddon = Boolean(
               row.editable && row.inputAddonMatches && row.inputAddonMatches.length > 1,
             )
+
+            const navigateButton =
+              row.navigable && row.childNodeId ? (
+                <button
+                  aria-label={t(LangId.SceneNodesParametersNavigateChild, undefined, {
+                    name: row.name,
+                  })}
+                  className={styles.navigateButton}
+                  onClick={() => {
+                    setViewNodeId(row.childNodeId!)
+                    onSelectNode(row.childNodeId!)
+                  }}
+                  title={t(LangId.SceneNodesParametersNavigateChild, undefined, {
+                    name: row.name,
+                  })}
+                  type="button"
+                >
+                  →
+                </button>
+              ) : null
 
             return (
               <div
@@ -172,11 +208,35 @@ export function SceneNodesParametersSection({
                 }
                 role="row"
               >
-                <span className={styles.paramName} role="cell" title={row.name}>
-                  {row.name}
+                <span className={styles.paramName} role="cell">
+                  <span className={styles.paramNameText} title={row.name}>
+                    {row.name}
+                  </span>
+                  {!showListIndex ? navigateButton : null}
                 </span>
                 <div className={styles.paramValueCell} role="cell">
-                  {row.editable ? (
+                  {showListIndex && row.listIndex ? (
+                    <div className={styles.paramValueWithIndex}>
+                      <StructureIndexPager
+                        className={styles.listIndexPager}
+                        onSelectedIndexChange={(index) => {
+                          const elementViewKey = row.listIndex?.elementViewKey
+                          if (elementViewKey) {
+                            onSetBlockElementSelectedIndex?.(viewNodeId, elementViewKey, index)
+                          }
+                        }}
+                        selectedIndex={row.listIndex.connectionIndex}
+                        total={row.listIndex.connectionCount}
+                      />
+                      {navigateButton}
+                      <span
+                        className={styles.paramValue}
+                        title={row.fullValue || row.displayValue}
+                      >
+                        {row.displayValue}
+                      </span>
+                    </div>
+                  ) : row.editable ? (
                     <ParameterValueInput
                       ariaLabel={`${row.name} value`}
                       className={styles.paramInput}
@@ -206,26 +266,6 @@ export function SceneNodesParametersSection({
                     />
                   ) : null}
                 </div>
-                {row.navigable && row.childNodeId ? (
-                  <button
-                    aria-label={t(LangId.SceneNodesParametersNavigateChild, undefined, {
-                      name: row.name,
-                    })}
-                    className={styles.navigateButton}
-                    onClick={() => {
-                      setViewNodeId(row.childNodeId!)
-                      onSelectNode(row.childNodeId!)
-                    }}
-                    title={t(LangId.SceneNodesParametersNavigateChild, undefined, {
-                      name: row.name,
-                    })}
-                    type="button"
-                  >
-                    →
-                  </button>
-                ) : (
-                  <span aria-hidden />
-                )}
               </div>
             )
           })}

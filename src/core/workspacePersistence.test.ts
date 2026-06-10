@@ -18,6 +18,7 @@ import { elementViewKeyForParameter, patchElementRetracted } from '@/core/elemen
 import {
   emptyWorkspaceBlocksFile,
   emptyWorkspaceGroupsFile,
+  emptyWorkspaceLabelsFile,
   isWorkspaceBundleEmpty,
   isWorkspaceBundleValid,
   mergeWorkspaceToScene,
@@ -233,6 +234,7 @@ describe('workspacePersistence', () => {
         graph: { version: WORKSPACE_FORMAT_VERSION, connections: [] },
         blocks: emptyWorkspaceBlocksFile(),
         groups: emptyWorkspaceGroupsFile(),
+        labels: emptyWorkspaceLabelsFile(),
       }),
     ).toBeNull()
   })
@@ -244,6 +246,7 @@ describe('workspacePersistence', () => {
       graph: { version: WORKSPACE_FORMAT_VERSION, connections: [] },
       blocks: emptyWorkspaceBlocksFile(),
       groups: emptyWorkspaceGroupsFile(),
+      labels: emptyWorkspaceLabelsFile(),
     }
     expect(isWorkspaceBundleValid(empty)).toBe(false)
     expect(isWorkspaceBundleEmpty(empty as never)).toBe(true)
@@ -298,6 +301,51 @@ describe('workspacePersistence', () => {
     expect(node?.groupViewActive).toBe(true)
     expect(node?.groupStructure?.groupType).toBe('VfxEmitterDefinitionData')
     expect(node?.groupStructure?.parameters).toHaveLength(3)
+  })
+
+  it('persiste labels lean em labels.json e restaura LabelCard', () => {
+    const parent = makeVfxEmitterCanvasNode({
+      id: 'n-parent',
+      blockViewActive: true,
+      blockStructure: {
+        blockType: 'VfxEmitterDefinitionData',
+        blockName: 'Emitter',
+        parameters: vfxEmitterSampleParameters,
+        identification_codes: [VFX_EMITTER_COLOR_TOKEN],
+      },
+    })
+    const labelNode = makeVfxEmitterCanvasNode({
+      id: 'n-label',
+      position: { x: 520, y: 80 },
+      labelViewActive: true,
+      labelStructure: {
+        labelName: 'Teste',
+        color: '#f5d000',
+        parentBlockNodeId: 'n-parent',
+        catalogBlockType: 'VfxEmitterDefinitionData',
+        parameters: [{ parameterId: 'Emitter01' }],
+      },
+    })
+    const scene = {
+      ...makeVfxEmitterScene(parent),
+      nodes: [parent, labelNode],
+    }
+
+    const bundle = splitSceneToWorkspace(scene)
+    expect(bundle.labels.labels).toHaveLength(1)
+    expect(bundle.labels.labels[0]?.nodeId).toBe('n-label')
+    expect(bundle.layout.nodes['n-label']?.labelViewActive).toBe(true)
+    expect(JSON.stringify(bundle.logic)).not.toContain('labelStructure')
+
+    const restored = mergeWorkspaceToScene(bundle)
+    const node = restored?.nodes.find((entry) => entry.id === 'n-label')
+    expect(node?.labelViewActive).toBe(true)
+    expect(node?.labelStructure).toMatchObject({
+      labelName: 'Teste',
+      color: '#f5d000',
+      parentBlockNodeId: 'n-parent',
+      parameters: [{ parameterId: 'Emitter01' }],
+    })
   })
 
   it('compat legado: blockStructure em logic.json quando blocks.json vazio', () => {

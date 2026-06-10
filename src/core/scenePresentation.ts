@@ -42,6 +42,7 @@ export type CanvasNodePresentationEntry = {
   locked?: boolean
   blockViewActive?: boolean
   groupViewActive?: boolean
+  labelViewActive?: boolean
   addonViewActive?: boolean
   addonId?: string
   addonOutputValues?: Record<string, unknown>
@@ -202,6 +203,7 @@ export function canvasNodePresentationFromNode(canvasNode: CanvasNode): CanvasNo
     ...(canvasNode.locked ? { locked: true } : {}),
     ...(canvasNode.blockViewActive ? { blockViewActive: true } : {}),
     ...(canvasNode.groupViewActive ? { groupViewActive: true } : {}),
+    ...(canvasNode.labelViewActive ? { labelViewActive: true } : {}),
     ...(canvasNode.addonViewActive ? { addonViewActive: true } : {}),
     ...(canvasNode.addonInstance?.addonId ? { addonId: canvasNode.addonInstance.addonId } : {}),
     ...(canvasNode.addonInstance?.outputValues &&
@@ -254,6 +256,7 @@ export function canvasNodeOverlayFromPresentation(
     ...(entry.locked ? { locked: true } : {}),
     ...(entry.blockViewActive ? { blockViewActive: true } : {}),
     ...(entry.groupViewActive ? { groupViewActive: true } : {}),
+    ...(entry.labelViewActive ? { labelViewActive: true } : {}),
     ...(entry.addonViewActive && entry.addonId
       ? {
           addonViewActive: true,
@@ -318,6 +321,9 @@ export function isValidPresentationEntry(raw: unknown): raw is CanvasNodePresent
   if (raw.groupViewActive !== undefined && raw.groupViewActive !== true) {
     return false
   }
+  if (raw.labelViewActive !== undefined && raw.labelViewActive !== true) {
+    return false
+  }
   if (raw.structureCardWidth !== undefined && typeof raw.structureCardWidth !== 'number') {
     return false
   }
@@ -358,6 +364,7 @@ export function presentationEntryFromRawLayout(raw: unknown): CanvasNodePresenta
       ...(raw.locked === true ? { locked: true } : {}),
       ...(raw.blockViewActive === true ? { blockViewActive: true } : {}),
       ...(raw.groupViewActive === true ? { groupViewActive: true } : {}),
+      ...(raw.labelViewActive === true ? { labelViewActive: true } : {}),
       ...(raw.structureCardParamsExpanded === true ? { structureCardParamsExpanded: true } : {}),
       ...(typeof raw.structureCardWidth === 'number' ? { structureCardWidth: raw.structureCardWidth } : {}),
       ...(parseBlockElementView(raw.blockElementView)

@@ -71,6 +71,37 @@ describe('canvasNodePresentation', () => {
     expect(isNodeLocked(stubCanvasNode({ locked: true }))).toBe(true)
   })
 
+  it('isNodeVisibleOnCanvas oculta label quando o bloco pai está oculto', () => {
+    const scene: CanvasScene = {
+      width: 100,
+      height: 100,
+      nodes: [
+        stubCanvasNode({
+          id: 'parent',
+          blockViewActive: true,
+          sceneHidden: true,
+        }),
+        stubCanvasNode({
+          id: 'label',
+          labelViewActive: true,
+          labelStructure: {
+            labelName: 'Teste',
+            color: '#f5d000',
+            parentBlockNodeId: 'parent',
+            parameters: [],
+          },
+        }),
+      ],
+      connections: [],
+    }
+
+    const label = scene.nodes[1]!
+    expect(isNodeVisibleOnCanvas(label, undefined, scene)).toBe(false)
+    expect(
+      isNodeVisibleOnCanvas({ ...label, branchForceVisible: true }, undefined, scene),
+    ).toBe(false)
+  })
+
   it('isNodeVisibleOnCanvas respeita ramos mapHashEmbed compactos', () => {
     const paramId = 'param-entries'
     const key = elementViewKeyForParameter(paramId)

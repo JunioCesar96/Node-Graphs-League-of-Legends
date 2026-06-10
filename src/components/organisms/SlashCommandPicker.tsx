@@ -17,6 +17,7 @@ import {
   matchesSlashCommandQuery,
   slashCommandsList,
 } from '@/core/slashCommandRegistry'
+import { filterSlashCommandsByLocale } from '@/core/slashCommandLocale'
 import type { SlashCommandDocument } from '@/core/slashCommandTypes'
 import {
   SHORTCUT_SCOPE_ATTR,
@@ -83,7 +84,7 @@ export function SlashCommandPicker({
   title,
   featureFilter,
 }: SlashCommandPickerProps) {
-  const { t } = useLanguage()
+  const { locale, t } = useLanguage()
   const inputRef = useRef<HTMLInputElement>(null)
   const panelRootRef = useRef<HTMLDivElement>(null)
   const panelDragRef = useRef<PanelDragState | null>(null)
@@ -94,10 +95,10 @@ export function SlashCommandPicker({
 
   const filteredCommands = useMemo(() => {
     const effectiveQuery = query.trim().startsWith('/') ? query.trim().slice(1) : query.trim()
-    return slashCommandsList(featureFilter).filter((entry) =>
+    return filterSlashCommandsByLocale(slashCommandsList(featureFilter), locale).filter((entry) =>
       matchesSlashCommandQuery(entry, effectiveQuery),
     )
-  }, [featureFilter, query])
+  }, [featureFilter, locale, query])
 
   const activeIndex = Math.max(0, Math.min(highlightedIndex, Math.max(filteredCommands.length - 1, 0)))
   const isPanelFloating = panelPosition !== null

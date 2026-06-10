@@ -65,9 +65,8 @@ import {
 import { buildBlockRevertViaNeekoScene, collectBlockLinkedChildNodeIds } from '@/core/blockRevertToNodeViaNeeko'
 import { syncBlockParameterEdit, applyBlockStructureToNodeValues } from '@/core/syncBlockToCode'
 import type { BlockDefinitionJsonDocument } from '@/core/blockDefinitionJson'
-import {
-  resolveSchemaIdForBlockDefinition,
-} from '@/core/blockDefinitionJson'
+import { resolveSchemaIdForBlockDefinition } from '@/core/blockDefinitionJson'
+import { resolveSchemaForCatalogBlockDefinition } from '@/core/catalogBlockSchema'
 import {
   mergeBlockHierarchyIntoScene,
   planBlockHierarchySpawn,
@@ -89,10 +88,21 @@ import {
 import { resolveBlockHeaderInputSlotIdForLink } from '@/core/blockCardHeaderSlots'
 import { preloadAddonPackage } from '@/blockStructures/addonRegistry'
 import { createAddonPlaceholderInstance } from '@/core/addonPlaceholderNode'
+import { createLabelPlaceholderInstance } from '@/core/labelPlaceholderNode'
+import {
+  findBlockParameterDocForLabelEntry,
+  findMatchingBlockParameterForLabelEntry,
+  remapLabelParametersForBlockStructure,
+} from '@/core/labelParentLinking'
+import { isParameterAlreadyOnBlock } from '@/core/blockParameterFromJson'
+import type { CreateLabelDraft, LabelStructurePayload } from '@/core/labelSchema'
+import { UNLINKED_LABEL_PARENT_ID } from '@/core/labelSchema'
+import { normalizeLabelColor } from '@/core/syncLabelToParent'
 import { applyAddonSlotConnectionToScene, addonSlotId } from '@/core/addonSlotConnections'
 import {
   applyBlockOutputToAddonInput,
   applyAddonOutputToBlockInput,
+  applyLabelOutputToAddonInput,
 } from '@/core/addonBridgeConnections'
 import { syncConnectedAddonOutputs } from '@/core/addonOutputPropagation'
 import { applyAddonOutputs } from '@/nodeStructures/instanceEvaluator'
@@ -143,6 +153,11 @@ import {
   collectInactiveBlockIndexBranchNodeIds,
 } from '@/core/blockCompactBranchVisibility'
 import { createUniqueNodeId } from '@/core/canvasNodeIds'
+import {
+  copyCanvasNodesToClipboard,
+  hasCanvasNodeClipboard,
+  pasteCanvasNodesFromClipboard,
+} from '@/core/canvasNodeClipboard'
 import {
   registerSlashCommand,
   slashCommandByKey,
@@ -1682,18 +1697,11 @@ export function useSceneHistory(options?: {
         return { ok: false, error: 'Definição de bloco sem blockName.' }
       }
 
-      const schemaId = resolveSchemaIdForBlockDefinition(blockName, schemaLookup)
-      if (!schemaId) {
-        return {
-          ok: false,
-          error: `Schema não encontrado para o bloco "${blockName}".`,
-        }
-      }
-
-      const schema = schemaLookup[schemaId]
-      if (!schema) {
-        return { ok: false, error: `Schema "${schemaId}" indisponível.` }
-      }
+      const schema = resolveSchemaForCatalogBlockDefinition(
+        definition,
+        schemaLookup,
+        resolveSchemaIdForBlockDefinition,
+      )
 
       let createdId: string | null = null
 
@@ -1787,8 +1795,9 @@ export function useSceneHistory(options?: {
     async (
       nodeId: string,
       commandName: string,
+      locale?: string,
     ): Promise<{ ok: true } | { ok: false; error: string }> => {
-      const extracted = extractBlockSlashCommandFragment(scene, nodeId, commandName)
+      const extracted = extractBlockSlashCommandFragment(scene, nodeId, commandName, locale)
       if (!extracted.ok) {
         return extracted
       }
@@ -1955,6 +1964,365 @@ export function useSceneHistory(options?: {
     [updateScene],
   )
 
+  const createLabelBlockFromParent = useCallback(
+    (
+      parentNodeId: string,
+      draft: CreateLabelDraft,
+      position?: CanvasPosition,
+    ): { ok: true; nodeId: string } | { ok: false; error: string } => {
+      const parentNode = sceneHistory.present.nodes.find((node) => node.id === parentNodeId)
+      if (!parentNode?.blockViewActive || !parentNode.blockStructure) {
+        return { ok: false, error: 'O nó seleccionado não é um bloco válido.' }
+      }
+
+      const trimmedName = draft.labelName.trim()
+      if (!trimmedName) {
+        return { ok: false, error: 'Indique o nome da label.' }
+      }
+
+      let createdId: string | null = null
+
+      updateScene((currentScene) => {
+        const parent = currentScene.nodes.find((node) => node.id === parentNodeId)
+        if (!parent?.blockViewActive || !parent.blockStructure) {
+          return currentScene
+        }
+
+        const instanceId = createUniqueNodeId('label', currentScene.nodes)
+        const node = createLabelPlaceholderInstance(instanceId)
+        const spawnPosition =
+          position ??
+          ({
+            x: parent.position.x + 400,
+            y: parent.position.y,
+          } satisfies CanvasPosition)
+
+        createdId = instanceId
+
+        queueMicrotask(() =>
+          setSelectionState({
+            ids: [instanceId],
+            primaryId: instanceId,
+          }),
+        )
+
+        const labelStructure: LabelStructurePayload = {
+          labelName: trimmedName,
+          color: normalizeLabelColor(draft.color),
+          parentBlockNodeId: parentNodeId,
+          catalogBlockType: parent.blockStructure.blockType.trim(),
+          parameters: draft.parameters.map((entry) => ({
+            parameterId: entry.parameterId,
+            ...(entry.hiddenInParent ? { hiddenInParent: true } : {}),
+          })),
+        }
+
+        return {
+          ...currentScene,
+          nodes: [
+            ...currentScene.nodes,
+            {
+              id: instanceId,
+              node,
+              position: spawnPosition,
+              labelViewActive: true,
+              labelStructure,
+            },
+          ],
+        }
+      })
+
+      if (!createdId) {
+        return { ok: false, error: 'Não foi possível criar a label.' }
+      }
+
+      return { ok: true, nodeId: createdId }
+    },
+    [sceneHistory.present.nodes, updateScene],
+  )
+
+  const createStandaloneLabel = useCallback(
+    (
+      draft: CreateLabelDraft,
+      position?: CanvasPosition,
+    ): { ok: true; nodeId: string } | { ok: false; error: string } => {
+      const trimmedName = draft.labelName.trim()
+      if (!trimmedName) {
+        return { ok: false, error: 'Indique o nome da label.' }
+      }
+
+      let createdId: string | null = null
+
+      updateScene((currentScene) => {
+        const instanceId = createUniqueNodeId('label', currentScene.nodes)
+        const node = createLabelPlaceholderInstance(instanceId)
+        const spawnPosition =
+          position ??
+          ({
+            x: 120,
+            y: 120,
+          } satisfies CanvasPosition)
+
+        createdId = instanceId
+
+        queueMicrotask(() =>
+          setSelectionState({
+            ids: [instanceId],
+            primaryId: instanceId,
+          }),
+        )
+
+        const labelStructure: LabelStructurePayload = {
+          labelName: trimmedName,
+          color: normalizeLabelColor(draft.color),
+          parentBlockNodeId: UNLINKED_LABEL_PARENT_ID,
+          ...(draft.catalogBlockType?.trim()
+            ? { catalogBlockType: draft.catalogBlockType.trim() }
+            : {}),
+          parameters: draft.parameters.map((entry) => ({
+            parameterId: entry.parameterId,
+            ...(entry.hiddenInParent ? { hiddenInParent: true } : {}),
+          })),
+        }
+
+        return {
+          ...currentScene,
+          nodes: [
+            ...currentScene.nodes,
+            {
+              id: instanceId,
+              node,
+              position: spawnPosition,
+              labelViewActive: true,
+              labelStructure,
+            },
+          ],
+        }
+      })
+
+      if (!createdId) {
+        return { ok: false, error: 'Não foi possível criar a label.' }
+      }
+
+      return { ok: true, nodeId: createdId }
+    },
+    [updateScene],
+  )
+
+  const linkLabelToParentBlock = useCallback(
+    (
+      labelNodeId: string,
+      parentNodeId: string,
+    ): { ok: true } | { ok: false; error: string } => {
+      let error: string | undefined
+
+      updateScene((currentScene) => {
+        const labelNode = currentScene.nodes.find((node) => node.id === labelNodeId)
+        const parentNode = currentScene.nodes.find((node) => node.id === parentNodeId)
+
+        if (!labelNode?.labelStructure) {
+          error = 'Label não encontrada.'
+          return currentScene
+        }
+
+        if (!parentNode?.blockViewActive || !parentNode.blockStructure) {
+          error = 'O bloco seleccionado não é válido.'
+          return currentScene
+        }
+
+        let structure = parentNode.blockStructure
+        let structureChanged = false
+
+        for (const entry of labelNode.labelStructure.parameters) {
+          if (findMatchingBlockParameterForLabelEntry(structure, entry.parameterId)) {
+            continue
+          }
+
+          const doc = findBlockParameterDocForLabelEntry(structure.blockType, entry.parameterId)
+          if (!doc) {
+            error = `Parâmetro «${entry.parameterId}» não encontrado no catálogo.`
+            return currentScene
+          }
+
+          if (isParameterAlreadyOnBlock(structure.parameters, doc)) {
+            continue
+          }
+
+          const added = addParameterToBlockStructure(structure, doc)
+          if (added.error) {
+            if (isParameterAlreadyOnBlock(structure.parameters, doc)) {
+              continue
+            }
+            error = added.error
+            return currentScene
+          }
+          structure = added.structure
+          structureChanged = true
+        }
+
+        const remappedParameters = remapLabelParametersForBlockStructure(
+          structure,
+          labelNode.labelStructure.parameters,
+        )
+
+        const applied = structureChanged
+          ? applyBlockStructureWithTokens(currentScene, parentNode, structure)
+          : null
+        const childPatchMap = new Map(
+          (applied?.childPatches ?? []).map((patch) => [patch.nodeId, patch.node]),
+        )
+
+        return {
+          ...currentScene,
+          nodes: currentScene.nodes.map((node) => {
+            if (node.id === labelNodeId && node.labelStructure) {
+              return {
+                ...node,
+                labelStructure: {
+                  ...node.labelStructure,
+                  parentBlockNodeId: parentNodeId,
+                  catalogBlockType: parentNode.blockStructure!.blockType.trim(),
+                  parameters: remappedParameters,
+                },
+              }
+            }
+            if (node.id === parentNodeId) {
+              if (!structureChanged || !applied) {
+                return node
+              }
+              return {
+                ...node,
+                node: applied.node,
+                blockStructure: structure,
+              }
+            }
+            const childPatch = childPatchMap.get(node.id)
+            if (childPatch) {
+              return { ...node, node: childPatch }
+            }
+            return node
+          }),
+        }
+      })
+
+      if (error) {
+        return { ok: false, error }
+      }
+      return { ok: true }
+    },
+    [updateScene],
+  )
+
+  const updateLabelStructure = useCallback(
+    (
+      labelNodeId: string,
+      patch: Partial<
+        Pick<LabelStructurePayload, 'labelName' | 'color' | 'parameters' | 'catalogBlockType'>
+      >,
+    ) => {
+      updateScene((currentScene) => ({
+        ...currentScene,
+        nodes: currentScene.nodes.map((node) => {
+          if (node.id !== labelNodeId || !node.labelStructure) {
+            return node
+          }
+          return {
+            ...node,
+            labelStructure: {
+              ...node.labelStructure,
+              ...(patch.labelName !== undefined ? { labelName: patch.labelName.trim() } : {}),
+              ...(patch.color !== undefined ? { color: normalizeLabelColor(patch.color) } : {}),
+              ...(patch.catalogBlockType !== undefined
+                ? patch.catalogBlockType.trim()
+                  ? { catalogBlockType: patch.catalogBlockType.trim() }
+                  : { catalogBlockType: undefined }
+                : {}),
+              ...(patch.parameters !== undefined ? { parameters: [...patch.parameters] } : {}),
+            },
+          }
+        }),
+      }))
+    },
+    [updateScene],
+  )
+
+  const addLabelParameter = useCallback(
+    (labelNodeId: string, parameterId: string) => {
+      updateScene((currentScene) => ({
+        ...currentScene,
+        nodes: currentScene.nodes.map((node) => {
+          if (node.id !== labelNodeId || !node.labelStructure) {
+            return node
+          }
+          if (node.labelStructure.parameters.some((entry) => entry.parameterId === parameterId)) {
+            return node
+          }
+          return {
+            ...node,
+            labelStructure: {
+              ...node.labelStructure,
+              parameters: [...node.labelStructure.parameters, { parameterId }],
+            },
+          }
+        }),
+      }))
+    },
+    [updateScene],
+  )
+
+  const removeLabelParameter = useCallback(
+    (labelNodeId: string, parameterId: string) => {
+      updateScene((currentScene) => ({
+        ...currentScene,
+        nodes: currentScene.nodes.map((node) => {
+          if (node.id !== labelNodeId || !node.labelStructure) {
+            return node
+          }
+          return {
+            ...node,
+            labelStructure: {
+              ...node.labelStructure,
+              parameters: node.labelStructure.parameters.filter(
+                (entry) => entry.parameterId !== parameterId,
+              ),
+            },
+          }
+        }),
+      }))
+    },
+    [updateScene],
+  )
+
+  const toggleAllLabelParametersHiddenInParent = useCallback(
+    (labelNodeId: string) => {
+      updateScene((currentScene) => ({
+        ...currentScene,
+        nodes: currentScene.nodes.map((node) => {
+          if (node.id !== labelNodeId || !node.labelStructure) {
+            return node
+          }
+          const parameters = node.labelStructure.parameters
+          if (parameters.length === 0) {
+            return node
+          }
+          const allHidden = parameters.every((entry) => entry.hiddenInParent === true)
+          const hideAll = !allHidden
+          return {
+            ...node,
+            labelStructure: {
+              ...node.labelStructure,
+              parameters: parameters.map((entry) => ({
+                parameterId: entry.parameterId,
+                ...(hideAll ? { hiddenInParent: true } : {}),
+              })),
+            },
+          }
+        }),
+      }))
+    },
+    [updateScene],
+  )
+
   const applyAddonOutputsToScene = useCallback(
     (nodeId: string, outputs: Record<string, unknown>) => {
       updateScene((currentScene) => applyAddonOutputs(currentScene, nodeId, outputs))
@@ -1990,6 +2358,14 @@ export function useSceneHistory(options?: {
             toBlockSlotId: string
             toBlockParameterId?: string
             allowForced?: boolean
+          }
+        | {
+            kind: 'labelToAddon'
+            fromNodeId: string
+            fromLabelSlotId: string
+            toNodeId: string
+            toAddonSlotId: string
+            allowForced?: boolean
           },
     ) => {
       updateScene((currentScene) => {
@@ -2010,6 +2386,15 @@ export function useSceneHistory(options?: {
               fromNodeId: request.fromNodeId,
               fromBlockSlotId: request.fromBlockSlotId,
               fromBlockParameterId: request.fromBlockParameterId,
+              toNodeId: request.toNodeId,
+              toAddonSlotId: request.toAddonSlotId,
+              allowForced: request.allowForced,
+            }) ?? currentScene
+        } else if (request.kind === 'labelToAddon') {
+          nextScene =
+            applyLabelOutputToAddonInput(currentScene, {
+              fromNodeId: request.fromNodeId,
+              fromLabelSlotId: request.fromLabelSlotId,
               toNodeId: request.toNodeId,
               toAddonSlotId: request.toAddonSlotId,
               allowForced: request.allowForced,
@@ -2131,6 +2516,41 @@ export function useSceneHistory(options?: {
   const deleteSelectedNodes = useCallback(() => {
     deleteNodeIds(orderedSelectionUnique)
   }, [deleteNodeIds, orderedSelectionUnique])
+
+  const copySelectedNodes = useCallback(() => {
+    copyCanvasNodesToClipboard(sceneHistory.present, orderedSelectionUnique)
+  }, [orderedSelectionUnique, sceneHistory.present])
+
+  const pasteCopiedNodes = useCallback((): boolean => {
+    if (!hasCanvasNodeClipboard()) {
+      return false
+    }
+
+    let pastedNodeIds: string[] = []
+
+    updateScene((currentScene) => {
+      const pasted = pasteCanvasNodesFromClipboard(currentScene)
+      if (!pasted) {
+        return currentScene
+      }
+
+      pastedNodeIds = pasted.pastedNodeIds
+      return pasted.scene
+    })
+
+    if (pastedNodeIds.length === 0) {
+      return false
+    }
+
+    const primaryId = pastedNodeIds[0] ?? null
+    queueMicrotask(() =>
+      setSelectionState({
+        ids: pastedNodeIds,
+        primaryId,
+      }),
+    )
+    return true
+  }, [updateScene])
 
   const toggleNodeCardSection = useCallback(
     (nodeId: string, sectionId: NodeCardSectionId) => {
@@ -4313,12 +4733,21 @@ export function useSceneHistory(options?: {
     removeBlockSlashCommand,
     applyBlockSlashCommand,
     createAddonNode,
+    createLabelBlockFromParent,
+    createStandaloneLabel,
+    linkLabelToParentBlock,
+    updateLabelStructure,
+    addLabelParameter,
+    removeLabelParameter,
+    toggleAllLabelParametersHiddenInParent,
     applyAddonOutputsToScene,
     connectAddonSlots,
     syncBlockParameterCatalogFromDefinitions,
     spawnNeekoNodeAtPosition,
     deleteNodeIds,
     deleteSelectedNodes,
+    copySelectedNodes,
+    pasteCopiedNodes,
     toggleNodeBodyCollapsed,
     toggleStructureCardParamsExpanded,
     setStructureCardWidth,

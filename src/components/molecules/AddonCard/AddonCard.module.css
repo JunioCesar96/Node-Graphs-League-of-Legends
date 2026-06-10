@@ -19,6 +19,12 @@
   outline-offset: 1px;
 }
 
+.wirelessHighlighted {
+  box-shadow:
+    inset 0 6px 0 var(--syntax-keyword),
+    inset 0 -6px 0 var(--syntax-keyword);
+}
+
 .contextMenuBlocker {
   position: absolute;
   inset: 0;
@@ -110,6 +116,33 @@
   min-width: var(--addon-ui-width, min-content);
   max-width: 100%;
   margin: 10px;
+}
+
+.body :global(.addon-view-code-ui) {
+  margin: 6px 10px 10px;
+  width: calc(100% - 20px);
+}
+
+.body :global(.addon-code-to-json-ui) {
+  margin: 6px 10px 10px;
+  width: calc(100% - 20px);
+}
+
+.body :global(.addon-code-to-block-ui) {
+  margin: 6px 10px 10px;
+  width: calc(100% - 20px);
+}
+
+.body :global(.addon-json-to-block-ui) {
+  margin: 6px 10px 10px;
+  width: calc(100% - 20px);
+}
+
+.body :global(.addon-value-mtx44-ui) {
+  margin: 5px 6px 6px;
+  width: 220px;
+  max-width: 220px;
+  min-width: 0;
 }
 
 .body :global(.addon-string-prefix-ui) {

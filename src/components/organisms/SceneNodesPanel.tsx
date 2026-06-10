@@ -14,6 +14,7 @@ import { SceneNodesOptionsMenu } from '@/components/molecules/SceneNodesOptionsM
 import { SceneNodesParametersSection } from '@/components/molecules/SceneNodesParametersSection'
 import { SceneNodesStatesSection } from '@/components/molecules/SceneNodesStatesSection'
 import type { CanvasNode, CanvasScene } from '@/core/canvasScene'
+import type { BlockElementViewKey } from '@/core/blockElementViewState'
 import { LangId } from '@/core/language/languageIds'
 import { useLanguage } from '@/language/LanguageProvider'
 import type { SceneNodesStatePreset } from '@/core/sceneNodesStatePresets'
@@ -69,6 +70,11 @@ type SceneNodesPanelProps = {
     value: string,
     kind: SceneNodesParameterKind,
   ) => void
+  onSetBlockElementSelectedIndex?: (
+    nodeId: string,
+    elementKey: BlockElementViewKey,
+    selectedIndex: number,
+  ) => void
   onShowAll: () => void
   onToggleMinimized: () => void
   onUndockFromViewportToolbar?: () => void
@@ -113,6 +119,7 @@ function PanelBody({
   sceneVisibilityContext,
   onSelectNode,
   onCommitParameter,
+  onSetBlockElementSelectedIndex,
   selectedNodeIds,
   sceneNodesStatePresets,
   onSaveNewSceneNodesState,
@@ -150,6 +157,11 @@ function PanelBody({
     parameterId: string,
     value: string,
     kind: SceneNodesParameterKind,
+  ) => void
+  onSetBlockElementSelectedIndex?: (
+    nodeId: string,
+    elementKey: BlockElementViewKey,
+    selectedIndex: number,
   ) => void
   selectedNodeIds: string[]
   sceneNodesStatePresets: SceneNodesStatePreset[]
@@ -364,6 +376,7 @@ function PanelBody({
             <SceneNodesParametersSection
               onCommitParameter={onCommitParameter}
               onSelectNode={onSelectNode}
+              onSetBlockElementSelectedIndex={onSetBlockElementSelectedIndex}
               primarySelectedId={primarySelectedId}
               scene={scene}
               selectedNodeIds={selectedNodeIds}
@@ -441,6 +454,7 @@ export function SceneNodesPanel({
   onResetSelectedPosition,
   onSelectNode,
   onCommitParameter,
+  onSetBlockElementSelectedIndex,
   onShowAll,
   onToggleMinimized,
   onUndockFromViewportToolbar,
@@ -585,6 +599,7 @@ export function SceneNodesPanel({
     sceneVisibilityContext,
     onSelectNode,
     onCommitParameter,
+    onSetBlockElementSelectedIndex,
     selectedNodeIds,
     sceneNodesStatePresets,
     onSaveNewSceneNodesState: () => {

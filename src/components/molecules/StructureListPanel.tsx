@@ -77,6 +77,7 @@ export type StructureListPanelProps = {
   selectedIndex: number
   onSelectIndex: (index: number) => void
   onPickItem: (item: StructureListPanelItem) => void
+  onHoverItem?: (item: StructureListPanelItem | null) => void
   emptyHint?: string
   noResultsMessage?: string
   interactionLocked?: boolean
@@ -124,6 +125,7 @@ export function StructureListPanel({
   selectedIndex,
   onSelectIndex,
   onPickItem,
+  onHoverItem,
   emptyHint = 'Lista vazia',
   noResultsMessage = 'Nenhum item corresponde à pesquisa.',
   interactionLocked = false,
@@ -155,9 +157,10 @@ export function StructureListPanel({
         setPanelSize(null)
         panelPositionManualRef.current = false
         setPanelDragging(false)
+        onHoverItem?.(null)
       }
     },
-    [onOpenChange],
+    [onOpenChange, onHoverItem],
   )
 
   const updatePanelRect = useCallback(() => {
@@ -508,7 +511,11 @@ export function StructureListPanel({
         ) : filteredItems.length === 0 ? (
           <p className={styles.noResults}>{noResultsMessage}</p>
         ) : (
-          <ul className={styles.list} role="listbox">
+          <ul
+            className={styles.list}
+            role="listbox"
+            onMouseLeave={() => onHoverItem?.(null)}
+          >
             {filteredItems.map((item) => {
               const isSelected = selectedId === item.id
 
@@ -520,6 +527,7 @@ export function StructureListPanel({
                     .filter(Boolean)
                     .join(' ')}
                   role="option"
+                  onMouseEnter={() => onHoverItem?.(item)}
                   onMouseDown={(event) => {
                     event.preventDefault()
                     onSelectIndex(item.index)

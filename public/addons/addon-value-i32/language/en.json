@@ -1,0 +1,9 @@
+{
+  "0": "I32 Value",
+  "1": "Value",
+  "4": "integer",
+  "6": "Literal i32 value exposed on the add-on output.",
+  "20": "Values",
+  "21": "Parameter",
+  "23": "Sets a literal i32 value and exposes it on an output slot compatible with block parameters."
+}

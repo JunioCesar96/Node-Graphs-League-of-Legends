@@ -30,6 +30,16 @@
   background: var(--ctx-menu-hover-bg, #007acc);
 }
 
+.menu button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.menu button:disabled:hover {
+  color: var(--ctx-menu-fg, var(--color-text-secondary));
+  background: transparent;
+}
+
 .menu button[data-danger='true'] {
   color: rgb(255 140 140);
 }

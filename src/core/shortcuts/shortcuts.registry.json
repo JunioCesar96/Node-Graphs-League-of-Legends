@@ -94,6 +94,20 @@
       "priority": 20
     },
     {
+      "id": "graph-copy-nodes",
+      "scopeId": "graph-canvas",
+      "key": "c",
+      "modifiers": ["ctrl"],
+      "priority": 7
+    },
+    {
+      "id": "graph-paste-nodes",
+      "scopeId": "graph-canvas",
+      "key": "v",
+      "modifiers": ["ctrl"],
+      "priority": 7
+    },
+    {
       "id": "graph-neeko-paste",
       "scopeId": "graph-canvas",
       "key": "v",

@@ -61,6 +61,16 @@ export function isNodeVisibleOnCanvas(
     return false
   }
 
+  if (canvasNode.labelViewActive && canvasNode.labelStructure && sceneContext) {
+    const parentBlockNodeId = canvasNode.labelStructure.parentBlockNodeId.trim()
+    if (parentBlockNodeId) {
+      const parent = sceneContext.nodes.find((node) => node.id === parentBlockNodeId)
+      if (parent && !isNodeVisibleOnCanvas(parent, compactVisibility, sceneContext)) {
+        return false
+      }
+    }
+  }
+
   if (canvasNode.branchForceVisible === true) {
     return true
   }

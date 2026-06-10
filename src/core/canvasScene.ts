@@ -10,6 +10,7 @@ import type { NewNodeMaterializePhase } from './codeToNewNodeGraph'
 import type { BlockElementViewKey, BlockElementViewState } from './blockElementViewState'
 import type { BlockStructurePayload } from './blockSchema'
 import type { GroupStructurePayload } from './groupSchema'
+import type { LabelStructurePayload } from './labelSchema'
 import type {
   InternalStructureDefinition,
   NodeInstance,
@@ -126,6 +127,10 @@ export type CanvasNode = {
   addonInstance?: AddonInstancePayload
   /** Quando true, renderiza AddonCard. */
   addonViewActive?: boolean
+  /** Metadados do sistema Label Block (segmentação de blocos). */
+  labelStructure?: LabelStructurePayload
+  /** Quando true, renderiza LabelCard. */
+  labelViewActive?: boolean
   /** Card grupo/bloco: parâmetros em duas linhas (nome completo + valor). Omitido = linha única compacta. */
   structureCardParamsExpanded?: boolean
   /** Largura manual do card grupo/bloco (px). Omitido = largura padrão (360). */
@@ -171,6 +176,8 @@ export type CanvasConnection = {
   fromAddonSlotId?: string
   /** Destino slot de add-on (entrada). */
   toAddonSlotId?: string
+  /** Origem slot de label (saída JSON). */
+  fromLabelSlotId?: string
   /** Ligação bloco com tipo de saída incompatível mas campo IN aceite (confirmada pelo utilizador). */
   forced?: boolean
 }

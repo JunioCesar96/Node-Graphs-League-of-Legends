@@ -1,6 +1,7 @@
 import type { CanvasNode } from '@/core/canvasScene'
 import { BLOCK_CARD_WIDTH } from '@/core/blockSchema'
 import { GROUP_CARD_WIDTH } from '@/core/groupSchema'
+import { LABEL_CARD_WIDTH } from '@/core/labelSchema'
 
 export const STRUCTURE_CARD_MAX_WIDTH = 720
 
@@ -18,6 +19,11 @@ export function resolveGroupCardWidth(node: CanvasNode): number {
 export function resolveBlockCardWidth(node: CanvasNode): number {
   const base = node.structureCardWidth ?? BLOCK_CARD_WIDTH
   return Math.min(STRUCTURE_CARD_MAX_WIDTH, Math.max(BLOCK_CARD_WIDTH, base))
+}
+
+export function resolveLabelCardWidth(node: CanvasNode): number {
+  const base = node.structureCardWidth ?? LABEL_CARD_WIDTH
+  return Math.min(STRUCTURE_CARD_MAX_WIDTH, Math.max(LABEL_CARD_WIDTH, base))
 }
 
 export function clampStructureCardWidth(width: number, minWidth: number): number {

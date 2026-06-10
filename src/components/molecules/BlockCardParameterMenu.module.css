@@ -82,6 +82,26 @@
   -webkit-mask-image: url('../../assets/SVG/remove%20parametro_1.svg');
 }
 
+.iconGlyphEye {
+  mask-image: url('../../assets/SVG/node%20em%20cena.svg');
+  -webkit-mask-image: url('../../assets/SVG/node%20em%20cena.svg');
+}
+
+.iconGlyphLabelLinked {
+  mask-image: url('../../assets/SVG/link%20parametro.svg');
+  -webkit-mask-image: url('../../assets/SVG/link%20parametro.svg');
+}
+
+.iconGlyphBlockLinked {
+  mask-image: url('../../assets/SVG/link%20block.svg');
+  -webkit-mask-image: url('../../assets/SVG/link%20block.svg');
+}
+
+.iconGlyphLink {
+  mask-image: url('../../assets/SVG/link.svg');
+  -webkit-mask-image: url('../../assets/SVG/link.svg');
+}
+
 .listPanel {
   display: grid;
   gap: var(--space-1);

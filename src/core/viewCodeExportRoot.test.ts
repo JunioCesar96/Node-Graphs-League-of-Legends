@@ -5,7 +5,7 @@ import { emitNodeRitualViewCodeText } from '@/core/nodeCodeEditorBinding'
 import type { NodeSchemaDefinition } from '@/core/nodeSchema'
 import { listPointerSlotId } from '@/core/listPointerSlots'
 import { elementViewKeyForListPointer } from '@/core/elementViewState'
-import { resolveViewCodeExportNodeId } from '@/core/viewCodeExportRoot'
+import { resolveViewCodeExportNodeId, resolveVfxExportNodeId } from '@/core/viewCodeExportRoot'
 
 const listPointerId = 'VfxSystem_listPointer_emitters'
 
@@ -118,6 +118,60 @@ describe('resolveViewCodeExportNodeId', () => {
   it('sobe ao pai quando o nó é filho directo de list[pointer]', () => {
     expect(resolveViewCodeExportNodeId(buildListScene(), 'em-1')).toBe('vfx')
     expect(resolveViewCodeExportNodeId(buildListScene(), 'vfx')).toBe('vfx')
+  })
+})
+
+describe('resolveVfxExportNodeId', () => {
+  it('sobe blocos filhos até VfxSystemDefinitionData', () => {
+    const scene: CanvasScene = {
+      nodes: [
+        {
+          id: 'vfx',
+          position: { x: 0, y: 0 },
+          blockViewActive: true,
+          blockStructure: {
+            blockType: 'VfxSystemDefinitionData',
+            blockName: 'Brand_Base_Dance',
+            parameters: [],
+            identification_codes: [],
+          },
+          node: {
+            id: 'vfx-node',
+            schema: vfxSystemSchema,
+            values: [],
+          },
+        },
+        {
+          id: 'emitter',
+          position: { x: 200, y: 0 },
+          blockViewActive: true,
+          blockStructure: {
+            blockType: 'VfxEmitterDefinitionData',
+            blockName: 'circulo_magico',
+            parameters: [],
+            identification_codes: [],
+          },
+          node: {
+            id: 'emitter-node',
+            schema: emitterSchema,
+            values: [],
+          },
+        },
+      ],
+      connections: [
+        {
+          id: 'block-link',
+          fromNodeId: 'vfx',
+          toNodeId: 'emitter',
+          fromInternalStructureId: '__block__:out',
+          fromBlockSlotId: 'block-param:complexEmitterDefinitionData:output',
+          toBlockSlotId: 'block-header:circulo_magico:0',
+        },
+      ],
+    }
+
+    expect(resolveVfxExportNodeId(scene, 'emitter')).toBe('vfx')
+    expect(resolveVfxExportNodeId(scene, 'vfx')).toBe('vfx')
   })
 })
 

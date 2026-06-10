@@ -43,7 +43,8 @@ export function shouldAllowBlockNodeContextMenu(
   }
 
   const blockCard = target.closest('[data-block-card="1"]')
-  if (!blockCard) {
+  const labelCard = target.closest('[data-label-card="1"]')
+  if (!blockCard && !labelCard) {
     return true
   }
 
@@ -174,7 +175,8 @@ export function resolveContextTarget(event: ReactMouseEvent): CanvasContextTarge
 
     if (nodeId) {
       const blockCard = target.closest('[data-block-card="1"]')
-      if (blockCard && !isBlockCardContextMenuZone(target)) {
+      const labelCard = target.closest('[data-label-card="1"]')
+      if ((blockCard || labelCard) && !isBlockCardContextMenuZone(target)) {
         return null
       }
 

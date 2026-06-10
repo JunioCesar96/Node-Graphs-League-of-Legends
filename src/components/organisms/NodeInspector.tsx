@@ -357,15 +357,7 @@ function SelectedNodeInspectorBody({
                       title="Vincular valor (mesmo tipo)"
                       type="button"
                     >
-                      <svg aria-hidden className={styles.valueLinkSvg} viewBox="0 0 24 24">
-                        <path
-                          d="M10.5 13.5a4.5 4.5 0 010-6.36l1.06-1.06a4.5 4.5 0 016.36 6.36l-.71.71M13.5 10.5a4.5 4.5 0 010 6.36l-1.06 1.06a4.5 4.5 0 01-6.36-6.36l.71-.71"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeLinecap="round"
-                          strokeWidth="1.7"
-                        />
-                      </svg>
+                      <span aria-hidden className={styles.valueLinkGlyph} />
                     </button>
                   ) : null}
                   <span className={styles.name}>{parameter.name}</span>

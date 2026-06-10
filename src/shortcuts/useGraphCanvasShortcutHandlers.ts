@@ -43,6 +43,8 @@ export function useGraphCanvasShortcutHandlers(options: {
   setCanvasInteractionMode: Dispatch<SetStateAction<CanvasInteractionMode>>
   onCloseCodePanelShortcut?: () => void
   onNeekoDropCode?: (nodeId: string, text: string) => void
+  onCopySelectedNodes?: () => void
+  onPasteCopiedNodes?: () => boolean
   setStructureCardResizeModifierActive?: Dispatch<SetStateAction<boolean>>
 }) {
   const { registerShortcutHandlers, setOpenDocks } = useShortcutScope()
@@ -144,6 +146,20 @@ export function useGraphCanvasShortcutHandlers(options: {
         options.onCloseCodePanelShortcut?.()
         return true
       },
+      'graph-copy-nodes': () => {
+        const { selectedNodeIds } = refs.current
+        if (selectedNodeIds.length === 0 || !options.onCopySelectedNodes) {
+          return false
+        }
+        options.onCopySelectedNodes()
+        return true
+      },
+      'graph-paste-nodes': () => {
+        if (!options.onPasteCopiedNodes) {
+          return false
+        }
+        return options.onPasteCopiedNodes()
+      },
       'graph-neeko-paste': async () => {
         const { selectedNodeId, scene } = refs.current
         if (!options.onNeekoDropCode || !selectedNodeId) {
@@ -170,6 +186,8 @@ export function useGraphCanvasShortcutHandlers(options: {
     options.onClearSelection,
     options.onCloseCodePanelShortcut,
     options.onNeekoDropCode,
+    options.onCopySelectedNodes,
+    options.onPasteCopiedNodes,
     options.onSelectAllNodesShortcut,
     options.closeSnapMenu,
     options.isSnapMenuOpen,

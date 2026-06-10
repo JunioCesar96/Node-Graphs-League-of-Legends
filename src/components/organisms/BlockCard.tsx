@@ -32,6 +32,8 @@ import type { BlockWirelessNodeDisplay, BlockSlotWirelessLink } from '@/core/blo
 import { isBlockSlotPulsing } from '@/core/blockConnectionDisplay'
 import type { BlockSlotPeerActions } from '@/core/blockSlotPeerActions'
 import { BlockSlotPeerToolbar } from '@/components/molecules/BlockSlotPeerToolbar'
+import { findLabelNodesForParent } from '@/core/labelScenePersistence'
+import { resolveLabelEffectsForParent } from '@/core/labelParentEffects'
 import { readBlockParameterDisplayValue } from '@/core/syncBlockToCode'
 import { findConnectionsForBlockOutputSlot } from '@/core/blockSlotConnections'
 import type { BlockElementViewKey, BlockElementViewState } from '@/core/blockElementViewState'
@@ -42,6 +44,7 @@ type BlockCardProps = {
   canvasNode: CanvasNode
   scene: CanvasScene
   selected?: boolean
+  linkCandidateHighlight?: boolean
   interactionLocked?: boolean
   activeBlockSlotId?: string
   onUpdateBlockParameter: (paramId: string, value: string) => void
@@ -105,12 +108,16 @@ type BlockCardProps = {
   onParameterPanelRequestHandled?: () => void
   onParameterPanelDismiss?: () => void
   wirelessHighlighted?: boolean
+  onSelectLinkedLabel?: (labelNodeId: string) => void
+  onAddLinkedLabel?: () => void
+  onRemoveLinkedLabel?: (labelNodeId: string) => void
 }
 
 export function BlockCard({
   canvasNode,
   scene,
   selected = false,
+  linkCandidateHighlight = false,
   interactionLocked = false,
   activeBlockSlotId,
   onUpdateBlockParameter,
@@ -148,6 +155,9 @@ export function BlockCard({
   onParameterPanelRequestHandled,
   onParameterPanelDismiss,
   wirelessHighlighted = false,
+  onSelectLinkedLabel,
+  onAddLinkedLabel,
+  onRemoveLinkedLabel,
 }: BlockCardProps) {
   const structure = canvasNode.blockStructure
   const cardWidth = resolveBlockCardWidth(canvasNode)
@@ -187,6 +197,26 @@ export function BlockCard({
   if (!structure) {
     return null
   }
+
+  const labelEffects = useMemo(
+    () => resolveLabelEffectsForParent(scene, canvasNode.id),
+    [scene, canvasNode.id],
+  )
+
+  const linkedLabels = useMemo(
+    () =>
+      findLabelNodesForParent(scene, canvasNode.id).map((labelNode) => ({
+        id: labelNode.id,
+        label: labelNode.labelStructure?.labelName?.trim() || labelNode.id,
+      })),
+    [canvasNode.id, scene],
+  )
+
+  const visibleParameters = useMemo(
+    () => structure.parameters.filter((param) => !labelEffects.hidden.has(param.idParameter)),
+    [structure.parameters, labelEffects.hidden],
+  )
+
   const headerInputPorts = headerPorts.filter((port) => port.direction === 'input')
   const headerOutputPorts = headerPorts.filter((port) => port.direction === 'output')
   const headerOutputPortsWithPagerBelow = slotPagerEnabled
@@ -211,6 +241,7 @@ export function BlockCard({
       className={[
         styles.card,
         selected ? styles.selected : '',
+        linkCandidateHighlight ? styles.linkCandidateHighlight : '',
         wirelessHighlighted ? styles.wirelessHighlighted : '',
         interactionLocked ? styles.locked : '',
         onStartDrag && !interactionLocked ? styles.draggable : '',
@@ -454,7 +485,7 @@ export function BlockCard({
         className={styles.body}
         data-params-layout={canvasNode.structureCardParamsExpanded ? 'expanded' : 'compact'}
       >
-        {structure.parameters.map((parameter) => {
+        {visibleParameters.map((parameter) => {
           const hasOutput = Boolean(parameter.slotRules?.outputs?.length)
           const hasInput = Boolean(parameter.slotRules?.inputs?.length)
           const value = readBlockParameterDisplayValue(scene, canvasNode, structure, parameter.idParameter)
@@ -496,6 +527,7 @@ export function BlockCard({
               blockWirelessSlots={blockWirelessDisplay?.slots}
               pulseSlotId={blockWirelessPulseSlotId}
               canvasNodeId={canvasNode.id}
+              labelHighlightColor={labelEffects.highlighted.get(parameter.idParameter)}
               onCommitValue={(next) => onUpdateBlockParameter(parameter.idParameter, next)}
               onInputPointerUp={(event) =>
                 onBlockInputPointerUp?.(
@@ -542,26 +574,25 @@ export function BlockCard({
         })}
       </div>
 
-      {onAddParameterFromCatalog ||
-      onRemoveParameter ||
-      onEditParameter ||
-      onSlotToolsEnabledChange ? (
-        <footer className={styles.footer} {...{ [BLOCK_CARD_CONTEXT_ZONE_ATTR]: 'footer' }}>
-          <BlockCardParameterMenu
-            blockType={structure.blockType}
-            parameters={structure.parameters}
-            slotToolsEnabled={slotToolsEnabled}
-            onSlotToolsEnabledChange={onSlotToolsEnabledChange}
-            onAddParameter={onAddParameterFromCatalog}
-            onEditParameter={onEditParameter}
-            onRemoveParameter={onRemoveParameter}
-            externalPanelRequest={parameterPanelRequest}
-            externalScreenAnchor={parameterPanelScreenAnchor}
-            onExternalPanelRequestHandled={onParameterPanelRequestHandled}
-            onPanelDismiss={onParameterPanelDismiss}
-          />
-        </footer>
-      ) : null}
+      <footer className={styles.footer} {...{ [BLOCK_CARD_CONTEXT_ZONE_ATTR]: 'footer' }}>
+        <BlockCardParameterMenu
+          blockType={structure.blockType}
+          linkedLabels={linkedLabels}
+          parameters={structure.parameters}
+          slotToolsEnabled={slotToolsEnabled}
+          onAddLinkedLabel={onAddLinkedLabel}
+          onAddParameter={onAddParameterFromCatalog}
+          onEditParameter={onEditParameter}
+          onRemoveLinkedLabel={onRemoveLinkedLabel}
+          onRemoveParameter={onRemoveParameter}
+          onSelectLinkedLabel={onSelectLinkedLabel}
+          onSlotToolsEnabledChange={onSlotToolsEnabledChange}
+          externalPanelRequest={parameterPanelRequest}
+          externalScreenAnchor={parameterPanelScreenAnchor}
+          onExternalPanelRequestHandled={onParameterPanelRequestHandled}
+          onPanelDismiss={onParameterPanelDismiss}
+        />
+      </footer>
     </article>
   )
 }

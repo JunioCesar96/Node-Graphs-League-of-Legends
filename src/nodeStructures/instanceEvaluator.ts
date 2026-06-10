@@ -1,11 +1,17 @@
 import { getAddonManifest } from '@/blockStructures/addonRegistry'
+import {
+  ritualTypeFromAddonValuePackageId,
+  validateAddonParamLiteral,
+} from '@/core/addonParamValueValidation'
 import { parseAddonSlotId,
   slotByName,
   addonSlotId,
 } from '@/core/addonSlotConnections'
 import { propagateAddonOutputsToDownstream } from '@/core/addonOutputPropagation'
-import type { BlockParameterDef, BlockStructurePayload } from '@/core/blockSchema'
-import type { CanvasNode, CanvasScene } from '@/core/canvasScene'
+import type { BlockStructurePayload } from '@/core/blockSchema'
+import { schemaRegistry, type CanvasNode, type CanvasScene } from '@/core/canvasScene'
+import { emitNodeBlockCardPreviewCodeText } from '@/core/nodeCodeEditorBinding'
+import { resolveLabelJsonOutputString } from '@/core/labelJsonExport'
 import type { AddonManifest } from '@/services/addonLoader.service'
 
 function coerceUnknown(value: unknown): unknown {
@@ -44,6 +50,11 @@ function resolveBlockOutputForAddon(
     }
   }
 
+  if (fromBlockSlotId?.startsWith('block-header:')) {
+    const result = emitNodeBlockCardPreviewCodeText(scene, schemaRegistry, fromNode.id)
+    return result.ok ? result.text : ''
+  }
+
   if (fromBlockSlotId) {
     return readBlockSlotValue(fromNode.blockStructure, fromBlockSlotId)
   }
@@ -80,6 +91,10 @@ function resolveUpstreamValue(
       return coerceUnknown(outputs[slotName])
     }
     return ''
+  }
+
+  if (fromNode.labelViewActive && fromNode.labelStructure && connection.fromLabelSlotId) {
+    return resolveLabelJsonOutputString(scene, fromNode)
   }
 
   if (fromNode.blockViewActive && fromNode.blockStructure) {
@@ -138,9 +153,21 @@ export function applyAddonOutputs(
 
   const manifest = getAddonManifest(node.addonInstance.addonId)
   const mergedOutputs = { ...node.addonInstance.outputValues }
+  const valueAddonRitual = ritualTypeFromAddonValuePackageId(node.addonInstance.addonId)
   if (manifest) {
     for (const slot of manifest.data) {
       if (slot.direction === 'output' && Object.prototype.hasOwnProperty.call(outputs, slot.name)) {
+        if (valueAddonRitual && slot.name === 'value') {
+          const validated = validateAddonParamLiteral(
+            valueAddonRitual,
+            String(outputs[slot.name] ?? ''),
+          )
+          if (!validated.ok) {
+            continue
+          }
+          mergedOutputs[slot.name] = validated.value
+          continue
+        }
         mergedOutputs[slot.name] = outputs[slot.name]
       }
     }

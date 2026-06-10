@@ -1,0 +1,9 @@
+{
+  "0": "U32 Value",
+  "1": "Value",
+  "4": "integer",
+  "6": "Literal u32 value exposed on the add-on output.",
+  "20": "Values",
+  "21": "Parameter",
+  "23": "Sets a literal u32 value and exposes it on an output slot compatible with block parameters."
+}

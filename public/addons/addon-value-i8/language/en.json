@@ -1,0 +1,9 @@
+{
+  "0": "I8 Value",
+  "1": "Value",
+  "4": "-128–127",
+  "6": "Literal i8 value exposed on the add-on output.",
+  "20": "Values",
+  "21": "Parameter",
+  "23": "Sets a literal i8 value and exposes it on an output slot compatible with block parameters."
+}

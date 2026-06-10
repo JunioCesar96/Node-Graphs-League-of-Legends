@@ -1,8 +1,25 @@
-import type { CanvasScene } from '@/core/canvasScene'
+import type { CanvasNode, CanvasScene } from '@/core/canvasScene'
 import { classifyOutgoingLink } from '@/core/canvasToClassGroupRitual'
 import { findIncomingConnections } from '@/core/slotPeerFocus'
 
 const LIST_CHILD_LINK_KINDS = new Set(['listPointer', 'listEmbed', 'list2Embed', 'list2Pointer'])
+
+function isVfxSystemNode(canvasNode: CanvasNode): boolean {
+  return (
+    canvasNode.node.schema.title === 'VfxSystemDefinitionData' ||
+    canvasNode.blockStructure?.blockType === 'VfxSystemDefinitionData'
+  )
+}
+
+function findBlockParentNodeId(scene: CanvasScene, nodeId: string): string | null {
+  for (const connection of findIncomingConnections(scene, nodeId)) {
+    if (connection.toBlockSlotId?.trim() || connection.toBlockParameterId?.trim()) {
+      return connection.fromNodeId
+    }
+  }
+
+  return null
+}
 
 /**
  * «Ver código» num filho directo de list[pointer]/list[embed] exporta o nó pai
@@ -22,4 +39,34 @@ export function resolveViewCodeExportNodeId(scene: CanvasScene, nodeId: string):
   }
 
   return nodeId
+}
+
+/**
+ * Export VFX a partir do bloco seleccionado — sobe a hierarquia de blocos até
+ * `VfxSystemDefinitionData` (ou usa o nó de export League bin como fallback).
+ */
+export function resolveVfxExportNodeId(scene: CanvasScene, nodeId: string): string {
+  let currentId = resolveViewCodeExportNodeId(scene, nodeId)
+  const visited = new Set<string>()
+
+  while (!visited.has(currentId)) {
+    visited.add(currentId)
+    const canvasNode = scene.nodes.find((entry) => entry.id === currentId)
+    if (!canvasNode) {
+      break
+    }
+
+    if (isVfxSystemNode(canvasNode)) {
+      return currentId
+    }
+
+    const parentId = findBlockParentNodeId(scene, currentId)
+    if (!parentId) {
+      break
+    }
+
+    currentId = parentId
+  }
+
+  return resolveViewCodeExportNodeId(scene, nodeId)
 }

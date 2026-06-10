@@ -1,0 +1,43 @@
+{
+  "id": "addon-value-vec3",
+  "name": "[{0}]",
+  "category": "Values",
+  "drive": "inputChange",
+  "info": {
+    "link": "https://github.com/JunioCesar96/Node-Graphs-League-of-Legends",
+    "author": "Junio Cesar (Takeda)",
+    "version": "1.0.0",
+    "description": "[{23}]",
+    "license": "MIT",
+    "tags": [
+      "[{20}]",
+      "[{21}]",
+      "vec3"
+    ],
+    "docs": "https://github.com/JunioCesar96/Node-Graphs-League-of-Legends/blob/main/README.md"
+  },
+  "headerColor": "",
+  "icon": "none",
+  "get": true,
+  "set": true,
+  "data": [
+    {
+      "name": "literal",
+      "type": "vec3",
+      "direction": "input",
+      "slot": "false",
+      "slotColor": "default"
+    },
+    {
+      "name": "value",
+      "type": "vec3",
+      "direction": "output",
+      "slot": "true",
+      "slotColor": "default",
+      "slotTip": {
+        "pt": "{6}",
+        "en": "{6}"
+      }
+    }
+  ]
+}

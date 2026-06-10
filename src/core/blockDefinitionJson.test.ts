@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import type { BlockInspectorDraft } from './blockSchema'
 import type { CanvasNode, CanvasScene } from './canvasScene'
 import {
+  buildBlockDefinitionFromManualInput,
   buildBlockDefinitionJsonDocument,
   mapOutgoingLinkKindToBlockType,
   resolveBlockParentContext,
@@ -230,6 +231,52 @@ describe('buildBlockDefinitionJsonDocument', () => {
       expect(result.document.parameters).toEqual([])
       expect(result.document.blockName).toBe('VfxPrimitiveArbitraryQuad')
     }
+  })
+})
+
+describe('buildBlockDefinitionFromManualInput', () => {
+  it('gera documento standalone com parameters vazio', () => {
+    const result = buildBlockDefinitionFromManualInput({
+      blockName: 'MyCustomBlock',
+      name: 'My Custom Block',
+      type: 'standalone',
+      color: '#40ff56',
+    })
+    expect(result.ok).toBe(true)
+    if (!result.ok) {
+      return
+    }
+    expect(result.document).toMatchObject({
+      id: 'MyCustomBlock_My Custom Block',
+      block: 'MyCustomBlock',
+      blockName: 'MyCustomBlock',
+      type: 'standalone',
+      name: 'My Custom Block',
+      source: { kind: 'block', nodeId: 'my-custom-block' },
+      parameters: [],
+      headerSlots: ['in[MyCustomBlock]', 'out[MyCustomBlockPreview]'],
+    })
+  })
+
+  it('inclui parameters quando indicados', () => {
+    const result = buildBlockDefinitionFromManualInput({
+      blockName: 'Main',
+      name: 'Main',
+      parameters: ['type', 'version', 'entries'],
+    })
+    expect(result.ok).toBe(true)
+    if (!result.ok) {
+      return
+    }
+    expect(result.document.parameters).toEqual(['type', 'version', 'entries'])
+  })
+
+  it('rejeita name com underscore', () => {
+    const result = buildBlockDefinitionFromManualInput({
+      blockName: 'Test',
+      name: 'bad_name',
+    })
+    expect(result.ok).toBe(false)
   })
 })
 

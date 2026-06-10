@@ -1,0 +1,13 @@
+{
+  "0": "Cor Vec4",
+  "1": "Valor",
+  "6": "Cor em vec4 (r, g, b, a) no intervalo 0–1 na saída do add-on.",
+  "20": "Values",
+  "21": "Parameter",
+  "23": "Escolhe uma cor e alpha; expõe o resultado como vec4 compatível com parâmetros de bloco.",
+  "24": "Cor",
+  "25": "A",
+  "26": "Formato do código da cor",
+  "2": "Entrada",
+  "7": "Vec4 de entrada (0–1). Quando ligado, substitui a cor escolhida no picker."
+}

@@ -147,6 +147,7 @@ describe('buildContextMenuItems block card node menu', () => {
     hasPendingLink: false,
     hasInspectorSlot: false,
     onPreviewBlockCardCode: () => {},
+    onRebuildBlockVfx: () => {},
   }
 
   it('mostra somente opções essenciais para card de bloco', () => {
@@ -183,7 +184,10 @@ describe('buildContextMenuItems block card node menu', () => {
       'node.delete',
     ])
     expect(items[1]?.label).toBe('Já seleccionado')
-    expect(items[3]?.children?.map((item) => item.id)).toEqual(['node.codigoPreviewBlock'])
+    expect(items[3]?.children?.map((item) => item.id)).toEqual([
+      'node.codigoPreviewBlock',
+      'node.rebuildBlockVfx',
+    ])
   })
 
   it('mostra Ocultar todos os blocos filhos quando há ligações de slot de bloco', () => {

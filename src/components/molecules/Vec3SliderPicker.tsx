@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   displaySliderValue,
   VectorAxisSliderColumn,
@@ -6,6 +6,7 @@ import {
 import {
   clampScalarBetween,
   deriveSliderRange,
+  expandSliderRangeToFitVector,
   formatVector3String,
   parseVector3String,
   type Vector3,
@@ -33,10 +34,15 @@ function parseRangeInput(raw: string, fallback: number): number {
 
 export function Vec3SliderPicker({ value, onChange }: Vec3SliderPickerProps) {
   const vector = useMemo(() => parseVector3String(value), [value])
-  const initialRange = useMemo(() => deriveSliderRange(vector), [])
+  const fittedRange = useMemo(() => deriveSliderRange(vector), [vector.x, vector.y, vector.z])
 
-  const [sliderMin, setSliderMin] = useState(initialRange.min)
-  const [sliderMax, setSliderMax] = useState(initialRange.max)
+  const [sliderMin, setSliderMin] = useState(fittedRange.min)
+  const [sliderMax, setSliderMax] = useState(fittedRange.max)
+
+  useEffect(() => {
+    setSliderMin(fittedRange.min)
+    setSliderMax(fittedRange.max)
+  }, [fittedRange.min, fittedRange.max])
 
   const commitVector = useCallback(
     (next: Vector3) => {
@@ -46,9 +52,14 @@ export function Vec3SliderPicker({ value, onChange }: Vec3SliderPickerProps) {
   )
 
   const setChannel = (channel: AxisKey, nextValue: number) => {
+    const next = { ...vector, [channel]: nextValue }
+    const expanded = expandSliderRangeToFitVector({ min: sliderMin, max: sliderMax }, next)
+    setSliderMin(expanded.min)
+    setSliderMax(expanded.max)
     commitVector({
-      ...vector,
-      [channel]: clampScalarBetween(nextValue, sliderMin, sliderMax),
+      x: clampScalarBetween(next.x, expanded.min, expanded.max),
+      y: clampScalarBetween(next.y, expanded.min, expanded.max),
+      z: clampScalarBetween(next.z, expanded.min, expanded.max),
     })
   }
 

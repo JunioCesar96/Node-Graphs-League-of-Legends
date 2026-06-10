@@ -10,6 +10,8 @@ export { resolveLocalInvokeBase, isNativeRitualBinDevMode } from './localInvokeG
 export { decodeBinArtifact } from './decodeBinArtifact'
 export { encodeBinArtifact, ritualBinBase64ToBytes } from './encodeBinArtifact'
 export { prepareRitualEditorText, getNativeEditorResolveStatus } from './prepareRitualEditorText'
+export { resolveRitualEditorText } from './resolveRitualEditorText'
+export type { RitualEditorResolveMode, RitualEditorResolveResult, RitualEditorResolveVia } from './resolveRitualEditorText'
 export { fetchLocalInvokeCapabilities } from './fetchLocalInvokeCapabilities'
 export {
   downloadBytesAsFile,

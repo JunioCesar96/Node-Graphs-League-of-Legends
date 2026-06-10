@@ -1,0 +1,15 @@
+{
+  "0": "JSON para Bloco",
+  "1": "JSON",
+  "2": "Ligue um slot de saída JSON (ex.: Code to JSON) para receber o JSON ritual e gerar blocos",
+  "3": "Converte JSON ritual em cards de bloco e insere na cena actual.",
+  "4": "Cole JSON ritual ou ligue um slot…",
+  "5": "Expandir vista JSON",
+  "6": "Recolher vista JSON",
+  "7": "Pré-visualização",
+  "8": "À espera de ligação…",
+  "10": "Gerar",
+  "20": "League of Legends",
+  "21": "Utilitário",
+  "22": "Blocos"
+}

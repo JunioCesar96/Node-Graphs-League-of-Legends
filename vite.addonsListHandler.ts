@@ -2,9 +2,9 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import type { ServerResponse } from 'node:http'
 
+import { isAllowedAddonSlotType } from './src/core/addonRitualSlotTypes'
 import { parseAddonDriveField } from './src/core/addonDrive'
-
-const SLOT_TYPES = new Set(['string', 'number', 'boolean', 'object'])
+import { isKnownAddonSystemFunction } from './src/core/addonSystemFunctions'
 
 const OPTIONAL_MANIFEST_STRING_FIELDS = [
   'headerColor',
@@ -96,7 +96,7 @@ export function isAddonManifest(raw: unknown): boolean {
     if (typeof slot.name !== 'string' || !slot.name.trim()) {
       return false
     }
-    if (typeof slot.type !== 'string' || !SLOT_TYPES.has(slot.type)) {
+    if (typeof slot.type !== 'string' || !isAllowedAddonSlotType(slot.type)) {
       return false
     }
     if (slot.direction !== 'input' && slot.direction !== 'output') {
@@ -109,6 +109,16 @@ export function isAddonManifest(raw: unknown): boolean {
   const menus = raw.cotexMenu ?? raw.contextMenu
   if (!isValidAddonContextMenusField(menus)) {
     return false
+  }
+  if (raw.functions !== undefined) {
+    if (!Array.isArray(raw.functions)) {
+      return false
+    }
+    for (const fn of raw.functions) {
+      if (typeof fn !== 'string' || !fn.trim() || !isKnownAddonSystemFunction(fn.trim())) {
+        return false
+      }
+    }
   }
   return true
 }

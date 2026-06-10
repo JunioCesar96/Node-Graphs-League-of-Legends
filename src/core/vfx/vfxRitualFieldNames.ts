@@ -27,6 +27,9 @@ export const RITUAL_VFX_TYPE_HASH: Record<string, number> = {
   VfxMeshDefinitionData: 0x6a88780b,
   VfxAlphaErosionDefinitionData: 0x5e842b9b,
   VfxLingerDefinitionData: 0x9b19f2b5,
+  FlexValueVector3: 0x42608541,
+  FlexValueFloat: 0x51ab90ef,
+  IntegratedValueVector3: 0x6ccc7f03,
 }
 
 const VFX_SYSTEM_FIELDS = ['particleName', 'particlePath', 'complexEmitterDefinitionData', 'visibilityRadius', 'maxDuration'] as const
@@ -61,7 +64,27 @@ const VFX_EMITTER_FIELDS = [
   'emitterLinger',
   'rate',
   'birthScale0',
+  'birthScale1',
   'scale0',
+  'rotation0',
+  'rotation1',
+  'depthBiasFactors',
+  'soundPersistentDefault',
+  'useNavmeshMask',
+  'useNavMeshMask',
+  'flexBirthScale0',
+  'flexBirthScale1',
+  'flexBirthTranslation',
+  'flexScaleBirthScale',
+  'flexScaleEmitOffset',
+  'flexBirthVelocity',
+  'flexOffset',
+  'flexRate',
+  'flexParticleLifetime',
+  'erosionSliceWidth',
+  'erosionFeatherOut',
+  'erosionMapAddressMode',
+  'erosionDriveSource',
   'birthRotation0',
   'birthVelocity',
   'birthOrbitalVelocity',
@@ -111,6 +134,17 @@ for (const name of VFX_EMITTER_FIELDS) registerField(name)
 
 for (const [typeName, hash] of Object.entries(RITUAL_VFX_TYPE_HASH)) {
   hashToFieldName.set(`0x${hash.toString(16)}`, typeName)
+}
+
+/** Hashes VFX ainda ausentes em hashes.binfields.txt (CommunityDragon) — Brand dance / flex emitters. */
+const RITUAL_FIELD_HASH_OVERRIDES: Record<string, string> = {
+  '0x65965391': 'flexBirthScale0',
+  '0x4485d923': 'flexBirthScale1',
+  '0x1e3f36a9': 'erosionSliceWidth',
+}
+
+for (const [hash, name] of Object.entries(RITUAL_FIELD_HASH_OVERRIDES)) {
+  hashToFieldName.set(normalizeRitualHashKey(hash), name)
 }
 
 /** Converte chave textual ou hash PROP para nome legível (ex.: 0x3d25b8ce → emitterName). */

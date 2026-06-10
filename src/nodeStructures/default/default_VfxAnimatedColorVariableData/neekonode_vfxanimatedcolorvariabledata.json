@@ -1,18 +1,18 @@
 {
-  "id": "vfx-animated-color-variable-data__main-entries-characters-zac-skins-skin0-particles-zac-base-q-tar-complex-emitter-definition-data-0-color-dynamics",
+  "id": "vfx-animated-color-variable-data__vfx-emitter-definition-data-vfx-emitter-definition-data-birth-color-0-dynamics",
   "title": "VfxAnimatedColorVariableData",
   "parameters": [
     {
-      "id": "vfx-animated-color-variable-data__main-entries-characters-zac-skins-skin0-particles-zac-base-q-tar-complex-emitter-definition-data-0-color-dynamics_parameter_times",
+      "id": "vfx-animated-color-variable-data__vfx-emitter-definition-data-vfx-emitter-definition-data-birth-color-0-dynamics_parameter_times",
       "name": "times",
       "type": "listF32",
-      "defaultValue": "0\n0.8\n1"
+      "defaultValue": "0\n0.255799\n0.572896\n0.8\n1"
     },
     {
-      "id": "vfx-animated-color-variable-data__main-entries-characters-zac-skins-skin0-particles-zac-base-q-tar-complex-emitter-definition-data-0-color-dynamics_parameter_values",
+      "id": "vfx-animated-color-variable-data__vfx-emitter-definition-data-vfx-emitter-definition-data-birth-color-0-dynamics_parameter_values",
       "name": "values",
       "type": "listVector4",
-      "defaultValue": "1, 1, 1, 0.5\n1, 1, 1, 0.5\n1, 1, 1, 0"
+      "defaultValue": "0.282, 0.163, 0.156, 1\n0.282, 0.163, 0.156, 1\n0.282, 0, 0, 0.522\n0.126, 0, 0, 0.098\n0.024, 0, 0, 0"
     }
   ],
   "internalStructures": [],

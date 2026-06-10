@@ -26,6 +26,7 @@ export type PendingAddonLink = {
 
 type UseAddonCanvasLinksOptions = {
   scene: CanvasScene
+  nodesForLayout: readonly CanvasNode[]
   scale: number
   canvasRef: React.RefObject<HTMLDivElement | null>
   visibleNodeIds: ReadonlySet<string>
@@ -39,10 +40,12 @@ type UseAddonCanvasLinksOptions = {
   }) => void
   endBlockLinkDraft?: () => void
   endGroupLinkDraft?: () => void
+  endLabelLinkDraft?: () => void
 }
 
 export function useAddonCanvasLinks({
   scene,
+  nodesForLayout,
   scale,
   canvasRef,
   visibleNodeIds,
@@ -52,6 +55,7 @@ export function useAddonCanvasLinks({
   onOpenAddonPalette,
   endBlockLinkDraft,
   endGroupLinkDraft,
+  endLabelLinkDraft,
 }: UseAddonCanvasLinksOptions) {
   const [pendingAddonLink, setPendingAddonLink] = useState<PendingAddonLink | null>(null)
   const pendingAddonLinkRef = useRef<PendingAddonLink | null>(null)
@@ -94,14 +98,14 @@ export function useAddonCanvasLinks({
       .map((connection) =>
         resolveAddonInvolvedConnectionPath(
           connection,
-          scene.nodes,
+          nodesForLayout,
           getManifest,
           getAddonCardWidth,
           addonSlotAnchors,
         ),
       )
       .filter((path): path is NonNullable<typeof path> => path !== null)
-  }, [addonSlotAnchors, getAddonCardWidth, scene.connections, scene.nodes, visibleNodeIds, getManifest])
+  }, [addonSlotAnchors, getAddonCardWidth, nodesForLayout, scene.connections, visibleNodeIds, getManifest])
 
   const endAddonLinkDraft = useCallback(() => {
     pendingAddonLinkRef.current = null
@@ -113,9 +117,10 @@ export function useAddonCanvasLinks({
     (fromNodeId: string, fromAddonSlotId: string) => {
       endBlockLinkDraft?.()
       endGroupLinkDraft?.()
+      endLabelLinkDraft?.()
       endAddonLinkDraft()
 
-      const fromNode = scene.nodes.find((node) => node.id === fromNodeId)
+      const fromNode = nodesForLayout.find((node) => node.id === fromNodeId)
       if (!fromNode?.addonInstance) {
         return
       }
@@ -145,7 +150,16 @@ export function useAddonCanvasLinks({
       setPendingAddonLink(next)
       setAddonLinkDraftPoint({ x: slotPoint.x, y: slotPoint.y })
     },
-    [addonSlotAnchors, endAddonLinkDraft, endBlockLinkDraft, endGroupLinkDraft, getAddonCardWidth, scene.nodes, getManifest],
+    [
+      addonSlotAnchors,
+      endAddonLinkDraft,
+      endBlockLinkDraft,
+      endGroupLinkDraft,
+      endLabelLinkDraft,
+      getAddonCardWidth,
+      nodesForLayout,
+      getManifest,
+    ],
   )
 
   const resolveAddonLinkDrop = useCallback(

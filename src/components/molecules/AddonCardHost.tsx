@@ -4,6 +4,7 @@ import type { MouseEvent as ReactMouseEvent, PointerEvent, PointerEventHandler }
 import { AddonCard } from '@/components/molecules/AddonCard'
 import { getAddonPackage, preloadAddonPackage } from '@/blockStructures/addonRegistry'
 import { useLanguage } from '@/language/LanguageProvider'
+import type { AddonSystemFunctionContext } from '@/core/addonSystemFunctions'
 import type { CanvasNode, CanvasScene } from '@/core/canvasScene'
 import { resolveWiredAddonInputSlotNames } from '@/core/addonSlotConnections'
 import { buildAddonWiredInputsFeedKey } from '@/core/addonInputFeed'
@@ -17,8 +18,13 @@ export type AddonCardHostProps = {
   scene: CanvasScene
   selected?: boolean
   interactionLocked?: boolean
+  wirelessHighlighted?: boolean
   activeAddonSlotId?: string
   onGraphStateMutation: (nodeId: string, outputPayload: Record<string, unknown>) => void
+  onInvokeAddonSystemFunction?: (
+    functionName: string,
+    context: AddonSystemFunctionContext,
+  ) => void | Promise<void>
   onAddonOutputPointerDown?: (slotId: string, event: PointerEvent<HTMLButtonElement>) => void
   onAddonOutputPointerUp?: (slotId: string, event: PointerEvent<HTMLButtonElement>) => void
   onAddonOutputPointerCancel?: (slotId: string, event: PointerEvent<HTMLButtonElement>) => void
@@ -33,8 +39,10 @@ export function AddonCardHost({
   scene,
   selected = false,
   interactionLocked = false,
+  wirelessHighlighted = false,
   activeAddonSlotId,
   onGraphStateMutation,
+  onInvokeAddonSystemFunction,
   onAddonOutputPointerDown,
   onAddonOutputPointerUp,
   onAddonOutputPointerCancel,
@@ -130,8 +138,10 @@ export function AddonCardHost({
       wiredInputsFeedKey={wiredInputsFeedKey}
       selected={selected}
       interactionLocked={interactionLocked}
+      wirelessHighlighted={wirelessHighlighted}
       activeAddonSlotId={activeAddonSlotId}
       onGraphStateMutation={onGraphStateMutation}
+      onInvokeAddonSystemFunction={onInvokeAddonSystemFunction}
       onAddonOutputPointerDown={onAddonOutputPointerDown}
       onAddonOutputPointerUp={onAddonOutputPointerUp}
       onAddonOutputPointerCancel={onAddonOutputPointerCancel}

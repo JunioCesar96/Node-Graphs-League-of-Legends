@@ -7,21 +7,19 @@ import {
   slashCommandByKey,
   slashCommandsList,
 } from '@/core/slashCommandRegistry'
-import { createBlockSlashCommandDocument } from '@/core/slashCommandTypes'
-import { emptyWorkspaceBlocksFile, emptyWorkspaceGroupsFile, WORKSPACE_FORMAT_VERSION } from '@/core/workspacePersistence'
+import {
+  createBlockSlashCommandDocument,
+  createMinimalCatalogSlashCommandPayload,
+  parseSlashCommandDocument,
+  slashCommandEffectiveAction,
+} from '@/core/slashCommandTypes'
 
 function sampleDocument(command: string) {
   return createBlockSlashCommandDocument({
     name: command,
     rootBlockName: 'Emitter',
     rootNodeId: 'n-vfx',
-    payload: {
-      logic: { version: WORKSPACE_FORMAT_VERSION, nodes: {} },
-      layout: { version: WORKSPACE_FORMAT_VERSION, width: 1120, height: 760, nodes: {} },
-      graph: { version: WORKSPACE_FORMAT_VERSION, connections: [] },
-      blocks: emptyWorkspaceBlocksFile(),
-      groups: emptyWorkspaceGroupsFile(),
-    },
+    payload: createMinimalCatalogSlashCommandPayload(),
   })
 }
 
@@ -40,5 +38,52 @@ describe('slashCommandRegistry', () => {
     expect(matchesSlashCommandQuery(document, 'emit')).toBe(true)
     expect(matchesSlashCommandQuery(document, '/emit')).toBe(true)
     expect(matchesSlashCommandQuery(document, 'zzz')).toBe(false)
+  })
+
+  it('parseia locale opcional', () => {
+    const withLocale = {
+      ...sampleDocument('Localized'),
+      locale: 'pt-BR',
+    }
+    const parsed = parseSlashCommandDocument(withLocale)
+    expect(parsed?.locale).toBe('pt-br')
+
+    const invalidLocale = { ...withLocale, locale: '' }
+    expect(parseSlashCommandDocument(invalidLocale)).toBeNull()
+  })
+
+  it('parseia action createBlock e createParameter', () => {
+    const spawnDoc = sampleDocument('SpawnOnly')
+    expect(slashCommandEffectiveAction(spawnDoc)).toBe('spawn')
+
+    const withAction = createBlockSlashCommandDocument({
+      name: 'CreateBlock',
+      rootBlockName: '_catalog',
+      rootNodeId: '_catalog',
+      payload: createMinimalCatalogSlashCommandPayload(),
+      action: 'createBlock',
+    })
+    const parsed = parseSlashCommandDocument(withAction)
+    expect(parsed).not.toBeNull()
+    expect(parsed?.action).toBe('createBlock')
+    expect(slashCommandEffectiveAction(parsed!)).toBe('createBlock')
+
+    const invalid = parseSlashCommandDocument({ ...withAction, action: 'invalid' })
+    expect(invalid).toBeNull()
+  })
+
+  it('parseia actions editBlock, deleteBlock, editParameter e deleteParameter', () => {
+    for (const action of ['editBlock', 'deleteBlock', 'editParameter', 'deleteParameter'] as const) {
+      const doc = createBlockSlashCommandDocument({
+        name: action,
+        rootBlockName: '_catalog',
+        rootNodeId: '_catalog',
+        payload: createMinimalCatalogSlashCommandPayload(),
+        action,
+      })
+      const parsed = parseSlashCommandDocument(doc)
+      expect(parsed?.action).toBe(action)
+      expect(slashCommandEffectiveAction(parsed!)).toBe(action)
+    }
   })
 })

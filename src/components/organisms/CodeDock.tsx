@@ -106,15 +106,9 @@ export type CodeToNewNodeGraphProgress = {
   ratio: number
 }
 
-export type CodeDockJadeEditorBanner = {
-  message: string
-  tone: 'fnv' | 'jade' | 'mock'
-}
-
 type CodeDockProps = {
   dockedWidth: number
   floatingActive: boolean
-  jadeEditorBanner?: CodeDockJadeEditorBanner | null
   floatingRect: CodeDockFloatingRect
   onFloatingRectChange: (next: CodeDockFloatingRect) => void
   onChange: (value: string) => void
@@ -152,7 +146,6 @@ const MAX_DOCK_WIDTH = CODE_DOCK_MAX_WIDTH
 export function CodeDock({
   dockedWidth,
   floatingActive,
-  jadeEditorBanner = null,
   floatingRect,
   onFloatingRectChange,
   onChange,
@@ -963,30 +956,6 @@ export function CodeDock({
           />
         </div>
       </header>
-      {jadeEditorBanner ? (
-        <div
-          className={[
-            styles.jadeEditorBanner,
-            jadeEditorBanner.tone === 'jade'
-              ? styles.jadeEditorBannerJade
-              : jadeEditorBanner.tone === 'mock'
-                ? styles.jadeEditorBannerMock
-                : styles.jadeEditorBannerFnv,
-          ].join(' ')}
-          role="status"
-        >
-          <span>{jadeEditorBanner.message}</span>
-          {nodeActions?.onHumanizePropRitual ? (
-            <button
-              className={styles.jadeEditorBannerAction}
-              onClick={() => nodeActions.onHumanizePropRitual?.()}
-              type="button"
-            >
-              {t(LangId.CodeBannerResolveHashes)}
-            </button>
-          ) : null}
-        </div>
-      ) : null}
       {deleteDialogOpen ? (
         <div aria-modal className={styles.dialogBackdrop} role="dialog">
           <div className={styles.dialogPanel}>

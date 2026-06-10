@@ -64,6 +64,7 @@ async function handleLoadWorkspace(workspaceDir: string, res: ServerResponse): P
     const graphPath = path.join(workspaceDir, 'graph.json')
     const blocksPath = path.join(workspaceDir, 'blocks.json')
     const groupsPath = path.join(workspaceDir, 'groups.json')
+    const labelsPath = path.join(workspaceDir, 'labels.json')
 
     const [hasLogic, hasLayout, hasGraph] = await Promise.all([
       fileExists(logicPath),
@@ -78,7 +79,7 @@ async function handleLoadWorkspace(workspaceDir: string, res: ServerResponse): P
       return
     }
 
-    const [logicRaw, layoutRaw, graphRaw, blocksRaw, groupsRaw] = await Promise.all([
+    const [logicRaw, layoutRaw, graphRaw, blocksRaw, groupsRaw, labelsRaw] = await Promise.all([
       fs.readFile(logicPath, 'utf8'),
       fs.readFile(layoutPath, 'utf8'),
       fs.readFile(graphPath, 'utf8'),
@@ -87,6 +88,9 @@ async function handleLoadWorkspace(workspaceDir: string, res: ServerResponse): P
       ),
       fileExists(groupsPath).then((exists) =>
         exists ? fs.readFile(groupsPath, 'utf8') : Promise.resolve(''),
+      ),
+      fileExists(labelsPath).then((exists) =>
+        exists ? fs.readFile(labelsPath, 'utf8') : Promise.resolve(''),
       ),
     ])
 
@@ -97,6 +101,8 @@ async function handleLoadWorkspace(workspaceDir: string, res: ServerResponse): P
       blocksRaw.trim().length > 0 ? (JSON.parse(blocksRaw) as unknown) : undefined
     const groups =
       groupsRaw.trim().length > 0 ? (JSON.parse(groupsRaw) as unknown) : undefined
+    const labels =
+      labelsRaw.trim().length > 0 ? (JSON.parse(labelsRaw) as unknown) : undefined
 
     res.statusCode = 200
     res.setHeader('Content-Type', 'application/json; charset=utf-8')
@@ -107,6 +113,7 @@ async function handleLoadWorkspace(workspaceDir: string, res: ServerResponse): P
         graph,
         ...(blocks !== undefined ? { blocks } : {}),
         ...(groups !== undefined ? { groups } : {}),
+        ...(labels !== undefined ? { labels } : {}),
       }),
     )
   } catch (error) {
@@ -134,7 +141,7 @@ async function handleSaveWorkspace(
       return
     }
 
-    const { logic, layout, graph, blocks, groups } = parsed
+    const { logic, layout, graph, blocks, groups, labels } = parsed
     if (!isRecord(logic) || !isRecord(layout) || !isRecord(graph)) {
       res.statusCode = 400
       res.setHeader('Content-Type', 'application/json; charset=utf-8')
@@ -189,6 +196,22 @@ async function handleSaveWorkspace(
         fs.writeFile(
           path.join(workspaceDir, 'groups.json'),
           `${JSON.stringify(groups, null, 2)}\n`,
+          'utf8',
+        ),
+      )
+    }
+
+    if (labels !== undefined) {
+      if (!isRecord(labels)) {
+        res.statusCode = 400
+        res.setHeader('Content-Type', 'application/json; charset=utf-8')
+        res.end(JSON.stringify({ error: 'Invalid labels payload' }))
+        return
+      }
+      writeTasks.push(
+        fs.writeFile(
+          path.join(workspaceDir, 'labels.json'),
+          `${JSON.stringify(labels, null, 2)}\n`,
           'utf8',
         ),
       )

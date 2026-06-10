@@ -258,6 +258,10 @@ import {
   CreateBlockDialog,
   type CreateBlockDialogConfirmPayload,
 } from '@/components/molecules/CreateBlockDialog'
+import { CreateLabelDialog } from '@/components/molecules/CreateLabelDialog'
+import { catalogParametersForLabelPicker, listParameterIdsReservedBySiblingLabels } from '@/core/labelParentLinking'
+import type { CreateLabelDraft } from '@/core/labelSchema'
+import { resolveLabelSlotCanvasPoint } from '@/core/labelSlotConnections'
 import { CreateParameterDialog } from '@/components/molecules/CreateParameterDialog'
 import { DeleteBlockDialog } from '@/components/molecules/DeleteBlockDialog'
 import { DeleteParameterDialog } from '@/components/molecules/DeleteParameterDialog'
@@ -435,7 +439,7 @@ type GraphCanvasProps = {
           toAddonSlotId: string
           allowForced?: boolean
         }
-      | {
+        | {
           kind: 'addonToBlock'
           fromNodeId: string
           fromAddonSlotId: string
@@ -443,8 +447,36 @@ type GraphCanvasProps = {
           toBlockSlotId: string
           toBlockParameterId?: string
           allowForced?: boolean
+        }
+        | {
+          kind: 'labelToAddon'
+          fromNodeId: string
+          fromLabelSlotId: string
+          toNodeId: string
+          toAddonSlotId: string
+          allowForced?: boolean
         },
   ) => void
+  onCreateLabelFromParent?: (
+    parentNodeId: string,
+    draft: CreateLabelDraft,
+    position?: CanvasPosition,
+  ) => { ok: true; nodeId: string } | { ok: false; error: string }
+  onCreateStandaloneLabel?: (
+    draft: CreateLabelDraft,
+    position?: CanvasPosition,
+  ) => { ok: true; nodeId: string } | { ok: false; error: string }
+  onLinkLabelToParentBlock?: (
+    labelNodeId: string,
+    parentNodeId: string,
+  ) => { ok: true } | { ok: false; error: string }
+  onUpdateLabelStructure?: (
+    labelNodeId: string,
+    draft: CreateLabelDraft,
+  ) => void
+  onAddLabelParameter?: (labelNodeId: string, parameterId: string) => void
+  onRemoveLabelParameter?: (labelNodeId: string, parameterId: string) => void
+  onToggleAllLabelParametersHiddenInParent?: (labelNodeId: string) => void
   onSyncBlockParameterCatalog?: (
     definitions: readonly BlockDefinitionJsonDocument[],
   ) => Promise<{ ok: boolean; error?: string }>
@@ -801,6 +833,12 @@ type PendingGroupLink = {
   fromNodeId: string
   fromGroupSlotId: string
   fromGroupParameterId?: string
+  draftAnchor: { sx: number; sy: number }
+}
+
+type PendingLabelLink = {
+  fromNodeId: string
+  fromLabelSlotId: string
   draftAnchor: { sx: number; sy: number }
 }
 
@@ -1850,6 +1888,13 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     onApplyAddonOutputs,
     onInvokeAddonSystemFunction,
     onConnectAddonSlots,
+    onCreateLabelFromParent,
+    onCreateStandaloneLabel,
+    onLinkLabelToParentBlock,
+    onUpdateLabelStructure,
+    onAddLabelParameter,
+    onRemoveLabelParameter,
+    onToggleAllLabelParametersHiddenInParent,
     onNodeLockedInteraction,
     onPatchNodeSceneOverlay,
     onSceneNodesPanelRequest,
@@ -1915,7 +1960,16 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
   const blockFocusPulseTimeoutRef = useRef<number | null>(null)
   const [pendingGroupLink, setPendingGroupLink] = useState<PendingGroupLink | null>(null)
   const pendingGroupLinkRef = useRef<PendingGroupLink | null>(null)
+  const [pendingLabelLink, setPendingLabelLink] = useState<PendingLabelLink | null>(null)
+  const pendingLabelLinkRef = useRef<PendingLabelLink | null>(null)
+  const [labelLinkDraftPoint, setLabelLinkDraftPoint] = useState<PanPoint | null>(null)
   const [groupLinkDraftPoint, setGroupLinkDraftPoint] = useState<PanPoint | null>(null)
+  const [labelDialogState, setLabelDialogState] = useState<
+    | { mode: 'create'; parentNodeId?: string; spawnPosition?: CanvasPosition }
+    | { mode: 'edit'; parentNodeId?: string; labelNodeId: string }
+    | null
+  >(null)
+  const [labelLinkHoverBlockNodeId, setLabelLinkHoverBlockNodeId] = useState<string | null>(null)
   const [groupWirelessPulse, setGroupWirelessPulse] = useState<{ nodeId: string; slotId: string } | null>(null)
   const [collectionTypeLinkMenu, setCollectionTypeLinkMenu] = useState<CollectionTypeLinkMenuState | null>(
     null,
@@ -2564,11 +2618,16 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       forced.add(pendingGroupLink.fromNodeId)
     }
 
+    if (pendingLabelLink) {
+      forced.add(pendingLabelLink.fromNodeId)
+    }
+
     return forced
   }, [
     glueNodeId,
     pendingBlockLink,
     pendingGroupLink,
+    pendingLabelLink,
     pendingLink,
     ritualLinkDropHoverNodeId,
     selectedNodeIds,
@@ -2707,6 +2766,11 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       setPendingGroupLink(null)
       setGroupLinkDraftPoint(null)
     },
+    endLabelLinkDraft: () => {
+      pendingLabelLinkRef.current = null
+      setPendingLabelLink(null)
+      setLabelLinkDraftPoint(null)
+    },
   })
 
   const paletteSchemas = useMemo(() => {
@@ -2808,10 +2872,17 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     setGroupLinkDraftPoint(null)
   }, [])
 
+  const endLabelLinkDraft = useCallback(() => {
+    pendingLabelLinkRef.current = null
+    setPendingLabelLink(null)
+    setLabelLinkDraftPoint(null)
+  }, [])
+
   const beginBlockOutputLink = useCallback(
     (fromNodeId: string, fromBlockSlotId: string, fromBlockParameterId?: string) => {
       endLinkDraft()
       endGroupLinkDraft()
+      endLabelLinkDraft()
       const fromNode = scene.nodes.find((node) => node.id === fromNodeId)
       const fromWidth = fromNode ? resolveBlockCardWidth(fromNode) : undefined
       const anchor = fromNode
@@ -2835,13 +2906,33 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       setPendingBlockLink(next)
       setBlockLinkDraftPoint({ x: anchor.x, y: anchor.y })
     },
-    [endGroupLinkDraft, endLinkDraft, scene.nodes],
+    [endGroupLinkDraft, endLabelLinkDraft, endLinkDraft, scene.nodes],
+  )
+
+  const beginLabelOutputLink = useCallback(
+    (fromNodeId: string, fromLabelSlotId: string) => {
+      endLinkDraft()
+      endBlockLinkDraft()
+      endGroupLinkDraft()
+      const fromNode = scene.nodes.find((node) => node.id === fromNodeId)
+      const anchor = fromNode ? resolveLabelSlotCanvasPoint(fromNode, fromLabelSlotId) : null
+      const next: PendingLabelLink = {
+        fromNodeId,
+        fromLabelSlotId,
+        draftAnchor: { sx: anchor?.x ?? 0, sy: anchor?.y ?? 0 },
+      }
+      pendingLabelLinkRef.current = next
+      setPendingLabelLink(next)
+      setLabelLinkDraftPoint(anchor ? { x: anchor.x, y: anchor.y } : null)
+    },
+    [endBlockLinkDraft, endGroupLinkDraft, endLabelLinkDraft, endLinkDraft, scene.nodes],
   )
 
   const beginGroupOutputLink = useCallback(
     (fromNodeId: string, fromGroupSlotId: string, fromGroupParameterId?: string) => {
       endLinkDraft()
       endBlockLinkDraft()
+      endLabelLinkDraft()
       const fromNode = scene.nodes.find((node) => node.id === fromNodeId)
       const fromWidth = fromNode ? resolveGroupCardWidth(fromNode) : undefined
       const anchor = fromNode
@@ -2862,7 +2953,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       setPendingGroupLink(next)
       setGroupLinkDraftPoint(anchor ? { x: anchor.x, y: anchor.y } : null)
     },
-    [endBlockLinkDraft, endLinkDraft, scene.nodes],
+    [endBlockLinkDraft, endLabelLinkDraft, endLinkDraft, scene.nodes],
   )
 
   const tryConnectBlockSlots = useCallback(
@@ -3065,6 +3156,17 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     ],
   )
 
+  const resolveLabelLinkDrop = useCallback(
+    (clientX: number, clientY: number) => {
+      const pending = pendingLabelLinkRef.current
+      if (!pending) {
+        return
+      }
+      endLabelLinkDraft()
+    },
+    [endLabelLinkDraft],
+  )
+
   const resolveGroupLinkDrop = useCallback(
     (clientX: number, clientY: number) => {
       const pending = pendingGroupLinkRef.current
@@ -3151,6 +3253,23 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     return () => window.removeEventListener('pointermove', onMove)
   }, [pendingGroupLink, scale])
 
+  useEffect(() => {
+    if (!pendingLabelLink) {
+      return
+    }
+
+    const onMove = (event: globalThis.PointerEvent) => {
+      const canvasEl = canvasRef.current
+      if (!canvasEl) {
+        return
+      }
+      setLabelLinkDraftPoint(graphClientToPosition(canvasEl, scale, event.clientX, event.clientY))
+    }
+
+    window.addEventListener('pointermove', onMove)
+    return () => window.removeEventListener('pointermove', onMove)
+  }, [pendingLabelLink, scale])
+
   const handleBlockSlotWirelessHoverStart = useCallback(
     (slotId: string, link: BlockSlotWirelessLink) => {
       const connection = scene.connections.find((entry) => entry.id === link.connectionId)
@@ -3212,6 +3331,10 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
   useEffect(() => {
     pendingGroupLinkRef.current = pendingGroupLink
   }, [pendingGroupLink])
+
+  useEffect(() => {
+    pendingLabelLinkRef.current = pendingLabelLink
+  }, [pendingLabelLink])
 
   useEffect(() => {
     pendingLinkRef.current = pendingLink
@@ -5168,6 +5291,17 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
               canRemove: Boolean(onRemoveBlockParameter),
             }
           : undefined,
+      onRequestCreateLabel: onCreateLabelFromParent
+        ? (nodeId) => setLabelDialogState({ mode: 'create', parentNodeId: nodeId })
+        : undefined,
+      canCreateStandaloneLabel: Boolean(onCreateStandaloneLabel),
+      onRequestEditLabel: onUpdateLabelStructure
+        ? (labelNodeId) => {
+            const labelNode = scene.nodes.find((node) => node.id === labelNodeId)
+            const parentNodeId = labelNode?.labelStructure?.parentBlockNodeId?.trim() || undefined
+            setLabelDialogState({ mode: 'edit', parentNodeId, labelNodeId })
+          }
+        : undefined,
       onRequestBlockSlashCommand:
         onSaveBlockSlashCommand || onRemoveBlockSlashCommand
           ? (nodeId, action) => {
@@ -5216,6 +5350,11 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     onSaveBlockSlashCommand,
     onRemoveBlockSlashCommand,
     refreshSlashCommandsCatalog,
+    onCreateLabelFromParent,
+    onCreateStandaloneLabel,
+    onUpdateLabelStructure,
+    onHideInactiveBlockIndexBranches,
+    onApplyBlockOrganization,
   ])
 
   const contextMenuItems = useMemo(() => {
@@ -5303,6 +5442,16 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
         case 'canvas.addNode.addon':
           openPalette({ catalogMode: 'addons' })
           break
+        case 'canvas.createLabel': {
+          const canvasEl = canvasRef.current
+          const anchor = contextMenu?.anchor
+          const spawnPosition =
+            canvasEl && anchor
+              ? graphClientToPosition(canvasEl, scale, anchor.left, anchor.top)
+              : undefined
+          setLabelDialogState({ mode: 'create', spawnPosition })
+          break
+        }
         case 'canvas.zoomIn':
           zoomIn()
           break
@@ -5552,6 +5701,22 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
             setBlockParameterScreenAnchor(contextMenu?.anchor ?? null)
             setBlockParameterAnchorNodeId(target.nodeId)
             setBlockParameterPanelRequest({ nodeId: target.nodeId, panel: 'remove' })
+          }
+          break
+        case 'node.createLabel':
+          if (target.type === 'node') {
+            setLabelDialogState({ mode: 'create', parentNodeId: target.nodeId })
+          }
+          break
+        case 'node.editLabel':
+          if (target.type === 'node') {
+            const labelNode = scene.nodes.find((node) => node.id === target.nodeId)
+            const parentNodeId = labelNode?.labelStructure?.parentBlockNodeId?.trim() || undefined
+            setLabelDialogState({
+              mode: 'edit',
+              parentNodeId,
+              labelNodeId: target.nodeId,
+            })
           }
           break
         case 'node.slashCommands':
@@ -6162,6 +6327,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       blockParameterScreenAnchor,
       canvasRef,
       pendingBlockLinkRef,
+      pendingLabelLinkRef,
       addonLinks: {
         pendingAddonLink: addonLinks.pendingAddonLink,
         beginAddonOutputLink: addonLinks.beginAddonOutputLink,
@@ -6198,6 +6364,42 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       onSetBlockElementSelectedIndex,
       onRemoveConnectionsFromBlockSlot,
       onUpdateBlockParameter,
+      beginLabelOutputLink,
+      endLabelLinkDraft,
+      resolveLabelLinkDrop,
+      onAddLabelParameter,
+      onRemoveLabelParameter,
+      onToggleAllLabelParametersHiddenInParent,
+      onLinkLabelToParentBlock: onLinkLabelToParentBlock
+        ? (labelNodeId, parentNodeId) => {
+            const result = onLinkLabelToParentBlock(labelNodeId, parentNodeId)
+            if (!result.ok) {
+              showAppAlert(result.error)
+              return
+            }
+            setLabelLinkHoverBlockNodeId(null)
+            onSelectNode(parentNodeId)
+          }
+        : undefined,
+      labelLinkHoverBlockNodeId,
+      setLabelLinkHoverBlockNodeId,
+      openCreateLabelForBlock: onCreateLabelFromParent
+        ? (parentNodeId) => setLabelDialogState({ mode: 'create', parentNodeId })
+        : undefined,
+      removeLabelNode: onDeleteNodeIds
+        ? (labelNodeId) => onDeleteNodeIds([labelNodeId])
+        : undefined,
+      onEditLabelParentParameter: onEditBlockParameter
+        ? (labelNodeId, param, screenAnchor) => {
+            const labelNode = scene.nodes.find((node) => node.id === labelNodeId)
+            const parentId = labelNode?.labelStructure?.parentBlockNodeId
+            if (!parentId) {
+              return
+            }
+            onEditBlockParameter(parentId, param, screenAnchor)
+          }
+        : undefined,
+      onUpdateLabelParentParameter: onUpdateBlockParameter,
       onAddBlockParameterFromCatalog,
       onRemoveBlockParameter,
       onEditBlockParameter,
@@ -6240,6 +6442,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     addonLinks,
     beginBlockOutputLink,
     beginGroupOutputLink,
+    beginLabelOutputLink,
     blockParameterScreenAnchor,
     buildBlockSlotPeerActions,
     buildOutputSlotPeerActions,
@@ -6249,6 +6452,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     completeLink,
     dismissBlockParameterPanel,
     endBlockLinkDraft,
+    endLabelLinkDraft,
     handleBlockSlotWirelessHoverEnd,
     handleBlockSlotWirelessHoverStart,
     handleContextMenu,
@@ -6273,6 +6477,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     onApplyAddonOutputs,
     onInvokeAddonSystemFunction,
     onAddBlockParameterFromCatalog,
+    onAddLabelParameter,
     onCatalogParameterAppend,
     onConnectAddonSlots,
     onCycleConnectionRouting,
@@ -6280,6 +6485,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     onNeekoDropCode,
     onNodeLockedInteraction,
     onRemoveBlockParameter,
+    onRemoveLabelParameter,
     onRemoveConnection,
     onRemoveConnectionsFromBlockSlot,
     onRemoveConnectionsFromOutputSlot,
@@ -6295,12 +6501,20 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     onSetNodeParameterOrder,
     onSetStructureCardWidth,
     onToggleNodeCardSection,
+    onToggleAllLabelParametersHiddenInParent,
+    onCreateLabelFromParent,
+    onCreateStandaloneLabel,
+    onLinkLabelToParentBlock,
+    labelLinkHoverBlockNodeId,
+    onDeleteNodeIds,
     onUpdateBlockParameter,
     onUpdateGroupParameter,
+    onUpdateLabelStructure,
     onUpdateNodeParameter,
     resolveBlockLinkDrop,
     resolveBlockOutputSlotConnectionIndexForNode,
     resolveGroupLinkDrop,
+    resolveLabelLinkDrop,
     scene.connections,
     schemaNodeKindBySchemaId,
     setBlockLinkDraftPoint,
@@ -6312,6 +6526,24 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     tryConnectCrossSlots,
     handleBlockOutputSlotConnectionIndexChange,
   ])
+
+  const labelDialogReservedParameterIds = useMemo(() => {
+    const parentId = labelDialogState?.parentNodeId
+    if (!parentId) {
+      return []
+    }
+    const parentNode = scene.nodes.find((node) => node.id === parentId)
+    const structure = parentNode?.blockStructure
+    if (!structure) {
+      return []
+    }
+    return listParameterIdsReservedBySiblingLabels(
+      scene,
+      parentId,
+      structure,
+      labelDialogState?.mode === 'edit' ? labelDialogState.labelNodeId : undefined,
+    )
+  }, [labelDialogState, scene])
 
   return (
     <section
@@ -6672,6 +6904,99 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
         }}
       />
 
+      <CreateLabelDialog
+        initialDraft={
+          labelDialogState?.mode === 'edit'
+            ? (() => {
+                const labelNode = scene.nodes.find(
+                  (node) => node.id === labelDialogState.labelNodeId,
+                )
+                const structure = labelNode?.labelStructure
+                if (!structure) {
+                  return null
+                }
+                return {
+                  labelName: structure.labelName,
+                  color: structure.color,
+                  catalogBlockType: structure.catalogBlockType,
+                  parameters: structure.parameters.map((entry) => ({
+                    parameterId: entry.parameterId,
+                    ...(entry.hiddenInParent ? { hiddenInParent: true } : {}),
+                  })),
+                }
+              })()
+            : null
+        }
+        isOpen={labelDialogState !== null}
+        mode={labelDialogState?.mode ?? 'create'}
+        variant={
+          labelDialogState && !labelDialogState.parentNodeId ? 'standalone' : 'fromParent'
+        }
+        parentBlockName={
+          labelDialogState?.parentNodeId
+            ? (scene.nodes.find((node) => node.id === labelDialogState.parentNodeId)?.blockStructure
+                ?.blockName ?? 'Bloco')
+            : ''
+        }
+        parentParameters={
+          labelDialogState?.parentNodeId
+            ? (scene.nodes.find((node) => node.id === labelDialogState.parentNodeId)?.blockStructure
+                ?.parameters ?? [])
+            : catalogParametersForLabelPicker().map((entry) => ({
+                idParameter: entry.idParameter,
+                nameParameter: entry.nameParameter,
+              }))
+        }
+        reservedParameterIds={labelDialogReservedParameterIds}
+        onCancel={() => setLabelDialogState(null)}
+        onConfirm={(draft) => {
+          const state = labelDialogState
+          setLabelDialogState(null)
+          if (!state) {
+            return
+          }
+          if (state.mode === 'create') {
+            if (state.parentNodeId) {
+              if (!onCreateLabelFromParent) {
+                return
+              }
+              const result = onCreateLabelFromParent(
+                state.parentNodeId,
+                draft,
+                state.spawnPosition,
+              )
+              if (!result.ok) {
+                showAppAlert(result.error)
+              }
+              return
+            }
+            if (!onCreateStandaloneLabel) {
+              return
+            }
+            const result = onCreateStandaloneLabel(draft, state.spawnPosition)
+            if (!result.ok) {
+              showAppAlert(result.error)
+            }
+            return
+          }
+          if (!onUpdateLabelStructure) {
+            return
+          }
+          const labelNode = scene.nodes.find((node) => node.id === state.labelNodeId)
+          const existing = labelNode?.labelStructure?.parameters ?? []
+          onUpdateLabelStructure(state.labelNodeId, {
+            ...draft,
+            parameters: draft.parameters.map((entry) => {
+              const previous = existing.find((param) => param.parameterId === entry.parameterId)
+              return {
+                parameterId: entry.parameterId,
+                ...(previous?.hiddenInParent ? { hiddenInParent: true } : {}),
+              }
+            }),
+          })
+        }}
+      />
+
       <CreateParameterDialog
         isOpen={createParameterDialogOpen}
         onCancel={() => setCreateParameterDialogOpen(false)}
@@ -6952,6 +7277,8 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
           blockLinkDraftPoint={blockLinkDraftPoint}
           pendingGroupLink={pendingGroupLink}
           groupLinkDraftPoint={groupLinkDraftPoint}
+          pendingLabelLink={pendingLabelLink}
+          labelLinkDraftPoint={labelLinkDraftPoint}
           pendingLink={pendingLink}
           linkDraftPoint={linkDraftPoint}
           createDraftConnectionPath={createDraftConnectionPath}
@@ -6985,6 +7312,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
             const isSelected = selectedNodeIds.includes(canvasNode.id)
             const cardHandlesSelection =
               (canvasNode.groupViewActive && !!canvasNode.groupStructure) ||
+              (canvasNode.labelViewActive && !!canvasNode.labelStructure) ||
               (canvasNode.addonViewActive && !!canvasNode.addonInstance) ||
               (canvasNode.blockViewActive && !!canvasNode.blockStructure)
             const pendingFromNode = pendingLink
@@ -7015,6 +7343,11 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
               !isCompatibleTarget
             const slotToolsEnabled =
               !nodeGlueLocked && blockSlotToolsEnabledNodes.has(canvasNode.id)
+            const labelParentBlockNodeId =
+              canvasNode.labelViewActive && canvasNode.labelStructure
+                ? canvasNode.labelStructure.parentBlockNodeId
+                : null
+            const blockSlotHostNodeId = labelParentBlockNodeId ?? canvasNode.id
 
             return (
               <GraphCanvasSceneNode
@@ -7032,11 +7365,11 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
                 wirelessHighlighted={wirelessHighlightNodeId === canvasNode.id}
                 linkDropHovered={ritualLinkDropHoverNodeId === canvasNode.id}
                 cardHandlesSelection={cardHandlesSelection}
-                blockWirelessDisplay={blockWirelessDisplayByNode.get(canvasNode.id)}
+                blockWirelessDisplay={blockWirelessDisplayByNode.get(blockSlotHostNodeId)}
                 groupWirelessDisplay={groupWirelessDisplayByNode.get(canvasNode.id)}
                 wirelessDisplay={wirelessDisplayByNode.get(canvasNode.id)}
                 blockWirelessPulseSlotId={
-                  blockWirelessPulse?.nodeId === canvasNode.id
+                  blockWirelessPulse?.nodeId === blockSlotHostNodeId
                     ? blockWirelessPulse.slotId
                     : undefined
                 }
@@ -7061,10 +7394,15 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
                     : null
                 }
                 blockSlotPeerActions={
-                  slotToolsEnabled ? buildBlockSlotPeerActions(canvasNode.id) : undefined
+                  slotToolsEnabled ? buildBlockSlotPeerActions(blockSlotHostNodeId) : undefined
                 }
-                activeBlockSlotId={pendingBlockLink?.fromBlockSlotId}
+                activeBlockSlotId={
+                  pendingBlockLink?.fromNodeId === blockSlotHostNodeId
+                    ? pendingBlockLink.fromBlockSlotId
+                    : undefined
+                }
                 activeGroupSlotId={pendingGroupLink?.fromGroupSlotId}
+                activeLabelSlotId={pendingLabelLink?.fromLabelSlotId}
                 activeAddonSlotId={
                   addonLinks.pendingAddonLink?.fromAddonSlotId ??
                   (blockWirelessPulse?.nodeId === canvasNode.id

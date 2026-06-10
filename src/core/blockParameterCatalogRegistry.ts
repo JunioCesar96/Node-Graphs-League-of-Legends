@@ -52,6 +52,24 @@ for (const [path, mod] of Object.entries(modules)) {
   byName.set(paramKey, bucket)
 }
 
+/** Todos os parâmetros do catálogo estático (glob eager em `blockStructures/parameters/**`). */
+export function listAllBlockParametersFromCatalog(): BlockParameterJsonDocument[] {
+  const all: BlockParameterJsonDocument[] = []
+  for (const byName of byBlockAndName.values()) {
+    for (const docs of byName.values()) {
+      all.push(...docs)
+    }
+  }
+  all.sort((a, b) => {
+    const blockCmp = a.block.localeCompare(b.block)
+    if (blockCmp !== 0) {
+      return blockCmp
+    }
+    return a.parameterName.localeCompare(b.parameterName)
+  })
+  return all
+}
+
 /** Parâmetros JSON em disco para um tipo de bloco (`parameters/{blockName}/`). */
 export function blockParameterCatalogForBlock(blockType: string): readonly BlockParameterJsonDocument[] {
   const byName = byBlockAndName.get(blockType.trim())
@@ -94,4 +112,45 @@ export function registerBlockParameterInCatalog(doc: BlockParameterJsonDocument)
     bucket.push(doc)
     byName.set(paramKey, bucket)
   }
+}
+
+export function unregisterBlockParameterInCatalog(
+  block: string,
+  parameterName: string,
+  parameterId?: string,
+): void {
+  const blockKey = block.trim()
+  const paramKey = parameterName.trim()
+  const byName = byBlockAndName.get(blockKey)
+  if (!byName) {
+    return
+  }
+
+  if (!parameterId?.trim()) {
+    byName.delete(paramKey)
+    if (byName.size === 0) {
+      byBlockAndName.delete(blockKey)
+    }
+    return
+  }
+
+  const bucket = byName.get(paramKey)
+  if (!bucket) {
+    return
+  }
+
+  const next = bucket.filter((entry) => entry.id !== parameterId.trim())
+  if (next.length > 0) {
+    byName.set(paramKey, next)
+    return
+  }
+
+  byName.delete(paramKey)
+  if (byName.size === 0) {
+    byBlockAndName.delete(blockKey)
+  }
+}
+
+export function unregisterAllBlockParametersInCatalog(block: string): void {
+  byBlockAndName.delete(block.trim())
 }

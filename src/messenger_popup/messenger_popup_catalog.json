@@ -71,6 +71,12 @@
       "message": "Falha ao construir Neeko node.",
       "durationMs": 6000,
       "kind": "toast"
+    },
+    {
+      "id": "toast_slot_connection_loop",
+      "message": "Não é possível ligar: esta conexão fecha um ciclo entre saída e entrada e causaria um loop infinito nos valores.",
+      "durationMs": 9000,
+      "kind": "toast"
     }
   ]
 }

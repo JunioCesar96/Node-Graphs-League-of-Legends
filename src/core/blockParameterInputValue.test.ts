@@ -34,4 +34,18 @@ describe('resolveBlockParameterInputValue', () => {
 
     expect(resolveBlockParameterInputValue(token, 'listVector4')).toContain('0.282, 0.163, 0.156, 1')
   })
+
+  it('extrai vec3 editável mesmo com output[vec3] no token', () => {
+    const token =
+      '_blockType&ValueVector3_blockName&ValueVector3_idParameter&constantValue_constantValue_nameParameter&constantValue_typeParameter&vec3{680, 680, 50}_slotParameter&output[vec3]_endParameter'
+
+    expect(resolveBlockParameterInputValue(token, 'vec3')).toBe('680, 680, 50')
+  })
+
+  it('mantém token completo quando output aponta para bloco embed', () => {
+    const token =
+      '_blockType&VfxEmitterDefinitionData_blockName&VfxEmitterDefinitionData_idParameter&birthScale0_birthScale0_nameParameter&birthScale0_typeParameter&ValueVector3{}_slotParameter&output[ValueVector3]_endParameter'
+
+    expect(resolveBlockParameterInputValue(token, 'ValueVector3')).toBe(token)
+  })
 })

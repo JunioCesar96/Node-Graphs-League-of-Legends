@@ -88,4 +88,51 @@ describe('crossSlotConnections', () => {
       ).kind,
     ).toBe('compatible')
   })
+
+  it('header Preview → addon code compatível', () => {
+    expect(
+      classifyBlockOutputToAddonInput(
+        blockEp('b1', 'block-header:VfxEmitterDefinitionData:1', 'output', [
+          'VfxEmitterDefinitionDataPreview',
+        ]),
+        addonEp('a1', 'code', 'input', 'code'),
+      ).kind,
+    ).toBe('compatible')
+  })
+
+  it('addon code → addon code compatível', () => {
+    expect(
+      classifyAddonSlotConnectionExtended(
+        addonEp('a', 'out', 'output', 'code'),
+        addonEp('b', 'code', 'input', 'code'),
+      ).kind,
+    ).toBe('compatible')
+  })
+
+  it('addon u8 → bloco u8 compatível', () => {
+    expect(
+      classifyAddonOutputToBlockInput(
+        addonEp('a1', 'value', 'output', 'u8'),
+        blockEp('b1', 'block:in', 'input', ['u8']),
+      ).kind,
+    ).toBe('compatible')
+  })
+
+  it('addon vec3 → bloco vec3 compatível', () => {
+    expect(
+      classifyAddonOutputToBlockInput(
+        addonEp('a1', 'value', 'output', 'vec3'),
+        blockEp('b1', 'block:in', 'input', ['vec3']),
+      ).kind,
+    ).toBe('compatible')
+  })
+
+  it('addon u8 → bloco f32 forçado', () => {
+    expect(
+      classifyAddonOutputToBlockInput(
+        addonEp('a1', 'value', 'output', 'u8'),
+        blockEp('b1', 'block:in', 'input', ['f32']),
+      ).kind,
+    ).toBe('forced')
+  })
 })

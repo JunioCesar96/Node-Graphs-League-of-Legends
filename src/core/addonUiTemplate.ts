@@ -239,10 +239,40 @@ function unwrapSlotLine(slotLine: HTMLElement): void {
   slotLine.remove()
 }
 
-function buildGridRow(name: string, slotDef: AddonSlot, block: HTMLElement): HTMLElement {
+function appendSlotPinToGridColumns(
+  name: string,
+  slotDef: AddonSlot,
+  colIn: HTMLElement,
+  colOut: HTMLElement,
+): void {
+  if (slotDef.direction === 'input') {
+    if (isAddonSlotPinVisible(slotDef)) {
+      colIn.appendChild(createPinHost(name))
+    } else {
+      colIn.appendChild(createHiddenInputAnchor(name))
+    }
+    return
+  }
+
+  if (slotDef.direction === 'output' && isAddonSlotPinVisible(slotDef)) {
+    colOut.appendChild(createPinHost(name))
+  }
+}
+
+function buildGridRowFromBlock(block: HTMLElement, manifest: AddonManifest): HTMLElement | null {
+  const slotLines = [...block.querySelectorAll('[data-addon-slot-line]')].filter(
+    (node): node is HTMLElement => node instanceof HTMLElement,
+  )
+  if (slotLines.length === 0) {
+    return null
+  }
+
   const row = document.createElement('div')
   row.className = 'addon-grid-row'
-  row.setAttribute('data-addon-grid-row', name)
+  row.setAttribute(
+    'data-addon-grid-row',
+    slotLines[0]?.getAttribute('data-addon-slot-line')?.trim() ?? 'row',
+  )
 
   const colIn = document.createElement('div')
   colIn.className = 'addon-grid-col addon-grid-col--input'
@@ -253,16 +283,17 @@ function buildGridRow(name: string, slotDef: AddonSlot, block: HTMLElement): HTM
   const colOut = document.createElement('div')
   colOut.className = 'addon-grid-col addon-grid-col--output'
 
-  if (slotDef.direction === 'input') {
-    if (isAddonSlotPinVisible(slotDef)) {
-      colIn.appendChild(createPinHost(name))
-    } else {
-      colIn.appendChild(createHiddenInputAnchor(name))
+  for (const slotLine of slotLines) {
+    const name = slotLine.getAttribute('data-addon-slot-line')?.trim()
+    if (!name) {
+      continue
     }
-  }
-
-  if (slotDef.direction === 'output' && isAddonSlotPinVisible(slotDef)) {
-    colOut.appendChild(createPinHost(name))
+    const slotDef = manifest.data.find((slot) => slot.name === name)
+    if (!slotDef) {
+      continue
+    }
+    unwrapSlotLine(slotLine)
+    appendSlotPinToGridColumns(name, slotDef, colIn, colOut)
   }
 
   colBody.appendChild(block)
@@ -285,19 +316,9 @@ export function applyAddonBodyGridLayout(root: HTMLElement, manifest: AddonManif
       continue
     }
 
-    const slotLine = child.querySelector('[data-addon-slot-line]')
-    if (slotLine instanceof HTMLElement) {
-      const name = slotLine.getAttribute('data-addon-slot-line')?.trim()
-      if (!name) {
-        continue
-      }
-      const slotDef = manifest.data.find((slot) => slot.name === name)
-      if (!slotDef) {
-        continue
-      }
-
-      unwrapSlotLine(slotLine)
-      grid.appendChild(buildGridRow(name, slotDef, child))
+    const gridRow = buildGridRowFromBlock(child, manifest)
+    if (gridRow) {
+      grid.appendChild(gridRow)
       continue
     }
 

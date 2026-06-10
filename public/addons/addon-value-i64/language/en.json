@@ -1,0 +1,9 @@
+{
+  "0": "I64 Value",
+  "1": "Value",
+  "4": "integer",
+  "6": "Literal i64 value exposed on the add-on output.",
+  "20": "Values",
+  "21": "Parameter",
+  "23": "Sets a literal i64 value and exposes it on an output slot compatible with block parameters."
+}

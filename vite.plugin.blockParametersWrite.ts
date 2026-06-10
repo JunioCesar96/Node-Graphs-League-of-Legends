@@ -10,6 +10,7 @@ import {
 } from './vite.addonsInstallHandler'
 import { normalizeApiPathname } from './vite.devApiPath'
 import { sanitizeBlockParameterFileStem, sanitizeBlockStructureFolderName } from './src/core/blockParameterFileStem'
+import { pascalBlockTypeToKebabSlug } from './src/core/blockParameterIdTemplate'
 
 function sanitizeBlockDefinitionFileStem(id: string): string | null {
   const t = id
@@ -476,6 +477,147 @@ async function handleSlashCommandsDeleteRequest(
   }
 }
 
+async function handleBlockDefinitionsDeleteRequest(
+  projectRoot: string,
+  req: import('http').IncomingMessage,
+  res: import('http').ServerResponse,
+): Promise<void> {
+  try {
+    const rawBody = await readRequestBody(req)
+    const parsed: unknown = JSON.parse(rawBody) as unknown
+
+    if (!isRecord(parsed) || typeof parsed.blockName !== 'string') {
+      res.statusCode = 400
+      res.setHeader('Content-Type', 'application/json; charset=utf-8')
+      res.end(JSON.stringify({ ok: false, error: 'Corpo inválido' }))
+      return
+    }
+
+    const blockFolder = sanitizeBlockStructureFolderName(parsed.blockName)
+    if (!blockFolder) {
+      res.statusCode = 400
+      res.setHeader('Content-Type', 'application/json; charset=utf-8')
+      res.end(JSON.stringify({ ok: false, error: 'blockName inválido' }))
+      return
+    }
+
+    const blocksRoot = path.resolve(projectRoot, 'src', 'blockStructures', 'blocks')
+    const parametersRoot = path.resolve(projectRoot, 'src', 'blockStructures', 'parameters')
+    const blockDir = path.resolve(blocksRoot, blockFolder)
+    const parametersDir = path.resolve(parametersRoot, blockFolder)
+
+    const relBlockDir = path.relative(blocksRoot, blockDir)
+    const relParametersDir = path.relative(parametersRoot, parametersDir)
+    if (relBlockDir.startsWith('..') || path.isAbsolute(relBlockDir)) {
+      res.statusCode = 400
+      res.setHeader('Content-Type', 'application/json; charset=utf-8')
+      res.end(JSON.stringify({ ok: false, error: 'Caminho do bloco inválido' }))
+      return
+    }
+    if (relParametersDir.startsWith('..') || path.isAbsolute(relParametersDir)) {
+      res.statusCode = 400
+      res.setHeader('Content-Type', 'application/json; charset=utf-8')
+      res.end(JSON.stringify({ ok: false, error: 'Caminho dos parâmetros inválido' }))
+      return
+    }
+
+    if (await fileExists(blockDir)) {
+      await fs.rm(blockDir, { recursive: true, force: true })
+    }
+
+    if (await fileExists(parametersDir)) {
+      await fs.rm(parametersDir, { recursive: true, force: true })
+    }
+
+    const schemaId = pascalBlockTypeToKebabSlug(blockFolder)
+    const catalogSchemaPath = path.resolve(projectRoot, 'src', 'nodeStructures', 'catalog', `${schemaId}.json`)
+    const catalogRoot = path.resolve(projectRoot, 'src', 'nodeStructures', 'catalog')
+    const relCatalog = path.relative(catalogRoot, catalogSchemaPath)
+    if (
+      (await fileExists(catalogSchemaPath)) &&
+      !relCatalog.startsWith('..') &&
+      !path.isAbsolute(relCatalog)
+    ) {
+      await fs.unlink(catalogSchemaPath)
+    }
+
+    res.statusCode = 200
+    res.setHeader('Content-Type', 'application/json; charset=utf-8')
+    res.end(JSON.stringify({ ok: true, deleted: blockFolder }))
+  } catch (err) {
+    res.statusCode = 500
+    res.setHeader('Content-Type', 'application/json; charset=utf-8')
+    res.end(
+      JSON.stringify({
+        ok: false,
+        error: err instanceof Error ? err.message : String(err),
+      }),
+    )
+  }
+}
+
+async function handleBlockParametersDeleteRequest(
+  projectRoot: string,
+  req: import('http').IncomingMessage,
+  res: import('http').ServerResponse,
+): Promise<void> {
+  try {
+    const rawBody = await readRequestBody(req)
+    const parsed: unknown = JSON.parse(rawBody) as unknown
+
+    if (
+      !isRecord(parsed) ||
+      typeof parsed.block !== 'string' ||
+      typeof parsed.id !== 'string'
+    ) {
+      res.statusCode = 400
+      res.setHeader('Content-Type', 'application/json; charset=utf-8')
+      res.end(JSON.stringify({ ok: false, error: 'Corpo inválido' }))
+      return
+    }
+
+    const blockFolder = sanitizeBlockStructureFolderName(parsed.block)
+    const stem = sanitizeBlockParameterFileStem(parsed.id)
+    if (!blockFolder || !stem) {
+      res.statusCode = 400
+      res.setHeader('Content-Type', 'application/json; charset=utf-8')
+      res.end(JSON.stringify({ ok: false, error: 'block ou id inválido' }))
+      return
+    }
+
+    const parametersRoot = path.resolve(projectRoot, 'src', 'blockStructures', 'parameters')
+    const filePath = path.resolve(parametersRoot, blockFolder, `${stem}.json`)
+    const relInside = path.relative(parametersRoot, filePath)
+    if (relInside.startsWith('..') || path.isAbsolute(relInside)) {
+      res.statusCode = 400
+      res.setHeader('Content-Type', 'application/json; charset=utf-8')
+      res.end(JSON.stringify({ ok: false, error: 'Caminho inválido' }))
+      return
+    }
+
+    if (!(await fileExists(filePath))) {
+      res.statusCode = 404
+      res.setHeader('Content-Type', 'application/json; charset=utf-8')
+      res.end(JSON.stringify({ ok: false, error: 'Parâmetro não encontrado' }))
+      return
+    }
+
+    await fs.unlink(filePath)
+    res.statusCode = 200
+    res.setHeader('Content-Type', 'application/json; charset=utf-8')
+    res.end(JSON.stringify({ ok: true, deleted: `${blockFolder}/${stem}.json` }))
+  } catch (err) {
+    res.statusCode = 500
+    res.setHeader('Content-Type', 'application/json; charset=utf-8')
+    res.end(
+      JSON.stringify({
+        ok: false,
+        error: err instanceof Error ? err.message : String(err),
+      }),
+    )
+  }
+}
+
 /**
  * Em `npm run dev`:
  * - POST `/api/block-parameters-write` — grava JSON em `src/blockStructures/parameters/{block}/`
@@ -524,6 +666,16 @@ export function vitePluginBlockParametersWrite(projectRoot: string): Plugin {
           return
         }
 
+        if (pathname === '/api/block-definitions-delete' && req.method === 'POST') {
+          void handleBlockDefinitionsDeleteRequest(projectRoot, req, res)
+          return
+        }
+
+        if (pathname === '/api/block-parameters-delete' && req.method === 'POST') {
+          void handleBlockParametersDeleteRequest(projectRoot, req, res)
+          return
+        }
+
         if (
           pathname !== '/api/block-parameters-write' &&
           pathname !== '/api/block-definitions-write' &&
@@ -538,8 +690,9 @@ export function vitePluginBlockParametersWrite(projectRoot: string): Plugin {
           void (async () => {
             try {
               const blockRaw = url.searchParams.get('block') ?? ''
-              const blockFolder = sanitizeBlockStructureFolderName(blockRaw)
-              if (!blockFolder) {
+              const listAll = url.searchParams.get('all') === '1' || blockRaw.trim() === ''
+              const blockFolder = listAll ? null : sanitizeBlockStructureFolderName(blockRaw)
+              if (!listAll && !blockFolder) {
                 res.statusCode = 400
                 res.setHeader('Content-Type', 'application/json; charset=utf-8')
                 res.end(JSON.stringify({ ok: false, error: 'Parâmetro block em falta ou inválido' }))
@@ -555,7 +708,9 @@ export function vitePluginBlockParametersWrite(projectRoot: string): Plugin {
                 return
               }
 
-              const blockDir = path.resolve(parametersRoot, blockFolder)
+              const blockDir = listAll
+                ? parametersRoot
+                : path.resolve(parametersRoot, blockFolder!)
               const relBlockDir = path.relative(parametersRoot, blockDir)
               if (relBlockDir.startsWith('..') || path.isAbsolute(relBlockDir)) {
                 res.statusCode = 400

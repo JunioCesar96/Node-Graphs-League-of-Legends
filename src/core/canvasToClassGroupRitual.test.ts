@@ -761,6 +761,147 @@ entries: map[hash,embed] = {
     expect(result.text).toContain('constantValue: vec3 = { 191.927, 0, 200 }')
   })
 
+  it('preview de block card usa valor vivo do nó mesmo com defaultValue obsoleto no blockStructure', () => {
+    const valueVector3Schema: NodeSchemaDefinition = {
+      id: 'value-vector3-def',
+      title: 'ValueVector3',
+      parameters: [
+        {
+          id: 'ValueVector3_parameter_constantValue',
+          name: 'constantValue',
+          type: 'vector3',
+          defaultValue: '0, 0, 0',
+        },
+      ],
+      internalStructures: [],
+      embed: [],
+      pointer: [],
+      listEmbed: [],
+      listPointer: [],
+      list2Embed: [],
+      list2Pointer: [],
+    }
+
+    const emitterSchema: NodeSchemaDefinition = {
+      id: 'emitter-def',
+      title: 'VfxEmitterDefinitionData',
+      parameters: [],
+      internalStructures: [],
+      embed: [
+        {
+          id: 'catalog-embed-birthScale0',
+          title: 'birthScale0',
+          templateBlockId: 'catalog-embed-birthScale0',
+          internalStructures: [{ id: 'cat-0', name: 'ValueVector3', schemaId: 'value-vector3-def' }],
+          slots: [{ id: 'catalog-embed-birthScale0-slot', name: 'ValueVector3', schemaId: 'value-vector3-def' }],
+        },
+      ],
+      pointer: [],
+      listEmbed: [],
+      listPointer: [],
+      list2Embed: [],
+      list2Pointer: [],
+    }
+
+    const parentId = 'node-emitter-stale'
+    const childId = 'node-value-vector3-stale'
+    const parentBlockStructure: BlockStructurePayload = {
+      blockType: 'VfxEmitterDefinitionData',
+      blockName: 'circulo_magico',
+      identification_codes: [],
+      parameters: [
+        {
+          idParameter: 'catalog_birthScale0',
+          nameParameter: 'birthScale0',
+          typeParameter: 'ValueVector3',
+          defaultValue: '',
+          sourcePath: {
+            kind: 'embedChild',
+            embedId: 'catalog-embed-birthScale0',
+            slotId: 'catalog-embed-birthScale0-slot',
+            childParameterId: 'ValueVector3_parameter_constantValue',
+          },
+        },
+      ],
+    }
+
+    const childBlockStructure: BlockStructurePayload = {
+      blockType: 'ValueVector3',
+      blockName: 'ValueVector3',
+      identification_codes: [],
+      parameters: [
+        {
+          idParameter: 'catalog_constantValue',
+          nameParameter: 'constantValue',
+          typeParameter: 'vec3',
+          defaultValue: '0, 0, 0',
+          sourcePath: { kind: 'parameter', parameterId: 'ValueVector3_parameter_constantValue' },
+        },
+      ],
+    }
+
+    const scene: CanvasScene = {
+      width: 1000,
+      height: 800,
+      nodes: [
+        {
+          id: parentId,
+          position: { x: 0, y: 0 },
+          blockViewActive: true,
+          blockStructure: parentBlockStructure,
+          node: { schema: emitterSchema, values: [] },
+        },
+        {
+          id: childId,
+          position: { x: 400, y: 0 },
+          blockViewActive: true,
+          blockStructure: childBlockStructure,
+          node: {
+            schema: valueVector3Schema,
+            values: [
+              {
+                parameterId: 'ValueVector3_parameter_constantValue',
+                value: '680, 680, 50',
+              },
+            ],
+          },
+        },
+      ],
+      connections: [
+        {
+          id: 'c-emitter-to-value-vector3-stale',
+          fromNodeId: parentId,
+          fromInternalStructureId: '__block__:catalog_birthScale0',
+          toNodeId: childId,
+          fromBlockSlotId: 'block-param:catalog_birthScale0:output',
+          fromBlockParameterId: 'catalog_birthScale0',
+          toBlockSlotId: 'block-header:ValueVector3:0',
+        },
+      ],
+    }
+
+    const result = canvasNodeSubtreeToRitual(
+      scene,
+      {
+        [emitterSchema.id]: emitterSchema,
+        [valueVector3Schema.id]: valueVector3Schema,
+      },
+      parentId,
+      {
+        blockCardSelectedParametersOnly: true,
+        useSchemaFieldNames: true,
+      },
+    )
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) {
+      return
+    }
+
+    expect(result.text).toContain('constantValue: vec3 = { 680, 680, 50 }')
+    expect(result.text).not.toContain('constantValue: vec3 = { 0, 0, 0 }')
+  })
+
   it('no preview de block card emite map[hash,embed] a partir do catálogo', () => {
     const vfxSchema: NodeSchemaDefinition = {
       id: 'vfx-system-def',

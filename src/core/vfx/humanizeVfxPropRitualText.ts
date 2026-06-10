@@ -126,26 +126,26 @@ function humanizeLine(line: string): { line: string; changed: boolean } {
   return { line: next, changed }
 }
 
-/** Texto ritual PROP ainda com chaves/campos só em hash (ex.: `0x3d25b8ce:`). */
+/** Texto ritual com chaves/campos ainda em hash (PROP, VfxSystemDefinitionData, etc.). */
 export function ritualTextNeedsHumanize(content: string): boolean {
   const normalized = normalizeLineEndings(content)
-  if (!/#PROP_text/i.test(normalized) && !/entries:\s*map\[hash,embed\]/i.test(normalized)) {
-    return false
-  }
 
   for (const line of normalized.split('\n')) {
     const field = line.match(/^\s*(0x[0-9a-fA-F]+)\s*:/)
     if (field?.[1] && hashWasResolved(field[1], resolveRitualFieldName(field[1]))) {
       return true
     }
+
     const mapType = line.match(/^\s*0x[0-9a-fA-F]+\s*=\s*(0x[0-9a-fA-F]+)\s*\{/)
     if (mapType?.[1] && hashWasResolved(mapType[1], resolveRitualTypeName(mapType[1]))) {
       return true
     }
+
     const block = line.match(/^\s*(0x[0-9a-fA-F]+)\s*\{/)
     if (block?.[1] && hashWasResolved(block[1], resolveRitualTypeName(block[1]))) {
       return true
     }
+
     const embed = line.match(/\b(?:embed|pointer)\s*=\s*(0x[0-9a-fA-F]+)/i)
     if (embed?.[1] && hashWasResolved(embed[1], resolveRitualTypeName(embed[1]))) {
       return true

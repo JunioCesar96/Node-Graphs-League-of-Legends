@@ -43,8 +43,12 @@ describe('vector3Value', () => {
   })
 
   it('deriva intervalo inicial do vetor', () => {
-    expect(deriveSliderRange({ x: 0, y: -200, z: 0 })).toEqual({ min: -200, max: 1 })
-    expect(deriveSliderRange({ x: 2, y: 3, z: 4 })).toEqual({ min: 0, max: 4 })
+    expect(deriveSliderRange({ x: 0, y: 0, z: 0 })).toEqual({ min: 0, max: 1 })
+    expect(deriveSliderRange({ x: 0, y: -200, z: 0 })).toEqual({ min: -200, max: 0 })
+    expect(deriveSliderRange({ x: -90, y: -90, z: 0 })).toEqual({ min: -90, max: 0 })
+    expect(deriveSliderRange({ x: 680, y: 680, z: 50 })).toEqual({ min: 50, max: 680 })
+    expect(deriveSliderRange({ x: 2, y: 3, z: 4 })).toEqual({ min: 2, max: 4 })
+    expect(deriveSliderRange({ x: 800, y: 680, z: -300 })).toEqual({ min: -300, max: 800 })
   })
 
   it('mapeia frações do plot incluindo Z', () => {

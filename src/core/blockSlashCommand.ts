@@ -111,6 +111,7 @@ export function extractBlockSlashCommandFragment(
   scene: CanvasScene,
   rootNodeId: string,
   commandName: string,
+  locale?: string,
 ): ExtractBlockSlashCommandResult {
   const hydrated = hydrateScene(scene)
   const rootNode = hydrated.nodes.find((node) => node.id === rootNodeId)
@@ -134,6 +135,7 @@ export function extractBlockSlashCommandFragment(
     rootBlockName: rootNode.blockStructure.blockName,
     rootNodeId,
     payload,
+    ...(locale?.trim() ? { locale } : {}),
   })
 
   return { ok: true, document }
@@ -273,13 +275,21 @@ export function remapWorkspaceBundleIds(
         nodeId: remapId(entry.nodeId),
       })),
     },
+    labels: {
+      version: bundle.labels.version,
+      labels: bundle.labels.labels.map((entry) => ({
+        ...structuredClone(entry),
+        nodeId: remapId(entry.nodeId),
+        parentBlockNodeId: remapId(entry.parentBlockNodeId),
+      })),
+    },
   }
 
   const rootNodeId = remapId(originalRootId)
   return { bundle: remappedBundle, rootNodeId, idMap }
 }
 
-function applySpawnOffsetToBundle(bundle: WorkspaceBundle, spawnPosition: CanvasPosition): WorkspaceBundle {
+export function applySpawnOffsetToBundle(bundle: WorkspaceBundle, spawnPosition: CanvasPosition): WorkspaceBundle {
   const layoutNodes = { ...bundle.layout.nodes }
   for (const [nodeId, entry] of Object.entries(layoutNodes)) {
     layoutNodes[nodeId] = {

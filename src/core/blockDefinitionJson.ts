@@ -5,7 +5,7 @@ import type { BlockInspectorDraft, BlockStructurePayload } from './blockSchema'
 import type { NodeSchemaDefinition } from './nodeSchema'
 import { humanizeParameterDisplayName, sanitizeBlockParameterFileStem } from './blockParameterJson'
 import { blockTypeDefinitionById } from './blockStructureRegistry'
-import { templatizeSchemaNodeId } from './blockParameterIdTemplate'
+import { pascalBlockTypeToKebabSlug, templatizeSchemaNodeId } from './blockParameterIdTemplate'
 import { findIncomingConnections } from './slotPeerFocus'
 import { isEmptyStructBlockSchema } from './nodeSchema'
 
@@ -36,6 +36,83 @@ export type BuildBlockDefinitionJsonResult =
   | { ok: false; error: string }
 
 const DEFAULT_BLOCK_COLOR = '#40ff56'
+
+const MANUAL_BLOCK_TYPES = new Set(['standalone', 'pointer', 'embed', 'internal'])
+
+export type ManualBlockDefinitionInput = {
+  blockName: string
+  name: string
+  block?: string
+  type?: string
+  color?: string
+  /** Nomes dos parâmetros a incluir na definição do bloco (ordem preservada). */
+  parameters?: string[]
+  /** Slots do header; se omitido, calcula automaticamente. */
+  headerSlots?: string[]
+}
+
+export function blockNameToCatalogNodeId(blockName: string): string {
+  return pascalBlockTypeToKebabSlug(blockName.trim())
+}
+
+export function buildBlockDefinitionFromManualInput(
+  input: ManualBlockDefinitionInput,
+): BuildBlockDefinitionJsonResult {
+  const blockName = input.blockName.trim()
+  if (!blockName) {
+    return { ok: false, error: 'blockName em falta' }
+  }
+
+  const name = input.name.trim()
+  if (!name) {
+    return { ok: false, error: 'name em falta' }
+  }
+  if (name.includes('_')) {
+    return { ok: false, error: `name não pode conter "_": ${name}` }
+  }
+
+  const blockType = (input.type ?? 'standalone').trim()
+  if (!MANUAL_BLOCK_TYPES.has(blockType)) {
+    return { ok: false, error: `type inválido: ${blockType}` }
+  }
+
+  const color = (input.color ?? DEFAULT_BLOCK_COLOR).trim()
+  if (!/^#[0-9a-fA-F]{6}$/.test(color)) {
+    return { ok: false, error: `color deve ser hex (#RRGGBB): ${color}` }
+  }
+
+  const parentBlock = (input.block ?? blockName).trim() || blockName
+  const id = buildBlockDefinitionDocumentId(blockName, name)
+  const stem = sanitizeBlockParameterFileStem(id)
+  if (!stem) {
+    return { ok: false, error: `id inválido para ficheiro: ${id}` }
+  }
+
+  const parameters = Array.from(
+    new Set((input.parameters ?? []).map((entry) => entry.trim()).filter(Boolean)),
+  )
+
+  return {
+    ok: true,
+    document: {
+      id,
+      block: parentBlock,
+      blockName,
+      type: blockType,
+      name,
+      source: {
+        kind: 'block',
+        nodeId: blockNameToCatalogNodeId(blockName),
+      },
+      color,
+      headerSlots:
+        input.headerSlots && input.headerSlots.length > 0
+          ? [...input.headerSlots]
+          : buildBlockHeaderSlots(parentBlock, blockName),
+      parameters,
+    },
+  }
+}
 
 export function resolveBlockDisplayName(draftBlockName: string): string {
   const trimmed = draftBlockName.trim()

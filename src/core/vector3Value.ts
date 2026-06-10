@@ -144,9 +144,27 @@ export function scalarFromSliderFraction(fraction: number, min: number, max: num
   return min + t * (max - min)
 }
 
+/** Slider size = menor e maior componente do vetor (ex.: { 800, 680, -300 } → min -300, max 800). */
 export function deriveSliderRange(vector: Vector3): { min: number; max: number } {
   const values = [vector.x, vector.y, vector.z]
-  const min = Math.floor(Math.min(0, ...values))
-  const max = Math.ceil(Math.max(1, ...values))
-  return max <= min ? { min, max: min + 1 } : { min, max }
+  const dataMin = Math.min(...values)
+  const dataMax = Math.max(...values)
+
+  if (dataMin === dataMax) {
+    return dataMin === 0 ? { min: 0, max: 1 } : { min: dataMin, max: dataMin }
+  }
+
+  return { min: dataMin, max: dataMax }
+}
+
+/** Expande min/max do slider para caber todos os componentes do vetor. */
+export function expandSliderRangeToFitVector(
+  current: { min: number; max: number },
+  vector: Vector3,
+): { min: number; max: number } {
+  const values = [vector.x, vector.y, vector.z]
+  return {
+    min: Math.min(current.min, ...values),
+    max: Math.max(current.max, ...values),
+  }
 }
