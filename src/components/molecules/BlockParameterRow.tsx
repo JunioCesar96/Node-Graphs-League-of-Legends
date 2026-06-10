@@ -77,6 +77,7 @@ type BlockParameterRowProps = {
   blockElementView?: Partial<Record<BlockElementViewKey, BlockElementViewState>>
   onBlockElementSelectedIndexChange?: (elementKey: BlockElementViewKey, index: number) => void
   blockSlotPeerActions?: BlockSlotPeerActions
+  labelHighlightColor?: string
 }
 
 export function BlockParameterRow({
@@ -113,6 +114,7 @@ export function BlockParameterRow({
   blockElementView,
   onBlockElementSelectedIndexChange,
   blockSlotPeerActions,
+  labelHighlightColor,
 }: BlockParameterRowProps) {
   const outputSlotId = `block-param:${parameter.idParameter}:output`
   const inputSlotId = `block-param:${parameter.idParameter}:input`
@@ -223,6 +225,8 @@ export function BlockParameterRow({
   return (
     <div
       className={styles.row}
+      data-label-linked={labelHighlightColor ? '1' : '0'}
+      style={labelHighlightColor ? { backgroundColor: `${labelHighlightColor}55` } : undefined}
       data-input-addon-menu={canChooseInputAddon ? '1' : '0'}
       data-input-focused={inputFocused ? '1' : '0'}
       data-map-structure={isMapStructure ? '1' : '0'}

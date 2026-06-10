@@ -15,6 +15,7 @@ import {
   ReactiveDriveEngine,
   applyAddonInputFieldInteraction,
   isAddonInputFieldWired,
+  mergeWiredAndDomAddonInputs,
   syncWiredAddonInputsToDom,
 } from '@/core/engine/reactiveDrive'
 import {
@@ -23,6 +24,11 @@ import {
   resolveAddonI18nText,
   type AddonLanguagePack,
 } from '@/core/addonLanguage'
+import { ensureAddonBoolToggleWired } from '@/core/addonBoolToggle'
+import { ensureAddonParamValueInputWired } from '@/core/addonParamValueInput'
+import { ensureAddonColorVec4InputWired, ADDON_COLOR_VEC4_OPEN_EVENT } from '@/core/addonColorVec4Input'
+import { ensureAddonMtx44InputWired } from '@/core/addonMtx44Input'
+import { ensureAddonVecAxisInputWired } from '@/core/addonVecAxisInput'
 import {
   buildAddonCardAppearanceStyles,
   resolveAddonHeaderIconUrl,
@@ -32,6 +38,8 @@ import {
   preprocessAddonContextMenuRegions,
   resolveAddonContextMenuItems,
 } from '@/core/addonContextMenu'
+import { preprocessAddonSystemFunctionRegions } from '@/core/addonSystemFunctionTemplate'
+import type { AddonSystemFunctionContext } from '@/core/addonSystemFunctions'
 import {
   applyAddonBodyGridLayout,
   applyAddonUiStyles,
@@ -48,6 +56,8 @@ import {
   AddonContextMenu,
   type AddonContextMenuAnchor,
 } from '@/components/molecules/AddonContextMenu'
+import { AddonColorVec4Picker } from '@/components/molecules/AddonColorVec4Picker'
+import type { ParameterPickerAnchor } from '@/components/molecules/ParameterPickerModal'
 import type { AddonPackage, AddonSlot } from '@/services/addonLoader.service'
 import { useLanguage } from '@/language/LanguageProvider'
 
@@ -61,8 +71,13 @@ export type AddonCardProps = {
   wiredInputsFeedKey: string
   selected?: boolean
   interactionLocked?: boolean
+  wirelessHighlighted?: boolean
   activeAddonSlotId?: string
   onGraphStateMutation: (nodeId: string, outputPayload: Record<string, unknown>) => void
+  onInvokeAddonSystemFunction?: (
+    functionName: string,
+    context: AddonSystemFunctionContext,
+  ) => void | Promise<void>
   onAddonOutputPointerDown?: (slotId: string, event: PointerEvent<HTMLButtonElement>) => void
   onAddonOutputPointerUp?: (slotId: string, event: PointerEvent<HTMLButtonElement>) => void
   onAddonOutputPointerCancel?: (slotId: string, event: PointerEvent<HTMLButtonElement>) => void
@@ -154,8 +169,10 @@ export function AddonCard({
   wiredInputsFeedKey,
   selected = false,
   interactionLocked = false,
+  wirelessHighlighted = false,
   activeAddonSlotId,
   onGraphStateMutation,
+  onInvokeAddonSystemFunction,
   onAddonOutputPointerDown,
   onAddonOutputPointerUp,
   onAddonOutputPointerCancel,
@@ -174,7 +191,11 @@ export function AddonCard({
   const uiHtmlBody = uiHtml
   const addonUiCss = uiCss ?? ''
   const processedUiHtml = useMemo(
-    () => preprocessAddonContextMenuRegions(preprocessAddonUiHtml(uiHtmlBody, manifest), manifest),
+    () =>
+      preprocessAddonSystemFunctionRegions(
+        preprocessAddonContextMenuRegions(preprocessAddonUiHtml(uiHtmlBody, manifest), manifest),
+        manifest,
+      ),
     [manifest, uiHtmlBody],
   )
   const localizedUiHtml = useMemo(
@@ -195,10 +216,18 @@ export function AddonCard({
     anchor: AddonContextMenuAnchor
     menuName: string
   } | null>(null)
+  const [colorVec4Picker, setColorVec4Picker] = useState<{
+    anchor: ParameterPickerAnchor
+    panel: HTMLElement
+    popoverUp: boolean
+  } | null>(null)
   const onGraphStateMutationRef = useRef(onGraphStateMutation)
   const lastEmittedOutputsRef = useRef<string>('')
   const lastWiredFeedRef = useRef<string>('')
   const lastLocalInputsRef = useRef<string>('')
+  const onInvokeAddonSystemFunctionRef = useRef(onInvokeAddonSystemFunction)
+  onInvokeAddonSystemFunctionRef.current = onInvokeAddonSystemFunction
+
   const driveContextRef = useRef({ wiredInputs: resolvedInputs, wiredSlotNames: wiredInputSlotNames })
 
   const manifestDrives = useMemo(() => resolveAddonDrives(manifest.drive), [manifest.drive])
@@ -232,6 +261,11 @@ export function AddonCard({
     domElement.innerHTML = localizedUiHtml
     applyAddonUiStyles(domElement, addonUiCss)
     applyAddonBodyGridLayout(domElement, manifest)
+    ensureAddonBoolToggleWired(domElement)
+    ensureAddonParamValueInputWired(domElement)
+    ensureAddonVecAxisInputWired(domElement)
+    ensureAddonMtx44InputWired(domElement)
+    ensureAddonColorVec4InputWired(domElement)
     bindAddonHiddenInputSlotAnchors(domElement, instanceId, manifest, locale, languagePack)
     setInlinePinHosts(collectAddonInlinePinHosts(domElement, manifest))
     setUiLayoutKey((key) => key + 1)
@@ -259,6 +293,44 @@ export function AddonCard({
     observer.observe(body)
     return () => observer.disconnect()
   }, [localizedUiHtml, uiLayoutKey])
+
+  useEffect(() => {
+    const domElement = containerRef.current
+    if (!domElement) {
+      return
+    }
+
+    const PANEL_HEIGHT = 360
+    const onOpenPicker = (event: Event) => {
+      if (interactionLocked) {
+        return
+      }
+      const detail = (event as CustomEvent<{ panel?: HTMLElement; swatch?: HTMLElement }>).detail
+      const panel = detail?.panel
+      const swatch = detail?.swatch
+      if (!(panel instanceof HTMLElement) || !(swatch instanceof HTMLElement)) {
+        return
+      }
+      const rect = swatch.getBoundingClientRect()
+      const spaceBelow = window.innerHeight - rect.bottom
+      setColorVec4Picker({
+        anchor: { left: rect.right, top: rect.bottom, width: rect.width },
+        panel,
+        popoverUp: spaceBelow < PANEL_HEIGHT && rect.top > PANEL_HEIGHT,
+      })
+    }
+
+    domElement.addEventListener(ADDON_COLOR_VEC4_OPEN_EVENT, onOpenPicker)
+    return () => {
+      domElement.removeEventListener(ADDON_COLOR_VEC4_OPEN_EVENT, onOpenPicker)
+    }
+  }, [interactionLocked, uiLayoutKey])
+
+  useEffect(() => {
+    if (interactionLocked) {
+      setColorVec4Picker(null)
+    }
+  }, [interactionLocked])
 
   useEffect(() => {
     const domElement = containerRef.current
@@ -325,6 +397,7 @@ export function AddonCard({
     manifest.data,
     manifestDrives,
     wiredInputSlotNames,
+    uiLayoutKey,
   ])
 
   useEffect(() => {
@@ -386,6 +459,75 @@ export function AddonCard({
       domElement.removeEventListener('keydown', onKeyDown)
     }
   }, [addonPackage, instanceId, manifestDrives])
+
+  useEffect(() => {
+    const domElement = containerRef.current
+    if (!domElement || !manifest.functions?.length || !onInvokeAddonSystemFunctionRef.current) {
+      return
+    }
+
+    const readDomValue = (name: string): string => {
+      const el = domElement.querySelector(`input[name="${name}"], textarea[name="${name}"]`)
+      if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
+        return el.value
+      }
+      return ''
+    }
+
+    const onClick = (event: Event) => {
+      const target = event.target
+      if (!(target instanceof Element)) {
+        return
+      }
+      const button = target.closest('[data-addon-system-function] button')
+      if (!(button instanceof HTMLButtonElement) || !domElement.contains(button)) {
+        return
+      }
+      const region = button.closest('[data-addon-system-function]')
+      if (!(region instanceof HTMLElement)) {
+        return
+      }
+      const functionName = region.getAttribute('data-addon-system-function')?.trim()
+      if (!functionName || !manifest.functions?.includes(functionName)) {
+        return
+      }
+
+      event.preventDefault()
+      event.stopPropagation()
+
+      applyAddonInputFieldInteraction(manifest, wiredInputSlotNames, domElement)
+      syncWiredAddonInputsToDom(manifest, resolvedInputs, wiredInputSlotNames, domElement)
+      const inputs = mergeWiredAndDomAddonInputs(
+        manifest,
+        resolvedInputs,
+        wiredInputSlotNames,
+        domElement,
+      )
+
+      const context: AddonSystemFunctionContext = {
+        nodeId: instanceId,
+        addonId: manifest.id,
+        cardDOM: domElement,
+        inputs,
+        readDomValue,
+      }
+
+      void Promise.resolve(onInvokeAddonSystemFunctionRef.current?.(functionName, context))
+    }
+
+    domElement.addEventListener('click', onClick)
+    return () => {
+      domElement.removeEventListener('click', onClick)
+    }
+  }, [
+    instanceId,
+    localizedUiHtml,
+    manifest,
+    resolvedInputs,
+    uiLayoutKey,
+    wiredInputSlotNames,
+    wiredSlotNamesKey,
+  ])
 
   useEffect(() => {
     const domElement = containerRef.current
@@ -504,6 +646,7 @@ export function AddonCard({
         hasCustomSize ? styles.cardCustomSize : '',
         categoryClass,
         selected ? styles.cardSelected : '',
+        wirelessHighlighted ? styles.wirelessHighlighted : '',
       ]
         .filter(Boolean)
         .join(' ')}
@@ -644,6 +787,15 @@ export function AddonCard({
           `${instanceId}-${host.name}-${uiLayoutKey}`,
         )
       })}
+
+      {colorVec4Picker ? (
+        <AddonColorVec4Picker
+          anchor={colorVec4Picker.anchor}
+          onClose={() => setColorVec4Picker(null)}
+          panel={colorVec4Picker.panel}
+          popoverUp={colorVec4Picker.popoverUp}
+        />
+      ) : null}
     </article>
   )
 }

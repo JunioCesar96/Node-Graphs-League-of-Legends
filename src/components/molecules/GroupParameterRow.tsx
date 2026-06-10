@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { GroupParameterIcon } from '@/components/atoms/GroupParameterIcon'
 import { GroupSlot } from '@/components/atoms/GroupSlot'
 import { ParameterValueInput } from '@/components/molecules/ParameterValueInput'
+import { parameterTypeUsesPickerInput } from '@/core/parameterValueInput'
 import type { GroupParameterDef } from '@/core/groupSchema'
 import { groupRitualTypeToNodeDataType } from '@/core/groupSchema'
 import type { GroupSlotWirelessLink } from '@/core/groupConnectionDisplay'
@@ -58,6 +59,7 @@ export function GroupParameterRow({
   const inputSlotId = `group-param:${parameter.idParameter}:input`
   const dataType = groupRitualTypeToNodeDataType(parameter.typeParameter)
   const isStringInput = dataType === 'string'
+  const usesPickerInput = parameterTypeUsesPickerInput(dataType)
   const [inputFocused, setInputFocused] = useState(false)
 
   return (
@@ -109,15 +111,31 @@ export function GroupParameterRow({
             {isStringInput ? (
               <span className={styles.focusedTitle}>{parameter.nameParameter}</span>
             ) : null}
-            <ParameterValueInput
-              ariaLabel={parameter.nameParameter}
-              className={styles.input}
-              type={dataType}
-              fieldTitle={parameter.nameParameter}
-              value={value}
-              onCommit={onCommitValue}
-              onFocusChange={isStringInput ? setInputFocused : undefined}
-            />
+            {usesPickerInput ? (
+              <span className={styles.valueShell}>
+                <span className={styles.bracket}>{'{'}</span>
+                <ParameterValueInput
+                  ariaLabel={parameter.nameParameter}
+                  className={styles.valueInput}
+                  type={dataType}
+                  fieldTitle={parameter.nameParameter}
+                  value={value}
+                  onCommit={onCommitValue}
+                  onFocusChange={setInputFocused}
+                />
+                <span className={styles.bracket}>{'}'}</span>
+              </span>
+            ) : (
+              <ParameterValueInput
+                ariaLabel={parameter.nameParameter}
+                className={styles.input}
+                type={dataType}
+                fieldTitle={parameter.nameParameter}
+                value={value}
+                onCommit={onCommitValue}
+                onFocusChange={isStringInput ? setInputFocused : undefined}
+              />
+            )}
           </>
         )}
       </div>

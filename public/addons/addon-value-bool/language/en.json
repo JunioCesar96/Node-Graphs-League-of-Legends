@@ -1,0 +1,8 @@
+{
+  "0": "Bool Value",
+  "1": "Value",
+  "6": "Literal bool value exposed on the add-on output.",
+  "20": "Values",
+  "21": "Parameter",
+  "23": "Toggle switch that sets true or false and exposes the value on an output slot compatible with block parameters."
+}

@@ -1,9 +1,18 @@
 import { parseAddonDriveField, type AddonDrive, type AddonManifestDrive } from '@/core/addonDrive'
 import { readAddonContextMenusFromManifest, validateAddonContextMenusField } from '@/core/addonContextMenu'
+import { isAllowedAddonSlotType, type RitualAddonSlotType } from '@/core/addonRitualSlotTypes'
+import { isKnownAddonSystemFunction } from '@/core/addonSystemFunctions'
 
 export type { AddonDrive, AddonManifestDrive } from '@/core/addonDrive'
 
-export type AddonSlotType = 'string' | 'number' | 'boolean' | 'object'
+export type AddonSlotType =
+  | 'string'
+  | 'number'
+  | 'boolean'
+  | 'object'
+  | 'code'
+  | 'json'
+  | RitualAddonSlotType
 
 export type AddonSlotTipEntry = Record<string, string | undefined>
 
@@ -71,6 +80,8 @@ export type AddonManifest = {
   info?: AddonManifestInfo
   /** Menus de contexto (clique direito) declarados no manifest. */
   cotexMenu?: AddonContextMenuDef[]
+  /** Funções do sistema invocáveis via `{function:nome}` no ui.html. */
+  functions?: string[]
 }
 
 export type AddonExecuteFn = (
@@ -131,7 +142,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
-const SLOT_TYPES: ReadonlySet<string> = new Set(['string', 'number', 'boolean', 'object'])
 
 function normalizeAddonSlotTip(tip: AddonSlotTip | undefined): AddonSlotTipEntry[] | undefined {
   if (tip === undefined) {
@@ -205,12 +215,25 @@ export function normalizeAddonManifest(manifest: AddonManifest): AddonManifest {
         ? parsed[0]!
         : parsed
   const cotexMenu = readAddonContextMenusFromManifest(manifest)
+  const functions = normalizeAddonFunctions(manifest.functions)
   return {
     ...manifest,
     drive,
     data: manifest.data.map(normalizeAddonSlot),
     ...(cotexMenu?.length ? { cotexMenu } : {}),
+    ...(functions?.length ? { functions } : {}),
   }
+}
+
+function normalizeAddonFunctions(raw: unknown): string[] | undefined {
+  if (!Array.isArray(raw)) {
+    return undefined
+  }
+  const names = raw
+    .filter((entry): entry is string => typeof entry === 'string')
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+  return names.length > 0 ? names : undefined
 }
 
 export function validateAddonManifest(raw: unknown, source = 'manifest'): raw is AddonManifest {
@@ -247,7 +270,7 @@ export function validateAddonManifest(raw: unknown, source = 'manifest'): raw is
     if (typeof slot.name !== 'string' || !slot.name.trim()) {
       return false
     }
-    if (typeof slot.type !== 'string' || !SLOT_TYPES.has(slot.type)) {
+    if (typeof slot.type !== 'string' || !isAllowedAddonSlotType(slot.type)) {
       return false
     }
     if (slot.direction !== 'input' && slot.direction !== 'output') {
@@ -272,6 +295,16 @@ export function validateAddonManifest(raw: unknown, source = 'manifest'): raw is
   }
   if (!isValidAddonInfo(raw.info)) {
     return false
+  }
+  if (raw.functions !== undefined) {
+    if (!Array.isArray(raw.functions)) {
+      return false
+    }
+    for (const fn of raw.functions) {
+      if (typeof fn !== 'string' || !fn.trim() || !isKnownAddonSystemFunction(fn.trim())) {
+        return false
+      }
+    }
   }
   return true
 }

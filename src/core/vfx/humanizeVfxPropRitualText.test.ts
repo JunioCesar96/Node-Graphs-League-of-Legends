@@ -28,6 +28,32 @@ describe('humanizeVfxPropRitualText', () => {
     expect(ritualTextNeedsHumanize('emitterName: string = "x"')).toBe(false)
   })
 
+  it('detecta hashes em VfxSystemDefinitionData (sem #PROP_text)', () => {
+    const brandDanceSnippet = `"Characters/Brand/Skins/Skin0/Particles/Brand_Base_Dance" = VfxSystemDefinitionData {
+            VfxEmitterDefinitionData {
+                birthScale0: embed = ValueVector3 {
+                    constantValue: vec3 = { 680, 680, 50 }
+                }
+                0x65965391: embed = FlexValueVector3 {
+                    constantValue: vec3 = { 1, 1, 1 }
+                }
+                alphaErosionDefinition: pointer = VfxAlphaErosionDefinitionData {
+                    0x1e3f36a9: f32 = 0.18
+                    erosionFeatherIn: f32 = 2.5
+                }
+            }
+        }`
+
+    expect(ritualTextNeedsHumanize(brandDanceSnippet)).toBe(true)
+
+    const { text, changed } = humanizeVfxPropRitualText(brandDanceSnippet)
+    expect(changed).toBe(true)
+    expect(text).toContain('flexBirthScale0: embed = FlexValueVector3')
+    expect(text).toContain('erosionSliceWidth: f32 = 0.18')
+    expect(text).not.toMatch(/0x65965391:/)
+    expect(text).not.toMatch(/0x1e3f36a9:/)
+  })
+
   it('converte campos, tipos e chave do mapa para nomes legíveis', () => {
     const { text, changed } = humanizeVfxPropRitualText(propHashOnly)
     expect(changed).toBe(true)

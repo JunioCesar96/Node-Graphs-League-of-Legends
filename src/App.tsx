@@ -498,6 +498,13 @@ function App() {
     removeBlockSlashCommand,
     applyBlockSlashCommand,
     createAddonNode,
+    createLabelBlockFromParent,
+    createStandaloneLabel,
+    linkLabelToParentBlock,
+    updateLabelStructure,
+    addLabelParameter,
+    removeLabelParameter,
+    toggleAllLabelParametersHiddenInParent,
     applyAddonOutputsToScene,
     updateScene,
     connectAddonSlots,
@@ -4580,6 +4587,7 @@ function App() {
     onResetSelectedPosition: handleResetSceneNodesSelectedPosition,
     onSelectNode: (nodeId: string) => selectNode(nodeId, { includeHidden: true }),
     onCommitParameter: handleCommitSceneNodesParameter,
+    onSetBlockElementSelectedIndex: setBlockElementSelectedIndex,
     onShowAll: () => setAllNodesSceneHidden(false),
     onToggleMinimized: toggleSceneNodesMinimized,
     onUnlockAll: () => setAllNodesLocked(false),
@@ -4727,6 +4735,24 @@ function App() {
             onCreateAddonFromCatalog={(addonId, position, spawnLink) =>
               createAddonNode(addonId, position, spawnLink)
             }
+            onCreateLabelFromParent={(parentNodeId, draft, position) =>
+              createLabelBlockFromParent(parentNodeId, draft, position)
+            }
+            onCreateStandaloneLabel={(draft, position) => createStandaloneLabel(draft, position)}
+            onLinkLabelToParentBlock={(labelNodeId, parentNodeId) =>
+              linkLabelToParentBlock(labelNodeId, parentNodeId)
+            }
+            onUpdateLabelStructure={(labelNodeId, draft) =>
+              updateLabelStructure(labelNodeId, {
+                labelName: draft.labelName,
+                color: draft.color,
+                parameters: draft.parameters,
+                catalogBlockType: draft.catalogBlockType,
+              })
+            }
+            onAddLabelParameter={addLabelParameter}
+            onRemoveLabelParameter={removeLabelParameter}
+            onToggleAllLabelParametersHiddenInParent={toggleAllLabelParametersHiddenInParent}
             onApplyAddonOutputs={applyAddonOutputsToScene}
             onInvokeAddonSystemFunction={handleInvokeAddonSystemFunction}
             onConnectAddonSlots={connectAddonSlots}

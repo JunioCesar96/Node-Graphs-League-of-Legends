@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "kind": "slash-command",
+  "feature": "blocks",
+  "name": "deleteParameter",
+  "command": "deleteParameter",
+  "locale": "en",
+  "action": "deleteParameter",
+  "createdAt": "2026-06-08T14:00:00.000Z",
+  "source": { "rootBlockName": "_catalog", "rootNodeId": "_catalog" },
+  "payload": {
+    "logic": {
+      "version": 1,
+      "nodes": {
+        "_catalog": {
+          "id": "_catalog",
+          "schema": { "id": "_catalog", "title": "_catalog", "parameters": [], "internalStructures": [] },
+          "values": []
+        }
+      }
+    },
+    "layout": { "version": 1, "width": 1120, "height": 760, "nodes": { "_catalog": { "position": { "x": 0, "y": 0 } } } },
+    "graph": { "version": 1, "connections": [] },
+    "blocks": { "version": 1, "blocks": [] },
+    "groups": { "version": 1, "groups": [] }
+  }
+}

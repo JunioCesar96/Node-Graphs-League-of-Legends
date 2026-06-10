@@ -26,6 +26,7 @@ import { applyLightModeToScene } from './sceneLightMode'
 import { applyHideLinkedChildrenForVfxEmitterNodes } from './vfxEmitterLinkedChildrenVisibility'
 
 import type {
+  CodeToBlockMergeInto,
   CodeToBlockSceneProgress,
   CodeToBlockSceneProgressKind,
   CodeToBlockSceneResult,
@@ -86,11 +87,34 @@ function resolveInstanceSchemaId(
   return resolveSchemaIdForBlockDefinition(blockName, schemaLookup)
 }
 
+function resolveBuildSceneContext(mergeInto?: CodeToBlockMergeInto): {
+  baseScene: CanvasScene
+  spawnPosition: { x: number; y: number }
+  lightModeOptions: { initBlockIndices: boolean; initMainEntriesVfxIndex: boolean }
+} {
+  if (mergeInto) {
+    return {
+      baseScene: mergeInto.scene,
+      spawnPosition: mergeInto.spawnPosition,
+      lightModeOptions: { initBlockIndices: false, initMainEntriesVfxIndex: false },
+    }
+  }
+  return {
+    baseScene: {
+      ...emptyCanvasScene,
+      width: DEFAULT_CANVAS_WIDTH,
+      height: DEFAULT_CANVAS_HEIGHT,
+    },
+    spawnPosition: { x: LAYOUT_ORIGIN_X, y: LAYOUT_ORIGIN_Y },
+    lightModeOptions: { initBlockIndices: true, initMainEntriesVfxIndex: true },
+  }
+}
+
 /** Pipeline completo Code To Node Block — reutilizável na thread principal ou em Web Worker. */
 export async function buildCodeToBlockScene(
   ritualText: string,
   schemaLookup: Record<string, NodeSchemaDefinition>,
-  options?: { rootBlockName?: string } & BuildCodeToBlockSceneHooks,
+  options?: { rootBlockName?: string; mergeInto?: CodeToBlockMergeInto } & BuildCodeToBlockSceneHooks,
 ): Promise<CodeToBlockSceneResult> {
   const report = (progress: CodeToBlockSceneProgress) => {
     options?.onProgress?.(progress)
@@ -278,11 +302,7 @@ export async function buildCodeToBlockScene(
   }
 
   const spawnCatalog = buildBlockSpawnCatalog(catalog)
-  const baseScene: CanvasScene = {
-    ...emptyCanvasScene,
-    width: DEFAULT_CANVAS_WIDTH,
-    height: DEFAULT_CANVAS_HEIGHT,
-  }
+  const { baseScene, spawnPosition, lightModeOptions } = resolveBuildSceneContext(options?.mergeInto)
 
   let spawnReported = 0
 
@@ -291,7 +311,7 @@ export async function buildCodeToBlockScene(
         instances,
         mergedSchemaLookup,
         baseScene,
-        { x: LAYOUT_ORIGIN_X, y: LAYOUT_ORIGIN_Y },
+        spawnPosition,
         spawnCatalog,
         {
           shouldCancel: cancelled,
@@ -318,7 +338,7 @@ export async function buildCodeToBlockScene(
         instances,
         mergedSchemaLookup,
         baseScene,
-        { x: LAYOUT_ORIGIN_X, y: LAYOUT_ORIGIN_Y },
+        spawnPosition,
         spawnCatalog,
       )
 
@@ -331,10 +351,7 @@ export async function buildCodeToBlockScene(
   }
 
   const scene = applyHideLinkedChildrenForVfxEmitterNodes(
-    applyLightModeToScene(mergeBlockHierarchyIntoScene(baseScene, plan), {
-      initBlockIndices: true,
-      initMainEntriesVfxIndex: true,
-    }),
+    applyLightModeToScene(mergeBlockHierarchyIntoScene(baseScene, plan), lightModeOptions),
   )
 
   const spawnedBlockIds = new Set(
@@ -382,7 +399,7 @@ export async function buildCodeToBlockScene(
 export function buildCodeToBlockSceneSync(
   ritualText: string,
   schemaLookup: Record<string, NodeSchemaDefinition>,
-  options?: { rootBlockName?: string },
+  options?: { rootBlockName?: string; mergeInto?: CodeToBlockMergeInto },
 ): CodeToBlockSceneResult {
   const trimmed = ritualText.trim()
   if (!trimmed) {
@@ -465,17 +482,13 @@ export function buildCodeToBlockSceneSync(
   }
 
   const spawnCatalog = buildBlockSpawnCatalog(catalog)
-  const baseScene: CanvasScene = {
-    ...emptyCanvasScene,
-    width: DEFAULT_CANVAS_WIDTH,
-    height: DEFAULT_CANVAS_HEIGHT,
-  }
+  const { baseScene, spawnPosition, lightModeOptions } = resolveBuildSceneContext(options?.mergeInto)
 
   const plan = planBlockHierarchySpawnFromInstances(
     instances,
     mergedSchemaLookup,
     baseScene,
-    { x: LAYOUT_ORIGIN_X, y: LAYOUT_ORIGIN_Y },
+    spawnPosition,
     spawnCatalog,
   )
 
@@ -484,10 +497,7 @@ export function buildCodeToBlockSceneSync(
   }
 
   const scene = applyHideLinkedChildrenForVfxEmitterNodes(
-    applyLightModeToScene(mergeBlockHierarchyIntoScene(baseScene, plan), {
-      initBlockIndices: true,
-      initMainEntriesVfxIndex: true,
-    }),
+    applyLightModeToScene(mergeBlockHierarchyIntoScene(baseScene, plan), lightModeOptions),
   )
 
   const spawnedBlockIds = new Set(

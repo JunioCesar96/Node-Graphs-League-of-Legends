@@ -111,6 +111,15 @@ export function blockDefinitionsList(): BlockDefinitionJsonDocument[] {
   return sortBlockDefinitions([...registry.values()])
 }
 
+/** Regista bloco após gravação em disco (o glob eager não recarrega sozinho). */
+export function registerBlockDefinitionInCatalog(doc: BlockDefinitionJsonDocument): void {
+  registry.set(doc.id, doc)
+}
+
+export function unregisterBlockDefinitionInCatalog(id: string): void {
+  registry.delete(id.trim())
+}
+
 export function matchesBlockDefinitionQuery(definition: BlockDefinitionJsonDocument, query: string): boolean {
   const needle = query.trim().toLowerCase()
   if (!needle) {

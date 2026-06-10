@@ -3,7 +3,9 @@ import { getAddonManifest } from '@/blockStructures/addonRegistry'
 import {
   classifyAddonOutputToBlockInput,
   classifyBlockOutputToAddonInput,
+  classifyLabelOutputToAddonInput,
 } from '@/core/crossSlotConnections'
+import { findLabelSlotEndpoint } from '@/core/labelSlotConnections'
 import {
   findAddonSlotEndpoint,
   withoutConnectionsToAddonInputSlot,
@@ -84,6 +86,65 @@ export function applyBlockOutputToAddonInput(
   const connections = isListPointerBlockOutputSlot(fromNode, fromBlockSlotId, fromBlockParameterId)
     ? prunedInputs
     : withoutConnectionsFromBlockOutputSlot(prunedInputs, fromNodeId, fromBlockSlotId, fromNode)
+
+  return {
+    ...scene,
+    connections: [...connections, connection],
+  }
+}
+
+export type LabelToAddonLinkRequest = {
+  fromNodeId: string
+  fromLabelSlotId: string
+  toNodeId: string
+  toAddonSlotId: string
+  allowForced?: boolean
+}
+
+export function applyLabelOutputToAddonInput(
+  scene: CanvasScene,
+  request: LabelToAddonLinkRequest,
+): CanvasScene | null {
+  const { fromNodeId, fromLabelSlotId, toNodeId, toAddonSlotId, allowForced = false } = request
+
+  const fromNode = scene.nodes.find((n) => n.id === fromNodeId)
+  const toNode = scene.nodes.find((n) => n.id === toNodeId)
+  if (!fromNode?.labelStructure || !toNode?.addonInstance) {
+    return null
+  }
+
+  const fromLabel = findLabelSlotEndpoint(fromNode, fromLabelSlotId)
+  const toManifest = getAddonManifest(toNode.addonInstance.addonId)
+  const toAddon = toManifest ? findAddonSlotEndpoint(toNode, toManifest, toAddonSlotId) : undefined
+  if (!fromLabel || !toAddon) {
+    return null
+  }
+
+  const connectionClass = classifyLabelOutputToAddonInput(fromLabel, toAddon)
+  if (connectionClass.kind === 'incompatible') {
+    return null
+  }
+  if (connectionClass.kind === 'forced' && !allowForced) {
+    return null
+  }
+
+  const connectionId = `mix:label->addon:${fromNodeId}:${fromLabelSlotId}->${toNodeId}:${toAddonSlotId}`
+  if (scene.connections.some((c) => c.id === connectionId)) {
+    return scene
+  }
+
+  const connection: CanvasConnection = {
+    id: connectionId,
+    fromNodeId,
+    fromInternalStructureId: `__label__:${fromLabelSlotId}`,
+    toNodeId,
+    routing: 'flex',
+    fromLabelSlotId,
+    toAddonSlotId,
+    ...(connectionClass.kind === 'forced' ? { forced: true } : {}),
+  }
+
+  const connections = withoutConnectionsToAddonInputSlot(scene.connections, toNodeId, toAddonSlotId)
 
   return {
     ...scene,

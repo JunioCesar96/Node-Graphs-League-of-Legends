@@ -1,0 +1,13 @@
+{
+  "0": "Color Vec4",
+  "1": "Value",
+  "6": "Color as vec4 (r, g, b, a) in 0–1 range on the add-on output.",
+  "20": "Values",
+  "21": "Parameter",
+  "23": "Pick a color and alpha; exposes the result as a vec4 compatible with block parameters.",
+  "24": "Color",
+  "25": "A",
+  "26": "Color code format",
+  "2": "Input",
+  "7": "Input vec4 (0–1). When connected, overrides the color picked in the picker."
+}

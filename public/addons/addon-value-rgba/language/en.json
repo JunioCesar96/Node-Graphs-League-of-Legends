@@ -1,0 +1,8 @@
+{
+  "0": "RGBA Value",
+  "1": "Value",
+  "6": "Literal rgba value exposed on the add-on output.",
+  "20": "Values",
+  "21": "Parameter",
+  "23": "Sets a literal rgba value and exposes it on an output slot compatible with block parameters."
+}

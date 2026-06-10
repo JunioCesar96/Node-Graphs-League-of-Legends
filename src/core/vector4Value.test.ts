@@ -20,8 +20,9 @@ describe('vector4Value', () => {
   })
 
   it('deriva intervalo inicial do vetor', () => {
+    expect(deriveSliderRange({ x: 0, y: 0, z: 0, w: 0 })).toEqual({ min: 0, max: 1 })
     expect(deriveSliderRange({ x: 0, y: -2, z: 0.5, w: 1 })).toEqual({ min: -2, max: 1 })
-    expect(deriveSliderRange({ x: 2, y: 3, z: 4, w: 5 })).toEqual({ min: 0, max: 5 })
+    expect(deriveSliderRange({ x: 2, y: 3, z: 4, w: 5 })).toEqual({ min: 2, max: 5 })
   })
 
   it('mapeia valor escalar para fração do slider', () => {

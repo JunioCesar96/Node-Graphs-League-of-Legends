@@ -347,7 +347,7 @@ export function BlockMapHashStructureField({
   }, [editDialog])
 
   useEffect(() => {
-    if (!editDialog) {
+    if (editDialog === null) {
       return
     }
     const frame = requestAnimationFrame(() => {
@@ -355,7 +355,7 @@ export function BlockMapHashStructureField({
       editDialogInputRef.current?.select()
     })
     return () => cancelAnimationFrame(frame)
-  }, [editDialog])
+  }, [editDialog?.index])
 
   const openEditDialog = () => {
     if (interactionLocked || entries.length === 0) {

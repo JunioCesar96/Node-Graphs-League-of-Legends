@@ -50,11 +50,28 @@ export function isValidPartialVector4Value(value: string): boolean {
   return /^[0-9,.\s\-]*$/.test(value)
 }
 
+/** Slider size = menor e maior componente do vetor. */
 export function deriveSliderRange(vector: Vector4): { min: number; max: number } {
   const values = [vector.x, vector.y, vector.z, vector.w]
-  const min = Math.floor(Math.min(0, ...values))
-  const max = Math.ceil(Math.max(1, ...values))
-  return max <= min ? { min, max: min + 1 } : { min, max }
+  const dataMin = Math.min(...values)
+  const dataMax = Math.max(...values)
+
+  if (dataMin === dataMax) {
+    return dataMin === 0 ? { min: 0, max: 1 } : { min: dataMin, max: dataMin }
+  }
+
+  return { min: dataMin, max: dataMax }
+}
+
+export function expandSliderRangeToFitVector(
+  current: { min: number; max: number },
+  vector: Vector4,
+): { min: number; max: number } {
+  const values = [vector.x, vector.y, vector.z, vector.w]
+  return {
+    min: Math.min(current.min, ...values),
+    max: Math.max(current.max, ...values),
+  }
 }
 
 export { clampScalarBetween, scalarFromSliderFraction, sliderFractionFromScalar }

@@ -1,6 +1,6 @@
 import { resolveIncomingAddonOutputForBlockParameter } from './addonOutputPropagation'
 import type { CanvasNode, CanvasScene } from './canvasScene'
-import type { BlockStructurePayload } from './blockSchema'
+import type { BlockParameterDef, BlockStructurePayload } from './blockSchema'
 import { isBlockMapStructureType } from './blockSchema'
 import { blockParameterDefaultValueFromJsonDocument } from './blockParameterFromJson'
 import { blockParameterCatalogByName } from './blockParameterCatalogRegistry'
@@ -73,6 +73,22 @@ export function syncBlockParameterEdit(
     node: applied.node,
     childPatches: applied.childPatches,
   }
+}
+
+/** Valor ritual para export (Código Preview Block) — prioriza estado actual do nó em cena. */
+export function resolveBlockCardParameterExportValue(
+  scene: CanvasScene,
+  canvasNode: CanvasNode,
+  parameter: BlockParameterDef,
+): string {
+  if (parameter.sourcePath.kind === 'parameter') {
+    const live = resolveBlockParameterValue(scene, canvasNode, parameter.sourcePath)
+    if (live.trim()) {
+      return live
+    }
+  }
+
+  return parameter.defaultValue
 }
 
 export function readBlockParameterDisplayValue(

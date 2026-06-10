@@ -1,0 +1,9 @@
+{
+  "0": "Valor U8",
+  "1": "Valor",
+  "4": "0–255",
+  "6": "Valor literal u8 exposto na saída do add-on.",
+  "20": "Valores",
+  "21": "Parâmetro",
+  "23": "Define um valor literal do tipo u8 e expõe-o num slot de saída compatível com parâmetros de bloco."
+}

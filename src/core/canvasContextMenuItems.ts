@@ -86,6 +86,8 @@ export type CanvasContextMenuBuildContext = {
   onViewNodeBlockCode?: (nodeId: string) => void
   /** Pré-visualizar código de bloco a partir do card de bloco seleccionado. */
   onPreviewBlockCardCode?: (nodeId: string) => void
+  /** Gera código do bloco e reconstrói a pré-visualização VFX. */
+  onRebuildBlockVfx?: (nodeId: string) => void
   /** Pré-visualizar subárvore com tokens de grupo no CodeDock. */
   onViewNodeGroupCode?: (nodeId: string) => void
   onPreviewNodeVfx?: (nodeId: string) => void
@@ -115,6 +117,12 @@ export type CanvasContextMenuBuildContext = {
   onRequestBlockSlashCommand?: (nodeId: string, action: 'add' | 'remove') => void
   /** Oculta ramificações fora do índice activo (list[pointer] / map*). */
   onHideInactiveBlockIndexBranches?: (nodeId: string) => void
+  /** Abre diálogo para criar Label Block a partir do bloco. */
+  onRequestCreateLabel?: (nodeId: string) => void
+  /** Permite criar Label Block avulsa a partir do menu da grade. */
+  canCreateStandaloneLabel?: boolean
+  /** Abre diálogo para editar Label Block existente. */
+  onRequestEditLabel?: (labelNodeId: string) => void
 }
 
 function trLabel(
@@ -291,6 +299,14 @@ function buildCanvasItems(ctx: CanvasContextMenuBuildContext): ContextMenuItem[]
       shortcut: 'Ctrl+K',
       children: buildAddNodeSubmenuItems(ctx),
     },
+    ...(ctx.canCreateStandaloneLabel
+      ? [
+          {
+            id: 'canvas.createLabel' as const,
+            label: trLabel(ctx, LangId.CtxCreateStandaloneLabel, 'Criar nova etiqueta'),
+          },
+        ]
+      : []),
     ...(ctx.onGraphsToCode
       ? [
           {
@@ -570,18 +586,40 @@ function buildStructureCardItems(
             },
           ]
         : []),
-      ...(ctx.onPreviewBlockCardCode
+      ...(ctx.onPreviewBlockCardCode || ctx.onRebuildBlockVfx
         ? [
             {
               id: 'node.codigo' as const,
               label: trLabel(ctx, LangId.CtxCodeSubmenu, 'Código'),
               separatorBefore: true,
               children: [
-                {
-                  id: 'node.codigoPreviewBlock' as const,
-                  label: trLabel(ctx, LangId.GraphCtxBlockCodePreview, 'Código Preview Block'),
-                },
+                ...(ctx.onPreviewBlockCardCode
+                  ? [
+                      {
+                        id: 'node.codigoPreviewBlock' as const,
+                        label: trLabel(ctx, LangId.GraphCtxBlockCodePreview, 'Código Preview Block'),
+                      },
+                    ]
+                  : []),
+                ...(ctx.onRebuildBlockVfx
+                  ? [
+                      {
+                        id: 'node.rebuildBlockVfx' as const,
+                        label: trLabel(ctx, LangId.GraphCtxRebuildVfx, 'Rebuild VFX'),
+                      },
+                    ]
+                  : []),
               ],
+            },
+          ]
+        : []),
+      ...(ctx.onRequestCreateLabel
+        ? [
+            {
+              id: 'node.createLabel' as const,
+              label: trLabel(ctx, LangId.CtxCreateLabel, 'Criar etiqueta'),
+              separatorBefore: true,
+              disabled: nodeLocked,
             },
           ]
         : []),
@@ -751,11 +789,89 @@ function buildStructureCardItems(
   return items
 }
 
+function isLabelCardView(canvasNode: CanvasNode | undefined): boolean {
+  return Boolean(canvasNode?.labelViewActive && canvasNode.labelStructure)
+}
+
+function buildLabelCardItems(
+  ctx: CanvasContextMenuBuildContext,
+  nodeId: string,
+  canvasNode: CanvasNode,
+): ContextMenuItem[] {
+  const isGlued = ctx.glueNodeId === nodeId
+  const isSelected = ctx.selectedNodeIds.includes(nodeId)
+  const nodeLocked = isNodeLocked(canvasNode)
+  const canDeleteNode = isNodeRemovableFromScene(canvasNode)
+  const paramsExpanded = canvasNode.structureCardParamsExpanded === true
+
+  return [
+    {
+      id: 'node.toggleStructureCardParamsExpanded',
+      label: paramsExpanded
+        ? trLabel(ctx, LangId.CtxCollapseStructureCardParams, 'Reduzir parâmetros (linha única)')
+        : trLabel(ctx, LangId.CtxExpandStructureCardParams, 'Expandir parâmetros (nome completo)'),
+    },
+    {
+      id: 'node.structureCardResizeHint',
+      label: trLabel(
+        ctx,
+        LangId.CtxStructureCardResizeHint,
+        'Alargar card (bordas laterais)',
+      ),
+      shortcut: 'Ctrl+arrastar',
+      disabled: true,
+    },
+    {
+      id: 'node.focus',
+      label: trLabel(ctx, LangId.CtxFocusNode, 'Focar nó na vista'),
+      shortcut: '.',
+      separatorBefore: true,
+    },
+    {
+      id: 'node.select',
+      label: isSelected
+        ? trLabel(ctx, LangId.CtxAlreadySelected, 'Já seleccionado')
+        : trLabel(ctx, LangId.CtxSelectNode, 'Seleccionar nó'),
+      disabled: isSelected,
+    },
+    {
+      id: 'node.glue',
+      label: isGlued
+        ? trLabel(ctx, LangId.CtxGlueDisable, 'Desactivar modo cola')
+        : trLabel(ctx, LangId.CtxGlueEnable, 'Modo cola (glue)'),
+      shortcut: 'L',
+      separatorBefore: true,
+    },
+    ...(ctx.onRequestEditLabel
+      ? [
+          {
+            id: 'node.editLabel' as const,
+            label: trLabel(ctx, LangId.CtxEditLabel, 'Editar etiqueta'),
+            disabled: nodeLocked,
+            separatorBefore: true,
+          },
+        ]
+      : []),
+    {
+      id: 'node.delete',
+      label: nodeLocked
+        ? `${trLabel(ctx, LangId.GraphCtxDeleteNode, 'Apagar nó')} (travado)`
+        : trLabel(ctx, LangId.GraphCtxDeleteNode, 'Apagar nó'),
+      danger: true,
+      disabled: !canDeleteNode,
+      separatorBefore: true,
+    },
+  ]
+}
+
 function buildNodeItems(
   ctx: CanvasContextMenuBuildContext,
   nodeId: string,
 ): ContextMenuItem[] {
   const canvasNode = findCanvasNode(ctx.scene, nodeId)
+  if (isLabelCardView(canvasNode)) {
+    return buildLabelCardItems(ctx, nodeId, canvasNode!)
+  }
   if (isStructureCardView(canvasNode)) {
     return buildStructureCardItems(ctx, nodeId, canvasNode!)
   }

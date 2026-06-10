@@ -354,6 +354,11 @@
     transform 160ms ease;
 }
 
+.nodeAddon {
+  width: fit-content;
+  min-width: 0;
+}
+
 .node:hover {
   filter: brightness(1.06);
 }

@@ -1,10 +1,32 @@
 import type { WorkspaceBundle } from '@/core/workspacePersistence'
-import { normalizeWorkspaceBundle } from '@/core/workspacePersistence'
+import {
+  normalizeWorkspaceBundle,
+  WORKSPACE_FORMAT_VERSION,
+} from '@/core/workspacePersistence'
 
 export const SLASH_COMMAND_VERSION = 1 as const
 export const SLASH_COMMAND_KIND = 'slash-command' as const
 
 export type SlashCommandFeature = 'blocks'
+
+export type SlashCommandAction =
+  | 'spawn'
+  | 'createBlock'
+  | 'createParameter'
+  | 'editBlock'
+  | 'deleteBlock'
+  | 'editParameter'
+  | 'deleteParameter'
+
+const SLASH_COMMAND_ACTIONS = new Set<SlashCommandAction>([
+  'spawn',
+  'createBlock',
+  'createParameter',
+  'editBlock',
+  'deleteBlock',
+  'editParameter',
+  'deleteParameter',
+])
 
 export type BlockSlashCommandSource = {
   rootBlockName: string
@@ -20,6 +42,10 @@ export type SlashCommandDocument = {
   createdAt: string
   source: BlockSlashCommandSource
   payload: WorkspaceBundle
+  /** Omitido: visível em todos os idiomas. Definido: só no locale indicado (ex. `pt-br`, `en`). */
+  locale?: string
+  /** Omitido ou `spawn`: aplica fragmento no canvas. */
+  action?: SlashCommandAction
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -88,6 +114,22 @@ export function parseSlashCommandDocument(raw: unknown): SlashCommandDocument | 
     return null
   }
 
+  let action: SlashCommandAction | undefined
+  if (raw.action !== undefined) {
+    if (typeof raw.action !== 'string' || !SLASH_COMMAND_ACTIONS.has(raw.action as SlashCommandAction)) {
+      return null
+    }
+    action = raw.action as SlashCommandAction
+  }
+
+  let locale: string | undefined
+  if (raw.locale !== undefined) {
+    if (typeof raw.locale !== 'string' || !raw.locale.trim()) {
+      return null
+    }
+    locale = raw.locale.trim().toLowerCase()
+  }
+
   return {
     version: SLASH_COMMAND_VERSION,
     kind: SLASH_COMMAND_KIND,
@@ -100,11 +142,64 @@ export function parseSlashCommandDocument(raw: unknown): SlashCommandDocument | 
       rootNodeId: raw.source.rootNodeId.trim(),
     },
     payload,
+    ...(locale ? { locale } : {}),
+    ...(action ? { action } : {}),
   }
+}
+
+export function slashCommandEffectiveAction(document: SlashCommandDocument): SlashCommandAction {
+  return document.action ?? 'spawn'
 }
 
 export function serializeSlashCommandDocument(document: SlashCommandDocument): SlashCommandDocument {
   return structuredClone(document)
+}
+
+/** Payload mínimo válido para slash commands de catálogo (sem spawn no canvas). */
+export function createMinimalCatalogSlashCommandPayload(): WorkspaceBundle {
+  return {
+    logic: {
+      version: WORKSPACE_FORMAT_VERSION,
+      nodes: {
+        _catalog: {
+          id: '_catalog',
+          schema: {
+            id: '_catalog',
+            title: '_catalog',
+            parameters: [],
+            internalStructures: [],
+          },
+          values: [],
+        },
+      },
+    },
+    layout: {
+      version: WORKSPACE_FORMAT_VERSION,
+      width: 1120,
+      height: 760,
+      nodes: {
+        _catalog: {
+          position: { x: 0, y: 0 },
+        },
+      },
+    },
+    graph: {
+      version: WORKSPACE_FORMAT_VERSION,
+      connections: [],
+    },
+    blocks: {
+      version: WORKSPACE_FORMAT_VERSION,
+      blocks: [],
+    },
+    groups: {
+      version: WORKSPACE_FORMAT_VERSION,
+      groups: [],
+    },
+    labels: {
+      version: WORKSPACE_FORMAT_VERSION,
+      labels: [],
+    },
+  }
 }
 
 export function createBlockSlashCommandDocument(input: {
@@ -112,8 +207,12 @@ export function createBlockSlashCommandDocument(input: {
   rootBlockName: string
   rootNodeId: string
   payload: WorkspaceBundle
+  locale?: string
+  action?: SlashCommandAction
 }): SlashCommandDocument {
   const command = normalizeSlashCommandName(input.name)
+  const locale = input.locale?.trim() ? input.locale.trim().toLowerCase() : undefined
+
   return {
     version: SLASH_COMMAND_VERSION,
     kind: SLASH_COMMAND_KIND,
@@ -126,5 +225,7 @@ export function createBlockSlashCommandDocument(input: {
       rootNodeId: input.rootNodeId.trim(),
     },
     payload: structuredClone(input.payload),
+    ...(locale ? { locale } : {}),
+    ...(input.action ? { action: input.action } : {}),
   }
 }

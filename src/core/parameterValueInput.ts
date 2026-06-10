@@ -364,3 +364,29 @@ export function normalizeParameterValueForCommit(type: NodeDataType, value: stri
   }
   return value
 }
+
+const PICKER_INPUT_TYPES = new Set<NodeDataType>([
+  'bool',
+  'flag',
+  'rgba',
+  'mapHashLink',
+  'listF32',
+  'optionF32',
+  'optionString',
+  'optionVector3',
+  'listString',
+  'listHash',
+  'vector2',
+  'vector3',
+  'vector4',
+  'mtx44',
+  'link',
+  'listVector2',
+  'listVector3',
+  'listVector4',
+])
+
+/** Tipos que usam widget dedicado (picker/modal) em vez de `<input>` texto simples. */
+export function parameterTypeUsesPickerInput(type: NodeDataType): boolean {
+  return PICKER_INPUT_TYPES.has(type)
+}

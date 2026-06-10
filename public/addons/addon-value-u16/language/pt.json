@@ -1,0 +1,9 @@
+{
+  "0": "Valor U16",
+  "1": "Valor",
+  "4": "0–65535",
+  "6": "Valor literal u16 exposto na saída do add-on.",
+  "20": "Valores",
+  "21": "Parâmetro",
+  "23": "Define um valor literal do tipo u16 e expõe-o num slot de saída compatível com parâmetros de bloco."
+}

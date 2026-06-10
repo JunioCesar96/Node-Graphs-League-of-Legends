@@ -2,17 +2,39 @@ import { getAddonManifest } from '@/blockStructures/addonRegistry'
 import {
   blockParameterSlotId,
   blockParameterTypeToNodeDataType,
+  isBlockListCollectionParameter,
   isBlockMapStructureType,
   isBlockStructuralSourcePath,
   isBlockTokenValue,
   type BlockParameterDef,
 } from '@/core/blockSchema'
+import {
+  findConnectionForBlockSlot,
+  findConnectionsForBlockOutputSlot,
+} from '@/core/blockSlotConnections'
+import {
+  blockElementViewKeyForParameter,
+  blockElementViewKeyForSlot,
+  clampBlockSelectedIndex,
+  getBlockElementViewState,
+  resolveBlockOutputSlotConnectionIndexFromNode,
+  type BlockElementViewKey,
+} from '@/core/blockElementViewState'
+import { hasMapHashEmbedStructure, parseMapHashEmbedString } from '@/core/mapHashEmbedValue'
+import { mapHashEmbedSlotId } from '@/core/mapHashEmbedSlots'
+import { hasMapHashPointerStructure, parseMapHashPointerString } from '@/core/mapHashPointerValue'
+import { mapHashPointerSlotId } from '@/core/mapHashPointerSlots'
+import type { MapHashStructureEntry } from '@/core/mapHashStructureValue'
+import { hasMapU64PointerStructure, parseMapU64PointerString } from '@/core/mapU64PointerValue'
+import { mapU64PointerSlotId } from '@/core/mapU64PointerSlots'
+import type { OutgoingLink } from '@/core/canvasToClassGroupRitual'
+import { parseListEmbedSlotIndex } from '@/core/listEmbedSlots'
+import { parseListPointerSlotIndex } from '@/core/listPointerSlots'
 import { resolveBlockParameterInputValue } from '@/core/blockParameterInputValue'
 import { parseBlockToken } from '@/core/blockTokenParser'
-import type { OutgoingLink } from '@/core/canvasToClassGroupRitual'
 import { resolveWiredAddonInputSlotNames } from '@/core/addonSlotConnections'
 import { getNodeDisplayTitle, isNodeLocked } from '@/core/canvasNodePresentation'
-import type { CanvasNode, CanvasScene } from '@/core/canvasScene'
+import type { CanvasConnection, CanvasNode, CanvasScene } from '@/core/canvasScene'
 import { resolveBlockSlotPeer } from '@/core/blockSlotPeerState'
 import type { NodeDataType } from '@/core/nodeSchema'
 import {
@@ -21,6 +43,7 @@ import {
   formatOutgoingLinksDisplayLabel,
   isSchemaStructuralParameter,
   outgoingLinkFieldName,
+  resolveConnectedNodeDisplayLabel,
   resolveSceneNodesParameterParentNodeId,
 } from '@/core/sceneNodesParameterGraphLinks'
 import { enrichSceneNodesParameterRowsWithInputAddons } from '@/core/inputAddonMatcher'
@@ -48,6 +71,16 @@ function readAddonFieldValueFromDom(nodeId: string, fieldName: string): string |
 
 export type SceneNodesParameterKind = 'schema' | 'block' | 'addon'
 
+export type SceneNodesParameterListIndex = {
+  connectionCount: number
+  connectionIndex: number
+  childNodeIds: string[]
+  entryLabels?: string[]
+  outputSlotId?: string
+  /** Chave em `canvasNode.blockElementView` — sincroniza com o BlockCard. */
+  elementViewKey?: BlockElementViewKey
+}
+
 export type SceneNodesParameterRow = {
   id: string
   name: string
@@ -59,9 +92,51 @@ export type SceneNodesParameterRow = {
   editable: boolean
   childNodeId?: string
   navigable: boolean
+  listIndex?: SceneNodesParameterListIndex
   inputAddonMatches?: InputAddonManifest[]
   activeInputAddonId?: string
   inputAddonPreferenceKey?: string
+}
+
+export function clampSceneNodesParameterListIndex(
+  listIndex: SceneNodesParameterListIndex,
+  rawIndex?: number,
+): number {
+  if (listIndex.connectionCount <= 0) {
+    return 0
+  }
+  const index = rawIndex ?? listIndex.connectionIndex
+  return Math.min(Math.max(0, index), listIndex.connectionCount - 1)
+}
+
+export function resolveSceneNodesParameterRowAtListIndex(
+  row: SceneNodesParameterRow,
+  scene: Pick<CanvasScene, 'nodes'>,
+  rawIndex?: number,
+): SceneNodesParameterRow {
+  if (!row.listIndex || row.listIndex.connectionCount <= 1) {
+    return row
+  }
+
+  const connectionIndex = clampSceneNodesParameterListIndex(row.listIndex, rawIndex)
+  const childNodeId = row.listIndex.childNodeIds[connectionIndex]
+  const entryLabel = row.listIndex.entryLabels?.[connectionIndex]?.trim()
+  const displayValue = childNodeId
+    ? truncateSceneNodesParameterDisplay(resolveConnectedNodeDisplayLabel(scene, childNodeId))
+    : entryLabel
+      ? truncateSceneNodesParameterDisplay(entryLabel)
+      : row.displayValue
+
+  return {
+    ...row,
+    childNodeId: childNodeId || undefined,
+    navigable: Boolean(childNodeId),
+    displayValue,
+    listIndex: {
+      ...row.listIndex,
+      connectionIndex,
+    },
+  }
 }
 
 function resolveBlockParameterEditValue(fullValue: string, typeParameter?: string): string {
@@ -223,6 +298,229 @@ function normalizeParameterFieldKey(name: string): string {
   return name.trim().toLowerCase()
 }
 
+function outgoingLinkSortIndex(link: OutgoingLink): number {
+  if ('index' in link && typeof link.index === 'number') {
+    return link.index
+  }
+  if ('instanceIndex' in link && typeof link.instanceIndex === 'number') {
+    return link.instanceIndex
+  }
+  return 0
+}
+
+function sortOutgoingLinksForSceneNodesParameter(links: readonly OutgoingLink[]): OutgoingLink[] {
+  return [...links].sort((left, right) => outgoingLinkSortIndex(left) - outgoingLinkSortIndex(right))
+}
+
+function sortBlockListCollectionOutputConnections(
+  connections: readonly CanvasConnection[],
+  parameterId: string,
+): CanvasConnection[] {
+  return [...connections].sort((left, right) => {
+    const leftIndex =
+      parseListPointerSlotIndex(left.fromBlockSlotId ?? '', parameterId) ??
+      parseListEmbedSlotIndex(left.fromBlockSlotId ?? '', parameterId)
+    const rightIndex =
+      parseListPointerSlotIndex(right.fromBlockSlotId ?? '', parameterId) ??
+      parseListEmbedSlotIndex(right.fromBlockSlotId ?? '', parameterId)
+
+    if (leftIndex !== null && rightIndex !== null) {
+      return leftIndex - rightIndex
+    }
+    if (leftIndex !== null) {
+      return -1
+    }
+    if (rightIndex !== null) {
+      return 1
+    }
+    return 0
+  })
+}
+
+type MapHashIndexConfig = {
+  parseEntries: (raw: string) => MapHashStructureEntry[]
+  slotIdForKey: (parameterId: string, key: string) => string
+  hasStructure: (entry: MapHashStructureEntry) => boolean
+}
+
+const MAP_HASH_INDEX_CONFIG: Partial<Record<string, MapHashIndexConfig>> = {
+  mapHashEmbed: {
+    parseEntries: parseMapHashEmbedString,
+    slotIdForKey: mapHashEmbedSlotId,
+    hasStructure: hasMapHashEmbedStructure,
+  },
+  mapHashPointer: {
+    parseEntries: parseMapHashPointerString,
+    slotIdForKey: mapHashPointerSlotId,
+    hasStructure: hasMapHashPointerStructure,
+  },
+  mapU64Pointer: {
+    parseEntries: parseMapU64PointerString,
+    slotIdForKey: mapU64PointerSlotId,
+    hasStructure: hasMapU64PointerStructure,
+  },
+}
+
+function resolveMapHashParameterIndex(
+  scene: CanvasScene,
+  canvasNode: CanvasNode,
+  parameterId: string,
+  parameterType: string,
+  fullValue: string,
+  outgoingLinks: readonly OutgoingLink[] = [],
+): SceneNodesParameterListIndex | undefined {
+  const config = MAP_HASH_INDEX_CONFIG[parameterType]
+  if (!config) {
+    return undefined
+  }
+
+  const entries = config.parseEntries(fullValue)
+  if (entries.length <= 1) {
+    return undefined
+  }
+
+  const linkByEntryKey = new Map<string, string>()
+  for (const link of outgoingLinks) {
+    if (
+      link.kind === 'mapHashEmbed' ||
+      link.kind === 'mapHashPointer' ||
+      link.kind === 'mapU64Pointer'
+    ) {
+      linkByEntryKey.set(link.entryKey, link.childCanvasId)
+    }
+  }
+
+  const viewKey = blockElementViewKeyForParameter(parameterId)
+  const connectionIndex = clampBlockSelectedIndex(
+    entries.length,
+    getBlockElementViewState(canvasNode, viewKey).selectedIndex,
+  )
+
+  const childNodeIds = entries.map((entry) => {
+    if (!config.hasStructure(entry)) {
+      return ''
+    }
+    const linkedChild = linkByEntryKey.get(entry.key)
+    if (linkedChild) {
+      return linkedChild
+    }
+    const slotId = config.slotIdForKey(parameterId, entry.key)
+    return findConnectionForBlockSlot(scene, canvasNode.id, slotId)?.toNodeId ?? ''
+  })
+
+  const entryLabels = entries.map((entry) => entry.typeName.trim() || entry.key)
+
+  return {
+    connectionCount: entries.length,
+    connectionIndex,
+    childNodeIds,
+    entryLabels,
+    elementViewKey: blockElementViewKeyForParameter(parameterId),
+  }
+}
+
+function resolveBlockMapHashParameterIndex(
+  scene: CanvasScene,
+  canvasNode: CanvasNode,
+  parameter: BlockParameterDef,
+  fullValue: string,
+  outgoingLinks: readonly OutgoingLink[],
+): SceneNodesParameterListIndex | undefined {
+  if (!isBlockMapStructureType(parameter.typeParameter)) {
+    return undefined
+  }
+
+  return resolveMapHashParameterIndex(
+    scene,
+    canvasNode,
+    parameter.idParameter,
+    parameter.typeParameter,
+    fullValue,
+    outgoingLinks,
+  )
+}
+
+function resolveBlockListParameterIndex(
+  scene: CanvasScene,
+  canvasNode: CanvasNode,
+  parameter: BlockParameterDef,
+): SceneNodesParameterListIndex | undefined {
+  if (!isBlockListCollectionParameter(parameter)) {
+    return undefined
+  }
+
+  const outputSlot = blockParameterSlotId(parameter.idParameter, 'output')
+  let connections = findConnectionsForBlockOutputSlot(scene, canvasNode.id, outputSlot)
+  if (connections.length <= 1) {
+    return undefined
+  }
+
+  connections = sortBlockListCollectionOutputConnections(connections, parameter.idParameter)
+  const connectionCount = connections.length
+  const connectionIndex = resolveBlockOutputSlotConnectionIndexFromNode(
+    canvasNode,
+    outputSlot,
+    connectionCount,
+  )
+
+  return {
+    connectionCount,
+    connectionIndex,
+    childNodeIds: connections.map((connection) => connection.toNodeId),
+    outputSlotId: outputSlot,
+    elementViewKey: blockElementViewKeyForSlot(outputSlot),
+  }
+}
+
+function resolveOutgoingLinksListIndex(
+  outgoingLinks: readonly OutgoingLink[],
+): SceneNodesParameterListIndex | undefined {
+  if (outgoingLinks.length <= 1) {
+    return undefined
+  }
+
+  const hasIndexedListKind = outgoingLinks.some(
+    (link) =>
+      link.kind === 'listPointer' ||
+      link.kind === 'listEmbed' ||
+      link.kind === 'list2Pointer' ||
+      link.kind === 'list2Embed',
+  )
+  if (!hasIndexedListKind) {
+    return undefined
+  }
+
+  const sortedLinks = sortOutgoingLinksForSceneNodesParameter(outgoingLinks)
+  const childNodeIds = sortedLinks.map((link) => link.childCanvasId)
+  const connectionCount = childNodeIds.length
+
+  return {
+    connectionCount,
+    connectionIndex: connectionCount - 1,
+    childNodeIds,
+  }
+}
+
+function applyListIndexToParameterRow(
+  row: SceneNodesParameterRow,
+  scene: CanvasScene,
+  listIndex?: SceneNodesParameterListIndex,
+): SceneNodesParameterRow {
+  if (!listIndex || listIndex.connectionCount <= 1) {
+    return row
+  }
+
+  return resolveSceneNodesParameterRowAtListIndex(
+    {
+      ...row,
+      listIndex,
+      navigable: true,
+    },
+    scene,
+    listIndex.connectionIndex,
+  )
+}
+
 function mergeStructuralOutgoingLinkRows(
   scene: CanvasScene,
   canvasNode: CanvasNode,
@@ -248,7 +546,8 @@ function mergeStructuralOutgoingLinkRows(
     const primaryLink = links[0]!
     const linkedLabel = formatOutgoingLinksDisplayLabel(scene, links)
 
-    additional.push({
+    const listIndex = resolveOutgoingLinksListIndex(links)
+    const row: SceneNodesParameterRow = {
       id: `outgoing:${fieldKey}`,
       name: fieldName,
       displayValue: linkedLabel ?? '—',
@@ -259,7 +558,10 @@ function mergeStructuralOutgoingLinkRows(
       editable: false,
       childNodeId: primaryLink.childCanvasId,
       navigable: Boolean(primaryLink.childCanvasId),
-    })
+      listIndex,
+    }
+
+    additional.push(applyListIndexToParameterRow(row, scene, listIndex))
   }
 
   if (additional.length === 0) {
@@ -291,7 +593,10 @@ function buildBlockParameterRows(scene: CanvasScene, canvasNode: CanvasNode): Sc
     const navigable = Boolean(childNodeId) && (hasOutputSlot || structural || outgoingLinks.length > 0)
     const editable = !nodeLocked && !structural
 
-    return {
+    const listIndex =
+      resolveBlockListParameterIndex(scene, canvasNode, parameter) ??
+      resolveBlockMapHashParameterIndex(scene, canvasNode, parameter, fullValue, outgoingLinks)
+    const row: SceneNodesParameterRow = {
       id: parameter.idParameter,
       name: parameter.nameParameter,
       displayValue: resolveBlockParameterDisplayValue(
@@ -308,7 +613,10 @@ function buildBlockParameterRows(scene: CanvasScene, canvasNode: CanvasNode): Sc
       editable,
       childNodeId,
       navigable,
+      listIndex,
     }
+
+    return applyListIndexToParameterRow(row, scene, listIndex)
   })
 }
 
@@ -326,7 +634,16 @@ function buildSchemaParameterRows(scene: CanvasScene, canvasNode: CanvasNode): S
     const linkedLabel = formatOutgoingLinksDisplayLabel(scene, outgoingLinks)
     const displayValue = linkedLabel ?? formatSceneNodesParameterDisplayValue(fullValue)
 
-    return {
+    const listIndex =
+      resolveMapHashParameterIndex(
+        scene,
+        canvasNode,
+        parameter.id,
+        parameter.type,
+        fullValue,
+        outgoingLinks,
+      ) ?? resolveOutgoingLinksListIndex(outgoingLinks)
+    const row: SceneNodesParameterRow = {
       id: parameter.id,
       name: parameter.name,
       displayValue,
@@ -337,7 +654,10 @@ function buildSchemaParameterRows(scene: CanvasScene, canvasNode: CanvasNode): S
       editable: !nodeLocked && !structural,
       childNodeId: primaryLink?.childCanvasId,
       navigable: Boolean(primaryLink?.childCanvasId && structural),
+      listIndex,
     }
+
+    return applyListIndexToParameterRow(row, scene, listIndex)
   })
 }
 

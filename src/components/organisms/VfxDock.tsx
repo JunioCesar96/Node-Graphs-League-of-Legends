@@ -105,6 +105,8 @@ export type VfxDockProps = {
   onDockedWidthChange: (nextWidth: number) => void
   ritualText: string
   dockOpen: boolean
+  /** Incrementado pelo grafo para forçar rebuild (ex.: menu Rebuild VFX do bloco). */
+  rebuildRequestId?: number
 }
 
 export function VfxDock({
@@ -118,6 +120,7 @@ export function VfxDock({
   onDockedWidthChange,
   ritualText,
   dockOpen,
+  rebuildRequestId,
 }: VfxDockProps) {
   const { t } = useLanguage()
   const [vfxScale, setVfxScale] = useState(0.01)
@@ -280,6 +283,18 @@ export function VfxDock({
   } = useVfxPreview(previewOptions)
 
   rebuildRef.current = rebuild
+
+  const prevRebuildRequestRef = useRef(rebuildRequestId ?? 0)
+  useEffect(() => {
+    if (!dockOpen || rebuildRequestId === undefined) {
+      return
+    }
+    if (prevRebuildRequestRef.current === rebuildRequestId) {
+      return
+    }
+    prevRebuildRequestRef.current = rebuildRequestId
+    rebuild()
+  }, [rebuildRequestId, dockOpen, rebuild])
 
   const { pickAssetsDirectory } = useVfxAutoAssets({
     assetIndex,

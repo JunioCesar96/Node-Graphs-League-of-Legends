@@ -1,8 +1,12 @@
 import { getAddonManifest } from '@/blockStructures/addonRegistry'
-import type { AddonSlotType } from '@/services/addonLoader.service'
+import {
+  addonSlotTypesAreCompatible,
+  formatAddonSlotTypeLabel,
+} from '@/core/addonRitualSlotTypes'
 
 import { findAddonSlotEndpoint, type AddonSlotEndpoint } from './addonSlotConnections'
 import { findBlockSlotEndpoint, type BlockSlotEndpoint } from './blockSlotConnections'
+import { findLabelSlotEndpoint, type LabelSlotEndpoint } from './labelSlotConnections'
 import type { CanvasNode } from './canvasScene'
 
 export type CrossSlotConnectionClass =
@@ -36,49 +40,47 @@ export type AddonToBlockConnectRequest = {
   toBlockParameterId?: string
 }
 
+export type LabelToAddonConnectRequest = {
+  kind: 'labelToAddon'
+  fromNodeId: string
+  fromLabelSlotId: string
+  toNodeId: string
+  toAddonSlotId: string
+}
+
 export type CrossSlotConnectRequest =
   | AddonToAddonConnectRequest
   | BlockToAddonConnectRequest
   | AddonToBlockConnectRequest
+  | LabelToAddonConnectRequest
 
-function normalizeToAddonSlotType(raw: string): AddonSlotType | 'unknown' {
-  const t = raw.trim().toLowerCase()
-  if (t === 'string' || t.includes('string') || t === 'liststring') {
-    return 'string'
+function isBlockHeaderCodeOutputType(type: string): boolean {
+  const trimmed = type.trim()
+  if (!trimmed) {
+    return false
   }
-  if (
-    t === 'number' ||
-    t === 'f32' ||
-    t === 'float' ||
-    t === 'double' ||
-    t === 'integer' ||
-    t.includes('float') ||
-    t === 'i32' ||
-    t === 'u32'
-  ) {
-    return 'number'
+  if (trimmed.toLowerCase() === 'code') {
+    return true
   }
-  if (t === 'boolean' || t === 'bool') {
-    return 'boolean'
-  }
-  if (t === 'object') {
-    return 'object'
-  }
-  return 'unknown'
+  return trimmed.toLowerCase().endsWith('preview')
 }
 
 function typesMatchForAddon(outputType: string, inputType: string): boolean {
-  const out = normalizeToAddonSlotType(outputType)
-  const input = normalizeToAddonSlotType(inputType)
-  if (out === 'unknown' || input === 'unknown') {
+  const out = outputType.trim().toLowerCase()
+  const input = inputType.trim().toLowerCase()
+  if (!out || !input) {
     return false
   }
-  return out === input
+  if (out.includes('string') || input.includes('string')) {
+    if (out === 'string' || out === 'liststring' || input === 'string' || input === 'liststring') {
+      return addonSlotTypesAreCompatible(outputType, inputType)
+    }
+  }
+  return addonSlotTypesAreCompatible(outputType, inputType)
 }
 
 function formatTypeLabel(type: string): string {
-  const normalized = normalizeToAddonSlotType(type)
-  return normalized === 'unknown' ? type : normalized
+  return formatAddonSlotTypeLabel(type)
 }
 
 function forcedClass(
@@ -124,6 +126,13 @@ export function classifyBlockOutputToAddonInput(
   }
 
   const outputTypes = from.types.length > 0 ? from.types : ['']
+  if (
+    to.type === 'code' &&
+    from.kind === 'header' &&
+    outputTypes.some(isBlockHeaderCodeOutputType)
+  ) {
+    return { kind: 'compatible' }
+  }
   const matches = outputTypes.some((type) => typesMatchForAddon(type, to.type))
   if (matches) {
     return { kind: 'compatible' }
@@ -134,6 +143,36 @@ export function classifyBlockOutputToAddonInput(
     primaryOut,
     to.type,
     from.parameterId ? `${from.parameterId} (saída bloco)` : 'saída bloco',
+    `${to.slotName} (entrada add-on)`,
+  )
+}
+
+export function classifyLabelOutputToAddonInput(
+  from: LabelSlotEndpoint,
+  to: AddonSlotEndpoint,
+): CrossSlotConnectionClass {
+  if (from.direction !== 'output' || to.direction !== 'input') {
+    return { kind: 'incompatible', reason: 'direction' }
+  }
+  if (from.nodeId === to.nodeId) {
+    return { kind: 'incompatible', reason: 'same-node' }
+  }
+
+  const outputTypes = from.types.length > 0 ? from.types : ['json']
+  if (to.type === 'json' && outputTypes.some((type) => type.trim().toLowerCase() === 'json')) {
+    return { kind: 'compatible' }
+  }
+
+  const matches = outputTypes.some((type) => typesMatchForAddon(type, to.type))
+  if (matches) {
+    return { kind: 'compatible' }
+  }
+
+  const primaryOut = outputTypes[0] ?? 'json'
+  return forcedClass(
+    primaryOut,
+    to.type,
+    'saída label (json)',
     `${to.slotName} (entrada add-on)`,
   )
 }
@@ -185,6 +224,24 @@ export function classifyCrossSlotRequest(
       return { kind: 'incompatible' }
     }
     return classifyAddonSlotConnectionExtended(from, to)
+  }
+
+  if (request.kind === 'labelToAddon') {
+    const fromNode = nodes.find((n) => n.id === request.fromNodeId)
+    const toNode = nodes.find((n) => n.id === request.toNodeId)
+    if (!fromNode?.labelStructure || !toNode?.addonInstance) {
+      return { kind: 'incompatible' }
+    }
+    const from = findLabelSlotEndpoint(fromNode, request.fromLabelSlotId)
+    const toManifest = getAddonManifest(toNode.addonInstance.addonId)
+    if (!from || !toManifest) {
+      return { kind: 'incompatible' }
+    }
+    const to = findAddonSlotEndpoint(toNode, toManifest, request.toAddonSlotId)
+    if (!to) {
+      return { kind: 'incompatible' }
+    }
+    return classifyLabelOutputToAddonInput(from, to)
   }
 
   if (request.kind === 'blockToAddon') {

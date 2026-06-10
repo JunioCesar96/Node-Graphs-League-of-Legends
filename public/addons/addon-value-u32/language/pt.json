@@ -1,0 +1,9 @@
+{
+  "0": "Valor U32",
+  "1": "Valor",
+  "4": "inteiro",
+  "6": "Valor literal u32 exposto na saída do add-on.",
+  "20": "Valores",
+  "21": "Parâmetro",
+  "23": "Define um valor literal do tipo u32 e expõe-o num slot de saída compatível com parâmetros de bloco."
+}

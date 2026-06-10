@@ -15,6 +15,51 @@ export async function writeBlockParameterDocument(
   return writeBlockParameterDocuments([parameter])
 }
 
+export type DeleteBlockParameterResult = { ok: true; deleted: string } | { ok: false; error: string }
+
+export async function deleteBlockParameterDocument(input: {
+  block: string
+  id: string
+}): Promise<DeleteBlockParameterResult> {
+  try {
+    const res = await fetch('/api/block-parameters-delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ block: input.block.trim(), id: input.id.trim() }),
+    })
+
+    const payload: unknown = await res.json()
+
+    if (!res.ok) {
+      const message =
+        typeof payload === 'object' &&
+        payload !== null &&
+        'error' in payload &&
+        typeof (payload as { error: unknown }).error === 'string'
+          ? (payload as { error: string }).error
+          : `HTTP ${res.status}`
+      return { ok: false, error: message }
+    }
+
+    if (
+      typeof payload !== 'object' ||
+      payload === null ||
+      !('ok' in payload) ||
+      (payload as { ok: unknown }).ok !== true
+    ) {
+      return { ok: false, error: 'Resposta inválida do servidor' }
+    }
+
+    const body = payload as { deleted?: string }
+    return { ok: true, deleted: body.deleted ?? input.id }
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : String(err),
+    }
+  }
+}
+
 export async function writeBlockParameterDocuments(
   parameters: readonly BlockParameterJsonDocument[],
 ): Promise<WriteBlockParametersResult> {

@@ -51,6 +51,10 @@ export type GraphCanvasConnectionsLayerProps = {
     draftAnchor: { sx: number; sy: number }
   } | null
   groupLinkDraftPoint: { x: number; y: number } | null
+  pendingLabelLink: {
+    draftAnchor: { sx: number; sy: number }
+  } | null
+  labelLinkDraftPoint: { x: number; y: number } | null
   pendingLink: {
     draftAnchor: { sx: number; sy: number }
   } | null
@@ -75,6 +79,8 @@ function areGraphCanvasConnectionsLayerPropsEqual(
     prev.blockLinkDraftPoint === next.blockLinkDraftPoint &&
     prev.pendingGroupLink === next.pendingGroupLink &&
     prev.groupLinkDraftPoint === next.groupLinkDraftPoint &&
+    prev.pendingLabelLink === next.pendingLabelLink &&
+    prev.labelLinkDraftPoint === next.labelLinkDraftPoint &&
     prev.pendingLink === next.pendingLink &&
     prev.linkDraftPoint === next.linkDraftPoint &&
     prev.canvasBounds.height === next.canvasBounds.height &&
@@ -99,6 +105,8 @@ function GraphCanvasConnectionsLayerInner({
   blockLinkDraftPoint,
   pendingGroupLink,
   groupLinkDraftPoint,
+  pendingLabelLink,
+  labelLinkDraftPoint,
   pendingLink,
   linkDraftPoint,
   createDraftConnectionPath,
@@ -112,6 +120,7 @@ function GraphCanvasConnectionsLayerInner({
         (connection) =>
           !isBlockSlotConnection(connection) &&
           !isGroupSlotConnection(connection) &&
+          !connectionInvolvesAddon(connection) &&
           connection.routing !== 'wireless' &&
           isConnectionRenderedInViewport(connection),
       )
@@ -351,6 +360,18 @@ function GraphCanvasConnectionsLayerInner({
             pendingGroupLink.draftAnchor.sy,
             groupLinkDraftPoint.x,
             groupLinkDraftPoint.y,
+          )}
+        />
+      ) : null}
+
+      {pendingLabelLink && labelLinkDraftPoint ? (
+        <path
+          className={styles.connectionBlockDraft}
+          d={createBlockDraftConnectionPath(
+            pendingLabelLink.draftAnchor.sx,
+            pendingLabelLink.draftAnchor.sy,
+            labelLinkDraftPoint.x,
+            labelLinkDraftPoint.y,
           )}
         />
       ) : null}

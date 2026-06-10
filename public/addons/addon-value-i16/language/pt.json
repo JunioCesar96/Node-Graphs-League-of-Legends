@@ -1,0 +1,9 @@
+{
+  "0": "Valor I16",
+  "1": "Valor",
+  "4": "-32768–32767",
+  "6": "Valor literal i16 exposto na saída do add-on.",
+  "20": "Valores",
+  "21": "Parâmetro",
+  "23": "Define um valor literal do tipo i16 e expõe-o num slot de saída compatível com parâmetros de bloco."
+}

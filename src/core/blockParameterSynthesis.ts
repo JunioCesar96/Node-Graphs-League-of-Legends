@@ -66,6 +66,36 @@ export function blockParameterSourceId(
   return `${base}_parameter_${parameterName.trim()}`
 }
 
+/** Extrai o nodeId ritual da instância a partir do `source.parameterId` do documento JSON. */
+export function instanceNodeIdFromParameterDocument(
+  doc: Pick<BlockParameterJsonDocument, 'source' | 'type' | 'parameterName'>,
+): string | null {
+  if (doc.source.kind !== 'parameter') {
+    return null
+  }
+
+  const id = doc.source.parameterId.trim()
+  if (!id) {
+    return null
+  }
+
+  const paramMarker = '_parameter_'
+  const paramIdx = id.indexOf(paramMarker)
+  if (paramIdx > 0) {
+    return id.slice(0, paramIdx)
+  }
+
+  if (doc.type === 'embed' || doc.type === 'pointer') {
+    const slug = fieldSlug(doc.parameterName)
+    const suffix = `-${slug}`
+    if (id.endsWith(suffix) && id.length > suffix.length) {
+      return id.slice(0, id.length - suffix.length)
+    }
+  }
+
+  return null
+}
+
 /** `childSlug__{suffix}-{field}` a partir do nodeId do bloco pai. */
 export function deriveChildBlockNodeId(
   parentBlockNodeId: string,

@@ -37,6 +37,7 @@ import type {
   PointerDefinition,
 } from '@/core/nodeSchema'
 import type { BlockParameterDef } from '@/core/blockSchema'
+import { resolveBlockCardParameterExportValue } from '@/core/syncBlockToCode'
 import { hasMapHashEmbedStructure, parseMapHashEmbedString } from '@/core/mapHashEmbedValue'
 import { findPointerBySlotId } from '@/core/pointerSlots'
 import {
@@ -884,6 +885,7 @@ export class RitualEmitter {
 
     for (const parameter of canvasNode.blockStructure.parameters) {
       this.collectBlockFilterFromParameter(
+        canvasNode,
         parameter,
         looksSynthetic,
         parameterIds,
@@ -933,6 +935,7 @@ export class RitualEmitter {
   }
 
   private collectBlockFilterFromParameter(
+    canvasNode: CanvasNode,
     parameter: BlockParameterDef,
     looksSynthetic: (id: string) => boolean,
     parameterIds: Set<string>,
@@ -948,7 +951,10 @@ export class RitualEmitter {
       parameterIds.add(source.parameterId)
       const normalizedName = parameter.nameParameter.trim().toLowerCase()
       parameterNames.add(normalizedName)
-      parameterValueByName.set(normalizedName, parameter.defaultValue)
+      parameterValueByName.set(
+        normalizedName,
+        resolveBlockCardParameterExportValue(this.scene, canvasNode, parameter),
+      )
       return
     }
     if (source.kind === 'embedChild') {
@@ -1527,7 +1533,7 @@ export function emitMainBlockCardPreview(
       fidelity,
       ritualExportFieldNameFromParameter,
     )
-    const raw = selected.defaultValue
+    const raw = resolveBlockCardParameterExportValue(scene, mainNode, selected)
 
     if (parameter.type === 'mapHashEmbed') {
       lines.push(

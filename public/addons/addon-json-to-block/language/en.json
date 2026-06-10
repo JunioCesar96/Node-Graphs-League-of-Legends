@@ -1,0 +1,15 @@
+{
+  "0": "JSON to Block",
+  "1": "JSON",
+  "2": "Connect a JSON output slot (e.g. Code to JSON) to receive ritual JSON for block generation",
+  "3": "Converts ritual JSON into block cards and inserts them into the current scene.",
+  "4": "Paste ritual JSON or connect a slot…",
+  "5": "Expand JSON view",
+  "6": "Collapse JSON view",
+  "7": "Preview",
+  "8": "Waiting for connection…",
+  "10": "Generate",
+  "20": "League of Legends",
+  "21": "Utility",
+  "22": "Blocks"
+}

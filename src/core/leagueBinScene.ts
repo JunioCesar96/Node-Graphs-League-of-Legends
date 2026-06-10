@@ -20,6 +20,12 @@ import {
   parseSceneGroups,
   type StoredSceneGroupEntry,
 } from '@/core/groupScenePersistence'
+import {
+  applySceneLabelsToCanvas,
+  extractSceneLabelsFromCanvas,
+  parseSceneLabels,
+  type StoredSceneLabelEntry,
+} from '@/core/labelScenePersistence'
 import { hydrateSceneBlockViews } from '@/core/codeToBlockStructure'
 import { hydrateSceneGroupViews } from '@/core/codeToGroupStructure'
 import type {
@@ -59,6 +65,7 @@ export type LeagueBinGraphDocumentV2 = {
   sceneChrome?: SceneChromeState
   blocks?: StoredSceneBlockEntry[]
   groups?: StoredSceneGroupEntry[]
+  labels?: StoredSceneLabelEntry[]
 }
 
 export type StoredNodeBodyPayload = {
@@ -277,6 +284,9 @@ function parseConnection(c: unknown): CanvasConnection | null {
     ...(typeof c.toGroupParameterId === 'string'
       ? { toGroupParameterId: c.toGroupParameterId }
       : {}),
+    ...(typeof c.fromAddonSlotId === 'string' ? { fromAddonSlotId: c.fromAddonSlotId } : {}),
+    ...(typeof c.toAddonSlotId === 'string' ? { toAddonSlotId: c.toAddonSlotId } : {}),
+    ...(typeof c.fromLabelSlotId === 'string' ? { fromLabelSlotId: c.fromLabelSlotId } : {}),
     ...(c.forced === true ? { forced: true } : {}),
   }
 }
@@ -305,6 +315,7 @@ function parseCompactRoutingBackups(
 export function serializeScene(scene: CanvasScene): LeagueBinGraphDocumentV2 {
   const blocks = extractSceneBlocksFromCanvas(scene)
   const groups = extractSceneGroupsFromCanvas(scene)
+  const labels = extractSceneLabelsFromCanvas(scene)
 
   return {
     format: 'node-graphs-lol',
@@ -322,6 +333,7 @@ export function serializeScene(scene: CanvasScene): LeagueBinGraphDocumentV2 {
     ...(scene.sceneChrome ? { sceneChrome: structuredClone(scene.sceneChrome) } : {}),
     ...(blocks.length > 0 ? { blocks: structuredClone(blocks) } : {}),
     ...(groups.length > 0 ? { groups: structuredClone(groups) } : {}),
+    ...(labels.length > 0 ? { labels: structuredClone(labels) } : {}),
     nodes: scene.nodes.map((n) => ({
       id: n.id,
       presentation: canvasNodePresentationFromNode(n),
@@ -468,6 +480,11 @@ function parseV2Document(data: Record<string, unknown>): CanvasScene | null {
     return null
   }
 
+  const labels = parseSceneLabels(data.labels)
+  if (data.labels !== undefined && labels === null) {
+    return null
+  }
+
   const baseScene: CanvasScene = {
     width: data.width,
     height: data.height,
@@ -490,7 +507,13 @@ function parseV2Document(data: Record<string, unknown>): CanvasScene | null {
     return null
   }
 
-  return hydrateSceneGroupViews(hydrateSceneBlockViews(withGroups))
+  const withLabels =
+    labels && labels.length > 0 ? applySceneLabelsToCanvas(withGroups, labels) : withGroups
+  if (!withLabels) {
+    return null
+  }
+
+  return hydrateSceneGroupViews(hydrateSceneBlockViews(withLabels))
 }
 
 export function parseSceneDocument(data: unknown): CanvasScene | null {

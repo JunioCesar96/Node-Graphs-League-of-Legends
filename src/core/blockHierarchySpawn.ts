@@ -207,12 +207,16 @@ function resolveSpawnParameterDocument(
   schema: NodeSchemaDefinition,
   catalog?: BlockSpawnCatalog,
   hints?: BlockSpawnParameterLookupHints,
+  instanceNodeId?: string,
 ): BlockParameterJsonDocument | null {
   const fromCatalog = resolveSpawnCatalogParameterDocument(
     catalog,
     definition.blockName,
     parameterName,
-    hints,
+    {
+      ...hints,
+      instanceNodeId: instanceNodeId ?? hints?.instanceNodeId,
+    },
   )
   if (fromCatalog) {
     return fromCatalog
@@ -243,6 +247,7 @@ function buildBlockStructureForSpawn(
   schema: NodeSchemaDefinition,
   catalog?: BlockSpawnCatalog,
   instanceSchema?: RitualBlockInstanceContext['schema'],
+  instanceNodeId?: string,
 ): BlockStructurePayload {
   let structure = buildEmptyBlockStructureFromDefinition(definition)
   const seen = new Set<string>()
@@ -260,6 +265,7 @@ function buildBlockStructureForSpawn(
       schema,
       catalog,
       spawnParameterLookupHints(instanceSchema, parameterName),
+      instanceNodeId,
     )
     if (!doc) {
       continue
@@ -468,6 +474,7 @@ function spawnSingleBlockNode(
     schema,
     ctx.spawnCatalog,
     instance?.schema,
+    instance?.nodeId,
   )
   const canvasNode: CanvasNode = {
     id: instanceId,

@@ -29,6 +29,8 @@ export const MESSENGER_TOAST_NEEKO_TRANSFORM_WARNINGS = 'toast_neeko_transform_w
 
 export const MESSENGER_TOAST_NEEKO_BUILD_FAILED = 'toast_neeko_build_failed' as const
 
+export const MESSENGER_TOAST_SLOT_CONNECTION_LOOP = 'toast_slot_connection_loop' as const
+
 export type MessengerPopupKind = 'confirm' | 'toast'
 
 export type MessengerPopupCatalogEntry = {

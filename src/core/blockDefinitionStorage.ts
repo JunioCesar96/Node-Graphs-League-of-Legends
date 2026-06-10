@@ -172,6 +172,50 @@ export async function writeBlockDefinitionDocuments(
 
 
 
+export type DeleteBlockDefinitionResult = { ok: true; deleted: string } | { ok: false; error: string }
+
+export async function deleteBlockDefinitionDocument(
+  blockName: string,
+): Promise<DeleteBlockDefinitionResult> {
+  try {
+    const res = await fetch('/api/block-definitions-delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ blockName: blockName.trim() }),
+    })
+
+    const payload: unknown = await res.json()
+
+    if (!res.ok) {
+      const message =
+        typeof payload === 'object' &&
+        payload !== null &&
+        'error' in payload &&
+        typeof (payload as { error: unknown }).error === 'string'
+          ? (payload as { error: string }).error
+          : `HTTP ${res.status}`
+      return { ok: false, error: message }
+    }
+
+    if (
+      typeof payload !== 'object' ||
+      payload === null ||
+      !('ok' in payload) ||
+      (payload as { ok: unknown }).ok !== true
+    ) {
+      return { ok: false, error: 'Resposta inválida do servidor' }
+    }
+
+    const body = payload as { deleted?: string }
+    return { ok: true, deleted: body.deleted ?? blockName }
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : String(err),
+    }
+  }
+}
+
 export async function writeBlockDefinitionDocument(
 
   definition: BlockDefinitionJsonDocument,

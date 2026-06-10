@@ -1,0 +1,43 @@
+{
+  "id": "addon-color-vec4",
+  "name": "[{0}]",
+  "category": "Values",
+  "drive": "inputChange",
+  "info": {
+    "link": "https://github.com/JunioCesar96/Node-Graphs-League-of-Legends",
+    "author": "Junio Cesar (Takeda)",
+    "version": "1.0.0",
+    "description": "[{23}]",
+    "license": "MIT",
+    "tags": ["[{20}]", "[{21}]", "color", "vec4"],
+    "docs": "https://github.com/JunioCesar96/Node-Graphs-League-of-Legends/blob/main/README.md"
+  },
+  "headerColor": "",
+  "icon": "none",
+  "get": true,
+  "set": true,
+  "data": [
+    {
+      "name": "literal",
+      "type": "vec4",
+      "direction": "input",
+      "slot": "true",
+      "slotColor": "default",
+      "slotTip": {
+        "pt": "{7}",
+        "en": "{7}"
+      }
+    },
+    {
+      "name": "value",
+      "type": "vec4",
+      "direction": "output",
+      "slot": "true",
+      "slotColor": "default",
+      "slotTip": {
+        "pt": "{6}",
+        "en": "{6}"
+      }
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "0": "Valor Flag",
+  "1": "Valor",
+  "6": "Valor literal flag exposto na saída do add-on.",
+  "20": "Valores",
+  "21": "Parâmetro",
+  "23": "Chave liga/desliga que define true ou false e expõe o valor num slot de saída compatível com parâmetros de bloco."
+}

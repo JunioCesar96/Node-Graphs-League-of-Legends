@@ -1,17 +1,17 @@
-# Documentação de Implementação — Input Addons (editores personalizados de parâmetros)
+# Documentação de Implementação — Label Block (etiquetas de segmentação visual)
 
-Arquivo salvo em: `feature_md/feature/feature-input-addons.md`
+Arquivo salvo em: `feature_md/feature/feature-label-block.md`
 
 ## 1. Cabeçalho
 
 | Campo | Valor |
 | --- | --- |
-| Nome da Branch | `feature/input-addons` |
-| Nome das Features | **inputAddons** — pacotes de entrada personalizada para parâmetros de bloco/nó; paleta Ctrl+K (aba Input Addon); coluna Input Addon no painel Parameters; substituição do input no `BlockParameterRow`; menu de contexto para escolha entre múltiplos addons; primeiro pacote `input-addon-color-vec4` (ValueColor.constantValue vec4) |
+| Nome da Branch | `feature/label-block` |
+| Nome das Features | **Label Block** — card estrutural no canvas vinculado a um bloco pai; parâmetros espelhados com highlight/ocultação no pai; saída JSON tipada no slot de cabeçalho; criação a partir do bloco ou avulsa na grade; persistência em workspace e export JSON de cena v2 |
 | Versão atual | `1.5.0` |
-| Hash do Commit | `ba80ea4` |
+| Hash do Commit | `7d73ff5` |
 
-Documentação relacionada: `feature_md/feature/feature-addon-palette-install.md`, `feature_md/feature/feature-scene-nodes-parameters-graph.md`, `feature_md/prompet/prompt_doc.md`.
+Documentação relacionada: `feature_md/prompet/prompet_sistema_blocos.md`, `feature_md/feature/feature-block-link-palette.md`, `feature_md/prompet/prompt_doc.md`.
 
 ---
 
@@ -19,8 +19,8 @@ Documentação relacionada: `feature_md/feature/feature-addon-palette-install.md
 
 | Tag | Definição |
 | --- | --- |
-| `[NOVO]` | Novo módulo, pacote em `public/inputAddons/`, componente ou fluxo criado nesta entrega. |
-| `[ATUALIZADO]` | Componente ou função existente alterada para integrar input addons. |
+| `[NOVO]` | Novo módulo, componente, tipo de nó, persistência ou fluxo criado nesta entrega. |
+| `[ATUALIZADO]` | Componente ou função existente alterada para integrar labels, vínculo bloco↔label ou export JSON. |
 | `[REMOVIDO]` | Comportamento ou API removida ou descontinuada. |
 
 Tags presentes nesta implementação:
@@ -36,37 +36,34 @@ Não houve itens classificados como `[REMOVIDO]`.
 
 ```mermaid
 graph TD
-  subgraph boot [Bootstrap]
-    A[App mount] --> B[fetchInputAddonsFromDisk]
-    B --> C[inputAddonRegistry]
+  subgraph create [Criação]
+    A1[Menu bloco ou rodapé Labels vinculadas] --> B[CreateLabelDialog fromParent]
+    A2[Menu grade Criar nova etiqueta] --> C[CreateLabelDialog standalone]
+    B --> D[createLabelBlockFromParent]
+    C --> E[createStandaloneLabel]
+    D --> F[LabelCard no canvas]
+    E --> F
   end
 
-  subgraph match [Matching]
-    D[Parâmetro editável] --> E{block + parameter + type}
-    E --> F[findMatchingInputAddons]
-    F --> G{matches > 0?}
-    G -->|Não| H[ParameterValueInput padrão]
-    G -->|Sim| I[resolveActiveInputAddonId + localStorage]
+  subgraph link [Vínculo]
+    F --> G{parentBlockNodeId vazio?}
+    G -->|Sim| H[Rodapé Bloco vinculado]
+    H --> I[linkLabelToParentBlock + remap parâmetros]
+    G -->|Não| J[Espelhamento activo]
   end
 
-  subgraph ui [UI]
-    I --> J[InputAddonChangeCell]
-    J --> K[preloadInputAddonPackage]
-    K --> L[ui.html + logic.execute]
-    L --> M[Elemento change na célula]
-    M --> N{Clique no change}
-    N --> O[AddonColorVec4Picker modal]
-    O --> P[onCommitParameter / onCommitValue]
+  subgraph sync [Sincronização]
+    J --> K[BlockParameterRow no LabelCard]
+    K --> L[updateBlockParameter no pai]
+    L --> M[labelParentEffects highlight/hide]
+    M --> N[BlockCard filtra ocultos + cores]
   end
 
-  subgraph palette [Paleta Ctrl+K]
-    Q[Aba Input Addon] --> R[Lista + instalação drag-drop]
-    R --> C
-  end
-
-  subgraph ctx [Contexto múltiplos addons]
-    S[Clique direito na linha] --> T[SceneNodesParameterInputAddonContextMenu]
-    T --> U[writeInputAddonPreference]
+  subgraph json [Saída JSON]
+    F --> O[Slot header label-header:nodeId:0]
+    O --> P[buildLabelJsonExport]
+    P --> Q[crossSlotConnections labelToAddon]
+    Q --> R[addon-code-to-json ou destino]
   end
 ```
 
@@ -77,29 +74,31 @@ graph TD
 ```mermaid
 sequenceDiagram
   actor U as Utilizador
-  participant App as App.tsx
-  participant Reg as inputAddonRegistry
-  participant Row as BlockParameterRow
-  participant Cell as InputAddonChangeCell
-  participant Ldr as InputAddonLoaderService
-  participant Picker as AddonColorVec4Picker
+  participant Menu as canvasContextMenuItems
+  participant Dlg as CreateLabelDialog
+  participant Hist as useSceneHistory
+  participant LC as LabelCard
+  participant Sync as syncLabelToParent
+  participant Parent as BlockCard
+  participant Exp as labelJsonExport
 
-  App->>Reg: fetchInputAddonsFromDisk on mount
-  Reg->>Ldr: loadManifestOnly / loadFromSandbox
+  U->>Menu: Criar etiqueta a partir do bloco
+  Menu->>Dlg: variant fromParent
+  U->>Dlg: Nome, cor, parâmetros
+  Dlg->>Hist: createLabelBlockFromParent
+  Hist->>Hist: createLabelPlaceholderInstance + labelStructure
+  Hist-->>LC: nó labelViewActive
 
-  U->>Row: Edita constantValue em ValueColor
-  Row->>Row: resolveBlockParameterInputAddonBinding
-  Row->>Cell: render com activeInputAddonId
-  Cell->>Reg: preloadInputAddonPackage
-  Reg->>Ldr: loadFromSandbox id locale
-  Ldr-->>Cell: uiHtml + execute + languagePack
-  Cell->>Cell: logic.execute value hostDOM
-  U->>Cell: Clique no swatch change
-  Cell->>Picker: modal com painel color vec4
-  U->>Picker: Altera cor
-  Picker->>Cell: emitAddonColorVec4PanelChange
-  Cell->>Row: onCommitValue
-  Row->>Row: updateBlockParameter na cena
+  U->>LC: Edita valor de parâmetro
+  LC->>Sync: resolveLabelParameterDef
+  LC->>Hist: onUpdateLabelParentParameter
+  Hist->>Parent: updateBlockParameter
+  Parent->>Parent: resolveLabelEffectsForParent
+
+  U->>LC: Arrasta slot header OUT
+  LC->>Exp: resolveLabelJsonOutputString
+  Exp->>Exp: buildLabelJsonExport por parâmetro
+  Note over LC,Exp: JSON tipado value+type por campo
 ```
 
 ---
@@ -108,81 +107,84 @@ sequenceDiagram
 
 | Status | Nome | Feature | Descrição Técnica | Parâmetros / Retorno |
 | --- | --- | --- | --- | --- |
-| `[NOVO]` | `public/inputAddons/` | Pacotes | Estrutura igual aos addons: `manifest.json`, `ui.html`, `logic.js`, `language/`. Manifest com `type: "input"` e `input.{block,parameter,type,change}`. | `index.json` fallback estático. |
-| `[NOVO]` | `input-addon-color-vec4` | Pacote inicial | Editor de cor vec4 (0–1) para `ValueColor.constantValue`; `change: inputaddon` (swatch). | Reutiliza `addons/shared/colorVec4Input.js`. |
-| `[NOVO]` | `inputAddonLoader.service.ts` | Loader | Validação e `loadFromSandbox` em `/inputAddons/{id}/`. | `InputAddonManifest`, `InputAddonPackage`. |
-| `[NOVO]` | `inputAddonRegistry.ts` | Registry | Cache, `preloadInputAddonPackage`, `fetchInputAddonsFromDisk`. | API espelhada de `addonRegistry`. |
-| `[NOVO]` | `inputAddonMatcher.ts` | Matching | Cruza `block`, `parameter`, `type` ritual; enriquece linhas do painel Parameters. | `resolveBlockParameterInputAddonBinding`. |
-| `[NOVO]` | `inputAddonPreferences.ts` | Preferência | `localStorage` chave `inputAddonPref:{block}:{parameter}:{type}`. | `resolveActiveInputAddonId`. |
-| `[NOVO]` | `inputAddonChangeElement.ts` | UI DOM | Resolve id `change` (fallback `inputaddon`); clona elemento para célula. | `findChangeElement`, `cloneChangeElementForDisplay`. |
-| `[NOVO]` | `inputAddonInstallFromDrop.ts` | Instalação dev | `POST /api/input-addons-install` via drag-and-drop na paleta. | `installInputAddonFromDataTransfer`. |
-| `[NOVO]` | `vite.inputAddonsListHandler.ts` | Dev API | `GET /api/input-addons-list` enumera `public/inputAddons/*/manifest.json`. | Handler Vite. |
-| `[NOVO]` | `InputAddonChangeCell.tsx` | UI parâmetro | Host DOM oculto, elemento `change` clicável, modal `AddonColorVec4Picker`. | `layout: compact \| field`. |
-| `[NOVO]` | `PaletteAddInputAddonOption.tsx` | Paleta | Item de catálogo na aba Input Addon (somente listagem/instalação). | — |
-| `[NOVO]` | `PaletteInputAddonInstallZone.tsx` | Paleta | Zona drag-and-drop para instalar pacotes. | — |
-| `[NOVO]` | `SceneNodesParameterInputAddonContextMenu.tsx` | Contexto | Lista input addons quando há múltiplos matches. | `onSelect(inputAddonId)`. |
-| `[ATUALIZADO]` | `AddNodePalette.tsx` | Paleta | Nova aba **Input Addon** ao lado de Addons; busca, reload, lista. | `PaletteCatalogMode` + `inputAddons`. |
-| `[ATUALIZADO]` | `SceneNodesParametersSection.tsx` | Painel Parameters | Coluna **Input Addon**; menu de contexto na linha. | Grid 4 colunas. |
-| `[ATUALIZADO]` | `BlockParameterRow.tsx` | Card bloco | Substitui `ParameterValueInput` pelo input addon quando há match; menu de contexto na linha. | Prop `blockType`. |
-| `[ATUALIZADO]` | `sceneNodesParametersView.ts` | Dados linhas | Campos `inputAddonMatches`, `activeInputAddonId`, `inputAddonPreferenceKey`. | `enrichSceneNodesParameterRowsWithInputAddons`. |
-| `[ATUALIZADO]` | `App.tsx` | Bootstrap | `fetchInputAddonsFromDisk()` no mount. | — |
-| `[ATUALIZADO]` | `canvasContextMenuResolve.ts` | Menu bloco | Menu de contexto do **card de bloco** só no cabeçalho ou rodapé (`data-block-card-context-zone`). | `shouldAllowBlockNodeContextMenu`. |
-| `[ATUALIZADO]` | `BlockCard.tsx` | Zonas menu | `data-block-card-context-zone` em `<header>` e `<footer>`. | — |
-| `[ATUALIZADO]` | `GraphCanvas.tsx` | Canvas | Filtra abertura do menu de nó em cards de bloco. | — |
-| `[ATUALIZADO]` | `vite.plugin.addonsList.ts` | Dev server | Rotas `/api/input-addons-list` e `/api/input-addons-install`. | — |
+| `[NOVO]` | `labelSchema.ts` | Modelo | Tipos `LabelStructurePayload`, `CreateLabelDraft`, `labelHeaderSlotId`, `LABEL_JSON_OUTPUT_TYPE`. | Constantes + helpers de slot. |
+| `[NOVO]` | `labelPlaceholderNode.ts` | Placeholder | Instância schema `__label_placeholder__` para nós label no canvas. | `createLabelPlaceholderInstance`. |
+| `[NOVO]` | `labelScenePersistence.ts` | Persistência | Round-trip `labels.json` no workspace; extract/apply labels da cena. | `extractSceneLabelsFromCanvas`, `applySceneLabelsToCanvas`. |
+| `[NOVO]` | `labelParentLinking.ts` | Vínculo | Matching parâmetro label↔bloco, remap ao vincular, parâmetros reservados por labels irmãs, lista blocos linkáveis. | `linkLabelToParentBlock`, `listParameterIdsReservedBySiblingLabels`. |
+| `[NOVO]` | `syncLabelToParent.ts` | Sync | Leitura/escrita de valores via nó pai; normalização de cor. | `resolveLabelParameterDisplayValue`, `normalizeLabelColor`. |
+| `[NOVO]` | `labelParentEffects.ts` | Visual pai | Agrega highlight por cor e ocultação (`hiddenInParent`) de todas as labels do bloco. | `resolveLabelEffectsForParent` → `Map` + `Set`. |
+| `[NOVO]` | `labelJsonExport.ts` | Export JSON | Serializa parâmetros espelhados como `{ campo: { value, type } }`. | `buildLabelJsonExport`, `resolveLabelJsonOutputString`. |
+| `[NOVO]` | `labelSlotConnections.ts` | Conexões | Geometria e routing do slot header JSON da label. | Integração com `crossSlotConnections`. |
+| `[NOVO]` | `LabelCard.tsx` | UI card | Header colorido, body grid 5 colunas (`BlockParameterRow`), slot OUT JSON, rodapé com menus. | Props espelhadas de `BlockCard`. |
+| `[NOVO]` | `LabelCardParameterMenu.tsx` | Menu rodapé | Bloco vinculado, slot tools, CRUD parâmetros, toggle global ocultar no pai (`SceneNodeEyeIcon`). | Callbacks para `useSceneHistory`. |
+| `[NOVO]` | `CreateLabelDialog.tsx` | Diálogo | Modos `create`/`edit`; variantes `fromParent` e `standalone` com `EmbeddedStructureListPicker`. | `CreateLabelDraft` → histórico. |
+| `[NOVO]` | Ícones SVG link | UX vínculo | `link.svg`, `link block.svg`, `link parametro.svg` (+ variantes bw/black). | CSS `iconGlyphLink` em menus. |
+| `[ATUALIZADO]` | `canvasScene.ts` | Cena | Campos `labelStructure`, `labelViewActive`; conexões `fromLabelSlotId`. | Tipos `CanvasNode`, `CanvasConnection`. |
+| `[ATUALIZADO]` | `useSceneHistory.ts` | Mutações | `createLabelBlockFromParent`, `createStandaloneLabel`, `linkLabelToParentBlock`, `updateLabelStructure`, CRUD parâmetros label, `toggleAllLabelParametersHiddenInParent`. | Retorno `{ ok, nodeId \| error }`. |
+| `[ATUALIZADO]` | `BlockCard.tsx` | Pai | Rodapé «Labels vinculadas»; aplica `hidden` e `labelHighlightColor` nos parâmetros. | Lista/focar/adicionar/remover labels. |
+| `[ATUALIZADO]` | `BlockParameterRow.tsx` | Linha | `data-label-linked`, fundo highlight quando parâmetro está numa label. | Reutilizado em `LabelCard`. |
+| `[ATUALIZADO]` | `GraphCanvasSceneNode.tsx` | Render | Branch `labelViewActive && labelStructure` → `LabelCard`. | Host de eventos de slot. |
+| `[ATUALIZADO]` | `GraphCanvas.tsx` | Canvas | Handlers label, hover candidato vínculo (`linkCandidateHighlight`), rascunho conexão JSON. | Integração com paleta/addons. |
+| `[ATUALIZADO]` | `canvasContextMenuItems.ts` | Menus | «Criar etiqueta» no bloco; «Criar nova etiqueta» na grade; «Editar etiqueta» no nó label. | `onRequestCreateLabel`, `canCreateStandaloneLabel`. |
+| `[ATUALIZADO]` | `workspacePersistence.ts` | Workspace | Bundle `labels` → `labels.json` via `vite.plugin.workspaceSync`. | Serialização dev. |
+| `[ATUALIZADO]` | `leagueBinScene.ts` | Export cena | Array `labels[]` no JSON v2 (`serializeScene` / `parseV2Document`). | Round-trip com testes. |
+| `[ATUALIZADO]` | `crossSlotConnections.ts` | Slots cruzados | Ligações label header → addon IN (`labelToAddon`). | `instanceEvaluator` actualizado. |
+| `[ATUALIZADO]` | `structureCardLayout.ts` | Layout | `resolveLabelCardWidth`, largura fixa `LABEL_CARD_WIDTH` (360px). | Resize handles partilhados. |
 
 ---
 
 ## 6. Descrição Detalhada de Funcionamento
 
-### Pacotes inputAddons
+### Modelo Label Block
 
-[NOVO] Cada pacote vive em `public/inputAddons/{id}/` com a mesma estrutura dos addons (`manifest`, `ui`, `logic`, `language`). O manifest declara `type: "input"` e um objeto `input`:
+[NOVO] Uma **Label Block** (etiqueta) é um nó visual no canvas que expõe um subconjunto de parâmetros de um **bloco pai** (`BlockCard`), sem duplicar dados: valores são lidos e escritos no `blockStructure` do pai via matching de `parameterId`.
 
-```json
-{
-  "input": {
-    "block": "ValueColor",
-    "parameter": "constantValue",
-    "type": "vec4",
-    "change": "inputaddon"
-  }
-}
-```
+[NOVO] `LabelStructurePayload` guarda `labelName`, `color`, `parentBlockNodeId` (vazio = avulsa até vincular), `catalogBlockType` (tipo de catálogo para picker standalone) e lista `parameters` com flag opcional `hiddenInParent`.
 
-[NOVO] O campo `change` define o id do elemento em `ui.html` exibido na célula (swatch, botão, etc.). Valores vazios (`""`, `false`, `null`, `"none"`) usam o id padrão `inputaddon`. Se o id não existir no HTML, mostra-se um botão fallback que ainda abre o modal.
+### Criação fromParent vs standalone
 
-[NOVO] `logic.js` exporta `logic.execute(inputs, hostDOM)` com contrato `{ value: string }` in/out — mais simples que os cards de addon no canvas.
+[NOVO] **FromParent:** menu de contexto do bloco ou botão «+» em «Labels vinculadas» no rodapé. `CreateLabelDialog` lista parâmetros do pai excluindo os já reservados por outras labels (`listParameterIdsReservedBySiblingLabels`). Spawn ~+400px em X.
 
-### Matching e preferência
+[NOVO] **Standalone:** menu da grade «Criar nova etiqueta». Escolha do tipo de bloco via `EmbeddedStructureListPicker`; parâmetros vêm do catálogo. Vínculo posterior pelo rodapé «Bloco vinculado» com hover amarelo no candidato.
 
-[NOVO] `inputAddonMatcher` compara `input.block` com `blockStructure.blockType` (vista bloco) ou `schema.title` (vista schema), `input.parameter` com o nome do parâmetro, e `input.type` com o tipo ritual (`vec4`, `f32`, etc.).
+[ATUALIZADO] **Edição:** menu de contexto da label → `CreateLabelDialog` modo `edit` com `initialDraft`.
 
-[NOVO] Quando vários pacotes correspondem ao mesmo parâmetro, `resolveActiveInputAddonId` lê `localStorage`; o utilizador pode alterar via menu de contexto na linha do parâmetro (painel Parameters ou `BlockParameterRow`).
+### LabelCard e espelhamento
 
-### Onde o input addon aparece
+[NOVO] `LabelCard` reutiliza `BlockParameterRow` em grid de **5 colunas** (slot IN → ícone → nome → valor → slot OUT). Eventos de slot e commit de valor actuam no **nó pai** (`canvasNodeId` do bloco resolvido).
 
-[ATUALIZADO] **Painel Nodes em Cena → Parameters:** coluna **Input Addon** ao lado de Name/Value; o elemento `change` é clicável e abre o editor (modal para vec4 cor).
+[ATUALIZADO] Sem pai vinculado: aviso visual; com pai removido da cena: mensagem «bloco pai removido».
 
-[ATUALIZADO] **BlockCard:** quando há match e o parâmetro é editável (sem slot IN ligado), o `ParameterValueInput` é **substituído** pelo `InputAddonChangeCell` com layout `field` (swatch em largura total dentro de `{ }` ritual quando aplicável).
+### Efeitos no bloco pai
 
-### Paleta Ctrl+K
+[NOVO] `resolveLabelEffectsForParent` agrega, para cada parâmetro do pai, cores de highlight (de labels que o incluem) e ocultação se **qualquer** label marcar `hiddenInParent`.
 
-[ATUALIZADO] Nova aba **Input Addon** com pesquisa, reload e instalação por drag-and-drop (dev server). Não cria nós no canvas — apenas catálogo e instalação.
+[ATUALIZADO] `BlockCard` filtra parâmetros ocultos e passa `labelHighlightColor` às linhas. Toggle global no `LabelCardParameterMenu` via ícone olho (`toggleAllLabelParametersHiddenInParent`).
 
-### Menu de contexto do card de bloco
+### Saída JSON no cabeçalho
 
-[ATUALIZADO] O menu de contexto do **nó bloco** (focar, parâmetros do card, código, etc.) abre **apenas** com clique direito no **cabeçalho** ou **rodapé** do `BlockCard`. Cliques no corpo (linhas de parâmetros) não abrem esse menu — evita conflito com o menu de escolha de input addon.
+[NOVO] Slot `label-header:{nodeId}:0` expõe tipo `json`. `buildLabelJsonExport` produz objecto `{ nomeCampo: { value, type } }` com tipos ritual do parâmetro espelhado.
 
-### Primeiro pacote: input-addon-color-vec4
+[ATUALIZADO] Conexões para addons (ex.: `addon-code-to-json`) via `crossSlotConnections` e `labelSlotConnections`; avaliação em `instanceEvaluator`.
 
-[NOVO] Binding `ValueColor` + `constantValue` + `vec4`. UI com swatch `#inputaddon` e painel completo para o modal. Reutiliza `AddonColorVec4Picker` e `ensureAddonColorVec4InputWired` do ecossistema `addon-color-vec4`.
+### Persistência
 
-### Tratamento de erros
+[NOVO] Dev workspace: ficheiro `labels.json` no bundle (`labelScenePersistence`).
 
-- Manifest inválido: pacote ignorado na listagem (`skipped` na API dev).
-- Falha de preload: célula permanece vazia ou com fallback desabilitado até o pacote carregar.
-- Instalação: validação no handler Vite; erros devolvidos em JSON (sem `window.alert` em fluxos novos de instalação).
+[ATUALIZADO] Export/import JSON de cena v2: campo `labels[]` em `leagueBinScene`. Snapshots de abas incluem `labelStructure` nos nós.
+
+### Vínculo bloco ↔ label
+
+[NOVO] `linkLabelToParentBlock` alinha IDs com `remapLabelParametersForBlockStructure`; reutiliza parâmetro existente ou adiciona ao bloco quando necessário.
+
+[ATUALIZADO] UI: rodapé `BlockCard` (labels vinculadas — ícone `link parametro.svg`); rodapé `LabelCard` (bloco vinculado — ícone `link block.svg`).
+
+### Tratamento de erros e confirmações
+
+- Nome vazio ao criar: erro inline no diálogo (sem `window.alert`).
+- Bloco inválido como pai: `{ ok: false, error: '...' }` de `createLabelBlockFromParent`.
+- Export JSON sem pai: objecto vazio `{}`.
+- Fluxos de confirmação destrutiva seguem **Messenger Popup** quando aplicável em menus partilhados; labels não introduzem novos `window.confirm`.
 
 ---
 
@@ -190,25 +192,27 @@ sequenceDiagram
 
 ### Português
 
-1. Com `npm run dev`, os pacotes em `public/inputAddons/` são listados automaticamente.
-2. Abra **Ctrl+K** → aba **Input Addon** para ver o catálogo ou instalar uma pasta (drag-and-drop).
-3. Selecione um nó **ValueColor** no canvas (vista de bloco).
-4. No card, o parâmetro `constantValue` mostra um **swatch de cor** em vez do picker vec4 padrão.
-5. **Clique no swatch** → abre o seletor de cor (modal vec4 0–1); ao alterar, o valor persiste no bloco.
-6. No painel **Nodes em Cena → Parameters**, a coluna **Input Addon** mostra o mesmo swatch para o parâmetro.
-7. Se existirem **vários** input addons para o mesmo parâmetro, **clique direito na linha** do parâmetro → **Input Addon** → escolha qual usar.
-8. Para o menu do **bloco** (adicionar/editar parâmetros, focar nó), use **clique direito no cabeçalho ou rodapé** do card — não no corpo dos parâmetros.
+1. Seleccione um **bloco** no canvas (vista de bloco activa).
+2. **Clique direito** no cabeçalho/rodapé → **Criar etiqueta**, ou use **+** em «Labels vinculadas» no rodapé do bloco.
+3. Defina **nome**, **cor** e **parâmetros** a expor (parâmetros já usados noutras labels do mesmo bloco não aparecem).
+4. Confirme → aparece um **LabelCard** ao lado, com os valores espelhados do pai.
+5. Edite valores no LabelCard — alterações reflectem-se no **bloco pai**.
+6. Use o **ícone olho** no rodapé da label para **ocultar/mostrar** todos os parâmetros da label no bloco pai.
+7. Arraste o **slot de saída JSON** do cabeçalho da label para um addon (ex.: code-to-json) para consumir o objecto tipado.
+8. Para **etiqueta avulsa**: clique direito na **grade vazia** → **Criar nova etiqueta** → escolha tipo de bloco e parâmetros → vincule depois via **Bloco vinculado** no rodapé.
+9. **Editar** nome/cor/parâmetros: clique direito na label → **Editar etiqueta**.
 
 ### English
 
-1. With `npm run dev`, packages under `public/inputAddons/` are discovered automatically.
-2. Open **Ctrl+K** → **Input Addon** tab to browse or install a folder (drag-and-drop).
-3. Select a **ValueColor** block node on the canvas.
-4. On the card, `constantValue` shows a **color swatch** instead of the default vec4 picker.
-5. **Click the swatch** → color picker modal (vec4 0–1); changes persist on the block.
-6. In **Nodes in scene → Parameters**, the **Input Addon** column shows the same swatch.
-7. If **multiple** input addons match the same parameter, **right-click the parameter row** → **Input Addon** → pick which one to use.
-8. For the **block** context menu (add/edit parameters, focus node), **right-click the card header or footer** — not the parameter body.
+1. Select a **block** on the canvas (block view active).
+2. **Right-click** header/footer → **Create label**, or use **+** under **Linked labels** on the block footer.
+3. Set **name**, **color**, and **parameters** to expose (parameters already used by sibling labels are excluded).
+4. Confirm → a **LabelCard** spawns beside the parent with mirrored values.
+5. Edit values on the LabelCard — changes apply to the **parent block**.
+6. Use the **eye icon** on the label footer to **hide/show** all label parameters on the parent block.
+7. Drag the header **JSON output slot** to an addon (e.g. code-to-json) to consume the typed object.
+8. For a **standalone label**: right-click **empty canvas** → **Create new label** → pick block type and parameters → link later via **Linked block** in the footer.
+9. **Edit** name/color/parameters: right-click the label → **Edit label**.
 
 ---
 

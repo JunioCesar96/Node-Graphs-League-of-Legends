@@ -1,4 +1,5 @@
 import { blockParameterTypeToNodeDataType, isBlockTokenValue } from '@/core/blockSchema'
+import type { BlockSlotRules } from '@/core/blockSchema'
 import { parseBlockToken } from '@/core/blockTokenParser'
 import { normalizeListF32String } from '@/core/listF32Value'
 import { normalizeListHashString } from '@/core/listHashValue'
@@ -22,6 +23,50 @@ function stripOuterBraces(value: string): string {
     return trimmed.slice(1, -1).trim()
   }
   return trimmed
+}
+
+const SCALAR_RITUAL_OUTPUT_TYPES = new Set([
+  'bool',
+  'flag',
+  'double',
+  'f32',
+  'float',
+  'f64',
+  'i8',
+  'i16',
+  'i32',
+  'i64',
+  'integer',
+  'link',
+  'mtx44',
+  'optionf32',
+  'optionstring',
+  'optionvector3',
+  'rgba',
+  'string',
+  'symbol',
+  'u8',
+  'u16',
+  'u32',
+  'u64',
+  'vec',
+  'vec2',
+  'vec3',
+  'vec4',
+  'listf32',
+  'listhash',
+  'liststring',
+  'listvector2',
+  'listvector3',
+  'listvector4',
+])
+
+function tokenOutputIsScalarRitualType(slotRules: BlockSlotRules | undefined): boolean {
+  const outputs = slotRules?.outputs
+  if (!outputs?.length) {
+    return true
+  }
+  return outputs.every((output) => SCALAR_RITUAL_OUTPUT_TYPES.has(output.trim().toLowerCase()))
 }
 
 function normalizeInputByNodeType(raw: string, typeParameter: string): string {
@@ -76,7 +121,7 @@ export function resolveBlockParameterInputValue(
     return trimmed
   }
 
-  if (parsed.slotRules?.outputs?.length) {
+  if (!tokenOutputIsScalarRitualType(parsed.slotRules)) {
     return trimmed
   }
 

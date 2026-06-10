@@ -1,0 +1,7 @@
+{
+  "0": "Valor Mtx44",
+  "6": "Matriz 4×4 literal exposta na saída do add-on.",
+  "20": "Valores",
+  "21": "Parâmetro",
+  "23": "Define uma matriz 4×4 (16 floats) e expõe-a num slot de saída compatível com parâmetros mtx44 de bloco."
+}

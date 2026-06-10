@@ -1,0 +1,8 @@
+{
+  "0": "Valor Vec2",
+  "1": "Valor",
+  "6": "Valor literal vec2 exposto na saída do add-on.",
+  "20": "Valores",
+  "21": "Parâmetro",
+  "23": "Define um valor literal do tipo vec2 e expõe-o num slot de saída compatível com parâmetros de bloco."
+}

@@ -1,9 +1,9 @@
 import { convertBinViaOptionalBridge, computeJadeBridgeBase } from '@/core/jadeBinBridge'
 import { fetchJadeBridgeCapabilities, type JadeBridgeCapabilities } from '@/core/jadeBridgeApi'
-import {
-  humanizeVfxPropRitualText,
-  ritualTextNeedsHumanize,
-} from '@/core/vfx/humanizeVfxPropRitualText'
+import { ritualTextNeedsHumanize } from '@/core/vfx/humanizeVfxPropRitualText'
+
+import { ritualTextEligibleForNativeUnhash } from '@/core/ritualBin/prepareRitualEditorText'
+import { applyRitualTextLexiconPass } from '@/core/ritualBin/ritualTextHashResolve'
 
 export type JadeEditorResolveVia =
   | 'unchanged'
@@ -203,32 +203,39 @@ export async function resolveRitualTextForEditor(text: string): Promise<JadeEdit
 
   await ensureJadeHashesLoaded()
 
-  const bridge = await unhashViaBridge(text)
-  if (bridge.ok) {
+  const bridge = ritualTextEligibleForNativeUnhash(text)
+    ? await unhashViaBridge(text.trim())
+    : null
+
+  if (bridge?.ok) {
+    let working = bridge.text
+    const afterBridge = working
+
+    const lexicon = applyRitualTextLexiconPass(working)
+    if (lexicon.changed) {
+      working = lexicon.text
+    }
+
+    if (working === text) {
+      return { text, changed: false, via: 'unchanged' }
+    }
+
+    const lexiconOnly = !bridge.changed && working !== afterBridge
     return {
-      text: bridge.text,
-      changed: bridge.changed,
-      via: 'jade-bridge',
+      text: working,
+      changed: true,
+      via: lexiconOnly ? 'fnv-fallback' : 'jade-bridge',
     }
   }
 
-  const status = await getJadeEditorResolveStatus()
-  if (status.isMockBridge || !status.unhashText) {
-    const fallback = humanizeVfxPropRitualText(text)
-    if (fallback.changed) {
-      return {
-        text: fallback.text,
-        changed: true,
-        via: 'fnv-fallback',
-        warning: bridge.message,
-      }
+  const fallback = applyRitualTextLexiconPass(text)
+  if (fallback.changed) {
+    return {
+      text: fallback.text,
+      changed: true,
+      via: 'fnv-fallback',
     }
   }
 
-  return {
-    text,
-    changed: false,
-    via: 'unchanged',
-    warning: bridge.message,
-  }
+  return { text, changed: false, via: 'unchanged' }
 }

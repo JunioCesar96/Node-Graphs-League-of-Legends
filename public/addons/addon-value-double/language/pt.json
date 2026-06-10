@@ -1,0 +1,9 @@
+{
+  "0": "Valor Double",
+  "1": "Valor",
+  "4": "0.0",
+  "6": "Valor literal double exposto na saída do add-on.",
+  "20": "Valores",
+  "21": "Parâmetro",
+  "23": "Define um valor literal do tipo double e expõe-o num slot de saída compatível com parâmetros de bloco."
+}

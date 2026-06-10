@@ -33,6 +33,10 @@ type BlockCardParameterMenuProps = {
   onAddParameter?: (doc: BlockParameterJsonDocument) => void
   onRemoveParameter?: (paramId: string) => void
   onEditParameter?: (param: BlockParameterDef, screenAnchor?: CanvasContextMenuAnchor) => void
+  linkedLabels?: readonly { id: string; label: string }[]
+  onSelectLinkedLabel?: (labelNodeId: string) => void
+  onAddLinkedLabel?: () => void
+  onRemoveLinkedLabel?: (labelNodeId: string) => void
   /** Pedido externo (ex.: menu de contexto do card) para abrir um painel. */
   externalPanelRequest?: 'add' | 'edit' | 'remove' | null
   /** Posição de ecrã do menu de contexto (quando o painel vem do context menu). */
@@ -42,7 +46,7 @@ type BlockCardParameterMenuProps = {
   onPanelDismiss?: () => void
 }
 
-type PanelMode = 'add' | 'remove' | 'edit' | 'confirmRemove'
+type PanelMode = 'add' | 'remove' | 'edit' | 'confirmRemove' | 'linkedLabels'
 
 function stopMenuPointerPropagation(event: ReactPointerEvent) {
   event.stopPropagation()
@@ -62,6 +66,10 @@ export function BlockCardParameterMenu({
   onAddParameter,
   onRemoveParameter,
   onEditParameter,
+  linkedLabels = [],
+  onSelectLinkedLabel,
+  onAddLinkedLabel,
+  onRemoveLinkedLabel,
   externalPanelRequest = null,
   externalScreenAnchor = null,
   onExternalPanelRequestHandled,
@@ -95,6 +103,16 @@ export function BlockCardParameterMenu({
   const addAvailableDocs = useMemo(
     () => addCatalog.filter((doc) => !isParameterAlreadyOnBlock(parameters, doc)),
     [addCatalog, parameters],
+  )
+
+  const linkedLabelItems = useMemo(
+    (): StructureListPanelItem[] =>
+      linkedLabels.map((entry, index) => ({
+        id: entry.id,
+        index,
+        label: entry.label,
+      })),
+    [linkedLabels],
   )
 
   const addListItems = useMemo(
@@ -175,12 +193,22 @@ export function BlockCardParameterMenu({
         total: paramListItems.length,
       }
     }
+    if (panel === 'linkedLabels') {
+      return {
+        emptyHint: t(LangId.BlockCardLinkedLabelsEmpty, 'Este bloco não tem labels vinculadas.'),
+        initialSize: paramListPanelSize,
+        items: linkedLabelItems,
+        listTitle: t(LangId.BlockCardLinkedLabels, 'Labels vinculadas'),
+        total: linkedLabelItems.length,
+      }
+    }
     return null
   }, [
     addCatalogError,
     addCatalogLoading,
     addListItems,
     addListPanelSize,
+    linkedLabelItems,
     panel,
     paramListItems,
     paramListPanelSize,
@@ -198,7 +226,7 @@ export function BlockCardParameterMenu({
   const listPanelOpen =
     menuOpen &&
     effectiveScreenAnchor != null &&
-    (panel === 'add' || panel === 'remove' || panel === 'edit')
+    (panel === 'add' || panel === 'remove' || panel === 'edit' || panel === 'linkedLabels')
 
   const isInsideMenu = useCallback((target: Node | null) => {
     if (!target) {
@@ -344,6 +372,24 @@ export function BlockCardParameterMenu({
   return (
     <div ref={rootRef} className={styles.menuRoot} data-block-param-menu-root="1">
       <div className={styles.toolbar} role="toolbar" aria-label={t(LangId.BlockCardParameterMenu)}>
+        {onSelectLinkedLabel || onAddLinkedLabel || onRemoveLinkedLabel ? (
+          <button
+            aria-label={t(LangId.BlockCardLinkedLabels, 'Labels vinculadas')}
+            className={styles.iconButton}
+            onClick={(event) => {
+              event.stopPropagation()
+              setMenuPlacementAnchor(pointerAnchor(event))
+              setParamListIndex(0)
+              setPanel('linkedLabels')
+              setMenuOpen(true)
+            }}
+            onPointerDown={stopMenuPointerPropagation}
+            title={t(LangId.BlockCardLinkedLabels, 'Labels vinculadas')}
+            type="button"
+          >
+            <span aria-hidden className={[styles.iconGlyph, styles.iconGlyphLabelLinked].join(' ')} />
+          </button>
+        ) : null}
         <button
           type="button"
           className={[
@@ -428,9 +474,47 @@ export function BlockCardParameterMenu({
         </button>
       </div>
 
-      {listPanelOpen && activeListConfig && (panel !== 'add' || onAddParameter) ? (
+      {listPanelOpen &&
+      activeListConfig &&
+      (panel !== 'add' || onAddParameter) &&
+      (panel !== 'linkedLabels' || onSelectLinkedLabel || onAddLinkedLabel || onRemoveLinkedLabel) ? (
         <StructureListPanel
           key={panel}
+          actions={
+            panel === 'linkedLabels'
+              ? {
+                  ...(onAddLinkedLabel
+                    ? {
+                        add: {
+                          ariaLabel: t(LangId.BlockCardLinkedLabelsAdd, 'Adicionar label'),
+                          onClick: () => {
+                            onAddLinkedLabel()
+                            closeAll()
+                          },
+                          title: t(LangId.BlockCardLinkedLabelsAdd, 'Adicionar label'),
+                        },
+                      }
+                    : {}),
+                  ...(onRemoveLinkedLabel
+                    ? {
+                        remove: {
+                          ariaLabel: t(LangId.BlockCardLinkedLabelsRemove, 'Remover label'),
+                          disabled: linkedLabelItems.length === 0,
+                          onClick: () => {
+                            const labelId = activeListConfig.items[paramListIndex]?.id
+                            if (!labelId) {
+                              return
+                            }
+                            onRemoveLinkedLabel(labelId)
+                            closeAll()
+                          },
+                          title: t(LangId.BlockCardLinkedLabelsRemove, 'Remover label'),
+                        },
+                      }
+                    : {}),
+                }
+              : undefined
+          }
           dismissGuardRefs={[rootRef]}
           dismissOnClickOutside={false}
           emptyHint={activeListConfig.emptyHint}
@@ -463,6 +547,11 @@ export function BlockCardParameterMenu({
           selectedId={activeListConfig.items[paramListIndex]?.id ?? null}
           selectedIndex={paramListIndex}
           onPickItem={(item) => {
+            if (panel === 'linkedLabels') {
+              onSelectLinkedLabel?.(item.id)
+              closeAll()
+              return
+            }
             if (panel === 'add') {
               const doc = addAvailableDocs[item.index]
               if (!doc || !onAddParameter) {

@@ -3,6 +3,7 @@ import { memo } from 'react'
 import { AddonCardHost } from '@/components/molecules/AddonCardHost'
 import { BlockCard } from '@/components/organisms/BlockCard'
 import { GroupCard } from '@/components/organisms/GroupCard'
+import { LabelCard } from '@/components/organisms/LabelCard'
 import { NodeCard } from '@/components/organisms/NodeCard'
 import {
   useGraphCanvasNodeHost,
@@ -50,6 +51,7 @@ export type GraphCanvasSceneNodeProps = {
   blockSlotPeerActions?: BlockSlotPeerActions
   activeBlockSlotId?: string
   activeGroupSlotId?: string
+  activeLabelSlotId?: string
   activeAddonSlotId?: string
   activeOutputInternalStructureId?: string
   bodyCollapsed: boolean
@@ -153,6 +155,10 @@ function areGraphCanvasSceneNodePropsEqual(
     return false
   }
 
+  if (prev.activeLabelSlotId !== next.activeLabelSlotId) {
+    return false
+  }
+
   if (prev.activeAddonSlotId !== next.activeAddonSlotId) {
     return false
   }
@@ -205,6 +211,7 @@ function GraphCanvasSceneNodeInner(props: GraphCanvasSceneNodeProps) {
     blockSlotPeerActions,
     activeBlockSlotId,
     activeGroupSlotId,
+    activeLabelSlotId,
     activeAddonSlotId,
     activeOutputInternalStructureId,
     bodyCollapsed,
@@ -216,10 +223,15 @@ function GraphCanvasSceneNodeInner(props: GraphCanvasSceneNodeProps) {
   const host = useGraphCanvasNodeHost()
   const scene = useGraphCanvasScene()
 
+  const isAddonNode = Boolean(canvasNode.addonViewActive && canvasNode.addonInstance)
+
   const classes = [
     styles.node,
+    isAddonNode ? styles.nodeAddon : '',
     isSelected && !cardHandlesSelection ? styles.nodeSelected : '',
-    wirelessHighlighted && !canvasNode.blockViewActive ? styles.nodeWirelessLinked : '',
+    wirelessHighlighted && !canvasNode.blockViewActive && !isAddonNode
+      ? styles.nodeWirelessLinked
+      : '',
     isCompatibleTarget ? styles.nodeCompatibleTarget : '',
     isIncompatibleDuringLink ? styles.nodeIncompatibleTarget : '',
     linkDropHovered ? styles.nodeLinkDropTarget : '',
@@ -252,14 +264,186 @@ function GraphCanvasSceneNodeInner(props: GraphCanvasSceneNodeProps) {
         top: `${renderPosition.y}px`,
       }}
     >
-      {canvasNode.addonViewActive && canvasNode.addonInstance ? (
+      {canvasNode.labelViewActive && canvasNode.labelStructure ? (
+        <LabelCard
+          activeBlockSlotId={activeBlockSlotId}
+          activeLabelSlotId={activeLabelSlotId}
+          blockElementView={
+            scene.nodes.find((node) => node.id === canvasNode.labelStructure?.parentBlockNodeId)
+              ?.blockElementView
+          }
+          blockSlotPeerActions={
+            blockSlotPeerActions ??
+            (slotToolsEnabled && canvasNode.labelStructure?.parentBlockNodeId
+              ? host.buildBlockSlotPeerActions(canvasNode.labelStructure.parentBlockNodeId)
+              : undefined)
+          }
+          blockWirelessDisplay={blockWirelessDisplay}
+          blockWirelessPulseSlotId={blockWirelessPulseSlotId}
+          canvasNode={canvasNode}
+          interactionLocked={nodeInteractionLocked}
+          lightModeEnabled={host.nodeLightModeEnabled}
+          scene={scene}
+          selected={isSelected}
+          slotPagerEnabled={slotPagerEnabled}
+          slotToolsEnabled={slotToolsEnabled}
+          onAddLabelParameter={(parameterId) =>
+            host.onAddLabelParameter?.(canvasNode.id, parameterId)
+          }
+          onBlockInputPointerUp={(paramId, slotId, event) => {
+            const parentId = canvasNode.labelStructure?.parentBlockNodeId
+            if (!parentId) {
+              return
+            }
+            const pendingAddon = host.addonLinks.getPendingAddonLink()
+            if (pendingAddon && host.onConnectAddonSlots) {
+              host.tryConnectCrossSlots({
+                kind: 'addonToBlock',
+                fromNodeId: pendingAddon.fromNodeId,
+                fromAddonSlotId: pendingAddon.fromAddonSlotId,
+                toNodeId: parentId,
+                toBlockSlotId: slotId,
+                toBlockParameterId: paramId,
+              })
+              host.addonLinks.endAddonLinkDraft()
+              host.onSelectNode(parentId)
+              return
+            }
+            host.resolveBlockLinkDrop(event.clientX, event.clientY)
+          }}
+          onBlockOutputPointerDown={(paramId, slotId, event) => {
+            const parentId = canvasNode.labelStructure?.parentBlockNodeId
+            if (!parentId) {
+              return
+            }
+            event.stopPropagation()
+            host.beginBlockOutputLink(parentId, slotId, paramId)
+            event.currentTarget.setPointerCapture(event.pointerId)
+          }}
+          onBlockOutputPointerMove={(_paramId, _slotId, event) => {
+            const canvasEl = host.canvasRef.current
+            if (!canvasEl) {
+              return
+            }
+            host.setBlockLinkDraftPoint(
+              graphClientToPosition(canvasEl, host.scale, event.clientX, event.clientY),
+            )
+          }}
+          onBlockOutputPointerUp={(_paramId, _slotId, event) => {
+            if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+              event.currentTarget.releasePointerCapture(event.pointerId)
+            }
+            host.resolveBlockLinkDrop(event.clientX, event.clientY)
+          }}
+          onBlockOutputSlotConnectionIndexChange={(slotId, index) => {
+            const parentId = canvasNode.labelStructure?.parentBlockNodeId
+            if (!parentId) {
+              return
+            }
+            host.handleBlockOutputSlotConnectionIndexChange(parentId, slotId, index)
+          }}
+          onBlockSlotWirelessHoverEnd={host.handleBlockSlotWirelessHoverEnd}
+          onBlockSlotWirelessHoverStart={host.handleBlockSlotWirelessHoverStart}
+          onEditParentParameter={(param, screenAnchor) =>
+            host.onEditLabelParentParameter?.(canvasNode.id, param, screenAnchor)
+          }
+          onLabelHeaderOutputPointerDown={(slotId, event) => {
+            event.stopPropagation()
+            host.beginLabelOutputLink?.(canvasNode.id, slotId)
+            event.currentTarget.setPointerCapture(event.pointerId)
+          }}
+          onLabelHeaderOutputPointerUp={(_slotId, event) => {
+            if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+              event.currentTarget.releasePointerCapture(event.pointerId)
+            }
+            host.resolveLabelLinkDrop?.(event.clientX, event.clientY)
+          }}
+          onMapHashStructureSlotRemoved={
+            host.onRemoveConnectionsFromBlockSlot && canvasNode.labelStructure?.parentBlockNodeId
+              ? (slotId) =>
+                  host.onRemoveConnectionsFromBlockSlot?.(
+                    canvasNode.labelStructure!.parentBlockNodeId,
+                    slotId,
+                  )
+              : undefined
+          }
+          onRemoveLabelParameter={(parameterId) =>
+            host.onRemoveLabelParameter?.(canvasNode.id, parameterId)
+          }
+          onSelect={(event) =>
+            host.onSelectNode(canvasNode.id, { additive: Boolean(event?.shiftKey) })
+          }
+          onSlotToolsEnabledChange={(enabled) => {
+            host.setBlockSlotToolsEnabled(canvasNode.id, enabled)
+          }}
+          onStartDrag={
+            nodeInteractionLocked
+              ? undefined
+              : (event) => host.startNodeDrag(event, canvasNode)
+          }
+          onStructureCardResize={({ width, positionX }) =>
+            host.onSetStructureCardWidth?.(canvasNode.id, width, positionX)
+          }
+          onToggleAllLabelParametersHiddenInParent={() =>
+            host.onToggleAllLabelParametersHiddenInParent?.(canvasNode.id)
+          }
+          onSelectLinkedParentBlock={() => {
+            const parentId = canvasNode.labelStructure?.parentBlockNodeId?.trim()
+            if (parentId) {
+              host.onSelectNode(parentId)
+            }
+          }}
+          onLinkLabelToParentBlock={(parentNodeId) =>
+            host.onLinkLabelToParentBlock?.(canvasNode.id, parentNodeId)
+          }
+          onHoverLinkBlockCandidate={(parentNodeId) =>
+            host.setLabelLinkHoverBlockNodeId?.(parentNodeId)
+          }
+          onUpdateParentParameter={(paramId, value) => {
+            const parentId = canvasNode.labelStructure?.parentBlockNodeId
+            if (!parentId) {
+              return
+            }
+            host.onUpdateLabelParentParameter?.(parentId, paramId, value)
+          }}
+          onBlockElementSelectedIndexChange={
+            host.onSetBlockElementSelectedIndex && canvasNode.labelStructure?.parentBlockNodeId
+              ? (elementKey, index) =>
+                  host.onSetBlockElementSelectedIndex?.(
+                    canvasNode.labelStructure!.parentBlockNodeId,
+                    elementKey,
+                    index,
+                  )
+              : undefined
+          }
+          parameterPanelRequest={parameterPanelRequest}
+          parameterPanelScreenAnchor={parameterPanelScreenAnchor}
+          resolveBlockOutputSlotConnectionIndex={(slotId, connectionCount) => {
+            const parentId = canvasNode.labelStructure?.parentBlockNodeId
+            if (!parentId) {
+              return 0
+            }
+            return host.resolveBlockOutputSlotConnectionIndexForNode(
+              parentId,
+              slotId,
+              connectionCount,
+            )
+          }}
+          structureCardResizeModifierActive={
+            host.structureCardResizeModifierActive && !host.glueModeActive
+          }
+          canvasScale={host.scale}
+        />
+      ) : canvasNode.addonViewActive && canvasNode.addonInstance ? (
         <AddonCardHost
           canvasNode={canvasNode}
           scene={scene}
           selected={isSelected}
           interactionLocked={nodeInteractionLocked}
+          wirelessHighlighted={wirelessHighlighted}
           activeAddonSlotId={activeAddonSlotId}
           onGraphStateMutation={(nodeId, outputs) => host.onApplyAddonOutputs?.(nodeId, outputs)}
+          onInvokeAddonSystemFunction={host.onInvokeAddonSystemFunction}
           onAddonOutputPointerDown={(slotId, event) => {
             if (event.button !== 0) {
               return
@@ -309,6 +493,19 @@ function GraphCanvasSceneNodeInner(props: GraphCanvasSceneNodeProps) {
                 toAddonSlotId: slotId,
               })
               host.endBlockLinkDraft()
+              host.onSelectNode(canvasNode.id)
+              return
+            }
+            const pendingLabel = host.pendingLabelLinkRef.current
+            if (pendingLabel && host.onConnectAddonSlots) {
+              host.tryConnectCrossSlots({
+                kind: 'labelToAddon',
+                fromNodeId: pendingLabel.fromNodeId,
+                fromLabelSlotId: pendingLabel.fromLabelSlotId,
+                toNodeId: canvasNode.id,
+                toAddonSlotId: slotId,
+              })
+              host.endLabelLinkDraft?.()
               host.onSelectNode(canvasNode.id)
               return
             }
@@ -396,6 +593,7 @@ function GraphCanvasSceneNodeInner(props: GraphCanvasSceneNodeProps) {
           canvasNode={canvasNode}
           scene={scene}
           selected={isSelected}
+          linkCandidateHighlight={host.labelLinkHoverBlockNodeId === canvasNode.id}
           interactionLocked={nodeInteractionLocked}
           activeBlockSlotId={activeBlockSlotId}
           blockWirelessDisplay={blockWirelessDisplay}
@@ -544,6 +742,13 @@ function GraphCanvasSceneNodeInner(props: GraphCanvasSceneNodeProps) {
           parameterPanelScreenAnchor={parameterPanelScreenAnchor}
           onParameterPanelDismiss={host.dismissBlockParameterPanel}
           onParameterPanelRequestHandled={host.clearBlockParameterPanelRequest}
+          onAddLinkedLabel={
+            host.openCreateLabelForBlock
+              ? () => host.openCreateLabelForBlock?.(canvasNode.id)
+              : undefined
+          }
+          onRemoveLinkedLabel={host.removeLabelNode}
+          onSelectLinkedLabel={(labelNodeId) => host.onSelectNode(labelNodeId)}
           wirelessHighlighted={wirelessHighlighted}
         />
       ) : (

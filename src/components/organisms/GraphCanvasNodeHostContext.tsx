@@ -1,5 +1,6 @@
 import { createContext, useContext, type MouseEvent, type PointerEvent, type RefObject } from 'react'
 
+import type { AddonSystemFunctionContext } from '@/core/addonSystemFunctions'
 import type { BlockParameterJsonDocument } from '@/core/blockParameterJson'
 import type { BlockDefinitionJsonDocument } from '@/core/blockDefinitionJson'
 import type { BlockParameterDef } from '@/core/blockSchema'
@@ -48,11 +49,20 @@ export type GraphCanvasNodeHostContextValue = {
     fromBlockParameterId?: string
     draftAnchor: { sx: number; sy: number }
   } | null>
+  pendingLabelLinkRef: RefObject<{
+    fromNodeId: string
+    fromLabelSlotId: string
+    draftAnchor: { sx: number; sy: number }
+  } | null>
   addonLinks: GraphCanvasNodeHostAddonLinks
   handleContextMenu: (event: MouseEvent<HTMLElement>) => void
   startNodeDrag: (event: PointerEvent<HTMLElement>, canvasNode: CanvasNode) => void
   onSelectNode: (nodeId: string, options?: { additive?: boolean }) => void
   onApplyAddonOutputs?: (nodeId: string, outputs: Record<string, unknown>) => void
+  onInvokeAddonSystemFunction?: (
+    functionName: string,
+    context: AddonSystemFunctionContext,
+  ) => void | Promise<void>
   onConnectAddonSlots?: (request: CrossSlotConnectRequest) => void
   tryConnectCrossSlots: (request: CrossSlotConnectRequest, allowForced?: boolean) => boolean
   endBlockLinkDraft: () => void
@@ -102,6 +112,23 @@ export type GraphCanvasNodeHostContextValue = {
   ) => void
   onRemoveConnectionsFromBlockSlot?: (nodeId: string, slotId: string) => void
   onUpdateBlockParameter?: (nodeId: string, paramId: string, value: unknown) => void
+  beginLabelOutputLink?: (fromNodeId: string, fromLabelSlotId: string) => void
+  endLabelLinkDraft?: () => void
+  resolveLabelLinkDrop?: (clientX: number, clientY: number) => void
+  onAddLabelParameter?: (labelNodeId: string, parameterId: string) => void
+  onRemoveLabelParameter?: (labelNodeId: string, parameterId: string) => void
+  onToggleAllLabelParametersHiddenInParent?: (labelNodeId: string) => void
+  openCreateLabelForBlock?: (parentNodeId: string) => void
+  onLinkLabelToParentBlock?: (labelNodeId: string, parentNodeId: string) => void
+  labelLinkHoverBlockNodeId?: string | null
+  setLabelLinkHoverBlockNodeId?: (nodeId: string | null) => void
+  removeLabelNode?: (labelNodeId: string) => void
+  onEditLabelParentParameter?: (
+    labelNodeId: string,
+    param: BlockParameterDef,
+    screenAnchor?: CanvasContextMenuAnchor,
+  ) => void
+  onUpdateLabelParentParameter?: (labelNodeId: string, paramId: string, value: string) => void
   onAddBlockParameterFromCatalog?: (
     nodeId: string,
     doc: BlockParameterJsonDocument,

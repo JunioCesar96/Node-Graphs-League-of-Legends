@@ -2,6 +2,7 @@ import { getAddonManifest } from '@/blockStructures/addonRegistry'
 import type { AddonManifest, AddonSlot } from '@/services/addonLoader.service'
 
 import { buildSlotWirePathD, resolveBlockSlotCanvasPoint } from '@/core/blockSlotConnections'
+import { resolveLabelSlotCanvasPoint } from '@/core/labelSlotConnections'
 import { resolveBlockCardWidth } from '@/core/structureCardLayout'
 import { addonSlotAnchorKey, type GraphPanPoint } from '@/core/graphPortAnchors'
 
@@ -392,6 +393,8 @@ export function resolveAddonInvolvedConnectionPath(
         slotAnchors,
       )
     }
+  } else if (connection.fromLabelSlotId && fromNode.labelStructure) {
+    fromPoint = resolveLabelSlotCanvasPoint(fromNode, connection.fromLabelSlotId)
   } else if (connection.fromBlockSlotId && fromNode.blockStructure) {
     const width = resolveBlockCardWidth(fromNode)
     fromPoint = resolveBlockSlotCanvasPoint(fromNode, connection.fromBlockSlotId, 'output', width)

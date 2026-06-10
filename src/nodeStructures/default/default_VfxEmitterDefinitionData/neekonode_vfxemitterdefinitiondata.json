@@ -3,6 +3,12 @@
   "title": "VfxEmitterDefinitionData",
   "parameters": [
     {
+      "id": "vfx-emitter-definition-data_parameter_alphaRef",
+      "name": "alphaRef",
+      "type": "u8",
+      "defaultValue": "0"
+    },
+    {
       "id": "vfx-emitter-definition-data_parameter_emitterName",
       "name": "emitterName",
       "type": "string",
@@ -10,67 +16,29 @@
     }
   ],
   "internalStructures": [],
-  "embed": [
+  "embed": [],
+  "pointer": [],
+  "listEmbed": [
     {
-      "id": "VfxEmitterDefinitionData_embed_bindWeight",
-      "title": "bindWeight",
-      "internalStructures": [
-        {
-          "id": "vfx-emitter-definition-data-bind-weight",
-          "name": "ValueFloat",
-          "schemaId": "value-float__vfx-emitter-definition-data-bind-weight"
-        }
-      ],
-      "slots": [
-        {
-          "id": "VfxEmitterDefinitionData_embed_bindWeight__slot__0",
-          "name": "ValueFloat",
-          "schemaId": "value-float__vfx-emitter-definition-data-bind-weight",
-          "structOnlyEmpty": true
-        }
-      ]
-    },
-    {
-      "id": "VfxEmitterDefinitionData_embed_birthAcceleration",
-      "title": "birthAcceleration",
-      "internalStructures": [
-        {
-          "id": "vfx-emitter-definition-data-birth-acceleration",
-          "name": "ValueVector3",
-          "schemaId": "value-vector3__vfx-emitter-definition-data-birth-acceleration"
-        }
-      ],
-      "slots": [
-        {
-          "id": "VfxEmitterDefinitionData_embed_birthAcceleration__slot__0",
-          "name": "ValueVector3",
-          "schemaId": "value-vector3__vfx-emitter-definition-data-birth-acceleration",
-          "structOnlyEmpty": true
-        }
-      ]
-    },
-    {
-      "id": "VfxEmitterDefinitionData_embed_birthColor",
+      "id": "VfxEmitterDefinitionData_listEmbed_birthColor",
       "title": "birthColor",
       "internalStructures": [
         {
-          "id": "vfx-emitter-definition-data-birth-color",
+          "id": "vfx-emitter-definition-data-vfx-emitter-definition-data-birth-color-0",
           "name": "ValueColor",
-          "schemaId": "value-color__vfx-emitter-definition-data-birth-color"
+          "schemaId": "value-color__vfx-emitter-definition-data-birth-color-0"
         }
       ],
       "slots": [
         {
-          "id": "VfxEmitterDefinitionData_embed_birthColor__slot__0",
+          "id": "VfxEmitterDefinitionData_listEmbed_birthColor__slot__0",
           "name": "ValueColor",
-          "schemaId": "value-color__vfx-emitter-definition-data-birth-color",
-          "structOnlyEmpty": true
+          "schemaId": "value-color__vfx-emitter-definition-data-birth-color-0"
         }
-      ]
+      ],
+      "templateBlockId": "VfxEmitterDefinitionData_listEmbed_birthColor"
     }
   ],
-  "pointer": [],
-  "listEmbed": [],
   "listPointer": [],
   "list2Embed": [],
   "list2Pointer": [],

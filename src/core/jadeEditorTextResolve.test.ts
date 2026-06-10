@@ -71,7 +71,7 @@ describe('jadeEditorTextResolve', () => {
     expect(result.changed).toBe(false)
   })
 
-  it('resolveRitualTextForEditor cai para FNV com mock bridge', async () => {
+  it('resolveRitualTextForEditor cai para FNV quando o bridge falha', async () => {
     vi.stubEnv('VITE_JADE_BIN_BRIDGE', 'http://127.0.0.1:8788')
     vi.stubGlobal(
       'fetch',

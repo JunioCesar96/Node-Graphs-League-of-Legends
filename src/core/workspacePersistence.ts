@@ -12,6 +12,12 @@ import {
   parseSceneGroups,
   type StoredSceneGroupEntry,
 } from '@/core/groupScenePersistence'
+import {
+  applySceneLabelsToCanvas,
+  extractSceneLabelsFromCanvas,
+  parseSceneLabels,
+  type StoredSceneLabelEntry,
+} from '@/core/labelScenePersistence'
 import { hydrateSceneBlockViews } from '@/core/codeToBlockStructure'
 import { hydrateSceneGroupViews } from '@/core/codeToGroupStructure'
 import { syncSceneCollapsedBodyWireless } from '@/core/compactConnectionRouting'
@@ -73,6 +79,7 @@ export type WorkspaceLayoutNodeEntry = {
   locked?: boolean
   blockViewActive?: boolean
   groupViewActive?: boolean
+  labelViewActive?: boolean
   addonViewActive?: boolean
   addonId?: string
   addonOutputValues?: Record<string, unknown>
@@ -107,12 +114,18 @@ export type WorkspaceGroupsFile = {
   groups: StoredSceneGroupEntry[]
 }
 
+export type WorkspaceLabelsFile = {
+  version: typeof WORKSPACE_FORMAT_VERSION
+  labels: StoredSceneLabelEntry[]
+}
+
 export type WorkspaceBundle = {
   logic: WorkspaceLogicFile
   layout: WorkspaceLayoutFile
   graph: WorkspaceGraphFile
   blocks: WorkspaceBlocksFile
   groups: WorkspaceGroupsFile
+  labels: WorkspaceLabelsFile
 }
 
 export function emptyWorkspaceBlocksFile(): WorkspaceBlocksFile {
@@ -129,12 +142,19 @@ export function emptyWorkspaceGroupsFile(): WorkspaceGroupsFile {
   }
 }
 
+export function emptyWorkspaceLabelsFile(): WorkspaceLabelsFile {
+  return {
+    version: WORKSPACE_FORMAT_VERSION,
+    labels: [],
+  }
+}
+
 export function normalizeWorkspaceBundle(raw: unknown): WorkspaceBundle | null {
   if (!isRecord(raw)) {
     return null
   }
 
-  const { logic, layout, graph, blocks, groups } = raw
+  const { logic, layout, graph, blocks, groups, labels } = raw
   if (!isRecord(logic) || !isRecord(layout) || !isRecord(graph)) {
     return null
   }
@@ -151,6 +171,10 @@ export function normalizeWorkspaceBundle(raw: unknown): WorkspaceBundle | null {
       groups !== undefined && isRecord(groups)
         ? (groups as WorkspaceGroupsFile)
         : emptyWorkspaceGroupsFile(),
+    labels:
+      labels !== undefined && isRecord(labels)
+        ? (labels as WorkspaceLabelsFile)
+        : emptyWorkspaceLabelsFile(),
   }
 
   return isWorkspaceBundleValid(normalized) ? normalized : null
@@ -252,6 +276,7 @@ function layoutEntryFromPresentation(
     ...(presentation.locked ? { locked: true } : {}),
     ...(presentation.blockViewActive ? { blockViewActive: true } : {}),
     ...(presentation.groupViewActive ? { groupViewActive: true } : {}),
+    ...(presentation.labelViewActive ? { labelViewActive: true } : {}),
     ...(presentation.addonViewActive ? { addonViewActive: true } : {}),
     ...(presentation.addonId ? { addonId: presentation.addonId } : {}),
     ...(presentation.addonOutputValues
@@ -317,6 +342,7 @@ export function splitSceneToWorkspace(scene: CanvasScene): WorkspaceBundle {
   const sceneChrome = sceneChromeFromScene(scene)
   const blockEntries = extractSceneBlocksFromCanvas(scene)
   const groupEntries = extractSceneGroupsFromCanvas(scene)
+  const labelEntries = extractSceneLabelsFromCanvas(scene)
 
   return {
     logic: {
@@ -345,6 +371,10 @@ export function splitSceneToWorkspace(scene: CanvasScene): WorkspaceBundle {
     groups: {
       version: WORKSPACE_FORMAT_VERSION,
       groups: structuredClone(groupEntries),
+    },
+    labels: {
+      version: WORKSPACE_FORMAT_VERSION,
+      labels: structuredClone(labelEntries),
     },
   }
 }
@@ -477,6 +507,7 @@ function parseConnection(raw: unknown): CanvasConnection | null {
       : {}),
     ...(typeof raw.fromAddonSlotId === 'string' ? { fromAddonSlotId: raw.fromAddonSlotId } : {}),
     ...(typeof raw.toAddonSlotId === 'string' ? { toAddonSlotId: raw.toAddonSlotId } : {}),
+    ...(typeof raw.fromLabelSlotId === 'string' ? { fromLabelSlotId: raw.fromLabelSlotId } : {}),
     ...(raw.forced === true ? { forced: true } : {}),
   }
 }
@@ -486,7 +517,7 @@ export function isWorkspaceBundleValid(bundle: unknown): bundle is WorkspaceBund
     return false
   }
 
-  const { logic, layout, graph, blocks, groups } = bundle
+  const { logic, layout, graph, blocks, groups, labels } = bundle
   if (!isRecord(logic) || !isRecord(layout) || !isRecord(graph)) {
     return false
   }
@@ -529,6 +560,15 @@ export function isWorkspaceBundleValid(bundle: unknown): bundle is WorkspaceBund
       return false
     }
     if (parseSceneGroups(groups.groups) === null) {
+      return false
+    }
+  }
+
+  if (labels !== undefined) {
+    if (!isRecord(labels) || labels.version !== WORKSPACE_FORMAT_VERSION) {
+      return false
+    }
+    if (parseSceneLabels(labels.labels) === null) {
       return false
     }
   }
@@ -616,6 +656,8 @@ export function mergeWorkspaceToScene(bundle: WorkspaceBundle): CanvasScene | nu
       node: nodeInstance,
       ...(logicNode.blockStructure ? { blockStructure: structuredClone(logicNode.blockStructure) } : {}),
       ...(presentation.blockViewActive ? { blockViewActive: true } : {}),
+      ...(presentation.groupViewActive ? { groupViewActive: true } : {}),
+      ...(presentation.labelViewActive ? { labelViewActive: true } : {}),
       ...(presentation.addonViewActive && presentation.addonId
         ? {
             addonViewActive: true,
@@ -699,8 +741,15 @@ export function mergeWorkspaceToScene(bundle: WorkspaceBundle): CanvasScene | nu
     return null
   }
 
+  const labelEntries = normalized.labels.labels
+  const withLabels =
+    labelEntries.length > 0 ? applySceneLabelsToCanvas(withGroups, labelEntries) : withGroups
+  if (!withLabels) {
+    return null
+  }
+
   return syncSceneCollapsedBodyWireless(
-    hydrateSceneGroupViews(hydrateSceneBlockViews(hydrateScene(withGroups))),
+    hydrateSceneGroupViews(hydrateSceneBlockViews(hydrateScene(withLabels))),
   )
 }
 

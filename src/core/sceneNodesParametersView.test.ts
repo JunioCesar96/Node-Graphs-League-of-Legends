@@ -2,13 +2,21 @@ import { describe, expect, it } from 'vitest'
 
 import { registerInputAddonManifest } from '@/blockStructures/inputAddonRegistry'
 import { blockParameterSlotId } from '@/core/blockSchema'
+import {
+  blockElementViewKeyForParameter,
+  blockElementViewKeyForSlot,
+} from '@/core/blockElementViewState'
+import { formatMapHashEmbedString } from '@/core/mapHashEmbedValue'
+import { mapHashEmbedSlotId } from '@/core/mapHashEmbedSlots'
 import type { CanvasNode, CanvasScene } from '@/core/canvasScene'
 import { listEmbedSlotId } from '@/core/listEmbedSlots'
+import { listPointerSlotId } from '@/core/listPointerSlots'
 import {
   buildSceneNodesParameterRows,
   formatSceneNodesParameterDisplayValue,
   resolveBlockParameterConnectedDisplayLabel,
   resolveSceneNodesParameterParentNodeId,
+  resolveSceneNodesParameterRowAtListIndex,
   shouldShowSceneNodesParametersPanel,
 } from '@/core/sceneNodesParametersView'
 
@@ -472,5 +480,189 @@ describe('buildSceneNodesParameterRows', () => {
       'input-addon-color-vec4',
     )
     expect(constantValueRow?.activeInputAddonId).toBe('input-addon-color-vec4')
+  })
+
+  it('expõe índice de lista para parâmetros list[pointer] com várias ligações', () => {
+    const listParamId = 'complexEmitterDefinitionData_list_pointer'
+    const outputSlot = blockParameterSlotId(listParamId, 'output')
+
+    const parent: CanvasNode = {
+      id: 'system',
+      position: { x: 0, y: 0 },
+      node: {
+        id: 'system',
+        schema: { id: 'x', title: 'X', parameters: [], internalStructures: [] },
+        values: [],
+      },
+      blockViewActive: true,
+      blockStructure: {
+        blockType: 'VfxSystemDefinitionData',
+        blockName: 'System',
+        parameters: [
+          {
+            idParameter: listParamId,
+            nameParameter: 'complexEmitterDefinitionData',
+            typeParameter: 'VfxEmitterDefinitionData',
+            defaultValue: '',
+            listParameter: true,
+            sourcePath: {
+              kind: 'pointerChild',
+              pointerId: 'catalog-ptr',
+              slotId: 'catalog-ptr-slot',
+            },
+          },
+        ],
+        identification_codes: [],
+      },
+      blockElementView: {
+        [blockElementViewKeyForSlot(outputSlot)]: { mode: 'list', selectedIndex: 11 },
+      },
+    }
+
+    const emitters = Array.from({ length: 14 }, (_, index) => ({
+      id: `emitter-${index}`,
+      position: { x: 400 + index * 40, y: 0 },
+      node: {
+        id: `emitter-${index}`,
+        schema: { id: 'y', title: 'Y', parameters: [], internalStructures: [] },
+        values: [],
+      },
+      blockViewActive: true,
+      blockStructure: {
+        blockType: 'VfxEmitterDefinitionData',
+        blockName: `Emitter${index}`,
+        parameters: [],
+        identification_codes: [],
+      },
+    })) as CanvasNode[]
+
+    const scene: CanvasScene = {
+      nodes: [parent, ...emitters],
+      connections: emitters.map((emitter, index) => ({
+        id: `c-${index}`,
+        fromNodeId: 'system',
+        fromInternalStructureId: `__block__:${listPointerSlotId(listParamId, index)}`,
+        fromBlockSlotId: listPointerSlotId(listParamId, index),
+        toNodeId: emitter.id,
+        toBlockSlotId: 'block-header:in:0',
+      })),
+    }
+
+    const rows = buildSceneNodesParameterRows(scene, parent)
+    const listRow = rows.find((row) => row.name === 'complexEmitterDefinitionData')
+
+    expect(listRow?.listIndex?.connectionCount).toBe(14)
+    expect(listRow?.listIndex?.connectionIndex).toBe(11)
+    expect(listRow?.listIndex?.elementViewKey).toBe(blockElementViewKeyForSlot(outputSlot))
+    expect(listRow?.childNodeId).toBe('emitter-11')
+    expect(listRow?.displayValue).toBe('Emitter11')
+
+    const atIndex3 = resolveSceneNodesParameterRowAtListIndex(listRow!, scene, 3)
+    expect(atIndex3.childNodeId).toBe('emitter-3')
+    expect(atIndex3.displayValue).toBe('Emitter3')
+    expect(atIndex3.listIndex?.connectionIndex).toBe(3)
+  })
+
+  it('expõe índice de lista para parâmetros mapHash (entries)', () => {
+    const entriesParamId = 'entries'
+    const entriesValue = formatMapHashEmbedString([
+      { key: '0x11111111', schemaId: 'vfx-system-a', typeName: 'VfxSystemDefinitionData' },
+      { key: '0x22222222', schemaId: 'vfx-system-b', typeName: 'VfxSystemDefinitionData' },
+      { key: '0x33333333', schemaId: 'vfx-system-c', typeName: 'VfxSystemDefinitionData' },
+    ])
+
+    const parent: CanvasNode = {
+      id: 'main',
+      position: { x: 0, y: 0 },
+      node: {
+        id: 'main',
+        schema: { id: 'Main', title: 'Main', parameters: [], internalStructures: [] },
+        values: [{ parameterId: entriesParamId, value: entriesValue }],
+      },
+      blockViewActive: true,
+      blockStructure: {
+        blockType: 'Main',
+        blockName: 'Main',
+        parameters: [
+          {
+            idParameter: entriesParamId,
+            nameParameter: 'entries',
+            typeParameter: 'mapHashEmbed',
+            defaultValue: entriesValue,
+            sourcePath: { kind: 'parameter', parameterId: entriesParamId },
+          },
+        ],
+        identification_codes: [],
+      },
+      blockElementView: {
+        [blockElementViewKeyForParameter(entriesParamId)]: { mode: 'compact', selectedIndex: 1 },
+      },
+    }
+
+    const childA: CanvasNode = {
+      id: 'vfx-a',
+      position: { x: 400, y: 0 },
+      node: {
+        id: 'vfx-a',
+        schema: { id: 'y', title: 'Y', parameters: [], internalStructures: [] },
+        values: [],
+      },
+      blockViewActive: true,
+      blockStructure: {
+        blockType: 'VfxSystemDefinitionData',
+        blockName: 'Characters/Brand',
+        parameters: [],
+        identification_codes: [],
+      },
+    }
+
+    const childB: CanvasNode = {
+      id: 'vfx-b',
+      position: { x: 800, y: 0 },
+      node: {
+        id: 'vfx-b',
+        schema: { id: 'z', title: 'Z', parameters: [], internalStructures: [] },
+        values: [],
+      },
+      blockViewActive: true,
+      blockStructure: {
+        blockType: 'VfxSystemDefinitionData',
+        blockName: 'Characters/Lux',
+        parameters: [],
+        identification_codes: [],
+      },
+    }
+
+    const scene: CanvasScene = {
+      nodes: [parent, childA, childB],
+      connections: [
+        {
+          id: 'c-a',
+          fromNodeId: 'main',
+          fromBlockSlotId: mapHashEmbedSlotId(entriesParamId, '0x11111111'),
+          toNodeId: 'vfx-a',
+          toBlockSlotId: 'block-header:in:0',
+        },
+        {
+          id: 'c-b',
+          fromNodeId: 'main',
+          fromBlockSlotId: mapHashEmbedSlotId(entriesParamId, '0x22222222'),
+          toNodeId: 'vfx-b',
+          toBlockSlotId: 'block-header:in:0',
+        },
+      ],
+    }
+
+    const rows = buildSceneNodesParameterRows(scene, parent)
+    const entriesRow = rows.find((row) => row.name === 'entries')
+
+    expect(entriesRow?.listIndex?.connectionCount).toBe(3)
+    expect(entriesRow?.listIndex?.connectionIndex).toBe(1)
+    expect(entriesRow?.listIndex?.elementViewKey).toBe(
+      blockElementViewKeyForParameter(entriesParamId),
+    )
+    expect(entriesRow?.childNodeId).toBe('vfx-b')
+    expect(entriesRow?.displayValue).toBe('Characters/Lux')
+    expect(entriesRow?.navigable).toBe(true)
   })
 })

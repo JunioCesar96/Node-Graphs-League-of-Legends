@@ -278,4 +278,80 @@ describe('leagueBinScene', () => {
 
     expect(parseSceneDocument(invalid)).toBeNull()
   })
+
+  it('exporta labels[] lean e restaura LabelCard', () => {
+    const parent = makeVfxEmitterCanvasNode({
+      id: 'n-parent',
+      blockViewActive: true,
+      blockStructure: {
+        blockType: 'VfxEmitterDefinitionData',
+        blockName: 'Emitter',
+        parameters: vfxEmitterSampleParameters,
+        identification_codes: [VFX_EMITTER_COLOR_TOKEN],
+      },
+    })
+    const labelNode = makeVfxEmitterCanvasNode({
+      id: 'n-label',
+      position: { x: 520, y: 80 },
+      labelViewActive: true,
+      labelStructure: {
+        labelName: 'Teste',
+        color: '#f5d000',
+        parentBlockNodeId: 'n-parent',
+        catalogBlockType: 'VfxEmitterDefinitionData',
+        parameters: [
+          { parameterId: 'Emitter01' },
+          { parameterId: 'Emitter02', hiddenInParent: true },
+        ],
+      },
+    })
+    const scene = {
+      ...makeVfxEmitterScene(parent),
+      nodes: [parent, labelNode],
+    }
+
+    const doc = serializeScene(scene)
+    expect(doc.labels).toHaveLength(1)
+    expect(doc.labels?.[0]).toMatchObject({
+      nodeId: 'n-label',
+      labelName: 'Teste',
+      color: '#f5d000',
+      parentBlockNodeId: 'n-parent',
+      catalogBlockType: 'VfxEmitterDefinitionData',
+    })
+
+    const stored = doc.nodes.find((node) => node.id === 'n-label')
+    expect(stored?.presentation.labelViewActive).toBe(true)
+
+    const roundTrip = parseSceneDocument(doc)
+    const restored = roundTrip?.nodes.find((node) => node.id === 'n-label')
+    expect(restored?.labelViewActive).toBe(true)
+    expect(restored?.labelStructure).toMatchObject({
+      labelName: 'Teste',
+      color: '#f5d000',
+      parentBlockNodeId: 'n-parent',
+      parameters: [
+        { parameterId: 'Emitter01' },
+        { parameterId: 'Emitter02', hiddenInParent: true },
+      ],
+    })
+  })
+
+  it('rejeita labels[] com nodeId inexistente', () => {
+    const doc = serializeScene(demoCanvasScene)
+    const invalid = {
+      ...doc,
+      labels: [
+        {
+          nodeId: 'missing-label',
+          labelName: 'Teste',
+          color: '#f5d000',
+          parentBlockNodeId: 'n-vfx',
+          parameters: [],
+        },
+      ],
+    }
+
+    expect(parseSceneDocument(invalid)).toBeNull()
+  })
 })

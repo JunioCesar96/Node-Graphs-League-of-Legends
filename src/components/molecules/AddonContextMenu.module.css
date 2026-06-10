@@ -43,3 +43,9 @@
   opacity: 0.45;
   cursor: not-allowed;
 }
+
+.separator {
+  height: 1px;
+  margin: var(--ctx-menu-separator-margin-block, 4px) var(--ctx-menu-separator-margin-inline, 8px);
+  background: var(--ctx-menu-border, #454545);
+}
