@@ -9,7 +9,7 @@ Arquivo salvo em: `feature_md/feature/feature-label-block.md`
 | Nome da Branch | `feature/label-block` |
 | Nome das Features | **Label Block** — card estrutural no canvas vinculado a um bloco pai; parâmetros espelhados com highlight/ocultação no pai; saída JSON tipada no slot de cabeçalho; criação a partir do bloco ou avulsa na grade; persistência em workspace e export JSON de cena v2 |
 | Versão atual | `1.5.0` |
-| Hash do Commit | _(preencher com `git rev-parse HEAD` na branch de entrega)_ |
+| Hash do Commit | `7d73ff5` |
 
 Documentação relacionada: `feature_md/prompet/prompet_sistema_blocos.md`, `feature_md/feature/feature-block-link-palette.md`, `feature_md/prompet/prompt_doc.md`.
 
