@@ -1,0 +1,222 @@
+.discreteProgress {
+  position: absolute;
+  z-index: 40;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  width: var(--discrete-progress-width);
+  min-width: var(--discrete-progress-width);
+  padding: var(--space-2) var(--space-2) var(--space-3);
+  font-family: var(--font-ui);
+  color: var(--color-text-primary);
+  user-select: none;
+  touch-action: none;
+  background: var(--discrete-progress-bg);
+  border: 1px solid var(--discrete-progress-border);
+  border-radius: var(--radius-leaf);
+  box-shadow: var(--discrete-progress-shadow);
+  backdrop-filter: blur(10px);
+}
+
+.dragHandle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: var(--space-1) 0;
+  cursor: grab;
+}
+
+.dragHandle:active {
+  cursor: grabbing;
+}
+
+.dragGrip {
+  width: 28px;
+  height: 3px;
+  background: color-mix(in srgb, var(--color-text-muted) 55%, transparent);
+  border-radius: 999px;
+}
+
+.ringWrap {
+  position: relative;
+  width: 92px;
+  height: 92px;
+}
+
+.dotRing {
+  position: absolute;
+  inset: 0;
+}
+
+.dot {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 6px;
+  height: 6px;
+  margin: -3px 0 0 -3px;
+  background: var(--discrete-progress-dot-idle);
+  border-radius: 50%;
+  transition:
+    background-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.dotActive {
+  background: var(--discrete-progress-accent);
+  box-shadow: 0 0 6px var(--discrete-progress-accent-soft);
+}
+
+.percentWrap {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-muted);
+  letter-spacing: -0.03em;
+}
+
+.percentSymbol {
+  margin-left: 1px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.label {
+  max-width: 100%;
+  margin: 0;
+  overflow: hidden;
+  font-size: var(--ctx-menu-font-size, 12.5px);
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--color-text-primary);
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.detail {
+  max-width: 100%;
+  margin: 0;
+  overflow: hidden;
+  font-size: var(--ctx-menu-shortcut-font-size, 11.5px);
+  line-height: 1.3;
+  color: var(--color-text-secondary);
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: 100%;
+}
+
+.message {
+  margin: 0;
+  padding: var(--space-2);
+  font-size: var(--ctx-menu-shortcut-font-size, 11.5px);
+  line-height: 1.4;
+  color: var(--color-text-secondary);
+  text-align: center;
+  background: var(--app-subtle-surface);
+  border: 1px solid color-mix(in srgb, var(--color-border-soft) 80%, transparent);
+  border-radius: var(--radius-control);
+}
+
+.summaryBody {
+  margin: 0;
+  max-height: 120px;
+  padding: var(--space-2);
+  overflow: auto;
+  font-size: var(--ctx-menu-shortcut-font-size, 11.5px);
+  line-height: 1.4;
+  color: var(--color-text-secondary);
+  text-align: center;
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: var(--app-subtle-surface);
+  border: 1px solid color-mix(in srgb, var(--color-border-soft) 80%, transparent);
+  border-radius: var(--radius-control);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  justify-content: center;
+}
+
+.actionButton {
+  min-width: 0;
+  padding: var(--ctx-menu-item-padding-block, 5px) var(--space-2);
+  font: inherit;
+  font-size: var(--ctx-menu-shortcut-font-size, 11.5px);
+  font-weight: 500;
+  color: var(--ctx-menu-fg, var(--color-text-primary));
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid var(--ctx-menu-border, #454545);
+  border-radius: var(--ctx-menu-radius, 4px);
+  transition:
+    color 100ms ease,
+    background 100ms ease,
+    border-color 100ms ease;
+}
+
+.actionButton:hover:not(:disabled) {
+  color: var(--ctx-menu-hover-fg, #fff);
+  background: var(--ctx-menu-hover-bg, #007acc);
+  border-color: var(--ctx-menu-hover-bg, #007acc);
+}
+
+.actionPrimary {
+  font-weight: 600;
+  color: var(--ctx-menu-hover-fg, #fff);
+  background: var(--ctx-menu-hover-bg, #007acc);
+  border-color: var(--ctx-menu-hover-bg, #007acc);
+}
+
+.actionPrimary:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.cancelButton {
+  position: absolute;
+  top: var(--space-1);
+  right: var(--space-2);
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  font-size: 0.85rem;
+  line-height: 1;
+  color: var(--ctx-menu-muted, var(--color-text-muted));
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--ctx-menu-radius, 4px);
+  transition:
+    color 100ms ease,
+    background 100ms ease,
+    border-color 100ms ease;
+}
+
+.cancelButton:hover {
+  color: var(--ctx-menu-hover-fg, #fff);
+  background: color-mix(in srgb, var(--ctx-menu-hover-bg, #007acc) 72%, transparent);
+  border-color: color-mix(in srgb, var(--ctx-menu-hover-bg, #007acc) 72%, transparent);
+}

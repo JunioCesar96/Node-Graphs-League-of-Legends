@@ -8,6 +8,7 @@ import GeneralEditPanel from '@jade/components/GeneralEditPanel'
 import ParticleEditorPanel from '@jade/components/ParticleEditorPanel'
 
 import { CodeDockEditorContextMenu } from '@/components/molecules/CodeDockEditorContextMenu'
+import { isRitualHashToken } from '@/core/vfx/lolFnv1aHash'
 import type { useCodeDockJadeEditor } from '@/hooks/useCodeDockJadeEditor'
 import { useJadeBridgeCapabilities } from '@/hooks/useJadeBridgeCapabilities'
 
@@ -36,12 +37,19 @@ export function CodeDockJadeDialogs({
   const bridgeFeatures = httpBridgeEnabled ? capabilities?.features : undefined
 
   const ctxSelectedText = editor.ctxMenu?.selectedText ?? ''
+  const clickOnSelection = editor.ctxMenu?.clickOnSelection ?? false
   const showToNeekoNode =
-    Boolean(neekoSendTarget && onSendCodeToNeeko && ctxSelectedText.length > 0)
+    Boolean(neekoSendTarget && onSendCodeToNeeko && clickOnSelection && ctxSelectedText.length > 0)
 
   const showReplaceValueToGraph = Boolean(
-    primarySelectedNodeId && onReplaceValueToGraph && ctxSelectedText.length > 0,
+    primarySelectedNodeId &&
+      onReplaceValueToGraph &&
+      clickOnSelection &&
+      ctxSelectedText.length > 0,
   )
+
+  const showConvertHashToString = isRitualHashToken(ctxSelectedText)
+  const showConvertAllUndefinedHashes = ctxSelectedText.length === 0
 
   const handleToNeekoNode = () => {
     if (!neekoSendTarget || !onSendCodeToNeeko || ctxSelectedText.length === 0) {
@@ -62,15 +70,24 @@ export function CodeDockJadeDialogs({
       {editor.ctxMenu ? (
         <CodeDockEditorContextMenu
           hasEmitters={editor.hasEmitters()}
+          hasSystems={editor.hasSystems()}
           onClose={() => editor.setCtxMenu(null)}
+          onConvertHashToString={showConvertHashToString ? editor.handleConvertHashToString : undefined}
+          onConvertAllUndefinedHashes={
+            showConvertAllUndefinedHashes ? editor.handleConvertAllUndefinedHashesToString : undefined
+          }
           onCopy={editor.handleCopy}
           onCut={editor.handleCut}
           onFoldEmitters={editor.foldAllEmitters}
+          onFoldSystems={editor.foldAllSystems}
           onPaste={editor.handlePaste}
           onSelectAll={editor.handleSelectAll}
           onToNeekoNode={showToNeekoNode ? handleToNeekoNode : undefined}
           onReplaceValueToGraph={showReplaceValueToGraph ? handleReplaceValueToGraph : undefined}
           onUnfoldEmitters={editor.unfoldAllEmitters}
+          onUnfoldSystems={editor.unfoldAllSystems}
+          showConvertHashToString={showConvertHashToString}
+          showConvertAllUndefinedHashes={showConvertAllUndefinedHashes}
           showToNeekoNode={showToNeekoNode}
           showReplaceValueToGraph={showReplaceValueToGraph}
           x={editor.ctxMenu.x}

@@ -50,9 +50,24 @@ import {
 } from '@/components/organisms/BlockParameterInspector'
 import { fetchAddonsFromDisk } from '@/blockStructures/addonRegistry'
 import { fetchInputAddonsFromDisk } from '@/blockStructures/inputAddonRegistry'
+import { DeleteParameterTableEntryDialog } from '@/components/molecules/DeleteParameterTableEntryDialog'
+import { ParameterTableEntryDialog } from '@/components/molecules/ParameterTableEntryDialog'
+import { RestoreParametersTableDialog } from '@/components/molecules/RestoreParametersTableDialog'
+import {
+  createDefaultParametersTablePanelRect,
+  ParametersTablePanel,
+} from '@/components/organisms/ParametersTablePanel'
+import { getParameterTableEntryById, reloadParametersTableFromDisk } from '@/core/parameterAliasRegistry'
 import type { BlockDefinitionJsonDocument } from '@/core/blockDefinitionJson'
 import { GroupInspector } from '@/components/organisms/GroupInspector'
 import { BlockingProgressDialog } from '@/components/molecules/BlockingProgressDialog'
+import { setDiscreteProgressHandlers } from '@/core/ui/discreteProgressHandlers'
+import {
+  patchDiscreteProgress,
+  startDiscreteProgress,
+  stopDiscreteProgress,
+} from '@/core/ui/discreteProgressStore'
+import { DISCRETE_PROGRESS_TASK } from '@/core/ui/discreteProgressTasks'
 import {
   buildBlockAutoBuildPlan,
   buildBlockAutoBuildPlanFromRitualCode,
@@ -216,6 +231,7 @@ import {
   type RitualEditorResolveResult,
 } from '@/core/ritualBin'
 import { ritualContainsVfxSystem, parseRitualVfxCatalog } from '@/core/vfx/ritualParseVfx'
+import { vfxEffectFindInCodeQuery } from '@/core/vfx/vfxEffectTabLabels'
 import { extractVfxRitualFromText, resolveVfxRitualText } from '@/core/vfx/resolveVfxRitualText'
 import { useCodeDockTabs } from '@/hooks/useCodeDockTabs'
 import { useCodeDockFileBridge } from '@/hooks/useCodeDockFileBridge'
@@ -355,6 +371,7 @@ function App() {
   useEffect(() => {
     void fetchAddonsFromDisk()
     void fetchInputAddonsFromDisk()
+    void reloadParametersTableFromDisk()
   }, [])
 
   const mergedPackFolderBySchemaId = useMemo(
@@ -419,6 +436,7 @@ function App() {
     copySelectedNodes,
     pasteCopiedNodes,
     deleteNodeIds,
+    hideNodeIds,
     patchNodeSceneOverlay,
     setAllNodesSceneHidden,
     showOnlyConnectedComponent,
@@ -695,6 +713,95 @@ function App() {
   const [vfxDockFloatingRect, setVfxDockFloatingRect] = useState(() =>
     clampFloatingDockRect(createDefaultFloatingCodeDockRect()),
   )
+  const [parametersTablePanelOpen, setParametersTablePanelOpen] = useState(false)
+  const [parametersTablePanelMinimized, setParametersTablePanelMinimized] = useState(false)
+  const [parametersTableFloatingRect, setParametersTableFloatingRect] = useState(() =>
+    createDefaultParametersTablePanelRect(),
+  )
+  const [selectedParameterTableEntryId, setSelectedParameterTableEntryId] = useState<string | null>(
+    null,
+  )
+  const [parametersTableRefreshToken, setParametersTableRefreshToken] = useState(0)
+  const [parameterTableEntryDialogMode, setParameterTableEntryDialogMode] = useState<
+    'create' | 'edit' | null
+  >(null)
+  const [parameterTableDeleteDialogOpen, setParameterTableDeleteDialogOpen] = useState(false)
+  const [parameterTableRestoreDialogMode, setParameterTableRestoreDialogMode] = useState<
+    'default' | 'backup' | null
+  >(null)
+
+  const bumpParametersTableRefresh = useCallback(() => {
+    setParametersTableRefreshToken((token) => token + 1)
+  }, [])
+
+  const toggleParametersTablePanel = useCallback(() => {
+    setParametersTablePanelOpen((open) => {
+      if (open) {
+        return false
+      }
+      setParametersTablePanelMinimized(false)
+      return true
+    })
+  }, [])
+
+  const openParametersTableAddDialog = useCallback(() => {
+    setParametersTablePanelOpen(true)
+    setParametersTablePanelMinimized(false)
+    setParameterTableEntryDialogMode('create')
+  }, [])
+
+  const openParametersTableEditDialog = useCallback(() => {
+    if (!selectedParameterTableEntryId) {
+      void showAppAlert(t(LangId.ParametersTableSelectRowHint))
+      return
+    }
+    setParametersTablePanelOpen(true)
+    setParametersTablePanelMinimized(false)
+    setParameterTableEntryDialogMode('edit')
+  }, [selectedParameterTableEntryId, t])
+
+  const openParametersTableRemoveDialog = useCallback(() => {
+    if (!selectedParameterTableEntryId) {
+      void showAppAlert(t(LangId.ParametersTableSelectRowHint))
+      return
+    }
+    setParametersTablePanelOpen(true)
+    setParametersTablePanelMinimized(false)
+    setParameterTableDeleteDialogOpen(true)
+  }, [selectedParameterTableEntryId, t])
+
+  const openParametersTableRestoreDefaultDialog = useCallback(() => {
+    setParametersTablePanelOpen(true)
+    setParametersTablePanelMinimized(false)
+    setParameterTableRestoreDialogMode('default')
+  }, [])
+
+  const openParametersTableRestoreBackupDialog = useCallback(() => {
+    setParametersTablePanelOpen(true)
+    setParametersTablePanelMinimized(false)
+    setParameterTableRestoreDialogMode('backup')
+  }, [])
+
+  const handleParametersTableEntrySaved = useCallback(() => {
+    setParameterTableEntryDialogMode(null)
+    bumpParametersTableRefresh()
+    void reloadParametersTableFromDisk().then(() => bumpParametersTableRefresh())
+  }, [bumpParametersTableRefresh])
+
+  const handleParametersTableEntryDeleted = useCallback(() => {
+    setParameterTableDeleteDialogOpen(false)
+    setSelectedParameterTableEntryId(null)
+    bumpParametersTableRefresh()
+    void reloadParametersTableFromDisk().then(() => bumpParametersTableRefresh())
+  }, [bumpParametersTableRefresh])
+
+  const handleParametersTableRestored = useCallback(() => {
+    setParameterTableRestoreDialogMode(null)
+    setSelectedParameterTableEntryId(null)
+    bumpParametersTableRefresh()
+    void reloadParametersTableFromDisk().then(() => bumpParametersTableRefresh())
+  }, [bumpParametersTableRefresh])
+
   const {
     activateTab: activateCodeDockTab,
     activeTabId: activeCodeDockTabId,
@@ -2008,49 +2115,88 @@ function App() {
         fileHandle?: FileSystemFileHandle | null
       },
     ) => {
-      const maxPreview = 500_000
-      const raw =
-        options?.fullText || text.length <= maxPreview
-          ? text
-          : `${text.slice(0, maxPreview)}\n…`
+      const openTask = DISCRETE_PROGRESS_TASK.openFileCodeEditor
+      const normalizedPreviewName = normalizeCodeDockFileName(fileName)
 
-      let content = raw
-      let resolveVia: string = via
+      startDiscreteProgress(openTask, {
+        label: t(LangId.CodeOpenFileProgressTitle),
+        detailLabel: normalizedPreviewName,
+        completed: 0,
+        total: 4,
+      })
+      setDiscreteProgressHandlers(openTask.name, {
+        onDismiss: () => stopDiscreteProgress(openTask.name),
+      })
 
-      const resolved = await resolveRitualEditorText(raw)
-      content = resolved.text
+      try {
+        const maxPreview = 500_000
+        patchDiscreteProgress(openTask.name, {
+          completed: 1,
+          detailLabel: t(LangId.CodeOpenFileProgressResolve),
+        })
 
-      if (resolved.changed) {
-        if (resolved.mode === 'native') {
-          if (resolved.via === 'fnv-lexicon') {
-            resolveVia = `${via} + léxico FNV`
-          } else if (resolved.via === 'native-unhash') {
-            resolveVia = `${via} + unhash nativo`
+        const raw =
+          options?.fullText || text.length <= maxPreview
+            ? text
+            : `${text.slice(0, maxPreview)}\n…`
+
+        let content = raw
+        let resolveVia: string = via
+
+        const resolved = await resolveRitualEditorText(raw)
+        content = resolved.text
+
+        if (resolved.changed) {
+          if (resolved.mode === 'native') {
+            if (resolved.via === 'fnv-lexicon') {
+              resolveVia = `${via} + léxico FNV`
+            } else if (resolved.via === 'native-unhash') {
+              resolveVia = `${via} + unhash nativo`
+            }
           }
         }
-      }
 
-      const jadeStatus =
-        resolved.mode === 'jade' ? await refreshJadeResolveStatus() : null
-      applyCodeDockResolveBanner(resolved, jadeStatus)
+        patchDiscreteProgress(openTask.name, { completed: 2 })
 
-      if (resolved.mode === 'jade' && resolved.changed && resolved.via === 'fnv-fallback' && resolved.warning) {
-        console.warn('[ritualBin] fallback FNV:', resolved.warning)
-      }
+        const jadeStatus =
+          resolved.mode === 'jade' ? await refreshJadeResolveStatus() : null
+        applyCodeDockResolveBanner(resolved, jadeStatus)
 
-      const normalized = normalizeCodeDockFileName(fileName)
-      const tabId = openCodeDockTab(content, normalized)
-      if (options?.fileHandle && tabId) {
-        bindCodeDockFileHandleToTab(tabId, options.fileHandle)
-      }
-      pushCodeRecentFile(normalized)
-      setCodeDockOpen(true)
+        if (resolved.mode === 'jade' && resolved.changed && resolved.via === 'fnv-fallback' && resolved.warning) {
+          console.warn('[ritualBin] fallback FNV:', resolved.warning)
+        }
 
-      if (needsBinConversionOnOpen(normalized) && !options?.suppressConvertedOpenAlert) {
-        showAppAlert(`«${normalized}» convertido e aberto no painel Código (${resolveVia}).`)
+        patchDiscreteProgress(openTask.name, {
+          completed: 3,
+          detailLabel: t(LangId.CodeOpenFileProgressTab),
+        })
+
+        const normalized = normalizeCodeDockFileName(fileName)
+        const tabId = openCodeDockTab(content, normalized)
+        if (options?.fileHandle && tabId) {
+          bindCodeDockFileHandleToTab(tabId, options.fileHandle)
+        }
+        pushCodeRecentFile(normalized)
+        setCodeDockOpen(true)
+
+        const summaryBody =
+          needsBinConversionOnOpen(normalized) && !options?.suppressConvertedOpenAlert
+            ? `«${normalized}» convertido e aberto (${resolveVia}).`
+            : `«${normalized}» aberto no editor (${resolveVia}).`
+
+        patchDiscreteProgress(openTask.name, {
+          phase: 'summary',
+          completed: 4,
+          total: 4,
+          detailLabel: normalized,
+          summaryBody,
+        })
+      } catch (error) {
+        stopDiscreteProgress(openTask.name)
+        throw error
       }
     },
-    [applyCodeDockResolveBanner, openCodeDockTab, refreshJadeResolveStatus],
+    [applyCodeDockResolveBanner, openCodeDockTab, refreshJadeResolveStatus, t],
   )
 
   const {
@@ -2966,6 +3112,44 @@ function App() {
   }, [handleCloseCodeDock, vfxDockOpen])
 
   const skipPropHumanizeOnceRef = useRef(false)
+  const openCodeFindRef = useRef<((query: string) => void) | null>(null)
+  const pendingCodeFindQueryRef = useRef<string | null>(null)
+
+  const handleRegisterCodeDockOpenFind = useCallback((openFind: ((query: string) => void) | null) => {
+    openCodeFindRef.current = openFind
+    if (openFind && pendingCodeFindQueryRef.current) {
+      const query = pendingCodeFindQueryRef.current
+      pendingCodeFindQueryRef.current = null
+      openFind(query)
+    }
+  }, [])
+
+  const handleFindInCode = useCallback((query: string) => {
+    const trimmed = query.trim()
+    if (!trimmed) {
+      return
+    }
+    setCodeDockOpen(true)
+    if (openCodeFindRef.current) {
+      openCodeFindRef.current(trimmed)
+      return
+    }
+    pendingCodeFindQueryRef.current = trimmed
+  }, [])
+
+  const handleFindEffectInCode = useCallback(
+    (mapKey: string | null, label: string) => {
+      handleFindInCode(vfxEffectFindInCodeQuery(mapKey, label))
+    },
+    [handleFindInCode],
+  )
+
+  const handleFindLayerInCode = useCallback(
+    (layerName: string) => {
+      handleFindInCode(layerName)
+    },
+    [handleFindInCode],
+  )
 
   const handleHumanizePropRitualInEditor = useCallback(async () => {
     if (!codeText.trim()) {
@@ -3006,8 +3190,8 @@ function App() {
     if (!codeDockOpen) {
       return
     }
+    void ensureJadeHashesLoaded()
     if (!shouldUseNativeRitualBinCodec()) {
-      void ensureJadeHashesLoaded()
       void refreshJadeResolveStatus()
     }
   }, [codeDockOpen, refreshJadeResolveStatus])
@@ -3205,6 +3389,7 @@ function App() {
     undoScene,
     redoScene,
     deleteNodeIds,
+    hideNodeIds,
     showToastByCatalogId,
     codeDockOpen,
     vfxDockOpen,
@@ -4595,6 +4780,7 @@ function App() {
     scene,
     selectedNodeIds,
     sortMode: sceneNodesSortMode,
+    nodeSchemaRegistry: extendSchemaLookup,
     activeTab: sceneNodesPanelTab,
     onActiveTabChange: setSceneNodesPanelTab,
   }
@@ -4645,6 +4831,12 @@ function App() {
         onGraphsToCode={() => void handleGraphsToCode()}
         onToggleCodeDock={() => setCodeDockOpen((isOpen) => !isOpen)}
         onToggleVfxDock={() => setVfxDockOpen((isOpen) => !isOpen)}
+        onToggleParametersTablePanel={toggleParametersTablePanel}
+        onParametersTableAdd={openParametersTableAddDialog}
+        onParametersTableEdit={openParametersTableEditDialog}
+        onParametersTableRemove={openParametersTableRemoveDialog}
+        onParametersTableRestoreDefault={openParametersTableRestoreDefaultDialog}
+        onParametersTableRestoreBackup={openParametersTableRestoreBackupDialog}
         recentScenes={recentScenes}
       />
 
@@ -5075,6 +5267,8 @@ function App() {
               floatingRect={vfxDockFloatingRect}
               onClose={handleCloseVfxDock}
               onDockedWidthChange={setVfxDockWidth}
+              onFindEffectInCode={handleFindEffectInCode}
+              onFindLayerInCode={handleFindLayerInCode}
               onFloatingRectChange={setVfxDockFloatingRect}
               onResetFloatingDimensions={() =>
                 setVfxDockFloatingRect(clampFloatingDockRect(createDefaultFloatingCodeDockRect()))
@@ -5145,6 +5339,7 @@ function App() {
               neekoSendTarget={neekoSendTarget}
               onSendCodeToNeeko={handleNeekoDropCode}
               onReplaceValueToGraph={handleReplaceValueToGraph}
+              onRegisterOpenFind={handleRegisterCodeDockOpenFind}
               primarySelectedNodeId={primarySelectedId}
               tabs={codeDockTabBarItems}
               value={codeText}
@@ -5152,6 +5347,52 @@ function App() {
           </div>
         ) : null}
       </div>
+
+      <ParametersTablePanel
+        floatingRect={parametersTableFloatingRect}
+        minimized={parametersTablePanelMinimized}
+        onClose={() => setParametersTablePanelOpen(false)}
+        onFloatingRectChange={setParametersTableFloatingRect}
+        onRequestAdd={openParametersTableAddDialog}
+        onRequestEdit={openParametersTableEditDialog}
+        onRequestRemove={openParametersTableRemoveDialog}
+        onRequestRestoreDefault={openParametersTableRestoreDefaultDialog}
+        onSelectEntry={setSelectedParameterTableEntryId}
+        onToggleMinimized={() => setParametersTablePanelMinimized((value) => !value)}
+        open={parametersTablePanelOpen}
+        refreshToken={parametersTableRefreshToken}
+        selectedEntryId={selectedParameterTableEntryId}
+      />
+
+      <ParameterTableEntryDialog
+        initialEntry={
+          parameterTableEntryDialogMode === 'edit' && selectedParameterTableEntryId
+            ? getParameterTableEntryById(selectedParameterTableEntryId) ?? null
+            : null
+        }
+        isOpen={parameterTableEntryDialogMode !== null}
+        mode={parameterTableEntryDialogMode === 'edit' ? 'edit' : 'create'}
+        onCancel={() => setParameterTableEntryDialogMode(null)}
+        onSaved={handleParametersTableEntrySaved}
+      />
+
+      <DeleteParameterTableEntryDialog
+        entry={
+          selectedParameterTableEntryId
+            ? getParameterTableEntryById(selectedParameterTableEntryId) ?? null
+            : null
+        }
+        isOpen={parameterTableDeleteDialogOpen}
+        onCancel={() => setParameterTableDeleteDialogOpen(false)}
+        onDeleted={handleParametersTableEntryDeleted}
+      />
+
+      <RestoreParametersTableDialog
+        isOpen={parameterTableRestoreDialogMode !== null}
+        mode={parameterTableRestoreDialogMode ?? 'default'}
+        onCancel={() => setParameterTableRestoreDialogMode(null)}
+        onRestored={handleParametersTableRestored}
+      />
 
       {graphsToCodeProgress ? (
         <GraphsToCodeProgressDialog progress={graphsToCodeProgress} />

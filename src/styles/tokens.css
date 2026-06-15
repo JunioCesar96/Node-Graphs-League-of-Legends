@@ -208,6 +208,18 @@ html[data-app-theme='default'] {
   --app-inset-surface: rgb(0 0 0 / 16%);
   --app-inset-surface-strong: rgb(0 0 0 / 18%);
 
+  /** Progresso discreto — widget flutuante no CodeDock e painéis. */
+  --discrete-progress-width: 148px;
+  --discrete-progress-bg: var(--app-popover-gradient);
+  --discrete-progress-border: var(--color-border-soft);
+  --discrete-progress-shadow:
+    var(--ctx-menu-shadow),
+    inset 0 1px 0 rgb(255 255 255 / 6%);
+  --discrete-progress-accent: var(--ctx-menu-hover-bg, #007acc);
+  --discrete-progress-accent-soft: color-mix(in srgb, var(--discrete-progress-accent) 18%, transparent);
+  --discrete-progress-dot-idle: color-mix(in srgb, var(--color-text-muted) 38%, transparent);
+  --discrete-progress-stack-offset: 156px;
+
   /** Menu Snap (Shift+S) — acento e anel do cursor 2D nos ícones. */
   --snap-menu-accent: var(--syntax-keyword);
   --snap-cursor-ring-accent: #ef4444;

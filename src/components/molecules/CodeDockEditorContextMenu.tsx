@@ -13,8 +13,11 @@ type CodeDockEditorContextMenuProps = {
   x: number
   y: number
   hasEmitters: boolean
+  hasSystems: boolean
   showToNeekoNode?: boolean
   showReplaceValueToGraph?: boolean
+  showConvertHashToString?: boolean
+  showConvertAllUndefinedHashes?: boolean
   onClose: () => void
   onCopy: () => void
   onCut: () => void
@@ -22,16 +25,23 @@ type CodeDockEditorContextMenuProps = {
   onSelectAll: () => void
   onFoldEmitters: () => void
   onUnfoldEmitters: () => void
+  onFoldSystems: () => void
+  onUnfoldSystems: () => void
   onToNeekoNode?: () => void
   onReplaceValueToGraph?: () => void
+  onConvertHashToString?: () => void
+  onConvertAllUndefinedHashes?: () => void
 }
 
 export function CodeDockEditorContextMenu({
   x,
   y,
   hasEmitters,
+  hasSystems,
   showToNeekoNode = false,
   showReplaceValueToGraph = false,
+  showConvertHashToString = false,
+  showConvertAllUndefinedHashes = false,
   onClose,
   onCopy,
   onCut,
@@ -39,8 +49,12 @@ export function CodeDockEditorContextMenu({
   onSelectAll,
   onFoldEmitters,
   onUnfoldEmitters,
+  onFoldSystems,
+  onUnfoldSystems,
   onToNeekoNode,
   onReplaceValueToGraph,
+  onConvertHashToString,
+  onConvertAllUndefinedHashes,
 }: CodeDockEditorContextMenuProps) {
   const { t } = useLanguage()
   const labels = buildJadeEditorContextMenuLabels(t)
@@ -115,11 +129,46 @@ export function CodeDockEditorContextMenu({
           </button>
         </>
       ) : null}
+      {showConvertAllUndefinedHashes && onConvertAllUndefinedHashes ? (
+        <>
+          <div className="editor-ctx-separator" />
+          <button
+            className="editor-ctx-item"
+            onClick={() => handleAction(onConvertAllUndefinedHashes)}
+            type="button"
+          >
+            <span className="editor-ctx-label">{labels.convertAllUndefinedHashes}</span>
+          </button>
+        </>
+      ) : null}
+      {showConvertHashToString && onConvertHashToString ? (
+        <>
+          <div className="editor-ctx-separator" />
+          <button
+            className="editor-ctx-item"
+            onClick={() => handleAction(onConvertHashToString)}
+            type="button"
+          >
+            <span className="editor-ctx-label">{labels.convertHashToString}</span>
+          </button>
+        </>
+      ) : null}
       <div className="editor-ctx-separator" />
       <button className="editor-ctx-item" onClick={() => handleAction(onSelectAll)} type="button">
         <span className="editor-ctx-label">{labels.selectAll}</span>
         <span className="editor-ctx-shortcut">Ctrl+A</span>
       </button>
+      {hasSystems ? (
+        <>
+          <div className="editor-ctx-separator" />
+          <button className="editor-ctx-item" onClick={() => handleAction(onFoldSystems)} type="button">
+            <span className="editor-ctx-label">{labels.foldSystems}</span>
+          </button>
+          <button className="editor-ctx-item" onClick={() => handleAction(onUnfoldSystems)} type="button">
+            <span className="editor-ctx-label">{labels.unfoldSystems}</span>
+          </button>
+        </>
+      ) : null}
       {hasEmitters ? (
         <>
           <div className="editor-ctx-separator" />

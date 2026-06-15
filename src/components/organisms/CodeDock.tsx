@@ -40,6 +40,7 @@ import type { TabContextMenuAction } from '@/components/molecules/TabContextMenu
 import type { CodeDockTabBarItem } from '@/hooks/useCodeDockTabs'
 
 import { CodeDockJadeDialogs } from './CodeDockJadeDialogs'
+import { DiscreteProgressHost } from '@/components/molecules/DiscreteProgressHost'
 
 import { configureMonacoLoader } from '@/monaco/configureMonacoLoader'
 import '@/monaco/jade-syntax-globals.css'
@@ -135,6 +136,8 @@ type CodeDockProps = {
   /** Nó primário no canvas — activa «Replace Value to Graph» no menu do editor. */
   primarySelectedNodeId?: string | null
   onReplaceValueToGraph?: (snippet: string) => void
+  /** Regista `openFindWithQuery` para acções externas (ex.: VFX «Procurar no código»). */
+  onRegisterOpenFind?: (openFind: ((query: string) => void) | null) => void
 }
 
 export const CODE_DOCK_DEFAULT_WIDTH = 588
@@ -168,6 +171,7 @@ export function CodeDock({
   onSendCodeToNeeko,
   primarySelectedNodeId = null,
   onReplaceValueToGraph,
+  onRegisterOpenFind,
 }: CodeDockProps) {
   const { t } = useLanguage()
   const menuBarLabels = useMemo(() => buildJadeMenuBarLabels(t), [t])
@@ -205,12 +209,18 @@ export function CodeDock({
   const jade = useCodeDockJadeEditor(value, onChange, editorLanguage)
 
   useEffect(() => {
+    onRegisterOpenFind?.(jade.openFindWithQuery)
+    return () => onRegisterOpenFind?.(null)
+  }, [jade.openFindWithQuery, onRegisterOpenFind])
+
+  useEffect(() => {
     refreshCustomBackgroundLayerHosts()
   }, [])
 
   const ritualDrag = useRitualDragOptional()
   const ritualDragPhase = ritualDrag?.phase ?? 'idle'
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const editorHostRef = useRef<HTMLDivElement | null>(null)
   const [deleteChoices, setDeleteChoices] = useState<string[]>([])
   const [deleteSelected, setDeleteSelected] = useState('')
   const [deleteBusy, setDeleteBusy] = useState(false)
@@ -1222,7 +1232,7 @@ export function CodeDock({
           </div>
         </div>
       ) : null}
-      <div className={`${styles.editorHost} codeDockJadeScope ngl-code-editor-bg-host`}>
+      <div className={`${styles.editorHost} codeDockJadeScope ngl-code-editor-bg-host`} ref={editorHostRef}>
         {tabs.length === 0 ? (
           <p className={styles.emptyEditor}>
             {t(LangId.CodeEmptyEditor)}
@@ -1244,6 +1254,7 @@ export function CodeDock({
             value={value}
           />
         )}
+        <DiscreteProgressHost containerRef={editorHostRef} window="code-editor" />
       </div>
 
       <CodeDockJadeDialogs

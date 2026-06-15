@@ -45,10 +45,14 @@ export function buildJadeEditorContextMenuLabels(t: LanguageTranslateFn) {
     copy: t(LangId.CodeMenuCopy),
     cut: t(LangId.CodeMenuCut),
     foldEmitters: t(LangId.CodeCtxFoldEmitters),
+    foldSystems: t(LangId.CodeCtxFoldSystems),
     paste: t(LangId.CodeMenuPaste),
+    convertHashToString: t(LangId.CodeCtxConvertHashToString),
+    convertAllUndefinedHashes: t(LangId.CodeCtxConvertAllHashes),
     replaceValueToGraph: t(LangId.CodeCtxReplaceValue),
     selectAll: t(LangId.CodeMenuSelectAll),
     toNeekoNode: t(LangId.CodeCtxToNeeko),
     unfoldEmitters: t(LangId.CodeCtxUnfoldEmitters),
+    unfoldSystems: t(LangId.CodeCtxUnfoldSystems),
   }
 }

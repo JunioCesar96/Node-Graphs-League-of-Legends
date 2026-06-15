@@ -6,6 +6,25 @@ import type * as MonacoType from 'monaco-editor'
 import { getPreference } from '@jade/lib/preferenceStore'
 import { RITOBIN_LANGUAGE_ID } from '@jade/lib/ritobinLanguage'
 import { refreshJadeSurfaceTheme, JADE_DYNAMIC_MONACO_THEME, JADE_SURFACE_THEME_CHANGED } from '@/core/jadeSurfaceTheme'
+import { LangId } from '@/core/language/languageIds'
+import { setDiscreteProgressHandlers } from '@/core/ui/discreteProgressHandlers'
+import {
+  getDiscreteProgress,
+  patchDiscreteProgress,
+  startDiscreteProgress,
+  stopDiscreteProgress,
+} from '@/core/ui/discreteProgressStore'
+import { DISCRETE_PROGRESS_TASK } from '@/core/ui/discreteProgressTasks'
+import {
+  convertAllUndefinedHashesInDocument,
+  convertHashOccurrencesInDocument,
+  findHashOccurrencesInLines,
+  type RitualHashOccurrence,
+} from '@/core/ritualBin/convertAllUndefinedHashes'
+import { convertRitualHashToStringInDocument } from '@/core/ritualBin/convertRitualHashToString'
+import { useLanguage } from '@/language/LanguageProvider'
+import { isRitualHashToken } from '@/core/vfx/lolFnv1aHash'
+import { ritualContainsVfxSystem } from '@/core/vfx/ritualParseVfx'
 
 import {
   setupRitobinMonacoBeforeMount,
@@ -23,12 +42,26 @@ import {
 import { useCodeDockRitualDrag } from './useCodeDockRitualDrag'
 import { useCodeDockShortcutHandlers } from '@/shortcuts/useCodeDockShortcutHandlers'
 
+const VFX_SYSTEM_LINE_RE =
+  /(?:=\s*(?:VfxSystemDefinitionData|0x45cd899f)\s*\{|^\s*VfxSystemDefinitionData\s*\{)/i
+
 export type CodeDockCtxMenu = {
   x: number
   y: number
-  /** Texto ritual da selecção activa (só se o clique foi dentro da selecção). */
+  /** Texto da selecção activa no momento do clique direito. */
   selectedText: string
+  /** Clique ocorreu dentro da área seleccionada (To Neeko / Replace Value). */
+  clickOnSelection: boolean
 } | null
+
+const CONVERT_ALL_HASHES_TASK = DISCRETE_PROGRESS_TASK.convertAllUndefinedHashes
+
+type ConvertAllHashesPendingWork = {
+  documentText: string
+  failedOccurrences: RitualHashOccurrence[]
+  convertedTotal: number
+  failedTotal: number
+}
 
 export function useCodeDockJadeEditor(
   value: string,
@@ -36,6 +69,7 @@ export function useCodeDockJadeEditor(
   editorLanguage: string = RITOBIN_LANGUAGE_ID,
 ) {
   const isRitobinEditor = editorLanguage === RITOBIN_LANGUAGE_ID
+  const { t } = useLanguage()
   const editorRef = useRef<MonacoType.editor.IStandaloneCodeEditor | null>(null)
   const monacoRef = useRef<Monaco | null>(null)
   const decorationIdsRef = useRef<string[]>([])
@@ -55,6 +89,14 @@ export function useCodeDockJadeEditor(
   const [findActive, setFindActive] = useState(false)
   const [replaceActive, setReplaceActive] = useState(false)
   const [ctxMenu, setCtxMenu] = useState<CodeDockCtxMenu>(null)
+  const convertAllHashesCancelRef = useRef(false)
+  const convertAllHashesPendingRef = useRef<ConvertAllHashesPendingWork | null>(null)
+  const convertAllHashesHandlersRef = useRef({
+    onConfirmYes: () => {},
+    onConfirmNo: () => {},
+    onDismiss: () => {},
+    onCancelRequest: () => {},
+  })
 
   const [generalEditOpen, setGeneralEditOpen] = useState(false)
   const [particlePanelOpen, setParticlePanelOpen] = useState(false)
@@ -232,6 +274,25 @@ export function useCodeDockJadeEditor(
     }
   }, [findActive])
 
+  const openFindWithQuery = useCallback((query: string) => {
+    const editor = editorRef.current
+    const trimmed = query.trim()
+    if (!editor || !trimmed) return
+
+    setGeneralEditOpen(false)
+    setParticlePanelOpen(false)
+    setReplaceActive(false)
+
+    void editor.trigger('keyboard', 'editor.actions.findWithArgs', {
+      isCaseSensitive: false,
+      isRegex: false,
+      matchWholeWord: false,
+      searchString: trimmed,
+    })
+    setFindActive(true)
+    editor.focus()
+  }, [])
+
   const handleReplace = useCallback(() => {
     const editor = editorRef.current
     if (!editor) return
@@ -274,19 +335,358 @@ export function useCodeDockJadeEditor(
     editorRef.current?.trigger('keyboard', 'editor.action.selectAll', null)
   }, [])
 
-  const setEmittersFolded = useCallback((collapse: boolean) => {
+  const applyHashEdits = useCallback(
+    (edits: Array<{ lineNumber: number; startColumn: number; endColumn: number; replacement: string }>) => {
+      const editor = editorRef.current
+      const monaco = monacoRef.current
+      if (!editor || !monaco || edits.length === 0) {
+        return
+      }
+
+      editor.executeEdits(
+        'convert-all-hashes',
+        edits.map((edit) => ({
+          range: new monaco.Range(
+            edit.lineNumber,
+            edit.startColumn,
+            edit.lineNumber,
+            edit.endColumn,
+          ),
+          text: edit.replacement,
+          forceMoveMarkers: true,
+        })),
+      )
+      onContentChange(editor.getValue())
+      scheduleSyntaxPass()
+    },
+    [onContentChange, scheduleSyntaxPass],
+  )
+
+  const showConvertAllHashesSummary = useCallback(
+    (convertedTotal: number, failedTotal: number, body?: string) => {
+      patchDiscreteProgress(CONVERT_ALL_HASHES_TASK.name, {
+        phase: 'summary',
+        completed: Math.max(convertedTotal + failedTotal, 1),
+        total: Math.max(convertedTotal + failedTotal, 1),
+        detailLabel: undefined,
+        summaryBody:
+          body ??
+          t(LangId.CodeCtxConvertAllReport)
+            .replace('{converted}', String(convertedTotal))
+            .replace('{failed}', String(failedTotal)),
+      })
+    },
+    [t],
+  )
+
+  const closeConvertAllHashesProgress = useCallback(() => {
+    convertAllHashesCancelRef.current = false
+    convertAllHashesPendingRef.current = null
+    stopDiscreteProgress(CONVERT_ALL_HASHES_TASK.name)
+  }, [])
+
+  const runConvertAllHashesTableRetry = useCallback(async () => {
+    const editor = editorRef.current
+    const pending = convertAllHashesPendingRef.current
+    if (!editor || !pending) {
+      return
+    }
+
+    convertAllHashesCancelRef.current = false
+    const total = pending.failedOccurrences.length
+    patchDiscreteProgress(CONVERT_ALL_HASHES_TASK.name, {
+      phase: 'running',
+      completed: 0,
+      total,
+      detailLabel: t(LangId.CodeCtxConvertAllProgressStatus, undefined, {
+        hash: pending.failedOccurrences[0]?.hash ?? '…',
+      }),
+      confirm: undefined,
+      summaryBody: undefined,
+    })
+
+    const tablePass = await convertHashOccurrencesInDocument(
+      pending.documentText,
+      pending.failedOccurrences,
+      {
+        mode: 'tables-only',
+        isCancelled: () => convertAllHashesCancelRef.current,
+        onProgress: ({ completed, total: passTotal, currentHash }) => {
+          patchDiscreteProgress(CONVERT_ALL_HASHES_TASK.name, {
+            completed,
+            total: passTotal,
+            detailLabel: t(LangId.CodeCtxConvertAllProgressStatus, undefined, {
+              hash: currentHash ?? '…',
+            }),
+          })
+        },
+      },
+    )
+
+    if (tablePass.edits.length > 0) {
+      applyHashEdits(tablePass.edits)
+    }
+
+    convertAllHashesPendingRef.current = null
+
+    if (convertAllHashesCancelRef.current) {
+      patchDiscreteProgress(CONVERT_ALL_HASHES_TASK.name, {
+        phase: 'summary',
+        completed: pending.convertedTotal + tablePass.converted,
+        total: Math.max(total, 1),
+        detailLabel: undefined,
+        summaryBody: t(LangId.CodeCtxConvertAllCancelled).replace(
+          '{converted}',
+          String(pending.convertedTotal + tablePass.converted),
+        ),
+      })
+      return
+    }
+
+    showConvertAllHashesSummary(
+      pending.convertedTotal + tablePass.converted,
+      tablePass.failed,
+    )
+  }, [applyHashEdits, showConvertAllHashesSummary, t])
+
+  const runConvertAllHashesJob = useCallback(async () => {
+    const editor = editorRef.current
+    if (!editor) {
+      return
+    }
+
+    const documentText = editor.getValue()
+    const occurrences = findHashOccurrencesInLines(documentText.split('\n'))
+
+    if (occurrences.length === 0) {
+      startDiscreteProgress(CONVERT_ALL_HASHES_TASK, {
+        label: t(LangId.CodeCtxConvertAllProgressTitle),
+        phase: 'summary',
+        completed: 0,
+        total: 1,
+        summaryBody: t(LangId.CodeCtxConvertAllNone),
+      })
+      return
+    }
+
+    convertAllHashesCancelRef.current = false
+    convertAllHashesPendingRef.current = null
+
+    startDiscreteProgress(CONVERT_ALL_HASHES_TASK, {
+      label: t(LangId.CodeCtxConvertAllProgressTitle),
+      completed: 0,
+      total: occurrences.length,
+      detailLabel: t(LangId.CodeCtxConvertAllProgressStatus, undefined, {
+        hash: occurrences[0]?.hash ?? '…',
+      }),
+    })
+
+    const pass = await convertAllUndefinedHashesInDocument(documentText, {
+      mode: 'full',
+      isCancelled: () => convertAllHashesCancelRef.current,
+      onProgress: ({ completed, total, currentHash }) => {
+        patchDiscreteProgress(CONVERT_ALL_HASHES_TASK.name, {
+          completed,
+          total,
+          detailLabel: t(LangId.CodeCtxConvertAllProgressStatus, undefined, {
+            hash: currentHash ?? '…',
+          }),
+        })
+      },
+    })
+
+    if (pass.edits.length > 0) {
+      applyHashEdits(pass.edits)
+    }
+
+    if (convertAllHashesCancelRef.current) {
+      patchDiscreteProgress(CONVERT_ALL_HASHES_TASK.name, {
+        phase: 'summary',
+        completed: Math.max(pass.converted, 1),
+        total: occurrences.length,
+        detailLabel: undefined,
+        summaryBody: t(LangId.CodeCtxConvertAllCancelled).replace(
+          '{converted}',
+          String(pass.converted),
+        ),
+      })
+      return
+    }
+
+    const documentAfter = editor.getValue()
+
+    if (pass.failedOccurrences.length > 0) {
+      convertAllHashesPendingRef.current = {
+        documentText: documentAfter,
+        failedOccurrences: pass.failedOccurrences,
+        convertedTotal: pass.converted,
+        failedTotal: pass.failed,
+      }
+      patchDiscreteProgress(CONVERT_ALL_HASHES_TASK.name, {
+        phase: 'confirm',
+        completed: pass.converted,
+        total: occurrences.length,
+        detailLabel: undefined,
+        confirm: {
+          kind: 'tableRetry',
+          message: t(LangId.CodeCtxConvertAllTablePrompt).replace(
+            '{count}',
+            String(pass.failedOccurrences.length),
+          ),
+          yesLabel: t(LangId.CodeCtxConvertAllTableRetryYes),
+          noLabel: t(LangId.CodeCtxConvertAllTableRetryNo),
+        },
+      })
+      return
+    }
+
+    showConvertAllHashesSummary(pass.converted, pass.failed)
+  }, [applyHashEdits, showConvertAllHashesSummary, t])
+
+  const handleConvertAllUndefinedHashesToString = useCallback(() => {
+    const editor = editorRef.current
+    const selection = editor?.getSelection()
+    if (!editor) {
+      return
+    }
+    if (selection && !selection.isEmpty()) {
+      return
+    }
+
+    void runConvertAllHashesJob()
+  }, [runConvertAllHashesJob])
+
+  const handleConvertAllHashesCancelRequest = useCallback(() => {
+    patchDiscreteProgress(CONVERT_ALL_HASHES_TASK.name, {
+      phase: 'confirm',
+      confirm: {
+        kind: 'cancel',
+        message: t(LangId.CodeCtxConvertAllCancelMessage),
+        yesLabel: t(LangId.CodeCtxConvertAllCancelYes),
+        noLabel: t(LangId.CodeCtxConvertAllCancelContinue),
+      },
+    })
+  }, [t])
+
+  const handleConvertAllHashesCancelDismiss = useCallback(() => {
+    const entry = getDiscreteProgress(CONVERT_ALL_HASHES_TASK.name)
+    if (!entry || entry.phase !== 'confirm' || !entry.confirm) {
+      return
+    }
+
+    if (entry.confirm.kind === 'tableRetry') {
+      const pending = convertAllHashesPendingRef.current
+      convertAllHashesPendingRef.current = null
+      if (pending) {
+        showConvertAllHashesSummary(pending.convertedTotal, pending.failedTotal)
+      } else {
+        closeConvertAllHashesProgress()
+      }
+      return
+    }
+
+    patchDiscreteProgress(CONVERT_ALL_HASHES_TASK.name, {
+      phase: 'running',
+      confirm: undefined,
+    })
+  }, [closeConvertAllHashesProgress, showConvertAllHashesSummary])
+
+  const handleConvertAllHashesCancelConfirm = useCallback(() => {
+    const entry = getDiscreteProgress(CONVERT_ALL_HASHES_TASK.name)
+    if (!entry || entry.phase !== 'confirm' || !entry.confirm) {
+      return
+    }
+
+    if (entry.confirm.kind === 'tableRetry') {
+      void runConvertAllHashesTableRetry()
+      return
+    }
+
+    convertAllHashesCancelRef.current = true
+    patchDiscreteProgress(CONVERT_ALL_HASHES_TASK.name, {
+      phase: 'running',
+      confirm: undefined,
+    })
+  }, [runConvertAllHashesTableRetry])
+
+  useEffect(() => {
+    convertAllHashesHandlersRef.current = {
+      onConfirmYes: handleConvertAllHashesCancelConfirm,
+      onConfirmNo: handleConvertAllHashesCancelDismiss,
+      onDismiss: closeConvertAllHashesProgress,
+      onCancelRequest: handleConvertAllHashesCancelRequest,
+    }
+
+    setDiscreteProgressHandlers(CONVERT_ALL_HASHES_TASK.name, {
+      onConfirmYes: () => convertAllHashesHandlersRef.current.onConfirmYes(),
+      onConfirmNo: () => convertAllHashesHandlersRef.current.onConfirmNo(),
+      onDismiss: () => convertAllHashesHandlersRef.current.onDismiss(),
+      onCancelRequest: () => convertAllHashesHandlersRef.current.onCancelRequest(),
+    })
+
+    return () => {
+      setDiscreteProgressHandlers(CONVERT_ALL_HASHES_TASK.name, null)
+    }
+  }, [
+    closeConvertAllHashesProgress,
+    handleConvertAllHashesCancelConfirm,
+    handleConvertAllHashesCancelDismiss,
+    handleConvertAllHashesCancelRequest,
+  ])
+
+  const handleConvertHashToString = useCallback(() => {
+    const editor = editorRef.current
+    const selection = editor?.getSelection()
+    const model = editor?.getModel()
+    if (!editor || !selection || !model || selection.isEmpty()) {
+      return
+    }
+
+    const selectedText = model.getValueInRange(selection).trim()
+    if (!isRitualHashToken(selectedText)) {
+      return
+    }
+
+    void (async () => {
+      const resolved = await convertRitualHashToStringInDocument(
+        selectedText,
+        selection.startLineNumber,
+        editor.getValue(),
+      )
+      if (!resolved) {
+        showAppAlert(
+          'Hash desconhecida — não foi possível converter para string.\n\n' +
+            'Modo Nativo: confirma ritobin_cli em tools/ritobin/ e npm run dev:native.\n' +
+            'Tabelas: tools/ritobin/hashes/ ou npm run hashes:sync.',
+        )
+        return
+      }
+
+      editor.executeEdits('convert-hash-to-string', [
+        {
+          range: selection,
+          text: resolved,
+          forceMoveMarkers: true,
+        },
+      ])
+      onContentChange(editor.getValue())
+      scheduleSyntaxPass()
+    })()
+  }, [onContentChange, scheduleSyntaxPass])
+
+  const setBlocksFoldedByLinePattern = useCallback((collapse: boolean, linePattern: RegExp) => {
     const editor = editorRef.current
     const model = editor?.getModel()
     if (!editor || !model) return
 
     const lines = model.getValue().split('\n')
-    const emitterLineSet = new Set<number>()
+    const startLineSet = new Set<number>()
     for (let i = 0; i < lines.length; i++) {
-      if (/VfxEmitterDefinitionData\s*\{/.test(lines[i])) {
-        emitterLineSet.add(i + 1)
+      if (linePattern.test(lines[i] ?? '')) {
+        startLineSet.add(i + 1)
       }
     }
-    if (emitterLineSet.size === 0) return
+    if (startLineSet.size === 0) return
 
     const foldingCtrl = (editor as unknown as { getContribution?: (id: string) => unknown }).getContribution?.(
       'editor.contrib.folding',
@@ -304,7 +704,7 @@ export function useCodeDockJadeEditor(
       if (!regions) return
       for (let i = 0; i < regions.length; i++) {
         const startLine = regions.getStartLineNumber(i)
-        if (emitterLineSet.has(startLine) && regions.isCollapsed(i) !== collapse) {
+        if (startLineSet.has(startLine) && regions.isCollapsed(i) !== collapse) {
           regions.setCollapsed(i, collapse)
         }
       }
@@ -312,7 +712,19 @@ export function useCodeDockJadeEditor(
     })
   }, [])
 
+  const setEmittersFolded = useCallback(
+    (collapse: boolean) => setBlocksFoldedByLinePattern(collapse, /VfxEmitterDefinitionData\s*\{/),
+    [setBlocksFoldedByLinePattern],
+  )
+
+  const setSystemsFolded = useCallback(
+    (collapse: boolean) => setBlocksFoldedByLinePattern(collapse, VFX_SYSTEM_LINE_RE),
+    [setBlocksFoldedByLinePattern],
+  )
+
   const hasEmitters = useCallback(() => /VfxEmitterDefinitionData\s*\{/.test(value), [value])
+
+  const hasSystems = useCallback(() => ritualContainsVfxSystem(value), [value])
 
   const handleGeneralEdit = useCallback(() => {
     setFindActive(false)
@@ -409,21 +821,20 @@ export function useCodeDockJadeEditor(
         const selection = editor.getSelection()
         const model = editor.getModel()
         let selectedText = ''
+        let clickOnSelection = false
 
         if (selection && model && !selection.isEmpty()) {
+          selectedText = model.getValueInRange(selection).trim()
           const clickPosition = e.target.position
-          const clickOnSelection =
+          clickOnSelection =
             clickPosition !== undefined && selection.containsPosition(clickPosition)
-
-          if (clickOnSelection) {
-            selectedText = model.getValueInRange(selection).trim()
-          }
         }
 
         setCtxMenu({
           x: e.event.posx,
           y: e.event.posy,
           selectedText,
+          clickOnSelection,
         })
       })
       editorDisposablesRef.current.push(ctxDisposable)
@@ -528,6 +939,7 @@ export function useCodeDockJadeEditor(
     handleBeforeMount,
     handleMount,
     handleFind,
+    openFindWithQuery,
     handleReplace,
     handleUndo,
     handleRedo,
@@ -535,9 +947,14 @@ export function useCodeDockJadeEditor(
     handleCopy,
     handlePaste,
     handleSelectAll,
+    handleConvertHashToString,
+    handleConvertAllUndefinedHashesToString,
     foldAllEmitters: () => setEmittersFolded(true),
     unfoldAllEmitters: () => setEmittersFolded(false),
     hasEmitters,
+    foldAllSystems: () => setSystemsFolded(true),
+    unfoldAllSystems: () => setSystemsFolded(false),
+    hasSystems,
     handleGeneralEdit,
     handleParticlePanel,
     handlePanelContentChange,
