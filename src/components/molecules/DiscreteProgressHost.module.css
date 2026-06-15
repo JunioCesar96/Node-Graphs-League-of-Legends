@@ -1,0 +1,18 @@
+.host {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  pointer-events: none;
+}
+
+.host > * {
+  pointer-events: auto;
+}
+
+.lockOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 25;
+  pointer-events: auto;
+  background: color-mix(in srgb, var(--app-overlay-scrim) 55%, transparent);
+}

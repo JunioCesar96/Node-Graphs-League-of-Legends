@@ -190,19 +190,3 @@ sequenceDiagram
 5. Se algumas hashes falharem, o widget pergunta se deseja tentar **só pelas tabelas**; escolha Sim ou Não, leia o relatório e clique **OK**.
 6. **Ao abrir ficheiro:** Ficheiro → Abrir (ou recente) mostra o mesmo widget durante resolve + abertura da tab; confirme com **OK** no resumo.
 7. Pode continuar a editar enquanto o progresso corre (`LockAction: false`).
-
----
-
-## Acknowledgements
-
-Special thanks to **Bud**, creator of the Jade tool that powers the BIN conversion system used in this project.
-GitHub: https://github.com/budlibu500
-
-Key contributions include:
-
-* BIN code conversion
-* BIN League syntax analysis
-* Particle editing systems
-* General-purpose editing tools
-
-Their work and support were essential to the development and functionality of this project.
