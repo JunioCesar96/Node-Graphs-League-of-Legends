@@ -1,17 +1,17 @@
-# Documentação de Implementação — Label Block (etiquetas de segmentação visual)
+# Documentação de Implementação — Convert all hashes + Progresso discreto (CodeDock)
 
-Arquivo salvo em: `feature_md/feature/feature-label-block.md`
+Arquivo salvo em: `feature_md/feature/feature-convert-all-hashes-discrete-progress.md`
 
 ## 1. Cabeçalho
 
 | Campo | Valor |
 | --- | --- |
-| Nome da Branch | `feature/label-block` |
-| Nome das Features | **Label Block** — card estrutural no canvas vinculado a um bloco pai; parâmetros espelhados com highlight/ocultação no pai; saída JSON tipada no slot de cabeçalho; criação a partir do bloco ou avulsa na grade; persistência em workspace e export JSON de cena v2 |
+| Nome da Branch | `feature/convert-all-hashes-discrete-progress` |
+| Nome das Features | **Convert all undefined hashes to string** (menu de contexto sem seleção); **Convert to string** unificado; **Discrete Progress Indicator** (widget flutuante arrastável, `LockAction: false`); progresso ao **abrir ficheiro** no editor de código |
 | Versão atual | `1.5.0` |
-| Hash do Commit | `7d73ff5` |
+| Hash do Commit | `59c339c` |
 
-Documentação relacionada: `feature_md/prompet/prompet_sistema_blocos.md`, `feature_md/feature/feature-block-link-palette.md`, `feature_md/prompet/prompt_doc.md`.
+Documentação relacionada: `feature_md/prompet/prompt_doc.md`, `feature_md/feature/feature-menu-jade-codedock.md`.
 
 ---
 
@@ -19,8 +19,8 @@ Documentação relacionada: `feature_md/prompet/prompet_sistema_blocos.md`, `fea
 
 | Tag | Definição |
 | --- | --- |
-| `[NOVO]` | Novo módulo, componente, tipo de nó, persistência ou fluxo criado nesta entrega. |
-| `[ATUALIZADO]` | Componente ou função existente alterada para integrar labels, vínculo bloco↔label ou export JSON. |
+| `[NOVO]` | Novo módulo, componente, store, tarefa de progresso ou fluxo criado nesta entrega. |
+| `[ATUALIZADO]` | Componente ou função existente alterada para integrar conversão em massa, progresso discreto ou i18n. |
 | `[REMOVIDO]` | Comportamento ou API removida ou descontinuada. |
 
 Tags presentes nesta implementação:
@@ -36,34 +36,34 @@ Não houve itens classificados como `[REMOVIDO]`.
 
 ```mermaid
 graph TD
-  subgraph create [Criação]
-    A1[Menu bloco ou rodapé Labels vinculadas] --> B[CreateLabelDialog fromParent]
-    A2[Menu grade Criar nova etiqueta] --> C[CreateLabelDialog standalone]
-    B --> D[createLabelBlockFromParent]
-    C --> E[createStandaloneLabel]
-    D --> F[LabelCard no canvas]
-    E --> F
+  subgraph ctx [Menu de contexto — sem seleção]
+    A[Clique direito no editor] --> B{Seleção vazia?}
+    B -->|Sim| C[Convert all undefined hashes to string]
+    B -->|Não| D[Outras acções / Convert to string se hash]
   end
 
-  subgraph link [Vínculo]
-    F --> G{parentBlockNodeId vazio?}
-    G -->|Sim| H[Rodapé Bloco vinculado]
-    H --> I[linkLabelToParentBlock + remap parâmetros]
-    G -->|Não| J[Espelhamento activo]
-  end
+  C --> E[startDiscreteProgress convertAllUndefinedHashes]
+  E --> F[Varre documento — tokens 0x…]
+  F --> G[convertRitualHashToStringInDocument por ocorrência]
+  G --> H{Resolvido?}
+  H -->|Sim| I[Acumula edit + actualiza texto]
+  H -->|Não| J[failedOccurrences]
+  I --> K{Mais hashes?}
+  J --> K
+  K -->|Sim| G
+  K -->|Não| L{Aplica edits no Monaco}
+  L --> M{Falhas?}
+  M -->|Não| N[Summary no widget — OK]
+  M -->|Sim| O[Confirm no widget — retry tabelas?]
+  O -->|Sim| P[Segundo passe tables-only]
+  O -->|Não| N
+  P --> N
 
-  subgraph sync [Sincronização]
-    J --> K[BlockParameterRow no LabelCard]
-    K --> L[updateBlockParameter no pai]
-    L --> M[labelParentEffects highlight/hide]
-    M --> N[BlockCard filtra ocultos + cores]
-  end
-
-  subgraph json [Saída JSON]
-    F --> O[Slot header label-header:nodeId:0]
-    O --> P[buildLabelJsonExport]
-    P --> Q[crossSlotConnections labelToAddon]
-    Q --> R[addon-code-to-json ou destino]
+  subgraph open [Abrir ficheiro]
+    Q[Open / Recent / Import] --> R[startDiscreteProgress openFileCodeEditor]
+    R --> S[resolveRitualEditorText]
+    S --> T[openCodeDockTab + push recent]
+    T --> U[Summary no widget — OK]
   end
 ```
 
@@ -74,31 +74,42 @@ graph TD
 ```mermaid
 sequenceDiagram
   actor U as Utilizador
-  participant Menu as canvasContextMenuItems
-  participant Dlg as CreateLabelDialog
-  participant Hist as useSceneHistory
-  participant LC as LabelCard
-  participant Sync as syncLabelToParent
-  participant Parent as BlockCard
-  participant Exp as labelJsonExport
+  participant Ctx as CodeDockEditorContextMenu
+  participant Hook as useCodeDockJadeEditor
+  participant Store as discreteProgressStore
+  participant Core as convertAllUndefinedHashes
+  participant Resolve as convertRitualHashToStringInDocument
+  participant Monaco as Monaco Editor
+  participant Widget as DiscreteProgressIndicator
 
-  U->>Menu: Criar etiqueta a partir do bloco
-  Menu->>Dlg: variant fromParent
-  U->>Dlg: Nome, cor, parâmetros
-  Dlg->>Hist: createLabelBlockFromParent
-  Hist->>Hist: createLabelPlaceholderInstance + labelStructure
-  Hist-->>LC: nó labelViewActive
+  U->>Ctx: Convert all undefined hashes (sem seleção)
+  Ctx->>Hook: handleConvertAllUndefinedHashesToString
+  Hook->>Store: startDiscreteProgress(convertAllUndefinedHashes)
+  Store->>Widget: render running
+  Hook->>Core: convertAllUndefinedHashesInDocument(onProgress, isCancelled)
+  loop cada hash
+    Core->>Resolve: convertRitualHashToStringInDocument
+    Resolve->>Resolve: resolveRitualHashForEditor (full)
+    Core->>Store: patchDiscreteProgress(completed, detailLabel)
+  end
+  Core-->>Hook: edits + failedOccurrences
+  Hook->>Monaco: executeEdits (batch)
+  alt falhas restantes
+    Hook->>Store: phase confirm (retry tabelas)
+    U->>Widget: Sim / Não
+    Hook->>Core: convertHashOccurrencesInDocument(tables-only)
+  end
+  Hook->>Store: phase summary
+  U->>Widget: OK
+  Hook->>Store: stopDiscreteProgress
 
-  U->>LC: Edita valor de parâmetro
-  LC->>Sync: resolveLabelParameterDef
-  LC->>Hist: onUpdateLabelParentParameter
-  Hist->>Parent: updateBlockParameter
-  Parent->>Parent: resolveLabelEffectsForParent
-
-  U->>LC: Arrasta slot header OUT
-  LC->>Exp: resolveLabelJsonOutputString
-  Exp->>Exp: buildLabelJsonExport por parâmetro
-  Note over LC,Exp: JSON tipado value+type por campo
+  Note over U,Widget: Abrir ficheiro
+  U->>Hook: File → Open
+  participant App as App.loadTextIntoCodeDock
+  App->>Store: startDiscreteProgress(openFileCodeEditor)
+  App->>App: resolveRitualEditorText
+  App->>App: openCodeDockTab
+  App->>Store: phase summary
 ```
 
 ---
@@ -107,112 +118,78 @@ sequenceDiagram
 
 | Status | Nome | Feature | Descrição Técnica | Parâmetros / Retorno |
 | --- | --- | --- | --- | --- |
-| `[NOVO]` | `labelSchema.ts` | Modelo | Tipos `LabelStructurePayload`, `CreateLabelDraft`, `labelHeaderSlotId`, `LABEL_JSON_OUTPUT_TYPE`. | Constantes + helpers de slot. |
-| `[NOVO]` | `labelPlaceholderNode.ts` | Placeholder | Instância schema `__label_placeholder__` para nós label no canvas. | `createLabelPlaceholderInstance`. |
-| `[NOVO]` | `labelScenePersistence.ts` | Persistência | Round-trip `labels.json` no workspace; extract/apply labels da cena. | `extractSceneLabelsFromCanvas`, `applySceneLabelsToCanvas`. |
-| `[NOVO]` | `labelParentLinking.ts` | Vínculo | Matching parâmetro label↔bloco, remap ao vincular, parâmetros reservados por labels irmãs, lista blocos linkáveis. | `linkLabelToParentBlock`, `listParameterIdsReservedBySiblingLabels`. |
-| `[NOVO]` | `syncLabelToParent.ts` | Sync | Leitura/escrita de valores via nó pai; normalização de cor. | `resolveLabelParameterDisplayValue`, `normalizeLabelColor`. |
-| `[NOVO]` | `labelParentEffects.ts` | Visual pai | Agrega highlight por cor e ocultação (`hiddenInParent`) de todas as labels do bloco. | `resolveLabelEffectsForParent` → `Map` + `Set`. |
-| `[NOVO]` | `labelJsonExport.ts` | Export JSON | Serializa parâmetros espelhados como `{ campo: { value, type } }`. | `buildLabelJsonExport`, `resolveLabelJsonOutputString`. |
-| `[NOVO]` | `labelSlotConnections.ts` | Conexões | Geometria e routing do slot header JSON da label. | Integração com `crossSlotConnections`. |
-| `[NOVO]` | `LabelCard.tsx` | UI card | Header colorido, body grid 5 colunas (`BlockParameterRow`), slot OUT JSON, rodapé com menus. | Props espelhadas de `BlockCard`. |
-| `[NOVO]` | `LabelCardParameterMenu.tsx` | Menu rodapé | Bloco vinculado, slot tools, CRUD parâmetros, toggle global ocultar no pai (`SceneNodeEyeIcon`). | Callbacks para `useSceneHistory`. |
-| `[NOVO]` | `CreateLabelDialog.tsx` | Diálogo | Modos `create`/`edit`; variantes `fromParent` e `standalone` com `EmbeddedStructureListPicker`. | `CreateLabelDraft` → histórico. |
-| `[NOVO]` | Ícones SVG link | UX vínculo | `link.svg`, `link block.svg`, `link parametro.svg` (+ variantes bw/black). | CSS `iconGlyphLink` em menus. |
-| `[ATUALIZADO]` | `canvasScene.ts` | Cena | Campos `labelStructure`, `labelViewActive`; conexões `fromLabelSlotId`. | Tipos `CanvasNode`, `CanvasConnection`. |
-| `[ATUALIZADO]` | `useSceneHistory.ts` | Mutações | `createLabelBlockFromParent`, `createStandaloneLabel`, `linkLabelToParentBlock`, `updateLabelStructure`, CRUD parâmetros label, `toggleAllLabelParametersHiddenInParent`. | Retorno `{ ok, nodeId \| error }`. |
-| `[ATUALIZADO]` | `BlockCard.tsx` | Pai | Rodapé «Labels vinculadas»; aplica `hidden` e `labelHighlightColor` nos parâmetros. | Lista/focar/adicionar/remover labels. |
-| `[ATUALIZADO]` | `BlockParameterRow.tsx` | Linha | `data-label-linked`, fundo highlight quando parâmetro está numa label. | Reutilizado em `LabelCard`. |
-| `[ATUALIZADO]` | `GraphCanvasSceneNode.tsx` | Render | Branch `labelViewActive && labelStructure` → `LabelCard`. | Host de eventos de slot. |
-| `[ATUALIZADO]` | `GraphCanvas.tsx` | Canvas | Handlers label, hover candidato vínculo (`linkCandidateHighlight`), rascunho conexão JSON. | Integração com paleta/addons. |
-| `[ATUALIZADO]` | `canvasContextMenuItems.ts` | Menus | «Criar etiqueta» no bloco; «Criar nova etiqueta» na grade; «Editar etiqueta» no nó label. | `onRequestCreateLabel`, `canCreateStandaloneLabel`. |
-| `[ATUALIZADO]` | `workspacePersistence.ts` | Workspace | Bundle `labels` → `labels.json` via `vite.plugin.workspaceSync`. | Serialização dev. |
-| `[ATUALIZADO]` | `leagueBinScene.ts` | Export cena | Array `labels[]` no JSON v2 (`serializeScene` / `parseV2Document`). | Round-trip com testes. |
-| `[ATUALIZADO]` | `crossSlotConnections.ts` | Slots cruzados | Ligações label header → addon IN (`labelToAddon`). | `instanceEvaluator` actualizado. |
-| `[ATUALIZADO]` | `structureCardLayout.ts` | Layout | `resolveLabelCardWidth`, largura fixa `LABEL_CARD_WIDTH` (360px). | Resize handles partilhados. |
+| `[NOVO]` | `DiscreteProgressIndicator.tsx` | Progresso discreto | Widget circular (anel de pontos + %), arrastável, fases running / confirm / summary. | Props: `entry`, `stackIndex`. |
+| `[NOVO]` | `DiscreteProgressHost.tsx` | Progresso discreto | Monta indicadores por janela (`code-editor`); overlay opcional se `lockAction: true`. | `window`, `containerRef`. |
+| `[NOVO]` | `discreteProgressStore.ts` | Progresso discreto | Store global: `startDiscreteProgress`, `patchDiscreteProgress`, `stopDiscreteProgress`; posição em `localStorage`. | `DiscreteProgressEntry`. |
+| `[NOVO]` | `discreteProgressTasks.ts` | Progresso discreto | Configuração de tarefas: `convertAllUndefinedHashes`, `openFileCodeEditor` (`window: code-editor`, `lockAction: false`). | `DISCRETE_PROGRESS_TASK`. |
+| `[NOVO]` | `discreteProgressHandlers.ts` | Progresso discreto | Handlers por `name` (cancel, confirm, dismiss) sem acoplar UI ao hook. | `setDiscreteProgressHandlers`. |
+| `[NOVO]` | `useDiscreteProgressWindow.ts` | Progresso discreto | Hook React subscreve o store por janela. | `window` → `DiscreteProgressEntry[]`. |
+| `[NOVO]` | `convertAllUndefinedHashes.ts` | Convert all | Varredura de `0x…`, conversão sequencial, `onProgress` / `isCancelled`. | `BulkHashConvertPassResult`. |
+| `[NOVO]` | `convertRitualHashToString.ts` | Convert to string | Pipeline partilhado item a item (mesmo que menu com hash seleccionada). | `convertRitualHashToStringInDocument` → `string \| null`. |
+| `[NOVO]` | `resolveRitualHashForEditor.ts` | Hash resolve | Camadas: VFX local → map keys → literais → bridge ritobin → unhash snippet; modo `tables-only`. | `hash`, `contextLine`, `documentText`, `precedingLines`, `{ mode }`. |
+| `[ATUALIZADO]` | `useCodeDockJadeEditor.ts` | Convert all | Orquestra job, cancel, retry por tabelas, edits Monaco; usa store em vez de `BlockingProgressDialog`. | Handlers exportados no return do hook. |
+| `[ATUALIZADO]` | `CodeDockEditorContextMenu.tsx` | Menu contexto | Item «Convert all undefined hashes» quando `ctxSelectedText.length === 0`. | `showConvertAllUndefinedHashes`. |
+| `[ATUALIZADO]` | `CodeDockJadeDialogs.tsx` | CodeDock | Remove `BlockingProgressDialog` da conversão em massa (progresso no widget). | — |
+| `[ATUALIZADO]` | `CodeDock.tsx` | CodeDock | `DiscreteProgressHost` sobre `editorHost`; `position: relative` no host. | `editorHostRef`. |
+| `[ATUALIZADO]` | `App.tsx` | Abrir ficheiro | `loadTextIntoCodeDock` reporta progresso via `openFileCodeEditor`; sem `showAppAlert` no open. | `LoadTextIntoCodeDock`. |
+| `[ATUALIZADO]` | `tokens.css` | Design system | Tokens `--discrete-progress-*` (bg, accent, shadow, stack). | CSS variables. |
+| `[ATUALIZADO]` | `languageIds.ts` + JSON i18n | i18n | LangId 922–940 (menu, progresso, open file, confirm/cancel). | `pt-br.json`, `en.json`, `test.json`. |
+| `[ATUALIZADO]` | `jadeMenuLabels.ts` | i18n menu | Label `convertAllUndefinedHashes`. | `buildJadeEditorContextMenuLabels`. |
 
 ---
 
 ## 6. Descrição Detalhada de Funcionamento
 
-### Modelo Label Block
+### Convert to string (item seleccionado)
 
-[NOVO] Uma **Label Block** (etiqueta) é um nó visual no canvas que expõe um subconjunto de parâmetros de um **bloco pai** (`BlockCard`), sem duplicar dados: valores são lidos e escritos no `blockStructure` do pai via matching de `parameterId`.
+[ATUALIZADO] O menu **Convert to string** (hash `0x…` seleccionada) e a conversão em massa partilham `convertRitualHashToStringInDocument`, que delega em `resolveRitualHashForEditor` com até 8 linhas de contexto anterior — alinhado ao algoritmo nativo estilo Quartz (VFX → documento → tabelas categorizadas → unhash de snippet).
 
-[NOVO] `LabelStructurePayload` guarda `labelName`, `color`, `parentBlockNodeId` (vazio = avulsa até vincular), `catalogBlockType` (tipo de catálogo para picker standalone) e lista `parameters` com flag opcional `hiddenInParent`.
+### Convert all undefined hashes (sem seleção)
 
-### Criação fromParent vs standalone
+[NOVO] Com seleção vazia, o menu de contexto expõe **Converter todas as hashes indefinidas para string**. O documento é varrido por `findHashOccurrencesInLines`; cada ocorrência é convertida **em sequência**, actualizando o texto intermédio (equivalente a repetir «Convert to string» manualmente).
 
-[NOVO] **FromParent:** menu de contexto do bloco ou botão «+» em «Labels vinculadas» no rodapé. `CreateLabelDialog` lista parâmetros do pai excluindo os já reservados por outras labels (`listParameterIdsReservedBySiblingLabels`). Spawn ~+400px em X.
+[NOVO] O progresso usa `DiscreteProgressIndicator` (`name: convertAllUndefinedHashes`, `window: code-editor`, `lockAction: false`) — o utilizador pode continuar a editar enquanto o widget está visível.
 
-[NOVO] **Standalone:** menu da grade «Criar nova etiqueta». Escolha do tipo de bloco via `EmbeddedStructureListPicker`; parâmetros vêm do catálogo. Vínculo posterior pelo rodapé «Bloco vinculado» com hover amarelo no candidato.
+[ATUALIZADO] Confirmações (cancelar job, retry só por tabelas FrogTools) e relatório final são mostrados **no próprio widget** (fases `confirm` e `summary`), não via `window.alert` / `window.confirm` / `BlockingProgressDialog`.
 
-[ATUALIZADO] **Edição:** menu de contexto da label → `CreateLabelDialog` modo `edit` com `initialDraft`.
+### Progresso ao abrir ficheiro
 
-### LabelCard e espelhamento
+[NOVO] `loadTextIntoCodeDock` inicia `openFileCodeEditor` com passos: preparar → resolver ritual → abrir tab → summary com nome do ficheiro e via de conversão. Substitui o alerta modal ao abrir `.bin` convertido.
 
-[NOVO] `LabelCard` reutiliza `BlockParameterRow` em grid de **5 colunas** (slot IN → ícone → nome → valor → slot OUT). Eventos de slot e commit de valor actuam no **nó pai** (`canvasNodeId` do bloco resolvido).
+### Progresso discreto — arquitectura
 
-[ATUALIZADO] Sem pai vinculado: aviso visual; com pai removido da cena: mensagem «bloco pai removido».
+[NOVO] Store leve (`discreteProgressStore`) desacopla tarefas longas da UI. Handlers registados por `name` permitem cancel/confirm/dismiss sem props drilling. Posição arrastável persistida por tarefa. Estilo via tokens do design system (`--app-popover-gradient`, `--ctx-menu-hover-bg`, `--color-text-*`).
 
-### Efeitos no bloco pai
+### Regras de negócio e erros
 
-[NOVO] `resolveLabelEffectsForParent` agrega, para cada parâmetro do pai, cores de highlight (de labels que o incluem) e ocultação se **qualquer** label marcar `hiddenInParent`.
-
-[ATUALIZADO] `BlockCard` filtra parâmetros ocultos e passa `labelHighlightColor` às linhas. Toggle global no `LabelCardParameterMenu` via ícone olho (`toggleAllLabelParametersHiddenInParent`).
-
-### Saída JSON no cabeçalho
-
-[NOVO] Slot `label-header:{nodeId}:0` expõe tipo `json`. `buildLabelJsonExport` produz objecto `{ nomeCampo: { value, type } }` com tipos ritual do parâmetro espelhado.
-
-[ATUALIZADO] Conexões para addons (ex.: `addon-code-to-json`) via `crossSlotConnections` e `labelSlotConnections`; avaliação em `instanceEvaluator`.
-
-### Persistência
-
-[NOVO] Dev workspace: ficheiro `labels.json` no bundle (`labelScenePersistence`).
-
-[ATUALIZADO] Export/import JSON de cena v2: campo `labels[]` em `leagueBinScene`. Snapshots de abas incluem `labelStructure` nos nós.
-
-### Vínculo bloco ↔ label
-
-[NOVO] `linkLabelToParentBlock` alinha IDs com `remapLabelParametersForBlockStructure`; reutiliza parâmetro existente ou adiciona ao bloco quando necessário.
-
-[ATUALIZADO] UI: rodapé `BlockCard` (labels vinculadas — ícone `link parametro.svg`); rodapé `LabelCard` (bloco vinculado — ícone `link block.svg`).
-
-### Tratamento de erros e confirmações
-
-- Nome vazio ao criar: erro inline no diálogo (sem `window.alert`).
-- Bloco inválido como pai: `{ ok: false, error: '...' }` de `createLabelBlockFromParent`.
-- Export JSON sem pai: objecto vazio `{}`.
-- Fluxos de confirmação destrutiva seguem **Messenger Popup** quando aplicável em menus partilhados; labels não introduzem novos `window.confirm`.
+- Hashes puramente internas ao bin podem falhar mesmo após retry `tables-only` — esperado se não existirem nas tabelas CommunityDragon.
+- Cancelamento interrompe o loop (`isCancelled`); edits já aplicados mantêm-se.
+- Retry por tabelas só corre sobre `failedOccurrences` do primeiro passe (`mode: tables-only` → só `resolveHashViaBridge`).
+- `LockAction: false` — sem overlay bloqueante; editor permanece interactivo.
 
 ---
 
 ## 7. Como utilizar (didático)
 
-### Português
-
-1. Seleccione um **bloco** no canvas (vista de bloco activa).
-2. **Clique direito** no cabeçalho/rodapé → **Criar etiqueta**, ou use **+** em «Labels vinculadas» no rodapé do bloco.
-3. Defina **nome**, **cor** e **parâmetros** a expor (parâmetros já usados noutras labels do mesmo bloco não aparecem).
-4. Confirme → aparece um **LabelCard** ao lado, com os valores espelhados do pai.
-5. Edite valores no LabelCard — alterações reflectem-se no **bloco pai**.
-6. Use o **ícone olho** no rodapé da label para **ocultar/mostrar** todos os parâmetros da label no bloco pai.
-7. Arraste o **slot de saída JSON** do cabeçalho da label para um addon (ex.: code-to-json) para consumir o objecto tipado.
-8. Para **etiqueta avulsa**: clique direito na **grade vazia** → **Criar nova etiqueta** → escolha tipo de bloco e parâmetros → vincule depois via **Bloco vinculado** no rodapé.
-9. **Editar** nome/cor/parâmetros: clique direito na label → **Editar etiqueta**.
-
 ### English
 
-1. Select a **block** on the canvas (block view active).
-2. **Right-click** header/footer → **Create label**, or use **+** under **Linked labels** on the block footer.
-3. Set **name**, **color**, and **parameters** to expose (parameters already used by sibling labels are excluded).
-4. Confirm → a **LabelCard** spawns beside the parent with mirrored values.
-5. Edit values on the LabelCard — changes apply to the **parent block**.
-6. Use the **eye icon** on the label footer to **hide/show** all label parameters on the parent block.
-7. Drag the header **JSON output slot** to an addon (e.g. code-to-json) to consume the typed object.
-8. For a **standalone label**: right-click **empty canvas** → **Create new label** → pick block type and parameters → link later via **Linked block** in the footer.
-9. **Edit** name/color/parameters: right-click the label → **Edit label**.
+1. Open a ritual/bin file in the **Code** panel (Native/ritobin mode).
+2. **Convert one hash:** select a token like `0x3d25b8ce`, right-click → **Convert to string**.
+3. **Convert all hashes:** right-click with **no selection** → **Convert all undefined hashes to string**.
+4. A **floating progress widget** appears (bottom-right of the editor); drag it by the top grip if needed.
+5. When some hashes fail, the widget asks whether to retry using **hash tables only**; choose Yes or No, then read the summary and click **OK**.
+6. **Opening a file:** File → Open (or recent file) shows the same widget while the file is resolved and opened; click **OK** on the summary.
+7. You can keep editing while progress runs (`LockAction: false`).
+
+### Português
+
+1. Abra um ficheiro ritual/bin no painel **Código** (modo Nativo/ritobin).
+2. **Converter uma hash:** seleccione um token como `0x3d25b8ce`, clique direito → **Convert to string**.
+3. **Converter todas:** clique direito **sem seleção** → **Converter todas as hashes indefinidas para string**.
+4. Aparece um **widget de progresso flutuante** (canto inferior direito do editor); arraste pelo grip superior se quiser reposicionar.
+5. Se algumas hashes falharem, o widget pergunta se deseja tentar **só pelas tabelas**; escolha Sim ou Não, leia o relatório e clique **OK**.
+6. **Ao abrir ficheiro:** Ficheiro → Abrir (ou recente) mostra o mesmo widget durante resolve + abertura da tab; confirme com **OK** no resumo.
+7. Pode continuar a editar enquanto o progresso corre (`LockAction: false`).
 
 ---
 

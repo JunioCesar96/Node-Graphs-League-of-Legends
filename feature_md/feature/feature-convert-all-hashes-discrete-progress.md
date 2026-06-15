@@ -9,7 +9,7 @@ Arquivo salvo em: `feature_md/feature/feature-convert-all-hashes-discrete-progre
 | Nome da Branch | `feature/convert-all-hashes-discrete-progress` |
 | Nome das Features | **Convert all undefined hashes to string** (menu de contexto sem seleção); **Convert to string** unificado; **Discrete Progress Indicator** (widget flutuante arrastável, `LockAction: false`); progresso ao **abrir ficheiro** no editor de código |
 | Versão atual | `1.5.0` |
-| Hash do Commit | _(preencher com `git rev-parse HEAD` na branch de entrega)_ |
+| Hash do Commit | `59c339c` |
 
 Documentação relacionada: `feature_md/prompet/prompt_doc.md`, `feature_md/feature/feature-menu-jade-codedock.md`.
 
