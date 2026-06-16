@@ -2,6 +2,8 @@
 
 Arquivo salvo em: `feature_md/feature/feature-convert-all-hashes-discrete-progress.md`
 
+![Tool Screenshot](./src/assets/connectionDisplay.png)
+
 ## 1. Cabeçalho
 
 | Campo | Valor |
